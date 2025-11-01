@@ -4,7 +4,8 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   FaChevronRight,
-  FaTimes
+  FaTimes,
+  FaUsers
 } from 'react-icons/fa'
 import { useState, useEffect, useMemo } from 'react'
 import { getMenuItemsForRole } from '@/utils/roleBasedMenus'
@@ -14,6 +15,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [expandedMenus, setExpandedMenus] = useState({})
   const [user, setUser] = useState(null)
   const [mounted, setMounted] = useState(false)
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false)
 
   // Load user only once on mount
   useEffect(() => {
@@ -22,14 +24,59 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     if (userData) {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
+      checkDepartmentHead()
     }
   }, [])
+
+  // Check if user is a department head
+  const checkDepartmentHead = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/team/check-head', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success && data.isDepartmentHead) {
+        setIsDepartmentHead(true)
+      }
+    } catch (error) {
+      console.error('Error checking department head:', error)
+    }
+  }
 
   // Get menu items based on user role (memoized)
   const menuItems = useMemo(() => {
     if (!user) return []
-    return getMenuItemsForRole(user.role)
-  }, [user])
+    const baseMenuItems = getMenuItemsForRole(user.role)
+
+    // Add Team menu item if user is a department head
+    if (isDepartmentHead) {
+      // Insert Team menu after Dashboard
+      const teamMenuItem = {
+        name: 'Team',
+        icon: FaUsers,
+        path: '/dashboard/team',
+        submenu: [
+          { name: 'Team Dashboard', path: '/dashboard/team' },
+          { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
+          { name: 'Task Approvals', path: '/dashboard/team/task-approvals' },
+        ]
+      }
+
+      return [
+        baseMenuItems[0], // Dashboard
+        teamMenuItem,
+        ...baseMenuItems.slice(1)
+      ]
+    }
+
+    return baseMenuItems
+  }, [user, isDepartmentHead])
 
   const toggleSubmenu = (menuName) => {
     setExpandedMenus(prev => ({

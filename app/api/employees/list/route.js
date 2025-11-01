@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import dbConnect from '@/lib/mongodb'
 import Employee from '@/models/Employee'
+import User from '@/models/User'
 
 // GET - Fetch all employees for chat
 export async function GET(request) {
@@ -18,28 +19,33 @@ export async function GET(request) {
 
     await dbConnect()
 
-    // Get current user's employee ID
-    const currentUser = await Employee.findOne({ user: decoded.userId })
-    if (!currentUser) {
+    // Get current user
+    const currentUserDoc = await User.findById(decoded.userId).select('employeeId role')
+    if (!currentUserDoc || !currentUserDoc.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
-    // Fetch all active employees except current user (excluding admin role)
+    // Fetch all active employees except current user
     const employees = await Employee.find({
-      _id: { $ne: currentUser._id },
+      _id: { $ne: currentUserDoc.employeeId },
       status: 'active'
     })
       .select('firstName lastName employeeCode profilePicture email designation department')
       .populate('designation', 'title')
       .populate('department', 'name')
-      .populate({
-        path: 'user',
-        select: 'role'
-      })
       .sort({ firstName: 1 })
+      .lean()
+
+    // Get all users to filter out admins
+    const allUsers = await User.find({ isActive: true }).select('employeeId role').lean()
+    const adminEmployeeIds = allUsers
+      .filter(u => u.role === 'admin')
+      .map(u => u.employeeId?.toString())
 
     // Filter out admin users
-    const filteredEmployees = employees.filter(emp => emp.user?.role !== 'admin')
+    const filteredEmployees = employees.filter(emp =>
+      !adminEmployeeIds.includes(emp._id.toString())
+    )
 
     return NextResponse.json({
       success: true,

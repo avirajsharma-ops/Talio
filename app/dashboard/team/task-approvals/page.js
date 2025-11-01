@@ -1,0 +1,303 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, CheckCircle, XCircle, User, FileText, Calendar, Tag } from 'lucide-react'
+
+export default function TaskApprovals() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [tasks, setTasks] = useState([])
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [action, setAction] = useState('')
+  const [remarks, setRemarks] = useState('')
+  const [processing, setProcessing] = useState(false)
+
+  useEffect(() => {
+    fetchTaskApprovals()
+  }, [])
+
+  const fetchTaskApprovals = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/team/task-approvals', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setTasks(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching task approvals:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAction = (task, actionType) => {
+    setSelectedTask(task)
+    setAction(actionType)
+    setShowModal(true)
+  }
+
+  const submitAction = async () => {
+    if (!selectedTask || !action) return
+
+    setProcessing(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/team/task-approvals', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          taskId: selectedTask._id,
+          action,
+          remarks
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // Remove the task from the list
+        setTasks(tasks.filter(t => t._id !== selectedTask._id))
+        setShowModal(false)
+        setSelectedTask(null)
+        setRemarks('')
+        alert(`Task ${action} successfully!`)
+      } else {
+        alert(data.message || 'Failed to process task')
+      }
+    } catch (error) {
+      console.error('Error processing task:', error)
+      alert('An error occurred while processing the task')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'critical': return 'bg-red-100 text-red-800'
+      case 'high': return 'bg-orange-100 text-orange-800'
+      case 'medium': return 'bg-yellow-100 text-yellow-800'
+      case 'low': return 'bg-green-100 text-green-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pb-14 md:pb-6">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="min-h-screen bg-gray-50 px-4 py-4 sm:p-6 lg:p-8 pb-14 md:pb-6">
+        {/* Header */}
+        <div className="mb-6">
+          <button
+            onClick={() => router.push('/dashboard/team')}
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            Back to Team Dashboard
+          </button>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Approvals</h1>
+          <p className="text-gray-600 mt-1">
+            {tasks.length} pending task {tasks.length === 1 ? 'approval' : 'approvals'}
+          </p>
+        </div>
+
+        {/* Task List */}
+        {tasks.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
+            <p className="text-gray-600">There are no pending task approvals at the moment.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {tasks.map((task) => (
+              <div key={task._id} className="bg-white rounded-lg shadow p-6">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+                  <div className="flex-1">
+                    {/* Task Title */}
+                    <div className="flex items-start space-x-3 mb-4">
+                      <div className="bg-purple-100 p-2 rounded-full mt-1">
+                        <FileText className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                          {task.title}
+                        </h3>
+                        {task.taskNumber && (
+                          <p className="text-sm text-gray-500">Task #{task.taskNumber}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Task Description */}
+                    {task.description && (
+                      <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-gray-900">{task.description}</p>
+                      </div>
+                    )}
+
+                    {/* Task Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center space-x-2 text-sm">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-600">Assigned by:</span>
+                        <span className="font-medium text-gray-900">
+                          {task.assignedBy?.firstName} {task.assignedBy?.lastName}
+                        </span>
+                      </div>
+                      {task.priority && (
+                        <div className="flex items-center space-x-2 text-sm">
+                          <Tag className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">Priority:</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                            {task.priority}
+                          </span>
+                        </div>
+                      )}
+                      {task.dueDate && (
+                        <div className="flex items-center space-x-2 text-sm">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">Due Date:</span>
+                          <span className="font-medium text-gray-900">
+                            {new Date(task.dueDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-600">Completed:</span>
+                        <span className="font-medium text-gray-900">
+                          {new Date(task.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Assigned To */}
+                    {task.assignedTo && task.assignedTo.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 font-medium mb-2">Assigned To:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {task.assignedTo.map((assigned, index) => (
+                            <div key={index} className="flex items-center space-x-2 bg-blue-50 px-3 py-1.5 rounded-full">
+                              <User className="h-3 w-3 text-blue-600" />
+                              <span className="text-sm text-blue-900">
+                                {assigned.employee?.firstName} {assigned.employee?.lastName}
+                              </span>
+                              {assigned.role && (
+                                <span className="text-xs text-blue-600">({assigned.role})</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Parent Task */}
+                    {task.parentTask && (
+                      <p className="text-xs text-gray-500">
+                        Parent Task: {task.parentTask.title}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex md:flex-col space-x-3 md:space-x-0 md:space-y-3 mt-4 md:mt-0 md:ml-6">
+                    <button
+                      onClick={() => handleAction(task, 'approved')}
+                      className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition-colors"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Approve</span>
+                    </button>
+                    <button
+                      onClick={() => handleAction(task, 'rejected')}
+                      className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      <span>Reject</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              {action === 'approved' ? 'Approve' : 'Reject'} Task
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to {action === 'approved' ? 'approve' : 'reject'} the task{' '}
+              <span className="font-semibold">"{selectedTask?.title}"</span>?
+            </p>
+
+            {/* Remarks */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Remarks {action === 'rejected' && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={action === 'rejected' ? 'Please provide a reason for rejection' : 'Optional remarks'}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowModal(false)
+                  setSelectedTask(null)
+                  setRemarks('')
+                }}
+                disabled={processing}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitAction}
+                disabled={processing || (action === 'rejected' && !remarks.trim())}
+                className={`flex-1 px-4 py-2.5 text-white rounded-lg transition-colors disabled:opacity-50 ${
+                  action === 'approved' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {processing ? 'Processing...' : `Confirm ${action === 'approved' ? 'Approval' : 'Rejection'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+

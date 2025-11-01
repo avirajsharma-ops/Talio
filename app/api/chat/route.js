@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 import dbConnect from '@/lib/mongodb'
 import Chat from '@/models/Chat'
-import Employee from '@/models/Employee'
+import User from '@/models/User'
 
 // GET - Fetch all chats for the current user
 export async function GET(request) {
@@ -20,14 +20,14 @@ export async function GET(request) {
     await dbConnect()
 
     // Get user's employee ID
-    const user = await Employee.findOne({ user: decoded.userId })
-    if (!user) {
+    const user = await User.findById(decoded.userId).select('employeeId')
+    if (!user || !user.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
     // Fetch all chats where user is a participant
     const chats = await Chat.find({
-      participants: user._id
+      participants: user.employeeId
     })
       .populate('participants', 'firstName lastName profilePicture employeeCode')
       .populate('admin', 'firstName lastName')
@@ -37,7 +37,7 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       data: chats,
-      currentUserId: user._id.toString()
+      currentUserId: user.employeeId.toString()
     })
   } catch (error) {
     console.error('Get chats error:', error)
@@ -61,8 +61,8 @@ export async function POST(request) {
     await dbConnect()
 
     // Get user's employee ID
-    const user = await Employee.findOne({ user: decoded.userId })
-    if (!user) {
+    const user = await User.findById(decoded.userId).select('employeeId')
+    if (!user || !user.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
@@ -82,7 +82,7 @@ export async function POST(request) {
 
       const existingChat = await Chat.findOne({
         isGroup: false,
-        participants: { $all: [user._id, participants[0]] }
+        participants: { $all: [user.employeeId, participants[0]] }
       })
 
       if (existingChat) {
@@ -97,8 +97,8 @@ export async function POST(request) {
     // Create new chat
     const chatData = {
       isGroup,
-      participants: isGroup ? [...participants, user._id] : [user._id, participants[0]],
-      createdBy: user._id,
+      participants: isGroup ? [...participants, user.employeeId] : [user.employeeId, participants[0]],
+      createdBy: user.employeeId,
       messages: []
     }
 
@@ -107,11 +107,11 @@ export async function POST(request) {
         return NextResponse.json({ success: false, message: 'Group name is required' }, { status: 400 })
       }
       chatData.name = name
-      chatData.admin = user._id
+      chatData.admin = user.employeeId
     }
 
     const chat = await Chat.create(chatData)
-    
+
     const populatedChat = await Chat.findById(chat._id)
       .populate('participants', 'firstName lastName profilePicture employeeCode')
       .populate('admin', 'firstName lastName')
