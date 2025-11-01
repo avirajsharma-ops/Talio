@@ -1,0 +1,275 @@
+/* Mobile Responsive Fixes - Standardized Padding & Overflow Prevention */
+
+@media (max-width: 640px) {
+  /* OUTER PADDING ONLY - 0.5rem (8px) left/right for page containers */
+  .page-container {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Main layout outer padding only */
+  main {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* STANDARDIZED CARD PADDING - All cards get consistent 1rem padding */
+  .bg-white,
+  .card,
+  [class*="bg-white"] {
+    padding: 1rem !important;
+  }
+
+  /* Stats cards and dashboard cards - consistent padding */
+  .stats-card,
+  .dashboard-card,
+  [class*="stats"].bg-white,
+  .grid > .bg-white {
+    padding: 1rem !important;
+  }
+
+  /* Chart containers - smaller padding for better mobile view */
+  .chart-container,
+  [class*="chart"] {
+    padding: 0.75rem !important;
+  }
+
+  /* TEXT OVERFLOW PREVENTION */
+  * {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent text overflow in titles and headings */
+  h1, h2, h3, h4, h5, h6 {
+    word-break: break-word !important;
+    hyphens: auto !important;
+  }
+
+  /* Button text overflow prevention */
+  button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  /* FORM ELEMENTS - Touch-friendly sizing */
+  button,
+  input,
+  select,
+  textarea {
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+
+  /* GRID AND FLEX GAPS - Consistent spacing */
+  .grid {
+    gap: 0.75rem !important;
+  }
+
+  .flex {
+    gap: 0.5rem !important;
+  }
+
+  /* RESPONSIVE TABLES */
+  .table-container,
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  table {
+    min-width: 600px !important;
+    font-size: 14px !important;
+  }
+
+  /* TABLE CELL PADDING */
+  td, th {
+    padding: 0.5rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* TEXT TRUNCATION UTILITIES */
+  .text-truncate,
+  .truncate {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Multi-line text truncation */
+  .text-clamp-2 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  /* CONTAINER OVERFLOW PREVENTION */
+  .container,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* SPACING UTILITIES - Consistent mobile spacing */
+  .space-y-1 > * + * { margin-top: 0.25rem !important; }
+  .space-y-2 > * + * { margin-top: 0.5rem !important; }
+  .space-y-3 > * + * { margin-top: 0.75rem !important; }
+  .space-y-4 > * + * { margin-top: 1rem !important; }
+  .space-y-6 > * + * { margin-top: 1rem !important; } /* Reduce large spacing on mobile */
+
+  .space-x-1 > * + * { margin-left: 0.25rem !important; }
+  .space-x-2 > * + * { margin-left: 0.5rem !important; }
+  .space-x-3 > * + * { margin-left: 0.75rem !important; }
+  .space-x-4 > * + * { margin-left: 1rem !important; }
+
+  /* FONT SIZE ADJUSTMENTS */
+  .text-3xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+  .text-2xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+  .text-xl { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+  .text-lg { font-size: 1rem !important; line-height: 1.5rem !important; }
+
+  /* ICON SIZING */
+  .w-8.h-8 { width: 1.5rem !important; height: 1.5rem !important; }
+  .w-6.h-6 { width: 1.25rem !important; height: 1.25rem !important; }
+  .w-5.h-5 { width: 1rem !important; height: 1rem !important; }
+
+  /* BUTTON SIZING AND SPACING */
+  .btn,
+  button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* MODAL AND OVERLAY FIXES */
+  .modal,
+  .fixed.inset-0 {
+    padding: 1rem !important;
+  }
+
+  .modal-content {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Margin utilities override */
+  .m-1 { margin: 0.25rem !important; }
+  .m-2 { margin: 0.5rem !important; }
+  .m-3 { margin: 0.75rem !important; }
+  .m-4 { margin: 1rem !important; }
+  
+  .mx-1 { margin-left: 0.25rem !important; margin-right: 0.25rem !important; }
+  .mx-2 { margin-left: 0.5rem !important; margin-right: 0.5rem !important; }
+  .mx-3 { margin-left: 0.75rem !important; margin-right: 0.75rem !important; }
+  .mx-4 { margin-left: 1rem !important; margin-right: 1rem !important; }
+  
+  .my-1 { margin-top: 0.25rem !important; margin-bottom: 0.25rem !important; }
+  .my-2 { margin-top: 0.5rem !important; margin-bottom: 0.5rem !important; }
+  .my-3 { margin-top: 0.75rem !important; margin-bottom: 0.75rem !important; }
+  .my-4 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
+  
+  /* SPECIFIC DASHBOARD CARD FIXES */
+
+  /* Admin Dashboard Stats Cards - Standardize padding */
+  .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 > .bg-white,
+  .grid.grid-cols-1.md\\:grid-cols-3 > .bg-white {
+    padding: 1rem !important;
+  }
+
+  /* Department Grid Cards */
+  .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3.gap-4 > .bg-white {
+    padding: 1rem !important;
+  }
+
+  /* Chart containers in dashboards */
+  .grid.grid-cols-1.lg\\:grid-cols-2 > .bg-white {
+    padding: 1rem !important;
+  }
+
+  /* Welcome sections - reduce padding */
+  .bg-gradient-to-r {
+    padding: 1rem !important;
+  }
+
+  /* Table containers - no inner padding */
+  .bg-white.rounded-lg.shadow-md.overflow-hidden {
+    padding: 0 !important;
+  }
+
+  /* Table headers should have padding */
+  .bg-white.rounded-lg.shadow-md.overflow-hidden .p-4,
+  .bg-white.rounded-lg.shadow-md.overflow-hidden .p-3 {
+    padding: 0.75rem !important;
+  }
+
+  /* Table responsive improvements */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Table cells responsive padding */
+  table th,
+  table td {
+    padding: 0.5rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  /* Table headers */
+  table th {
+    font-size: 0.75rem !important;
+    padding: 0.75rem 0.5rem !important;
+  }
+
+  /* Hide less important table columns on mobile */
+  .table-hide-mobile {
+    display: none !important;
+  }
+
+  /* Action buttons in cards */
+  .flex.space-x-2 button {
+    padding: 0.5rem !important;
+    min-width: 2.5rem !important;
+  }
+
+  /* Icon containers in cards */
+  .bg-primary-100,
+  .bg-blue-500,
+  .bg-green-500,
+  .bg-red-500,
+  .bg-yellow-500,
+  .bg-purple-500,
+  .bg-teal-500 {
+    padding: 0.75rem !important;
+  }
+
+  /* Consistent margins */
+  .mb-6 { margin-bottom: 1rem !important; }
+  .mb-4 { margin-bottom: 0.75rem !important; }
+  .mt-4 { margin-top: 0.75rem !important; }
+  .mt-2 { margin-top: 0.5rem !important; }
+
+  /* Gap overrides for better mobile spacing */
+  .gap-6 { gap: 0.75rem !important; }
+  .gap-4 { gap: 0.75rem !important; }
+  .gap-3 { gap: 0.5rem !important; }
+  .gap-2 { gap: 0.5rem !important; }
+}
+
+/* Additional fixes for tablets */
+@media (max-width: 768px) {
+  /* Ensure text doesn't overflow on tablets */
+  .text-2xl { font-size: 1.25rem !important; }
+  .text-3xl { font-size: 1.5rem !important; }
+
+  /* Reduce icon sizes on smaller screens */
+  .w-8.h-8 { width: 1.5rem !important; height: 1.5rem !important; }
+}

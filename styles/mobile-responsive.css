@@ -1,0 +1,299 @@
+/* Mobile Responsive Styles for HRMS */
+
+/* Base responsive utilities */
+@media (max-width: 640px) {
+  /* Dashboard container adjustments */
+  .dashboard-container {
+    padding: 0.5rem;
+  }
+
+  /* Card spacing adjustments */
+  .dashboard-card {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Text size adjustments for mobile */
+  .dashboard-title {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  .dashboard-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  /* Stats grid mobile optimization */
+  .stats-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .stats-card {
+    padding: 0.75rem;
+  }
+  
+  .stats-value {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  .stats-change {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Chart container mobile optimization */
+  .chart-container {
+    height: 16rem; /* 256px */
+    padding: 0.75rem;
+  }
+
+  /* Quick actions mobile grid */
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .quick-action-card {
+    padding: 0.75rem;
+  }
+  
+  .quick-action-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .quick-action-text {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Announcement cards mobile */
+  .announcement-card {
+    padding: 0.75rem;
+  }
+  
+  .announcement-title {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .announcement-content {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Holiday cards mobile */
+  .holiday-card {
+    padding: 0.75rem;
+  }
+  
+  .holiday-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  
+  .holiday-title {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  /* Activity list mobile */
+  .activity-item {
+    padding: 0.5rem 0;
+  }
+  
+  .activity-text {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Schedule items mobile */
+  .schedule-item {
+    padding: 0.5rem 0;
+  }
+  
+  .schedule-text {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Learning progress mobile */
+  .learning-item {
+    margin-bottom: 1rem;
+  }
+  
+  .learning-title {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .progress-bar {
+    height: 0.5rem;
+  }
+}
+
+/* Tablet responsive adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .chart-container {
+    height: 18rem; /* 288px */
+  }
+  
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1025px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .chart-container {
+    height: 20rem; /* 320px */
+  }
+  
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* Touch-friendly button sizes */
+@media (max-width: 640px) {
+  .touch-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem;
+  }
+  
+  .touch-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* Sidebar mobile adjustments */
+@media (max-width: 1024px) {
+  .sidebar-mobile {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+}
+
+/* Header mobile adjustments */
+@media (max-width: 640px) {
+  .header-container {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .header-search {
+    display: none;
+  }
+  
+  .header-actions {
+    gap: 0.5rem;
+  }
+  
+  .notification-dropdown {
+    width: 18rem;
+    right: -2rem;
+  }
+  
+  .profile-dropdown {
+    width: 11rem;
+    right: -1rem;
+  }
+}
+
+/* Form elements mobile optimization */
+@media (max-width: 640px) {
+  .form-input {
+    padding: 0.75rem;
+    font-size: 1rem; /* Prevents zoom on iOS */
+  }
+  
+  .form-select {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+  
+  .form-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Table responsive */
+@media (max-width: 640px) {
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table-mobile {
+    min-width: 600px;
+  }
+}
+
+/* Modal mobile adjustments */
+@media (max-width: 640px) {
+  .modal-container {
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
+    overflow-y: auto;
+  }
+
+  .modal-content {
+    padding: 0.75rem;
+  }
+}
+
+/* Utility classes for mobile */
+.mobile-hidden {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .mobile-hidden {
+    display: block;
+  }
+}
+
+.mobile-only {
+  display: block;
+}
+
+@media (min-width: 641px) {
+  .mobile-only {
+    display: none;
+  }
+}
+
+/* Scroll behavior */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Focus states for accessibility */
+@media (max-width: 640px) {
+  .focus-mobile:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}
