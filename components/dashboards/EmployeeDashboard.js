@@ -322,125 +322,49 @@ export default function EmployeeDashboard({ user }) {
 
   return (
     <div className="page-container space-y-4 sm:space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg p-3 sm:p-6 text-white">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">My Dashboard 🌟</h1>
-        <p className="text-teal-100 text-sm sm:text-base">Track your work, growth, and achievements</p>
-        {dashboardStats?.employee && (
-          <div className="mt-3 text-teal-100 text-sm">
-            <p>Welcome back, {dashboardStats.employee.name}!</p>
-          </div>
-        )}
-      </div>
-
-      {/* Check-In/Check-Out Section */}
-      <div className="bg-gradient-to-br from-teal-700 via-cyan-500 to-blue-500 rounded-2xl shadow-xl p-4 sm:p-6 text-white">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 sm:gap-6">
-          {/* Left Side - Info */}
-          <div className="flex-1 w-full">
-            <div className="flex items-center space-x-3 mb-3 sm:mb-4">
-              <div className="bg-white bg-opacity-20 p-2 sm:p-3 rounded-full">
-                <FaClock className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold">Quick Attendance</h2>
-                <p className="text-teal-100 text-xs sm:text-sm">Mark your attendance for today</p>
-              </div>
+      {/* Check-In/Check-Out Section - New Design */}
+      <div style={{ backgroundColor: '#1A295A' }} className="rounded-3xl shadow-xl p-6 sm:p-8 text-white">
+        {/* Top Section - User Info and Buttons */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-6">
+          {/* User Profile Section */}
+          <div className="flex items-center gap-4">
+            {/* Profile Picture */}
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+              {user?.employeeId?.profilePicture ? (
+                <img
+                  src={user.employeeId.profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <FaUser className="w-12 h-12 sm:w-14 sm:h-14 text-white" />
+              )}
             </div>
 
-            {/* Attendance Status */}
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-                {/* Check In Time */}
-                <div className="bg-white bg-opacity-10 rounded-lg p-2 sm:p-3">
-                  <div className="flex items-center space-x-2 mb-1 sm:mb-2">
-                    <FaSignInAlt className="w-3 h-3 sm:w-4 sm:h-4 text-green-300" />
-                    <p className="text-xs font-medium text-teal-100">Check In</p>
-                  </div>
-                  <p className="text-base sm:text-xl font-bold">
-                    {todayAttendance?.checkIn
-                      ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })
-                      : '--:--'}
-                  </p>
-                  {todayAttendance?.checkInStatus && (
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      todayAttendance.checkInStatus === 'on-time' ? 'bg-green-500' :
-                      todayAttendance.checkInStatus === 'late' ? 'bg-red-500' : 'bg-blue-500'
-                    }`}>
-                      {todayAttendance.checkInStatus === 'on-time' ? '✓ On Time' :
-                       todayAttendance.checkInStatus === 'late' ? '⚠ Late' : '⭐ Early'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Check Out Time */}
-                <div className="bg-white bg-opacity-10 rounded-lg p-2 sm:p-3">
-                  <div className="flex items-center space-x-2 mb-1 sm:mb-2">
-                    <FaSignOutAlt className="w-3 h-3 sm:w-4 sm:h-4 text-orange-300" />
-                    <p className="text-xs font-medium text-teal-100">Check Out</p>
-                  </div>
-                  <p className="text-base sm:text-xl font-bold">
-                    {todayAttendance?.checkOut
-                      ? new Date(todayAttendance.checkOut).toLocaleTimeString('en-IN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        })
-                      : '--:--'}
-                  </p>
-                  {todayAttendance?.checkOutStatus && (
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      todayAttendance.checkOutStatus === 'on-time' ? 'bg-green-500' :
-                      todayAttendance.checkOutStatus === 'early' ? 'bg-yellow-500' : 'bg-blue-500'
-                    }`}>
-                      {todayAttendance.checkOutStatus === 'on-time' ? '✓ On Time' :
-                       todayAttendance.checkOutStatus === 'early' ? '⚠ Early' : '⭐ Late'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Work Hours */}
-                <div className="bg-white bg-opacity-10 rounded-lg p-2 sm:p-3">
-                  <div className="flex items-center space-x-2 mb-1 sm:mb-2">
-                    <FaClock className="w-3 h-3 sm:w-4 sm:h-4 text-purple-300" />
-                    <p className="text-xs font-medium text-teal-100">Work Hours</p>
-                  </div>
-                  <p className="text-base sm:text-xl font-bold">
-                    {todayAttendance?.workHours
-                      ? `${todayAttendance.workHours}h`
-                      : '--'}
-                  </p>
-                  {todayAttendance?.status && (
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      todayAttendance.status === 'present' ? 'bg-green-500' :
-                      todayAttendance.status === 'half-day' ? 'bg-yellow-500' :
-                      todayAttendance.status === 'in-progress' ? 'bg-blue-500' : 'bg-red-500'
-                    }`}>
-                      {todayAttendance.status === 'present' ? '✓ Full Day' :
-                       todayAttendance.status === 'half-day' ? '½ Half Day' :
-                       todayAttendance.status === 'in-progress' ? '⏳ In Progress' : '✗ Absent'}
-                    </span>
-                  )}
-                </div>
-              </div>
+            {/* User Name and ID */}
+            <div>
+              <p className="text-sm text-gray-300 mb-1">
+                ID:{user?.employeeId?.employeeId || '---'}
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wide">
+                {dashboardStats?.employee?.name || user?.employeeId?.firstName + ' ' + user?.employeeId?.lastName || 'User'}
+              </h2>
             </div>
           </div>
 
-          {/* Right Side - Action Buttons */}
-          <div className="flex flex-row sm:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
+          {/* Action Buttons */}
+          <div className="flex gap-3 w-full lg:w-auto">
             <button
               onClick={handleClockIn}
               disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
-              className="group relative bg-white text-teal-600 hover:bg-teal-50 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2 flex-1 lg:min-w-[180px]"
+              className="group relative bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-6 py-3 rounded-xl font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 flex-1 lg:min-w-[160px]"
             >
-              <FaSignInAlt className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Clock In</span>
+              <span>Check In</span>
+              <div className="w-6 h-6 rounded-full border-2 border-gray-800 flex items-center justify-center">
+                <div className="w-3 h-3 bg-gray-800 rounded-full transform rotate-45"></div>
+              </div>
               {todayAttendance?.checkIn && (
-                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                   ✓
                 </span>
               )}
@@ -449,12 +373,14 @@ export default function EmployeeDashboard({ user }) {
             <button
               onClick={handleClockOut}
               disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
-              className="group relative bg-white text-orange-600 hover:bg-orange-50 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-6 py-3 sm:py-4 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2 flex-1 lg:min-w-[180px]"
+              className="group relative bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-6 py-3 rounded-xl font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 flex-1 lg:min-w-[160px]"
             >
-              <FaSignOutAlt className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Clock Out</span>
+              <span>Check Out</span>
+              <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full transform rotate-45"></div>
+              </div>
               {todayAttendance?.checkOut && (
-                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                   ✓
                 </span>
               )}
@@ -462,21 +388,102 @@ export default function EmployeeDashboard({ user }) {
           </div>
         </div>
 
+        {/* Quick Glance Section */}
+        <div className="bg-white bg-opacity-5 rounded-2xl p-5">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: '#E8EAF6' }}>Quick Glance</h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Check In Time */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                  <FaSignInAlt className="w-3 h-3" />
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#B0BEC5' }}>Check In Time</p>
+              </div>
+              <div className="bg-green-100 rounded-xl p-4">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">
+                  {todayAttendance?.checkIn
+                    ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    : '--:--'}
+                </p>
+              </div>
+            </div>
+
+            {/* Check Out Time */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                  <FaSignOutAlt className="w-3 h-3" />
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#B0BEC5' }}>Check Out Time</p>
+              </div>
+              <div className="bg-red-100 rounded-xl p-4">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">
+                  {todayAttendance?.checkOut
+                    ? new Date(todayAttendance.checkOut).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    : '--:--'}
+                </p>
+              </div>
+            </div>
+
+            {/* Work Hours */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                  <FaClock className="w-3 h-3" />
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#B0BEC5' }}>Work Hours</p>
+              </div>
+              <div className="bg-yellow-100 rounded-xl p-4">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">
+                  {todayAttendance?.workHours || '00:00'}
+                </p>
+              </div>
+            </div>
+
+            {/* Additional Work Hours or Status */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+                  <FaClock className="w-3 h-3" />
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#B0BEC5' }}>Work Hours</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-800">
+                  {todayAttendance?.checkIn && !todayAttendance?.checkOut
+                    ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    : '--:--'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Office Timing Info */}
-        <div className="mt-3 sm:mt-4 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-2 sm:p-3">
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 text-xs">
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse"></div>
+        <div className="mt-4 bg-white bg-opacity-5 rounded-xl p-3">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
               <span className="font-medium">Office: 11:00 AM - 7:00 PM</span>
             </div>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-400 rounded-full"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
               <span>Full Day: 8+ hrs</span>
             </div>
-            {/* <div className="flex items-center space-x-1 sm:space-x-2">
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full"></div>
-              <span>Half Day:  hrs</span>
-            </div> */}
           </div>
         </div>
       </div>
