@@ -172,73 +172,83 @@ export default function Header({ toggleSidebar }) {
             <FaBars className="w-8 h-8 sm:w-6 sm:h-6" />
           </button>
 
-          {/* Search bar */}
-          <div ref={searchRef} className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 sm:px-4 py-2 w-64 lg:w-96 relative">
-            <FaSearch className="text-gray-400 mr-2 w-4 h-4" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search everything..."
-              className="bg-transparent border-none focus:outline-none w-full text-sm"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setShowSearchResults(false)
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FaTimes className="w-3 h-3" />
-              </button>
-            )}
-            {searching && <FaSpinner className="animate-spin text-blue-600 ml-2 w-4 h-4" />}
+          {/* Search bar - Desktop */}
+          <div ref={searchRef} className="hidden md:block relative w-64 lg:w-96">
+            <div className="relative flex items-center">
+              <FaSearch className="absolute left-3 text-gray-400 w-4 h-4 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search everything..."
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+              {searching && (
+                <FaSpinner className="absolute right-3 animate-spin text-blue-600 w-4 h-4" />
+              )}
+              {searchQuery && !searching && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setShowSearchResults(false)
+                  }}
+                  className="absolute right-3 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 max-h-[80vh] overflow-y-auto z-50">
-                {Object.entries(searchResults).map(([category, items]) => {
-                  if (items.length === 0) return null
-                  return (
-                    <div key={category} className="border-b border-gray-100 last:border-b-0">
-                      <div className="px-4 py-2 bg-gray-50 font-semibold text-xs text-gray-600 uppercase sticky top-0">
-                        {getCategoryLabel(category)} ({items.length})
-                      </div>
-                      {items.map((item) => (
-                        <div
-                          key={item._id}
-                          onClick={() => handleSearchResultClick(item.link)}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="text-2xl flex-shrink-0">{getResultIcon(item.type)}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-semibold text-sm text-gray-900 truncate">{item.title}</h4>
-                                {item.meta && (
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{item.meta}</span>
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-[70vh] overflow-hidden z-50">
+                <div className="overflow-y-auto max-h-[70vh] scrollbar-hide">
+                  {Object.entries(searchResults).map(([category, items]) => {
+                    if (items.length === 0) return null
+                    return (
+                      <div key={category} className="border-b border-gray-100 last:border-b-0">
+                        <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 font-semibold text-xs text-gray-700 uppercase sticky top-0 z-10 border-b border-gray-200">
+                          {getCategoryLabel(category)} <span className="text-gray-500">({items.length})</span>
+                        </div>
+                        {items.map((item, index) => (
+                          <div
+                            key={item._id || index}
+                            onClick={() => handleSearchResultClick(item.link)}
+                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="text-xl flex-shrink-0 mt-0.5">{getResultIcon(item.type)}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-sm text-gray-900 truncate">{item.title}</h4>
+                                  {item.meta && item.type === 'page' && (
+                                    <span className="text-lg">{item.meta}</span>
+                                  )}
+                                  {item.meta && item.type !== 'page' && (
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{item.meta}</span>
+                                  )}
+                                </div>
+                                {item.subtitle && (
+                                  <p className="text-xs text-blue-600 mb-1">{item.subtitle}</p>
+                                )}
+                                {item.description && (
+                                  <p className="text-xs text-gray-500 line-clamp-1">{item.description}</p>
                                 )}
                               </div>
-                              {item.subtitle && (
-                                <p className="text-xs text-gray-600 mb-1">{item.subtitle}</p>
-                              )}
-                              {item.description && (
-                                <p className="text-xs text-gray-500 truncate">{item.description}</p>
-                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )
+                  })}
+                  {Object.values(searchResults).every(arr => arr.length === 0) && (
+                    <div className="px-4 py-12 text-center text-gray-500">
+                      <FaSearch className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm font-medium">No results found for "{searchQuery}"</p>
+                      <p className="text-xs text-gray-400 mt-1">Try different keywords or check spelling</p>
                     </div>
-                  )
-                })}
-                {Object.values(searchResults).every(arr => arr.length === 0) && (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    <FaSearch className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">No results found for "{searchQuery}"</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -414,33 +424,36 @@ export default function Header({ toggleSidebar }) {
                   <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
                 </div>
               ) : searchResults ? (
-                <div>
+<div>
                   {Object.entries(searchResults).map(([category, items]) => {
                     if (items.length === 0) return null
                     return (
                       <div key={category} className="border-b border-gray-100">
-                        <div className="px-4 py-3 bg-gray-50 font-semibold text-sm text-gray-700 uppercase sticky top-0">
-                          {getCategoryLabel(category)} ({items.length})
+                        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 font-semibold text-sm text-gray-700 uppercase sticky top-0 z-10">
+                          {getCategoryLabel(category)} <span className="text-gray-500">({items.length})</span>
                         </div>
-                        {items.map((item) => (
+                        {items.map((item, index) => (
                           <div
-                            key={item._id}
+                            key={item._id || index}
                             onClick={() => handleSearchResultClick(item.link)}
-                            className="px-4 py-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer border-b border-gray-50"
+                            className="px-4 py-4 hover:bg-blue-50 active:bg-blue-100 cursor-pointer border-b border-gray-50 transition-colors"
                           >
                             <div className="flex items-start gap-3">
-                              <div className="text-3xl flex-shrink-0">{getResultIcon(item.type)}</div>
+                              <div className="text-2xl flex-shrink-0 mt-1">{getResultIcon(item.type)}</div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <h4 className="font-semibold text-base text-gray-900">{item.title}</h4>
+                                  {item.meta && item.type === 'page' && (
+                                    <span className="text-xl">{item.meta}</span>
+                                  )}
                                 </div>
                                 {item.subtitle && (
-                                  <p className="text-sm text-gray-600 mb-1">{item.subtitle}</p>
+                                  <p className="text-sm text-blue-600 mb-1">{item.subtitle}</p>
                                 )}
                                 {item.description && (
                                   <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
                                 )}
-                                {item.meta && (
+                                {item.meta && item.type !== 'page' && (
                                   <span className="inline-block text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mt-2">
                                     {item.meta}
                                   </span>
@@ -456,8 +469,8 @@ export default function Header({ toggleSidebar }) {
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4 py-12">
                       <FaSearch className="w-16 h-16 mb-4 text-gray-300" />
                       <p className="text-lg font-medium">No results found</p>
-                      <p className="text-sm text-center mt-2">
-                        Try searching with different keywords
+                      <p className="text-sm text-center mt-2 text-gray-500">
+                        Try different keywords or check spelling
                       </p>
                     </div>
                   )}

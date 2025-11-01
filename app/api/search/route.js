@@ -12,8 +12,54 @@ import Document from '@/models/Document'
 import Asset from '@/models/Asset'
 import Announcement from '@/models/Announcement'
 import Policy from '@/models/Policy'
+import Fuse from 'fuse.js'
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+
+// Synonym dictionary for better word matching
+const synonyms = {
+  'leave': ['vacation', 'holiday', 'time off', 'pto', 'absence', 'off', 'break'],
+  'vacation': ['leave', 'holiday', 'time off', 'pto', 'break'],
+  'holiday': ['leave', 'vacation', 'time off', 'festival', 'day off'],
+  'attendance': ['presence', 'check in', 'check out', 'clock in', 'clock out', 'punch', 'timesheet'],
+  'salary': ['pay', 'payroll', 'compensation', 'wage', 'payment', 'payslip', 'earnings'],
+  'pay': ['salary', 'payroll', 'compensation', 'wage', 'payment'],
+  'payroll': ['salary', 'pay', 'compensation', 'wage', 'payslip'],
+  'task': ['work', 'assignment', 'project', 'todo', 'job', 'activity'],
+  'work': ['task', 'assignment', 'project', 'job', 'activity'],
+  'employee': ['staff', 'worker', 'team member', 'colleague', 'personnel'],
+  'staff': ['employee', 'worker', 'team member', 'personnel'],
+  'department': ['division', 'team', 'unit', 'section', 'group'],
+  'profile': ['account', 'settings', 'personal', 'my profile', 'user'],
+  'document': ['file', 'paper', 'form', 'record', 'certificate'],
+  'announcement': ['news', 'notice', 'update', 'information', 'alert', 'notification'],
+  'policy': ['rule', 'guideline', 'regulation', 'procedure', 'protocol'],
+  'performance': ['review', 'appraisal', 'evaluation', 'assessment', 'rating', 'kpi'],
+  'asset': ['equipment', 'device', 'resource', 'inventory', 'property'],
+  'expense': ['claim', 'reimbursement', 'bill', 'receipt', 'cost'],
+  'travel': ['trip', 'journey', 'business travel', 'tour'],
+  'help': ['support', 'helpdesk', 'assistance', 'ticket', 'issue'],
+  'recruitment': ['hiring', 'job', 'career', 'opening', 'position', 'vacancy'],
+  'onboarding': ['joining', 'new hire', 'orientation', 'induction'],
+  'offboarding': ['exit', 'resignation', 'leaving', 'separation', 'termination'],
+  'chat': ['message', 'messaging', 'communication', 'talk', 'conversation'],
+  'home': ['dashboard', 'main', 'overview', 'home page'],
+  'dashboard': ['home', 'main', 'overview']
+}
+
+// Function to expand search query with synonyms
+function expandQueryWithSynonyms(query) {
+  const words = query.toLowerCase().split(' ')
+  const expandedWords = new Set(words)
+
+  words.forEach(word => {
+    if (synonyms[word]) {
+      synonyms[word].forEach(synonym => expandedWords.add(synonym))
+    }
+  })
+
+  return Array.from(expandedWords)
+}
 
 export async function GET(request) {
   try {
@@ -74,21 +120,49 @@ export async function GET(request) {
       { title: 'Ideas & Sandbox', description: 'Share ideas and suggestions', link: '/dashboard/sandbox', icon: '💡', keywords: ['ideas', 'sandbox', 'suggestions', 'innovation', 'feedback'] },
     ]
 
-    // Search through app pages
-    const matchedPages = appPages.filter(page => {
-      const searchLower = query.toLowerCase()
-      return page.title.toLowerCase().includes(searchLower) ||
-             page.description.toLowerCase().includes(searchLower) ||
-             page.keywords.some(keyword => keyword.includes(searchLower))
-    }).slice(0, 10)
+    // Expand query with synonyms
+    const expandedTerms = expandQueryWithSynonyms(query)
 
-    results.pages = matchedPages.map(page => ({
+    // Configure Fuse.js for fuzzy search
+    const fuseOptions = {
+      keys: [
+        { name: 'title', weight: 0.4 },
+        { name: 'description', weight: 0.3 },
+        { name: 'keywords', weight: 0.3 }
+      ],
+      threshold: 0.4, // 0.0 = perfect match, 1.0 = match anything
+      distance: 100,
+      minMatchCharLength: 2,
+      includeScore: true,
+      ignoreLocation: true
+    }
+
+    const fuse = new Fuse(appPages, fuseOptions)
+
+    // Search with original query
+    let fuseResults = fuse.search(query)
+
+    // Also search with expanded terms (synonyms)
+    expandedTerms.forEach(term => {
+      if (term !== query.toLowerCase()) {
+        const synonymResults = fuse.search(term)
+        fuseResults = [...fuseResults, ...synonymResults]
+      }
+    })
+
+    // Remove duplicates and sort by score
+    const uniqueResults = Array.from(
+      new Map(fuseResults.map(item => [item.item.link, item])).values()
+    ).sort((a, b) => a.score - b.score).slice(0, 10)
+
+    results.pages = uniqueResults.map(result => ({
       type: 'page',
-      title: page.title,
+      title: result.item.title,
       subtitle: 'Navigate to',
-      description: page.description,
-      meta: page.icon,
-      link: page.link
+      description: result.item.description,
+      meta: result.item.icon,
+      link: result.item.link,
+      score: result.score
     }))
 
     // Search Tasks (only user's tasks or tasks they're involved in)
