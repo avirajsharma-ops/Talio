@@ -212,6 +212,7 @@ export const roleBasedMenus = {
         { name: 'All Tasks', path: '/dashboard/tasks/all' },
         { name: 'Create Task', path: '/dashboard/tasks/create' },
         { name: 'My Tasks', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
         { name: 'Department Tasks', path: '/dashboard/tasks/department-tasks' },
       ]
     },
@@ -360,6 +361,7 @@ export const roleBasedMenus = {
       path: '/dashboard/tasks',
       submenu: [
         { name: 'My Tasks', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
         { name: 'Create Task', path: '/dashboard/tasks/create' },
         { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
         { name: 'Task Dashboard', path: '/dashboard/tasks' },
