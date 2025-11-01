@@ -129,7 +129,7 @@ export async function DELETE(request, { params }) {
 async function updateTaskProgress(taskId) {
   try {
     const milestones = await Milestone.find({ task: taskId, isDeleted: false })
-    
+
     if (milestones.length === 0) {
       // No milestones, keep task progress as is
       return
@@ -139,10 +139,26 @@ async function updateTaskProgress(taskId) {
     const totalProgress = milestones.reduce((sum, m) => sum + m.progress, 0)
     const averageProgress = Math.round(totalProgress / milestones.length)
 
+    // Get the task to check current status
+    const task = await Task.findById(taskId)
+
     // Update task progress
-    await Task.findByIdAndUpdate(taskId, {
-      progress: averageProgress
-    })
+    task.progress = averageProgress
+
+    // Auto-update status when progress reaches 100%
+    if (averageProgress === 100 && task.status !== 'completed') {
+      task.status = 'completed'
+      task.approvalStatus = 'pending'
+      task.statusHistory.push({
+        status: 'Task auto-completed (100% progress)',
+        changedBy: null,
+        reason: 'All milestones completed'
+      })
+    } else if (averageProgress > 0 && averageProgress < 100 && task.status === 'assigned') {
+      task.status = 'in_progress'
+    }
+
+    await task.save()
 
   } catch (error) {
     console.error('Update task progress error:', error)

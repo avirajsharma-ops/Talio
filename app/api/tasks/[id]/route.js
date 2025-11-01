@@ -281,40 +281,10 @@ async function checkTaskUpdatePermission(userId, task, userRole) {
 // Helper function to check task delete permission
 async function checkTaskDeletePermission(userId, task, userRole) {
   try {
-    // Admin can delete any task
-    if (userRole === 'admin') {
-      return true
-    }
-
-    // Task creator can delete
+    // Only the task creator can delete
     const assignedById = task.assignedBy?._id || task.assignedBy
     if (assignedById && assignedById.toString() === userId.toString()) {
       return true
-    }
-
-    // HR can delete tasks in their department
-    if (userRole === 'hr') {
-      const user = await Employee.findById(userId)
-      const assigneeIds = task.assignedTo.map(a => a.employee?._id || a.employee)
-      const assignees = await Employee.find({
-        _id: { $in: assigneeIds }
-      })
-      const sameDepAssignees = assignees.filter(emp => emp.department === user.department)
-      if (sameDepAssignees.length > 0) {
-        return true
-      }
-    }
-
-    // Managers can delete tasks for their team members
-    if (userRole === 'manager') {
-      const assigneeIds = task.assignedTo.map(a => a.employee?._id || a.employee)
-      const teamMembers = await Employee.find({
-        reportingManager: userId,
-        _id: { $in: assigneeIds }
-      })
-      if (teamMembers.length > 0) {
-        return true
-      }
     }
 
     return false

@@ -41,19 +41,39 @@ export async function GET(request) {
         { assignedBy: { $in: [currentEmployeeId, decoded.userId] } }
       ]
     } else if (view === 'team' && ['manager', 'hr', 'admin'].includes(decoded.role)) {
-      // Team view - manager's team tasks
+      // Team view - manager's team tasks (same department)
+      const empDoc = await Employee.findById(currentEmployeeId)
       const teamMembers = await Employee.find({
-        reportingManager: currentEmployeeId,
+        department: empDoc?.department,
         status: 'active'
       }).select('_id')
 
       const teamMemberIds = teamMembers.map(member => member._id)
-      teamMemberIds.push(currentEmployeeId) // Include manager's own tasks
 
       query.$or = [
         { 'assignedTo.employee': { $in: teamMemberIds } },
         { assignedBy: { $in: teamMemberIds } }
       ]
+    } else if (view === 'external' && ['manager', 'admin'].includes(decoded.role)) {
+      // External view - tasks assigned by manager to people outside their department
+      const empDoc = await Employee.findById(currentEmployeeId)
+
+      // Find tasks created by this manager
+      const managerTasks = await Task.find({
+        assignedBy: currentEmployeeId
+      }).populate('assignedTo.employee', 'department')
+
+      // Filter tasks where assignees are outside manager's department
+      const externalTaskIds = managerTasks
+        .filter(task => {
+          return task.assignedTo.some(assignment => {
+            const assigneeDept = assignment.employee?.department
+            return assigneeDept && assigneeDept !== empDoc?.department
+          })
+        })
+        .map(task => task._id)
+
+      query._id = { $in: externalTaskIds }
     } else if (view === 'department' && ['hr', 'admin'].includes(decoded.role)) {
       // Department view - all tasks in user's department
       const empDoc = await Employee.findById(currentEmployeeId)

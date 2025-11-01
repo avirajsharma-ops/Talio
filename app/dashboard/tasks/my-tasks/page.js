@@ -20,6 +20,7 @@ export default function MyTasksPage() {
   const [taskToDelete, setTaskToDelete] = useState(null)
   const [deleteReason, setDeleteReason] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [view, setView] = useState('personal') // personal, team, external
   const router = useRouter()
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function MyTasksPage() {
     } else {
       router.push('/login')
     }
-  }, [])
+  }, [view])
 
   const fetchMyTasks = async () => {
     try {
@@ -38,7 +39,7 @@ export default function MyTasksPage() {
       const token = localStorage.getItem('token')
 
       let queryParams = new URLSearchParams({
-        view: 'personal',
+        view: view, // Use the current view state
         page: '1',
         limit: '50'
       })
@@ -158,33 +159,22 @@ export default function MyTasksPage() {
 
   const canDeleteTask = (task) => {
     if (!user || !task) return false
-    const myId = user.employeeId || user.id || user._id
+
+    // Get current user's employee ID
+    const myId = user.employeeId?._id || user.employeeId || user.id || user._id
+
+    // Get task creator's ID
     const assignedById = task.assignedBy?._id || task.assignedBy
 
-    // Admin can delete any task
-    if (user.role === 'admin') return true
+    console.log('Delete check:', {
+      myId: myId?.toString(),
+      assignedById: assignedById?.toString(),
+      task: task.title
+    })
 
-    // Task creator can delete
-    if (assignedById && assignedById.toString() === myId.toString()) return true
-
-    // HR can delete tasks in their department
-    if (user.role === 'hr') {
-      const userDept = user.department
-      const hasAssigneeInDept = task.assignedTo?.some(assignment => {
-        const emp = assignment.employee
-        return emp?.department === userDept
-      })
-      if (hasAssigneeInDept) return true
-    }
-
-    // Manager can delete tasks for their team members
-    if (user.role === 'manager') {
-      const hasDirectReport = task.assignedTo?.some(assignment => {
-        const emp = assignment.employee
-        return emp?.reportingManager?._id?.toString() === myId.toString() ||
-               emp?.reportingManager?.toString() === myId.toString()
-      })
-      if (hasDirectReport) return true
+    // Only the task creator can delete
+    if (assignedById && myId) {
+      return assignedById.toString() === myId.toString()
     }
 
     return false
@@ -270,13 +260,12 @@ export default function MyTasksPage() {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     if (filter === 'all') return matchesSearch
-    if (filter === 'pending') return matchesSearch && task.status === 'assigned'
-    if (filter === 'in_progress') return matchesSearch && task.status === 'in_progress'
+    if (filter === 'in_progress') return matchesSearch && (task.status === 'assigned' || task.status === 'in_progress')
     if (filter === 'completed') return matchesSearch && task.status === 'completed'
     if (filter === 'overdue') return matchesSearch && isOverdue(task.dueDate, task.status)
-    
+
     return matchesSearch
   })
 
@@ -320,6 +309,44 @@ export default function MyTasksPage() {
             </div>
           </div>
 
+          {/* View Tabs (for managers) */}
+          {user && ['manager', 'admin'].includes(user.role) && (
+            <div className="border-b border-gray-200 mb-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setView('personal')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'personal'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  My Tasks
+                </button>
+                <button
+                  onClick={() => setView('team')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'team'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Team Tasks
+                </button>
+                <button
+                  onClick={() => setView('external')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'external'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  External Tasks
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Filters and Search */}
           <div className="flex flex-col space-y-4 mb-6">
             {/* Filter Buttons */}
@@ -331,14 +358,6 @@ export default function MyTasksPage() {
                 }`}
               >
                 All Tasks
-              </button>
-              <button
-                onClick={() => setFilter('assigned')}
-                className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                  filter === 'assigned' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Pending
               </button>
               <button
                 onClick={() => setFilter('in_progress')}

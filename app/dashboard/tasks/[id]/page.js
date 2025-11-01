@@ -22,6 +22,12 @@ export default function TaskDetailsPage() {
   const [editingMilestone, setEditingMilestone] = useState(null)
   const [milestoneProgress, setMilestoneProgress] = useState(0)
   const [milestoneRemark, setMilestoneRemark] = useState('')
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [approvalAction, setApprovalAction] = useState('approve')
+  const [approvalReason, setApprovalReason] = useState('')
+  const [estimatedProgress, setEstimatedProgress] = useState(0)
+  const [managerRemark, setManagerRemark] = useState('')
+  const [showRemarkModal, setShowRemarkModal] = useState(false)
   const router = useRouter()
   const params = useParams()
 
@@ -126,51 +132,23 @@ export default function TaskDetailsPage() {
       console.log('canDeleteTask: user or task missing', { user: !!user, task: !!task })
       return false
     }
-    const myId = user.employeeId || user.id || user._id
+
+    // Get current user's employee ID
+    const myId = user.employeeId?._id || user.employeeId || user.id || user._id
+
+    // Get task creator's ID
     const assignedById = task.assignedBy?._id || task.assignedBy
 
-    // Admin can delete any task
-    if (user.role === 'admin') {
-      return true
-    }
-
-    // Task creator can delete
-    if (assignedById && assignedById.toString() === myId.toString()) {
-      return true
-    }
-
-    // HR can delete tasks in their department
-    if (user.role === 'hr') {
-      // Check if any assignee is in the same department
-      const userDept = user.department
-      const hasAssigneeInDept = task.assignedTo?.some(assignment => {
-        const emp = assignment.employee
-        return emp?.department === userDept
-      })
-      if (hasAssigneeInDept) {
-        return true
-      }
-    }
-
-    // Manager can delete tasks for their team members
-    if (user.role === 'manager') {
-      // Check if any assignee reports to this manager
-      const hasDirectReport = task.assignedTo?.some(assignment => {
-        const emp = assignment.employee
-        return emp?.reportingManager?._id?.toString() === myId.toString() ||
-               emp?.reportingManager?.toString() === myId.toString()
-      })
-      if (hasDirectReport) {
-        return true
-      }
-    }
-
-    console.log('canDeleteTask: No permission', {
-      userRole: user.role,
-      myId: myId.toString(),
+    console.log('canDeleteTask check:', {
+      myId: myId?.toString(),
       assignedById: assignedById?.toString(),
-      userDept: user.department
+      task: task.title
     })
+
+    // Only the task creator can delete
+    if (assignedById && myId) {
+      return assignedById.toString() === myId.toString()
+    }
 
     return false
   }
@@ -297,6 +275,89 @@ export default function TaskDetailsPage() {
     }
   }
 
+  const handleApproval = async () => {
+    if (approvalAction === 'reject' && !approvalReason.trim()) {
+      alert('Rejection reason is required')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${params.id}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          action: approvalAction,
+          reason: approvalReason,
+          estimatedActualProgress: approvalAction === 'reject' ? estimatedProgress : undefined,
+          remark: approvalReason
+        })
+      })
+
+      if (response.ok) {
+        setShowApprovalModal(false)
+        setApprovalReason('')
+        setEstimatedProgress(0)
+        fetchTaskDetails()
+        alert(`Task ${approvalAction}d successfully`)
+      } else {
+        const data = await response.json()
+        alert(data.message || `Failed to ${approvalAction} task`)
+      }
+    } catch (error) {
+      console.error('Error processing approval:', error)
+      alert(`Failed to ${approvalAction} task`)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const addManagerRemark = async () => {
+    if (!managerRemark.trim()) {
+      alert('Remark is required')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${params.id}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          remark: managerRemark
+        })
+      })
+
+      if (response.ok) {
+        setShowRemarkModal(false)
+        setManagerRemark('')
+        fetchTaskDetails()
+        alert('Remark added successfully')
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to add remark')
+      }
+    } catch (error) {
+      console.error('Error adding remark:', error)
+      alert('Failed to add remark')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const canApproveTask = () => {
+    if (!user || !task) return false
+    return ['manager', 'admin'].includes(user.role) && task.status === 'completed'
+  }
+
   const acceptTask = async () => {
     try {
       setUpdating(true)
@@ -307,8 +368,8 @@ export default function TaskDetailsPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          taskId: params.id, 
+        body: JSON.stringify({
+          taskId: params.id,
           action: 'accept',
           reason: 'Task accepted'
         })
@@ -492,6 +553,47 @@ export default function TaskDetailsPage() {
                 </>
               )}
 
+              {/* Manager Approval Buttons */}
+              {canApproveTask() && task.approvalStatus === 'pending' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setApprovalAction('approve')
+                      setShowApprovalModal(true)
+                    }}
+                    disabled={updating}
+                    className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
+                  >
+                    <FaCheckCircle className="w-3 h-3 mr-2" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => {
+                      setApprovalAction('reject')
+                      setEstimatedProgress(task.progress || 0)
+                      setShowApprovalModal(true)
+                    }}
+                    disabled={updating}
+                    className="bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
+                  >
+                    <FaPause className="w-3 h-3 mr-2" />
+                    Reject
+                  </button>
+                </>
+              )}
+
+              {/* Manager Remark Button */}
+              {['manager', 'admin'].includes(user?.role) && (
+                <button
+                  onClick={() => setShowRemarkModal(true)}
+                  disabled={updating}
+                  className="bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
+                >
+                  <FaEdit className="w-3 h-3 mr-2" />
+                  Add Remark
+                </button>
+              )}
+
               {canDeleteTask() && (
                 <button
                   onClick={() => setShowDeleteModal(true)}
@@ -542,6 +644,60 @@ export default function TaskDetailsPage() {
                 ></div>
               </div>
             </div>
+
+            {/* Approval Status */}
+            {task.status === 'completed' && task.approvalStatus && (
+              <div className={`p-4 rounded-lg ${
+                task.approvalStatus === 'approved' ? 'bg-green-50 border border-green-200' :
+                task.approvalStatus === 'rejected' ? 'bg-red-50 border border-red-200' :
+                'bg-yellow-50 border border-yellow-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">
+                    Approval Status:
+                    <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                      task.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                      task.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {task.approvalStatus.toUpperCase()}
+                    </span>
+                  </span>
+                </div>
+                {task.approvedBy && (
+                  <p className="text-sm text-gray-600">
+                    {task.approvalStatus === 'approved' ? 'Approved' : 'Reviewed'} by: {task.approvedBy.firstName} {task.approvedBy.lastName}
+                  </p>
+                )}
+                {task.rejectionReason && (
+                  <p className="text-sm text-gray-700 mt-2">
+                    <strong>Reason:</strong> {task.rejectionReason}
+                  </p>
+                )}
+                {task.estimatedActualProgress !== undefined && (
+                  <p className="text-sm text-gray-700 mt-1">
+                    <strong>Estimated Progress:</strong> {task.estimatedActualProgress}%
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Manager Remarks */}
+            {task.managerRemarks && task.managerRemarks.length > 0 && (
+              <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Manager Remarks</h3>
+                <div className="space-y-2">
+                  {task.managerRemarks.map((remark, index) => (
+                    <div key={index} className="bg-white p-3 rounded border border-purple-100">
+                      <p className="text-sm text-gray-700">{remark.remark}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        By: {remark.addedBy?.firstName} {remark.addedBy?.lastName} • {formatDate(remark.addedAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Task Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -875,6 +1031,112 @@ export default function TaskDetailsPage() {
                   disabled={updating || !newMilestone.title.trim()}
                 >
                   {updating ? 'Creating...' : 'Create Milestone'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Approval Modal */}
+        {showApprovalModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {approvalAction === 'approve' ? 'Approve Task' : 'Reject Task'}
+              </h3>
+              <div className="space-y-4">
+                {approvalAction === 'reject' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estimated Actual Progress
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={estimatedProgress}
+                      onChange={(e) => setEstimatedProgress(parseInt(e.target.value))}
+                      className="w-full mb-2"
+                    />
+                    <div className="text-center text-sm font-semibold">{estimatedProgress}%</div>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {approvalAction === 'approve' ? 'Remark (Optional)' : 'Reason'}
+                    {approvalAction === 'reject' && <span className="text-red-500">*</span>}
+                  </label>
+                  <textarea
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="4"
+                    placeholder={approvalAction === 'approve' ? 'Add a remark...' : 'Explain why this task is being rejected...'}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false)
+                    setApprovalReason('')
+                    setEstimatedProgress(0)
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApproval}
+                  className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                    approvalAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                  disabled={updating || (approvalAction === 'reject' && !approvalReason.trim())}
+                >
+                  {updating ? 'Processing...' : approvalAction === 'approve' ? 'Approve' : 'Reject'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manager Remark Modal */}
+        {showRemarkModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Add Manager Remark</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Remark <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={managerRemark}
+                    onChange={(e) => setManagerRemark(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="4"
+                    placeholder="Add your remark..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowRemarkModal(false)
+                    setManagerRemark('')
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addManagerRemark}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  disabled={updating || !managerRemark.trim()}
+                >
+                  {updating ? 'Adding...' : 'Add Remark'}
                 </button>
               </div>
             </div>
