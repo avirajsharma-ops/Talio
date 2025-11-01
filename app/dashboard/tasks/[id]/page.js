@@ -115,9 +115,19 @@ export default function TaskDetailsPage() {
   }
 
   const canDeleteTask = () => {
-    if (!user || !task) return false
+    if (!user || !task) {
+      console.log('canDeleteTask: user or task missing', { user: !!user, task: !!task })
+      return false
+    }
     const myId = user.employeeId || user.id || user._id
-    return user.role === 'admin' || task.assignedBy?._id === myId
+    const canDelete = user.role === 'admin' || task.assignedBy?._id === myId
+    console.log('canDeleteTask:', {
+      userRole: user.role,
+      myId,
+      assignedById: task.assignedBy?._id,
+      canDelete
+    })
+    return canDelete
   }
 
   const acceptTask = async () => {

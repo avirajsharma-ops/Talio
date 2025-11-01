@@ -109,12 +109,17 @@ function CreateTaskContent() {
 
       if (response.ok) {
         const data = await response.json()
-        setAvailableTasks(data.data || [])
+        console.log('Available tasks response:', data)
+        // Handle both array and object responses
+        const tasks = Array.isArray(data) ? data : (data.data || data.tasks || [])
+        setAvailableTasks(tasks)
       } else {
         console.error('Failed to fetch tasks:', response.status)
+        setAvailableTasks([])
       }
     } catch (error) {
       console.error('Error fetching tasks:', error)
+      setAvailableTasks([])
     }
   }
 
@@ -377,7 +382,7 @@ function CreateTaskContent() {
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white"
                 >
                   <option value="">-- No Parent Task --</option>
-                  {availableTasks.map((task) => (
+                  {Array.isArray(availableTasks) && availableTasks.map((task) => (
                     <option key={task._id} value={task._id}>
                       {task.taskNumber} - {task.title}
                     </option>
