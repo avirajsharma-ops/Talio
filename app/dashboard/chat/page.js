@@ -8,7 +8,8 @@ export default function ChatPage() {
   const [selectedChat, setSelectedChat] = useState(null)
   const [messages, setMessages] = useState([])
   const [message, setMessage] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -223,12 +224,16 @@ export default function ChatPage() {
   }
 
   const filteredChats = chats.filter(chat =>
-    getChatName(chat).toLowerCase().includes(searchQuery.toLowerCase())
+    getChatName(chat).toLowerCase().includes(chatSearchQuery.toLowerCase())
   )
 
-  const filteredEmployees = employees.filter(emp =>
-    `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredEmployees = employeeSearchQuery.trim()
+    ? employees.filter(emp =>
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(employeeSearchQuery.toLowerCase()) ||
+        emp.employeeCode?.toLowerCase().includes(employeeSearchQuery.toLowerCase())
+      )
+    : employees.slice(0, 10) // Show first 10 employees by default
 
   if (loading) {
     return (
@@ -269,8 +274,8 @@ export default function ChatPage() {
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
                   placeholder="Search chats..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
@@ -468,14 +473,19 @@ export default function ChatPage() {
             <div className="mb-4">
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={employeeSearchQuery}
+                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
                 placeholder="Search employees..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
-            <div className="space-y-2">
-              {filteredEmployees.map((emp) => (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {filteredEmployees.length === 0 ? (
+                <div className="text-center text-gray-500 py-8 text-sm">
+                  {employeeSearchQuery ? 'No employees found' : 'No employees available'}
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => (
                 <div
                   key={emp._id}
                   onClick={() => handleCreateChat(emp._id)}
@@ -493,7 +503,13 @@ export default function ChatPage() {
                     <p className="text-xs text-gray-500">{emp.designation?.title || 'Employee'}</p>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
+              {!employeeSearchQuery && employees.length > 10 && (
+                <div className="text-center text-xs text-gray-500 py-2 border-t">
+                  Showing 10 of {employees.length} employees. Use search to find more.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -519,14 +535,19 @@ export default function ChatPage() {
               />
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={employeeSearchQuery}
+                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
                 placeholder="Search employees..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
-            <div className="space-y-2 mb-4">
-              {filteredEmployees.map((emp) => (
+            <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
+              {filteredEmployees.length === 0 ? (
+                <div className="text-center text-gray-500 py-8 text-sm">
+                  {employeeSearchQuery ? 'No employees found' : 'No employees available'}
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => (
                 <div
                   key={emp._id}
                   onClick={() => {
@@ -557,7 +578,13 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
-              ))}
+                ))
+              )}
+              {!employeeSearchQuery && employees.length > 10 && (
+                <div className="text-center text-xs text-gray-500 py-2 border-t">
+                  Showing 10 of {employees.length} employees. Use search to find more.
+                </div>
+              )}
             </div>
             <button
               onClick={handleCreateGroup}

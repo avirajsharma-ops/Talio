@@ -15,6 +15,7 @@ export default function Header({ toggleSidebar }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [showMobileSearch, setShowMobileSearch] = useState(false)
   const [searching, setSearching] = useState(false)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
@@ -98,8 +99,16 @@ export default function Header({ toggleSidebar }) {
 
   const handleSearchResultClick = (link) => {
     setShowSearchResults(false)
+    setShowMobileSearch(false)
     setSearchQuery('')
     router.push(link)
+  }
+
+  const closeMobileSearch = () => {
+    setShowMobileSearch(false)
+    setSearchQuery('')
+    setSearchResults(null)
+    setShowSearchResults(false)
   }
 
   const getResultIcon = (type) => {
@@ -242,6 +251,14 @@ export default function Header({ toggleSidebar }) {
           {/* PWA Status */}
           <PWAStatus />
 
+          {/* Mobile Search Icon */}
+          <button
+            onClick={() => setShowMobileSearch(true)}
+            className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <FaSearch className="w-5 h-5" />
+          </button>
+
           {/* Notifications */}
           {/* <div ref={notifRef} className="relative mt-3 md:mt-0">
             <button
@@ -325,6 +342,116 @@ export default function Header({ toggleSidebar }) {
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Fullscreen Modal */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 bg-white z-[100] md:hidden">
+          <div className="flex flex-col h-full">
+            {/* Search Header */}
+            <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+              <button
+                onClick={closeMobileSearch}
+                className="p-2 text-gray-600 hover:text-gray-800"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <div className="flex-1 relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search everything..."
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSearchResults(null)
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                )}
+                {searching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <FaSpinner className="animate-spin text-blue-600 w-5 h-5" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Search Results */}
+            <div className="flex-1 overflow-y-auto">
+              {searchQuery.length < 2 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4">
+                  <FaSearch className="w-16 h-16 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">Search Everything</p>
+                  <p className="text-sm text-center mt-2">
+                    Find employees, tasks, leaves, documents, and more...
+                  </p>
+                </div>
+              ) : searching ? (
+                <div className="flex items-center justify-center h-full">
+                  <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
+                </div>
+              ) : searchResults ? (
+                <div>
+                  {Object.entries(searchResults).map(([category, items]) => {
+                    if (items.length === 0) return null
+                    return (
+                      <div key={category} className="border-b border-gray-100">
+                        <div className="px-4 py-3 bg-gray-50 font-semibold text-sm text-gray-700 uppercase sticky top-0">
+                          {category} ({items.length})
+                        </div>
+                        {items.map((item) => (
+                          <div
+                            key={item._id}
+                            onClick={() => handleSearchResultClick(item.link)}
+                            className="px-4 py-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer border-b border-gray-50"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="text-3xl flex-shrink-0">{getResultIcon(item.type)}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-base text-gray-900">{item.title}</h4>
+                                </div>
+                                {item.subtitle && (
+                                  <p className="text-sm text-gray-600 mb-1">{item.subtitle}</p>
+                                )}
+                                {item.description && (
+                                  <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                                )}
+                                {item.meta && (
+                                  <span className="inline-block text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mt-2">
+                                    {item.meta}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                  {Object.values(searchResults).every(arr => arr.length === 0) && (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4 py-12">
+                      <FaSearch className="w-16 h-16 mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">No results found</p>
+                      <p className="text-sm text-center mt-2">
+                        Try searching with different keywords
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
