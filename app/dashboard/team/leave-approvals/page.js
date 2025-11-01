@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, Clock, CheckCircle, XCircle, User, FileText } from 'lucide-react'
+import { FaArrowLeft, FaCalendarAlt, FaClock, FaCheckCircle, FaTimesCircle, FaUser, FaFileAlt } from 'react-icons/fa'
 
 export default function LeaveApprovals() {
   const router = useRouter()
@@ -101,7 +101,7 @@ export default function LeaveApprovals() {
             onClick={() => router.push('/dashboard/team')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
+            <FaArrowLeft className="h-5 w-5 mr-2" />
             Back to Team Dashboard
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leave Approvals</h1>
@@ -113,7 +113,7 @@ export default function LeaveApprovals() {
         {/* Leave Requests List */}
         {leaves.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+            <FaCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
             <p className="text-gray-600">There are no pending leave requests at the moment.</p>
           </div>
@@ -126,7 +126,7 @@ export default function LeaveApprovals() {
                     {/* Employee Info */}
                     <div className="flex items-center space-x-3 mb-4">
                       <div className="bg-blue-100 p-2 rounded-full">
-                        <User className="h-5 w-5 text-blue-600" />
+                        <FaUser className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
@@ -141,24 +141,24 @@ export default function LeaveApprovals() {
                     {/* Leave Details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2 text-sm">
-                        <FileText className="h-4 w-4 text-gray-400" />
+                        <FaFileAlt className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">Type:</span>
                         <span className="font-medium text-gray-900">{leave.leaveType?.name}</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <FaCalendarAlt className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">Duration:</span>
                         <span className="font-medium text-gray-900">{leave.numberOfDays} days</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm">
-                        <Clock className="h-4 w-4 text-gray-400" />
+                        <FaClock className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">From:</span>
                         <span className="font-medium text-gray-900">
                           {new Date(leave.startDate).toLocaleDateString()}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm">
-                        <Clock className="h-4 w-4 text-gray-400" />
+                        <FaClock className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">To:</span>
                         <span className="font-medium text-gray-900">
                           {new Date(leave.endDate).toLocaleDateString()}
@@ -186,14 +186,14 @@ export default function LeaveApprovals() {
                       onClick={() => handleAction(leave, 'approved')}
                       className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition-colors"
                     >
-                      <CheckCircle className="h-4 w-4" />
+                      <FaCheckCircle className="h-4 w-4" />
                       <span>Approve</span>
                     </button>
                     <button
                       onClick={() => handleAction(leave, 'rejected')}
                       className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors"
                     >
-                      <XCircle className="h-4 w-4" />
+                      <FaTimesCircle className="h-4 w-4" />
                       <span>Reject</span>
                     </button>
                   </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, XCircle, User, FileText, Calendar, Tag } from 'lucide-react'
+import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaUser, FaFileAlt, FaCalendarAlt, FaTag } from 'react-icons/fa'
 
 export default function TaskApprovals() {
   const router = useRouter()
@@ -111,7 +111,7 @@ export default function TaskApprovals() {
             onClick={() => router.push('/dashboard/team')}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
+            <FaArrowLeft className="h-5 w-5 mr-2" />
             Back to Team Dashboard
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Approvals</h1>
@@ -123,7 +123,7 @@ export default function TaskApprovals() {
         {/* Task List */}
         {tasks.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+            <FaCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
             <p className="text-gray-600">There are no pending task approvals at the moment.</p>
           </div>
@@ -136,7 +136,7 @@ export default function TaskApprovals() {
                     {/* Task Title */}
                     <div className="flex items-start space-x-3 mb-4">
                       <div className="bg-purple-100 p-2 rounded-full mt-1">
-                        <FileText className="h-5 w-5 text-purple-600" />
+                        <FaFileAlt className="h-5 w-5 text-purple-600" />
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -158,7 +158,7 @@ export default function TaskApprovals() {
                     {/* Task Details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center space-x-2 text-sm">
-                        <User className="h-4 w-4 text-gray-400" />
+                        <FaUser className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">Assigned by:</span>
                         <span className="font-medium text-gray-900">
                           {task.assignedBy?.firstName} {task.assignedBy?.lastName}
@@ -166,7 +166,7 @@ export default function TaskApprovals() {
                       </div>
                       {task.priority && (
                         <div className="flex items-center space-x-2 text-sm">
-                          <Tag className="h-4 w-4 text-gray-400" />
+                          <FaTag className="h-4 w-4 text-gray-400" />
                           <span className="text-gray-600">Priority:</span>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
                             {task.priority}
@@ -175,7 +175,7 @@ export default function TaskApprovals() {
                       )}
                       {task.dueDate && (
                         <div className="flex items-center space-x-2 text-sm">
-                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <FaCalendarAlt className="h-4 w-4 text-gray-400" />
                           <span className="text-gray-600">Due Date:</span>
                           <span className="font-medium text-gray-900">
                             {new Date(task.dueDate).toLocaleDateString()}
@@ -183,7 +183,7 @@ export default function TaskApprovals() {
                         </div>
                       )}
                       <div className="flex items-center space-x-2 text-sm">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <FaCalendarAlt className="h-4 w-4 text-gray-400" />
                         <span className="text-gray-600">Completed:</span>
                         <span className="font-medium text-gray-900">
                           {new Date(task.updatedAt).toLocaleDateString()}
@@ -198,7 +198,7 @@ export default function TaskApprovals() {
                         <div className="flex flex-wrap gap-2">
                           {task.assignedTo.map((assigned, index) => (
                             <div key={index} className="flex items-center space-x-2 bg-blue-50 px-3 py-1.5 rounded-full">
-                              <User className="h-3 w-3 text-blue-600" />
+                              <FaUser className="h-3 w-3 text-blue-600" />
                               <span className="text-sm text-blue-900">
                                 {assigned.employee?.firstName} {assigned.employee?.lastName}
                               </span>
@@ -225,14 +225,14 @@ export default function TaskApprovals() {
                       onClick={() => handleAction(task, 'approved')}
                       className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition-colors"
                     >
-                      <CheckCircle className="h-4 w-4" />
+                      <FaCheckCircle className="h-4 w-4" />
                       <span>Approve</span>
                     </button>
                     <button
                       onClick={() => handleAction(task, 'rejected')}
                       className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors"
                     >
-                      <XCircle className="h-4 w-4" />
+                      <FaTimesCircle className="h-4 w-4" />
                       <span>Reject</span>
                     </button>
                   </div>

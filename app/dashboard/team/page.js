@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { FaUsers, FaFileAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
 
 export default function TeamDashboard() {
   const router = useRouter()
@@ -71,7 +71,7 @@ export default function TeamDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-4 sm:p-6 lg:p-8 pb-14 md:pb-6">
         <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+          <FaExclamationCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
           <p className="text-gray-600">This section is only available to department heads.</p>
         </div>
@@ -100,7 +100,7 @@ export default function TeamDashboard() {
               </p>
             </div>
             <div className="bg-blue-100 p-3 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
+              <FaUsers className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function TeamDashboard() {
               </p>
             </div>
             <div className="bg-yellow-100 p-3 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600" />
+              <FaClock className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function TeamDashboard() {
               </p>
             </div>
             <div className="bg-purple-100 p-3 rounded-lg">
-              <FileText className="h-6 w-6 text-purple-600" />
+              <FaFileAlt className="h-6 w-6 text-purple-600" />
             </div>
           </div>
         </div>
@@ -142,7 +142,7 @@ export default function TeamDashboard() {
               </p>
             </div>
             <div className="bg-green-100 p-3 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+              <FaCheckCircle className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function TeamDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Leave Approvals</h2>
             <div className="bg-yellow-100 p-2 rounded-lg">
-              <Clock className="h-5 w-5 text-yellow-600" />
+              <FaClock className="h-5 w-5 text-yellow-600" />
             </div>
           </div>
           <p className="text-gray-600 mb-4">
@@ -182,7 +182,7 @@ export default function TeamDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Task Approvals</h2>
             <div className="bg-purple-100 p-2 rounded-lg">
-              <FileText className="h-5 w-5 text-purple-600" />
+              <FaFileAlt className="h-5 w-5 text-purple-600" />
             </div>
           </div>
           <p className="text-gray-600 mb-4">
@@ -212,7 +212,7 @@ export default function TeamDashboard() {
                   <div key={leave._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="bg-yellow-100 p-2 rounded-full">
-                        <Clock className="h-4 w-4 text-yellow-600" />
+                        <FaClock className="h-4 w-4 text-yellow-600" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
@@ -240,7 +240,7 @@ export default function TeamDashboard() {
                   <div key={task._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="bg-purple-100 p-2 rounded-full">
-                        <FileText className="h-4 w-4 text-purple-600" />
+                        <FaFileAlt className="h-4 w-4 text-purple-600" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
