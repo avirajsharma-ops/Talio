@@ -324,60 +324,57 @@ export default function EmployeeDashboard({ user }) {
     <div className="page-container space-y-4 sm:space-y-6">
       {/* Check-In/Check-Out Section - Compact Design */}
       <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
-        {/* User Profile and Buttons */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-          {/* User Profile Section */}
-          <div className="flex items-center gap-3">
-            {/* Profile Picture */}
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
-              {dashboardStats?.employee?.profilePicture || user?.employeeId?.profilePicture ? (
-                <img
-                  src={dashboardStats?.employee?.profilePicture || user.employeeId.profilePicture}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <FaUser className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              )}
-            </div>
+        {/* User Profile Section */}
+        <div className="flex items-center gap-3 mb-4">
+          {/* Profile Picture */}
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
+            {dashboardStats?.employee?.profilePicture || user?.employeeId?.profilePicture ? (
+              <img
+                src={dashboardStats?.employee?.profilePicture || user.employeeId.profilePicture}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <FaUser className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            )}
+          </div>
 
-            {/* User Name and ID */}
-            <div>
-              <p className="text-xs text-gray-300 mb-0.5">
-                ID:{dashboardStats?.employee?.employeeId || user?.employeeId?.employeeCode || '---'}
+          {/* User Name and ID */}
+          <div>
+            <p className="text-xs text-gray-300 mb-0.5">
+              ID: {dashboardStats?.employee?.employeeId || user?.employeeId?.employeeCode || '---'}
+            </p>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
+              {dashboardStats?.employee?.name ||
+               (user?.employeeId?.firstName && user?.employeeId?.lastName
+                ? `${user.employeeId.firstName} ${user.employeeId.lastName}`
+                : 'User')}
+            </h2>
+            {dashboardStats?.employee?.designation && (
+              <p className="text-xs text-gray-300 mt-0.5">
+                {dashboardStats.employee.designation}
               </p>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
-                {dashboardStats?.employee?.name ||
-                 (user?.employeeId?.firstName && user?.employeeId?.lastName
-                  ? `${user.employeeId.firstName} ${user.employeeId.lastName}`
-                  : 'User')}
-              </h2>
-              {dashboardStats?.employee?.designation && (
-                <p className="text-xs text-gray-300 mt-0.5">
-                  {dashboardStats.employee.designation}
-                </p>
-              )}
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 sm:gap-3 w-full lg:w-auto">
-            <button
-              onClick={handleClockIn}
-              disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
-              className="bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1 lg:min-w-[140px]"
-            >
-              <span>Check In</span>
-            </button>
+        {/* Action Buttons */}
+        <div className="flex gap-2 sm:gap-3">
+          <button
+            onClick={handleClockIn}
+            disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
+            className="bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+          >
+            <span>Check In</span>
+          </button>
 
-            <button
-              onClick={handleClockOut}
-              disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
-              className="bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1 lg:min-w-[140px]"
-            >
-              <span>Check Out</span>
-            </button>
-          </div>
+          <button
+            onClick={handleClockOut}
+            disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
+            className="bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+          >
+            <span>Check Out</span>
+          </button>
         </div>
       </div>
 

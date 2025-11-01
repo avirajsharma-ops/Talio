@@ -67,10 +67,10 @@ export default function ChatPage() {
   ]
 
   return (
-    <div className="page-container pb-20 md:pb-6">
-      <div className="mb-6">
+    <div className="page-container pb-14 md:pb-6">
+      <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Chat</h1>
-        <p className="text-gray-600 mt-1">Connect with your team</p>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Connect with your team</p>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: 'calc(100vh - 250px)' }}>

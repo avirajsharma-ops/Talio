@@ -74,11 +74,11 @@ export default function SandboxPage() {
   }
 
   return (
-    <div className="page-container pb-20 md:pb-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="page-container pb-14 md:pb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Ideas Sandbox</h1>
-          <p className="text-gray-600 mt-1">Share your innovative ideas with the team</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Share your innovative ideas with the team</p>
         </div>
         <button
           onClick={() => setShowAddIdea(!showAddIdea)}
