@@ -19,11 +19,9 @@ function CreateTaskContent() {
     estimatedHours: '',
     assignToSelf: true,
     assignToOthers: false,
-    selectedEmployees: [],
-    parentTask: ''
+    selectedEmployees: []
   })
   const [employees, setEmployees] = useState([])
-  const [availableTasks, setAvailableTasks] = useState([])
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
   const [error, setError] = useState('')
@@ -42,7 +40,7 @@ function CreateTaskContent() {
           const parsedUser = JSON.parse(userData)
           console.log('User loaded:', parsedUser)
           setUser(parsedUser)
-          await Promise.all([fetchEmployees(), fetchAvailableTasks()])
+          await fetchEmployees()
           setIsInitializing(false)
         } catch (error) {
           console.error('Error parsing user data:', error)
@@ -56,7 +54,7 @@ function CreateTaskContent() {
     initializeUser()
   }, []) // Empty dependency array - run only once on mount
 
-  // Resolve current employee and prefill parent task from URL
+  // Resolve current employee
   useEffect(() => {
     if (user && employees.length) {
       const myId = user.employeeId || user.id || user._id
@@ -64,16 +62,6 @@ function CreateTaskContent() {
       setCurrentEmp(me || null)
     }
   }, [user, employees])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const parent = params.get('parent')
-      if (parent) {
-        setFormData(prev => ({ ...prev, parentTask: parent }))
-      }
-    }
-  }, [])
 
 
   const fetchEmployees = async () => {
@@ -98,30 +86,7 @@ function CreateTaskContent() {
     }
   }
 
-  const fetchAvailableTasks = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/tasks?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
 
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Available tasks response:', data)
-        // Handle both array and object responses
-        const tasks = Array.isArray(data) ? data : (data.data || data.tasks || [])
-        setAvailableTasks(tasks)
-      } else {
-        console.error('Failed to fetch tasks:', response.status)
-        setAvailableTasks([])
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error)
-      setAvailableTasks([])
-    }
-  }
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -192,7 +157,6 @@ function CreateTaskContent() {
         category: formData.category,
         dueDate: formData.dueDate,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : 0,
-        parentTask: formData.parentTask || undefined,
         assignedTo: assignees
       }
 
@@ -318,8 +282,7 @@ function CreateTaskContent() {
                       estimatedHours: '',
                       assignToSelf: true,
                       assignToOthers: false,
-                      selectedEmployees: [],
-                      parentTask: ''
+                      selectedEmployees: []
                     })
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -368,31 +331,6 @@ function CreateTaskContent() {
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="Enter task description"
                 />
-              </div>
-
-              {/* Parent Task (optional) */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent Task (optional)
-                </label>
-                <select
-                  name="parentTask"
-                  value={formData.parentTask}
-                  onChange={handleInputChange}
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white"
-                >
-                  <option value="">-- No Parent Task --</option>
-                  {Array.isArray(availableTasks) && availableTasks.map((task) => (
-                    <option key={task._id} value={task._id}>
-                      {task.taskNumber} - {task.title}
-                    </option>
-                  ))}
-                </select>
-                {formData.parentTask && (
-                  <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                    This task will be created as a subtask
-                  </p>
-                )}
               </div>
 
               <div>

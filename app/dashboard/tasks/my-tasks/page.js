@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  FaTasks, FaPlus, FaFilter, FaSearch, FaCalendarAlt, 
+import {
+  FaTasks, FaPlus, FaFilter, FaSearch, FaCalendarAlt,
   FaClock, FaUser, FaCheckCircle, FaExclamationTriangle,
-  FaEdit, FaEye, FaPlay, FaPause, FaCheck
+  FaEdit, FaEye, FaPlay, FaPause, FaCheck, FaTrash
 } from 'react-icons/fa'
 import RoleBasedAccess from '@/components/RoleBasedAccess'
 
@@ -16,6 +16,10 @@ export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [user, setUser] = useState(null)
   const [stats, setStats] = useState({})
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -137,8 +141,8 @@ export default function MyTasksPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          taskId, 
+        body: JSON.stringify({
+          taskId,
           action: 'reject',
           reason: 'Task rejected'
         })
@@ -149,6 +153,77 @@ export default function MyTasksPage() {
       }
     } catch (error) {
       console.error('Error rejecting task:', error)
+    }
+  }
+
+  const canDeleteTask = (task) => {
+    if (!user || !task) return false
+    const myId = user.employeeId || user.id || user._id
+    const assignedById = task.assignedBy?._id || task.assignedBy
+
+    // Admin can delete any task
+    if (user.role === 'admin') return true
+
+    // Task creator can delete
+    if (assignedById && assignedById.toString() === myId.toString()) return true
+
+    // HR can delete tasks in their department
+    if (user.role === 'hr') {
+      const userDept = user.department
+      const hasAssigneeInDept = task.assignedTo?.some(assignment => {
+        const emp = assignment.employee
+        return emp?.department === userDept
+      })
+      if (hasAssigneeInDept) return true
+    }
+
+    // Manager can delete tasks for their team members
+    if (user.role === 'manager') {
+      const hasDirectReport = task.assignedTo?.some(assignment => {
+        const emp = assignment.employee
+        return emp?.reportingManager?._id?.toString() === myId.toString() ||
+               emp?.reportingManager?.toString() === myId.toString()
+      })
+      if (hasDirectReport) return true
+    }
+
+    return false
+  }
+
+  const handleDeleteClick = (task) => {
+    setTaskToDelete(task)
+    setShowDeleteModal(true)
+  }
+
+  const deleteTask = async () => {
+    if (!taskToDelete || !deleteReason.trim()) return
+
+    try {
+      setDeleting(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${taskToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason: deleteReason })
+      })
+
+      if (response.ok) {
+        setShowDeleteModal(false)
+        setTaskToDelete(null)
+        setDeleteReason('')
+        fetchMyTasks() // Refresh tasks
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to delete task')
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      alert('Failed to delete task')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -437,6 +512,16 @@ export default function MyTasksPage() {
                           <FaEye className="w-3 h-3 mr-1" />
                           View
                         </button>
+
+                        {canDeleteTask(task) && (
+                          <button
+                            onClick={() => handleDeleteClick(task)}
+                            className="bg-red-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-red-700 transition-colors flex items-center justify-center flex-1 sm:flex-none"
+                          >
+                            <FaTrash className="w-3 h-3 mr-1" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -446,6 +531,51 @@ export default function MyTasksPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && taskToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Task</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "<strong>{taskToDelete.title}</strong>"?
+              This action will mark the task as deleted but preserve it in the task history.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for deletion <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                rows="3"
+                placeholder="Please provide a reason for deleting this task..."
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setTaskToDelete(null)
+                  setDeleteReason('')
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteTask}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                disabled={deleting || !deleteReason.trim()}
+              >
+                {deleting ? 'Deleting...' : 'Delete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RoleBasedAccess>
   )
 }

@@ -17,12 +17,16 @@ export default function EmployeeDashboard({ user }) {
   const [loading, setLoading] = useState(true)
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [todayTasks, setTodayTasks] = useState([])
+  const [recentActivities, setRecentActivities] = useState([])
 
   useEffect(() => {
     fetchDashboardData()
     if (user?.employeeId?._id) {
       fetchTodayAttendance()
     }
+    fetchTodayTasks()
+    fetchRecentActivities()
   }, [])
 
   const fetchDashboardData = async () => {
@@ -145,6 +149,96 @@ export default function EmployeeDashboard({ user }) {
       toast.error('An error occurred while clocking out')
     } finally {
       setAttendanceLoading(false)
+    }
+  }
+
+  const fetchTodayTasks = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const today = new Date().toISOString().split('T')[0]
+
+      const response = await fetch(`/api/tasks?view=personal&dueDate=${today}&limit=10`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTodayTasks(data.data || [])
+      }
+    } catch (error) {
+      console.error('Fetch today tasks error:', error)
+    }
+  }
+
+  const fetchRecentActivities = async () => {
+    try {
+      const token = localStorage.getItem('token')
+
+      // Fetch recent tasks (last 5 updated)
+      const tasksResponse = await fetch(`/api/tasks?view=personal&limit=5&sort=-updatedAt`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const activities = []
+
+      if (tasksResponse.ok) {
+        const tasksData = await tasksResponse.json()
+        const tasks = tasksData.data || []
+
+        tasks.forEach(task => {
+          const timeDiff = Date.now() - new Date(task.updatedAt).getTime()
+          const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60))
+          const daysAgo = Math.floor(hoursAgo / 24)
+
+          let timeStr = ''
+          if (daysAgo > 0) {
+            timeStr = `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`
+          } else if (hoursAgo > 0) {
+            timeStr = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
+          } else {
+            timeStr = 'Just now'
+          }
+
+          let action = 'Task updated'
+          let color = 'bg-blue-100 text-blue-800'
+
+          if (task.status === 'completed') {
+            action = 'Task completed'
+            color = 'bg-green-100 text-green-800'
+          } else if (task.status === 'in_progress') {
+            action = 'Task in progress'
+            color = 'bg-yellow-100 text-yellow-800'
+          } else if (task.status === 'assigned') {
+            action = 'Task assigned'
+            color = 'bg-purple-100 text-purple-800'
+          }
+
+          activities.push({
+            action,
+            details: task.title,
+            time: timeStr,
+            color
+          })
+        })
+      }
+
+      // Add attendance activity if checked in today
+      if (todayAttendance?.checkIn) {
+        const checkInTime = new Date(todayAttendance.checkIn)
+        const timeDiff = Date.now() - checkInTime.getTime()
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60))
+
+        activities.unshift({
+          action: 'Clocked in',
+          details: `Started work at ${checkInTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
+          time: hoursAgo > 0 ? `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago` : 'Just now',
+          color: 'bg-green-100 text-green-800'
+        })
+      }
+
+      setRecentActivities(activities.slice(0, 5))
+    } catch (error) {
+      console.error('Fetch recent activities error:', error)
     }
   }
 
@@ -570,24 +664,22 @@ export default function EmployeeDashboard({ user }) {
         <div className="bg-white rounded-lg shadow-md p-3 sm:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">My Recent Activities</h3>
           <div className="space-y-3 sm:space-y-4">
-            {[
-              { action: 'Clocked in', details: 'Started work at 9:00 AM', time: '2 hours ago', color: 'bg-green-100 text-green-800' },
-              { action: 'Task completed', details: 'Finished user authentication module', time: '4 hours ago', color: 'bg-blue-100 text-blue-800' },
-              { action: 'Leave applied', details: 'Annual leave for Dec 20-24', time: '1 day ago', color: 'bg-purple-100 text-purple-800' },
-              { action: 'Training completed', details: 'React Advanced Concepts', time: '2 days ago', color: 'bg-yellow-100 text-yellow-800' },
-              { action: 'Performance review', details: 'Q4 review submitted', time: '3 days ago', color: 'bg-indigo-100 text-indigo-800' },
-            ].map((activity, index) => (
-              <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 sm:py-3 border-b border-gray-100 last:border-0 space-y-1 sm:space-y-0">
-                <div className="flex items-center space-x-3 min-w-0 flex-1">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${activity.color.split(' ')[0]}`}></div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-xs text-gray-500 truncate">{activity.details}</p>
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => (
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 sm:py-3 border-b border-gray-100 last:border-0 space-y-1 sm:space-y-0">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${activity.color.split(' ')[0]}`}></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium text-gray-900">{activity.action}</p>
+                      <p className="text-xs text-gray-500 truncate">{activity.details}</p>
+                    </div>
                   </div>
+                  <span className="text-xs text-gray-400 self-start sm:self-auto ml-5 sm:ml-0">{activity.time}</span>
                 </div>
-                <span className="text-xs text-gray-400 self-start sm:self-auto ml-5 sm:ml-0">{activity.time}</span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-4">No recent activities</p>
+            )}
           </div>
         </div>
 

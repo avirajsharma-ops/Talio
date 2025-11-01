@@ -16,6 +16,12 @@ export default function TaskDetailsPage() {
   const [mounted, setMounted] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState('')
+  const [milestones, setMilestones] = useState([])
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false)
+  const [newMilestone, setNewMilestone] = useState({ title: '', description: '', dueDate: '' })
+  const [editingMilestone, setEditingMilestone] = useState(null)
+  const [milestoneProgress, setMilestoneProgress] = useState(0)
+  const [milestoneRemark, setMilestoneRemark] = useState('')
   const router = useRouter()
   const params = useParams()
 
@@ -25,6 +31,7 @@ export default function TaskDetailsPage() {
     if (userData) {
       setUser(JSON.parse(userData))
       fetchTaskDetails()
+      fetchMilestones()
     } else {
       router.push('/login')
     }
@@ -166,6 +173,128 @@ export default function TaskDetailsPage() {
     })
 
     return false
+  }
+
+  const fetchMilestones = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${params.id}/milestones`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMilestones(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching milestones:', error)
+    }
+  }
+
+  const createMilestone = async () => {
+    if (!newMilestone.title.trim()) {
+      alert('Milestone title is required')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${params.id}/milestones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newMilestone)
+      })
+
+      if (response.ok) {
+        setShowMilestoneModal(false)
+        setNewMilestone({ title: '', description: '', dueDate: '' })
+        fetchMilestones()
+        fetchTaskDetails() // Refresh to update overall progress
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to create milestone')
+      }
+    } catch (error) {
+      console.error('Error creating milestone:', error)
+      alert('Failed to create milestone')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const updateMilestoneProgress = async (milestoneId) => {
+    if (!milestoneRemark.trim()) {
+      alert('Remark is required when updating progress')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/milestones/${milestoneId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          progress: milestoneProgress,
+          remark: milestoneRemark
+        })
+      })
+
+      if (response.ok) {
+        setEditingMilestone(null)
+        setMilestoneProgress(0)
+        setMilestoneRemark('')
+        fetchMilestones()
+        fetchTaskDetails() // Refresh to update overall progress
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to update milestone')
+      }
+    } catch (error) {
+      console.error('Error updating milestone:', error)
+      alert('Failed to update milestone')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const deleteMilestone = async (milestoneId) => {
+    if (!confirm('Are you sure you want to delete this milestone?')) {
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/milestones/${milestoneId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        fetchMilestones()
+        fetchTaskDetails() // Refresh to update overall progress
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to delete milestone')
+      }
+    } catch (error) {
+      console.error('Error deleting milestone:', error)
+      alert('Failed to delete milestone')
+    } finally {
+      setUpdating(false)
+    }
   }
 
   const acceptTask = async () => {
@@ -508,34 +637,136 @@ export default function TaskDetailsPage() {
                 </div>
               )}
               <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600">Subtasks</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-700">Milestones</p>
                   <button
-                    onClick={() => router.push(`/dashboard/tasks/create?parent=${task._id}`)}
-                    className="text-blue-600 hover:underline text-sm"
+                    onClick={() => setShowMilestoneModal(true)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                   >
-                    Create subtask
+                    + Add Milestone
                   </button>
                 </div>
-                {task.subtasks && task.subtasks.length > 0 ? (
-                  <ul className="space-y-2">
-                    {task.subtasks.map((st) => (
-                      <li key={st._id} className="flex items-center justify-between p-2 bg-white rounded border">
-                        <div>
-                          <p className="font-medium text-gray-900">#{st.taskNumber} — {st.title}</p>
-                          <p className="text-xs text-gray-600">{st.status} • {st.progress || 0}%</p>
+                {milestones && milestones.length > 0 ? (
+                  <div className="space-y-3">
+                    {milestones.map((milestone) => (
+                      <div key={milestone._id} className="p-3 bg-white rounded-lg border border-gray-200">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{milestone.title}</h4>
+                            {milestone.description && (
+                              <p className="text-xs text-gray-600 mt-1">{milestone.description}</p>
+                            )}
+                            {milestone.dueDate && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Due: {new Date(milestone.dueDate).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => deleteMilestone(milestone._id)}
+                            className="text-red-600 hover:text-red-800 text-xs ml-2"
+                            disabled={updating}
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => router.push(`/dashboard/tasks/${st._id}`)}
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          Open
-                        </button>
-                      </li>
+
+                        {/* Progress Bar */}
+                        <div className="mb-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-600">Progress</span>
+                            <span className="text-xs font-semibold text-gray-900">{milestone.progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all"
+                              style={{ width: `${milestone.progress}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Update Progress */}
+                        {editingMilestone === milestone._id ? (
+                          <div className="mt-3 p-2 bg-gray-50 rounded">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Update Progress
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={milestoneProgress}
+                              onChange={(e) => setMilestoneProgress(parseInt(e.target.value))}
+                              className="w-full mb-2"
+                            />
+                            <div className="text-center text-sm font-semibold mb-2">{milestoneProgress}%</div>
+                            <textarea
+                              value={milestoneRemark}
+                              onChange={(e) => setMilestoneRemark(e.target.value)}
+                              placeholder="Add a remark (required)"
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-2"
+                              rows="2"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updateMilestoneProgress(milestone._id)}
+                                disabled={updating || !milestoneRemark.trim()}
+                                className="flex-1 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingMilestone(null)
+                                  setMilestoneProgress(0)
+                                  setMilestoneRemark('')
+                                }}
+                                className="flex-1 bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs hover:bg-gray-400"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingMilestone(milestone._id)
+                              setMilestoneProgress(milestone.progress)
+                              setMilestoneRemark('')
+                            }}
+                            className="mt-2 text-blue-600 hover:underline text-xs"
+                          >
+                            Update Progress
+                          </button>
+                        )}
+
+                        {/* Progress History */}
+                        {milestone.progressHistory && milestone.progressHistory.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <p className="text-xs font-medium text-gray-700 mb-2">Progress History</p>
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                              {milestone.progressHistory.slice().reverse().map((history, idx) => (
+                                <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-semibold">{history.progress}%</span>
+                                    <span className="text-gray-500">
+                                      {new Date(history.updatedAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-700">{history.remark}</p>
+                                  <p className="text-gray-500 mt-1">
+                                    by {history.updatedBy?.firstName} {history.updatedBy?.lastName}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="text-gray-600 text-sm">No subtasks</p>
+                  <p className="text-gray-600 text-sm text-center py-4">No milestones yet. Add one to track progress!</p>
                 )}
               </div>
             </div>
@@ -579,6 +810,71 @@ export default function TaskDetailsPage() {
                   disabled={updating || !deleteReason.trim()}
                 >
                   {updating ? 'Deleting...' : 'Delete Task'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Milestone Creation Modal */}
+        {showMilestoneModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Add Milestone</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newMilestone.title}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Milestone title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newMilestone.description}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Milestone description"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newMilestone.dueDate}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, dueDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowMilestoneModal(false)
+                    setNewMilestone({ title: '', description: '', dueDate: '' })
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createMilestone}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={updating || !newMilestone.title.trim()}
+                >
+                  {updating ? 'Creating...' : 'Create Milestone'}
                 </button>
               </div>
             </div>
