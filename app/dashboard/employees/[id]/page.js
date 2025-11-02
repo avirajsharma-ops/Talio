@@ -86,8 +86,8 @@ export default function EmployeeDetailPage() {
               {employee.firstName} {employee.lastName}
             </h1>
             <p className="text-lg text-gray-600 mt-1">
-              {employee.designation?.level && employee.designation?.title
-                ? `(${employee.designation.level}) - ${employee.designation.title}`
+              {employee.designation?.levelName && employee.designation?.title
+                ? `${employee.designation.levelName} - ${employee.designation.title}`
                 : employee.designation?.title || 'N/A'} • {employee.department?.name || 'N/A'}
             </p>
             <div className="flex items-center space-x-4 mt-4">
@@ -170,8 +170,8 @@ export default function EmployeeDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Designation</p>
                 <p className="font-medium text-gray-800">
-                  {employee.designation?.level && employee.designation?.title
-                    ? `(${employee.designation.level}) - ${employee.designation.title}`
+                  {employee.designation?.levelName && employee.designation?.title
+                    ? `${employee.designation.levelName} - ${employee.designation.title}`
                     : employee.designation?.title || 'N/A'}
                 </p>
               </div>

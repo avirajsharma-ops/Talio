@@ -298,8 +298,8 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                     </p>
                     <p className="text-xs text-gray-500">
                       {employee.employeeCode} • {employee.department?.name} • {
-                        employee.designation?.level && employee.designation?.title
-                          ? `(${employee.designation.level}) - ${employee.designation.title}`
+                        employee.designation?.levelName && employee.designation?.title
+                          ? `${employee.designation.levelName} - ${employee.designation.title}`
                           : employee.designation?.title || 'N/A'
                       }
                     </p>

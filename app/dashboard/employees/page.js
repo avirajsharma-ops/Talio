@@ -198,8 +198,8 @@ export default function EmployeesPage() {
                         {employee.department?.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {employee.designation?.level && employee.designation?.title
-                          ? `(${employee.designation.level}) - ${employee.designation.title}`
+                        {employee.designation?.levelName && employee.designation?.title
+                          ? `${employee.designation.levelName} - ${employee.designation.title}`
                           : employee.designation?.title || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

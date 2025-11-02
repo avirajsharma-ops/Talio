@@ -18,6 +18,10 @@ const DesignationSchema = new mongoose.Schema({
     type: Number,
     default: 1,
   },
+  levelName: {
+    type: String,
+    trim: true,
+  },
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
