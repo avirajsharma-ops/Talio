@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaEdit, FaSave, FaTimes, FaCheck } from 'react-icons/fa'
+import { useState, useEffect, useRef } from 'react'
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaEdit, FaSave, FaTimes, FaCheck, FaCamera } from 'react-icons/fa'
+import toast from 'react-hot-toast'
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
@@ -10,6 +11,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedEmployee, setEditedEmployee] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchProfile()
@@ -70,6 +73,74 @@ export default function ProfilePage() {
         [field]: value
       }
     }))
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB')
+      return
+    }
+
+    try {
+      setUploadingImage(true)
+
+      // Convert image to base64
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64Image = reader.result
+
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/employees/${employee._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ profilePicture: base64Image })
+        })
+
+        const result = await response.json()
+        if (result.success) {
+          setEmployee(prev => ({ ...prev, profilePicture: base64Image }))
+          setEditedEmployee(prev => ({ ...prev, profilePicture: base64Image }))
+          toast.success('Profile picture updated successfully!')
+
+          // Update localStorage user data if it has employeeId
+          const userData = localStorage.getItem('user')
+          if (userData) {
+            const parsedUser = JSON.parse(userData)
+            if (parsedUser.employeeId) {
+              parsedUser.employeeId.profilePicture = base64Image
+              localStorage.setItem('user', JSON.stringify(parsedUser))
+            }
+          }
+        } else {
+          toast.error(result.message || 'Failed to update profile picture')
+        }
+        setUploadingImage(false)
+      }
+
+      reader.onerror = () => {
+        toast.error('Failed to read image file')
+        setUploadingImage(false)
+      }
+
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast.error('Failed to upload image')
+      setUploadingImage(false)
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -171,18 +242,43 @@ export default function ProfilePage() {
           <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-6 text-white">
             <div className="flex flex-col items-center">
               {/* Profile Picture */}
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center mb-4">
-                {employee.profilePicture ? (
-                  <img
-                    src={employee.profilePicture}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-3xl sm:text-4xl font-bold text-white">
-                    {employee.firstName?.[0]}{employee.lastName?.[0]}
-                  </span>
-                )}
+              <div className="relative mb-4">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                  {employee.profilePicture ? (
+                    <img
+                      src={employee.profilePicture}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-3xl sm:text-4xl font-bold text-white">
+                      {employee.firstName?.[0]}{employee.lastName?.[0]}
+                    </span>
+                  )}
+                </div>
+
+                {/* Camera Icon Button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Change profile picture"
+                >
+                  {uploadingImage ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <FaCamera className="text-white text-sm sm:text-base" />
+                  )}
+                </button>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
               </div>
 
               {/* Employee ID */}
