@@ -136,7 +136,8 @@ export default function TeamTasksPage() {
       approved: 'bg-green-100 text-green-600',
       rejected: 'bg-red-100 text-red-600',
       time_logged: 'bg-purple-100 text-purple-600',
-      checklist_completed: 'bg-green-100 text-green-600'
+      checklist_completed: 'bg-green-100 text-green-600',
+      comment: 'bg-indigo-100 text-indigo-600'
     }
     return colors[type] || 'bg-gray-100 text-gray-600'
   }
@@ -355,9 +356,21 @@ export default function TeamTasksPage() {
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{event.description}</p>
+                            {event.reason && (
+                              <p className="text-xs text-gray-600 mt-1 italic">"{event.reason}"</p>
+                            )}
                             <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                              <span>{event.actor?.firstName} {event.actor?.lastName}</span>
-                              <span>•</span>
+                              {event.actor ? (
+                                <>
+                                  <span>{event.actor.firstName} {event.actor.lastName}</span>
+                                  <span>•</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-gray-400">System</span>
+                                  <span>•</span>
+                                </>
+                              )}
                               <span>{new Date(event.date).toLocaleString()}</span>
                             </div>
                           </div>

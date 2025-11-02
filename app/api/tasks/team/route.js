@@ -168,6 +168,14 @@ export async function GET(request) {
           select: 'name level'
         }
       })
+      .populate({
+        path: 'statusHistory.changedBy',
+        select: 'firstName lastName employeeCode',
+        populate: {
+          path: 'designation',
+          select: 'name level'
+        }
+      })
       .sort({ [sortBy]: sortOrder })
       .lean()
 
@@ -177,7 +185,7 @@ export async function GET(request) {
 
     // Add additional metadata
     const tasksWithMetadata = tasks.map(task => {
-      // Calculate timeline events
+      // Calculate timeline events - COMPREHENSIVE TRACKING
       const timeline = []
 
       // Task created
@@ -188,6 +196,17 @@ export async function GET(request) {
         description: 'Task created'
       })
 
+      // Status history - ALL task status changes including milestone events
+      task.statusHistory?.forEach(historyItem => {
+        timeline.push({
+          type: 'status_change',
+          date: historyItem.changedAt,
+          actor: historyItem.changedBy,
+          description: historyItem.status,
+          reason: historyItem.reason
+        })
+      })
+
       // Status changes from comments
       task.comments?.forEach(comment => {
         if (comment.type === 'status_update') {
@@ -196,6 +215,14 @@ export async function GET(request) {
             date: comment.createdAt,
             actor: comment.author,
             description: comment.content
+          })
+        } else {
+          // Regular comments
+          timeline.push({
+            type: 'comment',
+            date: comment.createdAt,
+            actor: comment.author,
+            description: `Comment: ${comment.content.substring(0, 50)}${comment.content.length > 50 ? '...' : ''}`
           })
         }
       })
@@ -236,7 +263,7 @@ export async function GET(request) {
         }
       })
 
-      // Sort timeline by date
+      // Sort timeline by date (most recent first)
       timeline.sort((a, b) => new Date(b.date) - new Date(a.date))
 
       return {

@@ -191,17 +191,16 @@ async function updateTaskProgress(taskId) {
     // Update task progress
     task.progress = averageProgress
 
-    // Auto-update status when progress reaches 100%
-    if (averageProgress === 100 && task.status !== 'completed') {
-      task.status = 'completed'
-      task.approvalStatus = 'pending'
-      task.statusHistory.push({
-        status: 'Task auto-completed (100% progress)',
-        changedBy: null,
-        reason: 'All milestones completed'
-      })
-    } else if (averageProgress > 0 && averageProgress < 100 && task.status === 'assigned') {
+    // DO NOT auto-complete task when progress reaches 100%
+    // Employee must manually send task for review using "Send for Review" button
+    // Only auto-update status from 'assigned' to 'in_progress' when work starts
+    if (averageProgress > 0 && task.status === 'assigned') {
       task.status = 'in_progress'
+      task.statusHistory.push({
+        status: 'Task status changed to in_progress',
+        changedBy: null,
+        reason: 'Work started on milestones'
+      })
     }
 
     await task.save()
