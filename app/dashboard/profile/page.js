@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaEdit, FaSave, FaTimes, FaCheck, FaCamera } from 'react-icons/fa'
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaEdit, FaSave, FaTimes, FaCheck, FaCamera, FaSearchPlus, FaSearchMinus, FaUndo, FaRedo, FaSun, FaAdjust } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 
 export default function ProfilePage() {
@@ -13,6 +13,20 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const fileInputRef = useRef(null)
+
+  // Image editor state
+  const [showImageEditor, setShowImageEditor] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [imageScale, setImageScale] = useState(1)
+  const [imageRotation, setImageRotation] = useState(0)
+  const [imageBrightness, setImageBrightness] = useState(100)
+  const [imageContrast, setImageContrast] = useState(100)
+  const [imageSaturation, setImageSaturation] = useState(100)
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const canvasRef = useRef(null)
+  const imageRef = useRef(null)
 
   useEffect(() => {
     fetchProfile()
@@ -75,7 +89,7 @@ export default function ProfilePage() {
     }))
   }
 
-  const handleImageUpload = async (event) => {
+  const handleImageSelect = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -91,54 +105,162 @@ export default function ProfilePage() {
       return
     }
 
+    // Read the file and open editor
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setSelectedImage(reader.result)
+      setShowImageEditor(true)
+      // Reset editor state
+      setImageScale(1)
+      setImageRotation(0)
+      setImageBrightness(100)
+      setImageContrast(100)
+      setImageSaturation(100)
+      setImagePosition({ x: 0, y: 0 })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - imagePosition.x,
+      y: e.clientY - imagePosition.y
+    })
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return
+    setImagePosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    setIsDragging(true)
+    setDragStart({
+      x: touch.clientX - imagePosition.x,
+      y: touch.clientY - imagePosition.y
+    })
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return
+    const touch = e.touches[0]
+    setImagePosition({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    })
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+  }
+
+  const resetImageEditor = () => {
+    setImageScale(1)
+    setImageRotation(0)
+    setImageBrightness(100)
+    setImageContrast(100)
+    setImageSaturation(100)
+    setImagePosition({ x: 0, y: 0 })
+  }
+
+  const closeImageEditor = () => {
+    setShowImageEditor(false)
+    setSelectedImage(null)
+    resetImageEditor()
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const getCroppedImage = () => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const size = 400 // Output size
+
+    canvas.width = size
+    canvas.height = size
+
+    const img = imageRef.current
+    if (!img) return null
+
+    // Apply transformations
+    ctx.save()
+    ctx.translate(size / 2, size / 2)
+    ctx.rotate((imageRotation * Math.PI) / 180)
+    ctx.scale(imageScale, imageScale)
+
+    // Apply filters
+    ctx.filter = `brightness(${imageBrightness}%) contrast(${imageContrast}%) saturate(${imageSaturation}%)`
+
+    // Draw image centered with position offset
+    const drawSize = size / imageScale
+    ctx.drawImage(
+      img,
+      -drawSize / 2 + imagePosition.x / imageScale,
+      -drawSize / 2 + imagePosition.y / imageScale,
+      drawSize,
+      drawSize
+    )
+
+    ctx.restore()
+
+    return canvas.toDataURL('image/jpeg', 0.9)
+  }
+
+  const handleSaveImage = async () => {
     try {
       setUploadingImage(true)
 
-      // Convert image to base64
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64Image = reader.result
+      const croppedImage = getCroppedImage()
+      if (!croppedImage) {
+        toast.error('Failed to process image')
+        return
+      }
 
-        const token = localStorage.getItem('token')
-        const response = await fetch(`/api/employees/${employee._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ profilePicture: base64Image })
-        })
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/employees/${employee._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ profilePicture: croppedImage })
+      })
 
-        const result = await response.json()
-        if (result.success) {
-          setEmployee(prev => ({ ...prev, profilePicture: base64Image }))
-          setEditedEmployee(prev => ({ ...prev, profilePicture: base64Image }))
-          toast.success('Profile picture updated successfully!')
+      const result = await response.json()
+      if (result.success) {
+        setEmployee(prev => ({ ...prev, profilePicture: croppedImage }))
+        setEditedEmployee(prev => ({ ...prev, profilePicture: croppedImage }))
+        toast.success('Profile picture updated successfully!')
 
-          // Update localStorage user data if it has employeeId
-          const userData = localStorage.getItem('user')
-          if (userData) {
-            const parsedUser = JSON.parse(userData)
-            if (parsedUser.employeeId) {
-              parsedUser.employeeId.profilePicture = base64Image
-              localStorage.setItem('user', JSON.stringify(parsedUser))
-            }
+        // Update localStorage user data if it has employeeId
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          const parsedUser = JSON.parse(userData)
+          if (parsedUser.employeeId) {
+            parsedUser.employeeId.profilePicture = croppedImage
+            localStorage.setItem('user', JSON.stringify(parsedUser))
           }
-        } else {
-          toast.error(result.message || 'Failed to update profile picture')
         }
-        setUploadingImage(false)
-      }
 
-      reader.onerror = () => {
-        toast.error('Failed to read image file')
-        setUploadingImage(false)
+        closeImageEditor()
+      } else {
+        toast.error(result.message || 'Failed to update profile picture')
       }
-
-      reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error uploading image:', error)
       toast.error('Failed to upload image')
+    } finally {
       setUploadingImage(false)
     }
   }
@@ -276,7 +398,7 @@ export default function ProfilePage() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload}
+                  onChange={handleImageSelect}
                   className="hidden"
                 />
               </div>
@@ -573,6 +695,235 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Image Editor Modal */}
+      {showImageEditor && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">Edit Profile Picture</h2>
+              <button
+                onClick={closeImageEditor}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Editor Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Preview Area */}
+                <div className="lg:col-span-2">
+                  <div className="bg-gray-100 rounded-xl overflow-hidden relative" style={{ height: '400px' }}>
+                    {/* Circular Crop Preview */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div
+                        className="relative overflow-hidden rounded-full bg-white shadow-2xl"
+                        style={{ width: '300px', height: '300px' }}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                      >
+                        <img
+                          ref={imageRef}
+                          src={selectedImage}
+                          alt="Preview"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          style={{
+                            transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale}) rotate(${imageRotation}deg)`,
+                            filter: `brightness(${imageBrightness}%) contrast(${imageContrast}%) saturate(${imageSaturation}%)`,
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                            transformOrigin: 'center center'
+                          }}
+                          draggable={false}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm">
+                      Drag to reposition • Use controls to adjust
+                    </div>
+                  </div>
+                </div>
+
+                {/* Controls */}
+                <div className="space-y-4">
+                  {/* Zoom Control */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FaSearchPlus className="text-blue-600" />
+                        Zoom
+                      </label>
+                      <span className="text-xs text-gray-500">{Math.round(imageScale * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={imageScale}
+                      onChange={(e) => setImageScale(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => setImageScale(Math.max(0.5, imageScale - 0.1))}
+                        className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50"
+                      >
+                        <FaSearchMinus className="inline" />
+                      </button>
+                      <button
+                        onClick={() => setImageScale(Math.min(3, imageScale + 0.1))}
+                        className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50"
+                      >
+                        <FaSearchPlus className="inline" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rotation Control */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FaUndo className="text-blue-600" />
+                        Rotation
+                      </label>
+                      <span className="text-xs text-gray-500">{imageRotation}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      step="1"
+                      value={imageRotation}
+                      onChange={(e) => setImageRotation(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => setImageRotation((imageRotation - 90 + 360) % 360)}
+                        className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50"
+                      >
+                        <FaUndo className="inline" /> 90°
+                      </button>
+                      <button
+                        onClick={() => setImageRotation((imageRotation + 90) % 360)}
+                        className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50"
+                      >
+                        <FaRedo className="inline" /> 90°
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Brightness Control */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FaSun className="text-yellow-600" />
+                        Brightness
+                      </label>
+                      <span className="text-xs text-gray-500">{imageBrightness}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      step="1"
+                      value={imageBrightness}
+                      onChange={(e) => setImageBrightness(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-600"
+                    />
+                  </div>
+
+                  {/* Contrast Control */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FaAdjust className="text-purple-600" />
+                        Contrast
+                      </label>
+                      <span className="text-xs text-gray-500">{imageContrast}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      step="1"
+                      value={imageContrast}
+                      onChange={(e) => setImageContrast(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                  </div>
+
+                  {/* Saturation Control */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <FaAdjust className="text-pink-600" />
+                        Saturation
+                      </label>
+                      <span className="text-xs text-gray-500">{imageSaturation}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="200"
+                      step="1"
+                      value={imageSaturation}
+                      onChange={(e) => setImageSaturation(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
+                    />
+                  </div>
+
+                  {/* Reset Button */}
+                  <button
+                    onClick={resetImageEditor}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                  >
+                    Reset All
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={closeImageEditor}
+                disabled={uploadingImage}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveImage}
+                disabled={uploadingImage}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                {uploadingImage ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FaCheck />
+                    Save Picture
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
