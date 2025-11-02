@@ -65,6 +65,17 @@ export const roleBasedMenus = {
       ]
     },
     {
+      name: 'Projects',
+      icon: FaProjectDiagram,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+        { name: 'My Projects', path: '/dashboard/projects/my-projects' },
+        { name: 'Department Projects', path: '/dashboard/projects/department' },
+      ]
+    },
+    {
       name: 'Task Management',
       icon: FaTasks,
       path: '/dashboard/tasks',
@@ -74,7 +85,6 @@ export const roleBasedMenus = {
         { name: 'Create Task', path: '/dashboard/tasks/create' },
         { name: 'My Tasks', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Projects', path: '/dashboard/tasks/projects' },
         { name: 'Task Analytics', path: '/dashboard/tasks/analytics' },
       ]
     },
@@ -183,6 +193,17 @@ export const roleBasedMenus = {
       ]
     },
     {
+      name: 'Projects',
+      icon: FaProjectDiagram,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+        { name: 'My Projects', path: '/dashboard/projects/my-projects' },
+        { name: 'Department Projects', path: '/dashboard/projects/department' },
+      ]
+    },
+    {
       name: 'Task Management',
       icon: FaTasks,
       path: '/dashboard/tasks',
@@ -191,8 +212,8 @@ export const roleBasedMenus = {
         { name: 'All Tasks', path: '/dashboard/tasks/all' },
         { name: 'Create Task', path: '/dashboard/tasks/create' },
         { name: 'My Tasks', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
         { name: 'Department Tasks', path: '/dashboard/tasks/department-tasks' },
-        { name: 'Projects', path: '/dashboard/tasks/projects' },
       ]
     },
     { 
@@ -256,6 +277,17 @@ export const roleBasedMenus = {
       ]
     },
     {
+      name: 'Projects',
+      icon: FaProjectDiagram,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+        { name: 'My Projects', path: '/dashboard/projects/my-projects' },
+        { name: 'Team Projects', path: '/dashboard/projects/team' },
+      ]
+    },
+    {
       name: 'Task Management',
       icon: FaTasks,
       path: '/dashboard/tasks',
@@ -315,11 +347,21 @@ export const roleBasedMenus = {
       ]
     },
     {
+      name: 'Projects',
+      icon: FaProjectDiagram,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Projects', path: '/dashboard/projects/my-projects' },
+      ]
+    },
+    {
       name: 'Task Management',
       icon: FaTasks,
       path: '/dashboard/tasks',
       submenu: [
         { name: 'My Tasks', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
         { name: 'Create Task', path: '/dashboard/tasks/create' },
         { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
         { name: 'Task Dashboard', path: '/dashboard/tasks' },

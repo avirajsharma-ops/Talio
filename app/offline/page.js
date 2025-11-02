@@ -124,8 +124,8 @@ export default function OfflinePage() {
         {/* Tips */}
         {!isOnline && (
           <div className="mt-6 text-xs text-gray-500 space-y-1">
-            <p>💡 Tip: Check your internet connection and try refreshing the page.</p>
-            <p>📱 This app works offline with cached data.</p>
+            <p>Tip: Check your internet connection and try refreshing the page.</p>
+            <p>This app works offline with cached data.</p>
           </div>
         )}
       </div>

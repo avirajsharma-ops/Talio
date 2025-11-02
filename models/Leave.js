@@ -58,6 +58,10 @@ const LeaveSchema = new mongoose.Schema({
     type: String,
     enum: ['first-half', 'second-half'],
   },
+  workFromHome: {
+    type: Boolean,
+    default: false,
+  },
   // Enhanced fields
   priority: {
     type: String,

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   FaTasks, FaCheckCircle, FaClock, FaExclamationTriangle,
-  FaPlus, FaUsers, FaCalendarAlt
+  FaPlus, FaUsers, FaCalendarAlt, FaHistory
 } from 'react-icons/fa'
 import RoleBasedAccess from '@/components/RoleBasedAccess'
 
@@ -216,6 +216,17 @@ export default function TasksPage() {
                 <p className="text-sm text-indigo-700">Assign tasks to your colleagues</p>
               </div>
             )}
+
+            <div
+              onClick={() => router.push('/dashboard/tasks/history')}
+              className="bg-purple-50 p-4 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors border border-purple-200"
+            >
+              <div className="flex items-center mb-2">
+                <FaHistory className="text-purple-600 mr-2" />
+                <h3 className="font-semibold text-purple-900">Task History</h3>
+              </div>
+              <p className="text-sm text-purple-700">View all tasks including deleted ones</p>
+            </div>
           </div>
         </div>
       </div>

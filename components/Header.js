@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCog, FaSearch } from 'react-icons/fa'
+import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCog, FaSearch, FaComments, FaTimes, FaSpinner } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { PWAStatus } from '@/components/PWAInstaller'
 
@@ -12,8 +12,15 @@ export default function Header({ toggleSidebar }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [showMobileSearch, setShowMobileSearch] = useState(false)
+  const [searching, setSearching] = useState(false)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
+  const searchRef = useRef(null)
+  const searchTimeoutRef = useRef(null)
 
   useEffect(() => {
     setMounted(true)
@@ -29,6 +36,9 @@ export default function Header({ toggleSidebar }) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setShowProfileMenu(false)
       }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSearchResults(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -40,6 +50,44 @@ export default function Header({ toggleSidebar }) {
     }
   }, [])
 
+  // Search functionality
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (searchQuery.trim().length < 2) {
+      setSearchResults(null)
+      setShowSearchResults(false)
+      return
+    }
+
+    setSearching(true)
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const result = await response.json()
+        if (result.success) {
+          setSearchResults(result.data)
+          setShowSearchResults(true)
+        }
+      } catch (error) {
+        console.error('Search error:', error)
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchQuery])
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -47,6 +95,48 @@ export default function Header({ toggleSidebar }) {
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     toast.success('Logged out successfully')
     router.push('/login')
+  }
+
+  const handleSearchResultClick = (link) => {
+    setShowSearchResults(false)
+    setShowMobileSearch(false)
+    setSearchQuery('')
+    router.push(link)
+  }
+
+  const closeMobileSearch = () => {
+    setShowMobileSearch(false)
+    setSearchQuery('')
+    setSearchResults(null)
+    setShowSearchResults(false)
+  }
+
+  const getResultIcon = (type) => {
+    const icons = {
+      page: '🔍',
+      employee: '👤',
+      task: '📋',
+      leave: '🏖️',
+      attendance: '⏰',
+      department: '🏢',
+      designation: '💼',
+      document: '📄',
+      asset: '💻',
+      announcement: '📢',
+      policy: '📜'
+    }
+    return icons[type] || '📌'
+  }
+
+  const getCategoryLabel = (category) => {
+    const labels = {
+      pages: 'Pages & Navigation',
+      tasks: 'Tasks',
+      leaves: 'Leaves',
+      announcements: 'Announcements',
+      policies: 'Policies'
+    }
+    return labels[category] || category.charAt(0).toUpperCase() + category.slice(1)
   }
 
   // Don't render user-specific content until mounted to avoid hydration mismatch
@@ -82,14 +172,85 @@ export default function Header({ toggleSidebar }) {
             <FaBars className="w-8 h-8 sm:w-6 sm:h-6" />
           </button>
 
-          {/* Search bar */}
-          <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 sm:px-4 py-2 w-64 lg:w-96">
-            <FaSearch className="text-gray-400 mr-2 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search employees, documents..."
-              className="bg-transparent border-none focus:outline-none w-full text-sm"
-            />
+          {/* Search bar - Desktop */}
+          <div ref={searchRef} className="hidden md:block relative w-64 lg:w-96">
+            <div className="relative flex items-center">
+              <FaSearch className="absolute left-3 text-gray-400 w-4 h-4 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search everything..."
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+              {searching && (
+                <FaSpinner className="absolute right-3 animate-spin text-blue-600 w-4 h-4" />
+              )}
+              {searchQuery && !searching && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setShowSearchResults(false)
+                  }}
+                  className="absolute right-3 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-[70vh] overflow-hidden z-50">
+                <div className="overflow-y-auto max-h-[70vh] scrollbar-hide">
+                  {Object.entries(searchResults).map(([category, items]) => {
+                    if (items.length === 0) return null
+                    return (
+                      <div key={category} className="border-b border-gray-100 last:border-b-0">
+                        <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 font-semibold text-xs text-gray-700 uppercase sticky top-0 z-10 border-b border-gray-200">
+                          {getCategoryLabel(category)} <span className="text-gray-500">({items.length})</span>
+                        </div>
+                        {items.map((item, index) => (
+                          <div
+                            key={item._id || index}
+                            onClick={() => handleSearchResultClick(item.link)}
+                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="text-xl flex-shrink-0 mt-0.5">{getResultIcon(item.type)}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-sm text-gray-900 truncate">{item.title}</h4>
+                                  {item.meta && item.type === 'page' && (
+                                    <span className="text-lg">{item.meta}</span>
+                                  )}
+                                  {item.meta && item.type !== 'page' && (
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{item.meta}</span>
+                                  )}
+                                </div>
+                                {item.subtitle && (
+                                  <p className="text-xs text-blue-600 mb-1">{item.subtitle}</p>
+                                )}
+                                {item.description && (
+                                  <p className="text-xs text-gray-500 line-clamp-1">{item.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                  {Object.values(searchResults).every(arr => arr.length === 0) && (
+                    <div className="px-4 py-12 text-center text-gray-500">
+                      <FaSearch className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm font-medium">No results found for "{searchQuery}"</p>
+                      <p className="text-xs text-gray-400 mt-1">Try different keywords or check spelling</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -100,8 +261,25 @@ export default function Header({ toggleSidebar }) {
 
         {/* Right side */}
         <div className="flex items-center space-x-2 sm:space-x-4">
+          {/* Chat Button - Desktop Only */}
+          <button
+            onClick={() => router.push('/dashboard/chat')}
+            className="hidden md:flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <FaComments className="w-5 h-5" />
+            <span className="text-sm font-medium">Chat</span>
+          </button>
+
           {/* PWA Status */}
           <PWAStatus />
+
+          {/* Mobile Search Icon */}
+          <button
+            onClick={() => setShowMobileSearch(true)}
+            className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <FaSearch className="w-5 h-5" />
+          </button>
 
           {/* Notifications */}
           {/* <div ref={notifRef} className="relative mt-3 md:mt-0">
@@ -158,34 +336,150 @@ export default function Header({ toggleSidebar }) {
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                <a
-                  href="/dashboard/profile"
-                  className="flex items-center space-x-2 px-2 md:px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <FaUser className="w-4 h-4" />
-                  <span>My Profile</span>
-                </a>
-                <a
-                  href="/dashboard/settings"
-                  className="flex items-center space-x-2 px-2 py-2 md:px-4 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <FaCog className="w-4 h-4" />
-                  <span>Settings</span>
-                </a>
-                <hr className="my-2" />
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center space-x-2 px-2 md:px-4 py-2 md:pl-4  text-sm text-red-600 hover:bg-gray-100 w-full text-left"
-                >
-                  <FaSignOutAlt className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
+              <>
+                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={() => setShowProfileMenu(false)} />
+                <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <a
+                    href="/dashboard/profile"
+                    className="flex items-center space-x-2 px-2 md:px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FaUser className="w-4 h-4" />
+                    <span>My Profile</span>
+                  </a>
+                  <a
+                    href="/dashboard/settings"
+                    className="flex items-center space-x-2 px-2 py-2 md:px-4 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FaCog className="w-4 h-4" />
+                    <span>Settings</span>
+                  </a>
+                  <hr className="my-2" />
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 px-2 md:px-4 py-2 md:pl-4  text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                  >
+                    <FaSignOutAlt className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Fullscreen Modal */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 bg-white z-[100] md:hidden">
+          <div className="flex flex-col h-full">
+            {/* Search Header - Match header height */}
+            <div className="flex items-center gap-2 px-4 h-16 border-b border-gray-200 bg-white">
+              <button
+                onClick={closeMobileSearch}
+                className="p-2 text-gray-600 hover:text-gray-800 flex-shrink-0"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+              <div className="flex-1 relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search everything..."
+                  className="w-full h-10 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  autoFocus
+                />
+                {searchQuery && !searching && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSearchResults(null)
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                )}
+                {searching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <FaSpinner className="animate-spin text-blue-600 w-4 h-4" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Search Results */}
+            <div className="flex-1 overflow-y-auto">
+              {searchQuery.length < 2 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4">
+                  <FaSearch className="w-16 h-16 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">Search Everything</p>
+                  <p className="text-sm text-center mt-2">
+                    Find pages, tasks, leaves, announcements, and more...
+                  </p>
+                </div>
+              ) : searching ? (
+                <div className="flex items-center justify-center h-full">
+                  <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
+                </div>
+              ) : searchResults ? (
+<div>
+                  {Object.entries(searchResults).map(([category, items]) => {
+                    if (items.length === 0) return null
+                    return (
+                      <div key={category} className="border-b border-gray-100">
+                        <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 font-semibold text-sm text-gray-700 uppercase sticky top-0 z-10">
+                          {getCategoryLabel(category)} <span className="text-gray-500">({items.length})</span>
+                        </div>
+                        {items.map((item, index) => (
+                          <div
+                            key={item._id || index}
+                            onClick={() => handleSearchResultClick(item.link)}
+                            className="px-4 py-4 hover:bg-blue-50 active:bg-blue-100 cursor-pointer border-b border-gray-50 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="text-2xl flex-shrink-0 mt-1">{getResultIcon(item.type)}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-base text-gray-900">{item.title}</h4>
+                                  {item.meta && item.type === 'page' && (
+                                    <span className="text-xl">{item.meta}</span>
+                                  )}
+                                </div>
+                                {item.subtitle && (
+                                  <p className="text-sm text-blue-600 mb-1">{item.subtitle}</p>
+                                )}
+                                {item.description && (
+                                  <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                                )}
+                                {item.meta && item.type !== 'page' && (
+                                  <span className="inline-block text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mt-2">
+                                    {item.meta}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                  {Object.values(searchResults).every(arr => arr.length === 0) && (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 px-4 py-12">
+                      <FaSearch className="w-16 h-16 mb-4 text-gray-300" />
+                      <p className="text-lg font-medium">No results found</p>
+                      <p className="text-sm text-center mt-2 text-gray-500">
+                        Try different keywords or check spelling
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

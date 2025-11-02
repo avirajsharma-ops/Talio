@@ -114,6 +114,36 @@ const EmployeeSchema = new mongoose.Schema({
     to: Date,
     description: String,
   }],
+  reviews: [{
+    type: {
+      type: String,
+      enum: ['review', 'remark', 'feedback', 'warning', 'appreciation'],
+      required: true
+    },
+    content: {
+      type: String,
+      required: true
+    },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5
+    },
+    category: {
+      type: String,
+      enum: ['performance', 'behavior', 'skills', 'general'],
+      default: 'general'
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
 }, {
   timestamps: true,
 });

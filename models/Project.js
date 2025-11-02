@@ -307,8 +307,38 @@ const ProjectSchema = new mongoose.Schema({
   }],
   // Tags and Classification
   tags: [String],
-  department: String,
+  department: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
+    required: true
+  },
   businessUnit: String,
+  // Cross-Department Collaboration
+  crossDepartmentCollaboration: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    departments: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department'
+    }],
+    collaborators: [{
+      employee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee'
+      },
+      department: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Department'
+      },
+      role: String,
+      addedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }]
+  },
   // System Fields
   projectCode: {
     type: String,

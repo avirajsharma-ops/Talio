@@ -1,0 +1,98 @@
+import mongoose from 'mongoose'
+
+const progressUpdateSchema = new mongoose.Schema({
+  progress: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 100
+  },
+  remark: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { _id: true })
+
+const milestoneSchema = new mongoose.Schema({
+  task: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task',
+    required: true,
+    index: true
+  },
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  progress: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  dueDate: {
+    type: Date
+  },
+  status: {
+    type: String,
+    enum: ['not_started', 'in_progress', 'completed', 'on_hold'],
+    default: 'not_started'
+  },
+  progressHistory: [progressUpdateSchema],
+  order: {
+    type: Number,
+    default: 0
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: Date,
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  }
+}, {
+  timestamps: true
+})
+
+// Index for efficient queries
+milestoneSchema.index({ task: 1, isDeleted: 1 })
+milestoneSchema.index({ task: 1, order: 1 })
+
+// Update status based on progress
+milestoneSchema.pre('save', function(next) {
+  if (this.progress === 0) {
+    this.status = 'not_started'
+  } else if (this.progress === 100) {
+    this.status = 'completed'
+  } else if (this.progress > 0 && this.progress < 100) {
+    this.status = 'in_progress'
+  }
+  next()
+})
+
+const Milestone = mongoose.models.Milestone || mongoose.model('Milestone', milestoneSchema)
+
+export default Milestone
+

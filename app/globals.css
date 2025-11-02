@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbar utility */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbars on mobile */
+  @media (max-width: 768px) {
+    * {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    *::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
 /* PWA Animations */
 @keyframes slide-up {
   from {

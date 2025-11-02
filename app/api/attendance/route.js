@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
+import Leave from '@/models/Leave'
 
 // GET - List attendance records
 export async function GET(request) {
@@ -62,11 +63,29 @@ export async function POST(request) {
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
+    // Check for approved leave or work from home for today
+    const todayLeave = await Leave.findOne({
+      employee: employeeId,
+      status: 'approved',
+      startDate: { $lte: new Date() },
+      endDate: { $gte: today }
+    })
+
     // Check if attendance already exists for today
     let attendance = await Attendance.findOne({
       employee: employeeId,
       date: { $gte: today, $lt: tomorrow },
     })
+
+    // If no attendance record exists but there's an approved leave/WFH, create one
+    if (!attendance && todayLeave) {
+      attendance = await Attendance.create({
+        employee: employeeId,
+        date: today,
+        status: todayLeave.workFromHome ? 'in-progress' : 'on-leave',
+        workFromHome: todayLeave.workFromHome || false
+      })
+    }
 
     if (type === 'clock-in') {
       if (attendance && attendance.checkIn) {
@@ -100,11 +119,15 @@ export async function POST(request) {
           checkIn: checkInTime,
           checkInStatus: checkInStatus,
           status: 'in-progress', // Status will be determined on checkout
+          workFromHome: todayLeave?.workFromHome || false
         })
       } else {
         attendance.checkIn = checkInTime
         attendance.checkInStatus = checkInStatus
         attendance.status = 'in-progress' // Status will be determined on checkout
+        if (todayLeave?.workFromHome) {
+          attendance.workFromHome = true
+        }
         await attendance.save()
       }
 

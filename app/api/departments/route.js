@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
+import Employee from '@/models/Employee'
 
 // GET - List all departments
 export async function GET(request) {
@@ -8,11 +9,27 @@ export async function GET(request) {
     await connectDB()
 
     const departments = await Department.find({ isActive: true })
+      .populate('head', 'firstName lastName employeeCode email')
       .sort({ name: 1 })
+      .lean()
+
+    // Add employee count for each department
+    const departmentsWithCount = await Promise.all(
+      departments.map(async (dept) => {
+        const employeeCount = await Employee.countDocuments({
+          department: dept._id,
+          status: 'active'
+        })
+        return {
+          ...dept,
+          employeeCount
+        }
+      })
+    )
 
     return NextResponse.json({
       success: true,
-      data: departments,
+      data: departmentsWithCount,
     })
   } catch (error) {
     console.error('Get departments error:', error)

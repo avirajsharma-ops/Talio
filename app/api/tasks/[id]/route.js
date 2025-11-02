@@ -25,8 +25,8 @@ export async function GET(request, { params }) {
 
     const taskId = params.id
 
-    // Find the task
-    const task = await Task.findById(taskId)
+    // Find the task (exclude deleted tasks by default)
+    const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
       .populate('project', 'name projectCode')
@@ -129,7 +129,7 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE - Delete task
+// DELETE - Delete task (soft delete)
 export async function DELETE(request, { params }) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -148,6 +148,8 @@ export async function DELETE(request, { params }) {
     const employeeId = currentUser?.employeeId
 
     const taskId = params.id
+    const body = await request.json()
+    const deletionReason = body?.reason || 'No reason provided'
 
     const task = await Task.findById(taskId)
     if (!task) {
@@ -166,7 +168,13 @@ export async function DELETE(request, { params }) {
       )
     }
 
-    await Task.findByIdAndDelete(taskId)
+    // Soft delete - mark as deleted instead of removing
+    await Task.findByIdAndUpdate(taskId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: employeeId,
+      deletionReason: deletionReason
+    })
 
     return NextResponse.json({
       success: true,
@@ -191,22 +199,24 @@ async function checkTaskViewPermission(userId, task, userRole) {
     }
 
     // Check if user is assigned to the task
-    const isAssigned = task.assignedTo.some(assignment => 
-      assignment.employee.toString() === userId.toString()
-    )
+    const isAssigned = task.assignedTo.some(assignment => {
+      const empId = assignment.employee?._id || assignment.employee
+      return empId.toString() === userId.toString()
+    })
     if (isAssigned) {
       return true
     }
 
-    // Check if user created the task
-    if (task.assignedBy.toString() === userId.toString()) {
+    // Check if user created the task (handle both populated and non-populated)
+    const assignedById = task.assignedBy?._id || task.assignedBy
+    if (assignedById && assignedById.toString() === userId.toString()) {
       return true
     }
 
     // For managers, check if any assignee reports to them
     if (userRole === 'manager') {
-      const assigneeIds = task.assignedTo.map(a => a.employee)
-      const teamMembers = await Employee.find({ 
+      const assigneeIds = task.assignedTo.map(a => a.employee?._id || a.employee)
+      const teamMembers = await Employee.find({
         reportingManager: userId,
         _id: { $in: assigneeIds }
       })
@@ -230,16 +240,18 @@ async function checkTaskUpdatePermission(userId, task, userRole) {
       return true
     }
 
-    // Task creator can update
-    if (task.assignedBy.toString() === userId.toString()) {
+    // Task creator can update (handle both populated and non-populated)
+    const assignedById = task.assignedBy?._id || task.assignedBy
+    if (assignedById && assignedById.toString() === userId.toString()) {
       return true
     }
 
     // HR can update tasks in their department
     if (userRole === 'hr') {
       const user = await Employee.findById(userId)
-      const assignees = await Employee.find({ 
-        _id: { $in: task.assignedTo.map(a => a.employee) }
+      const assigneeIds = task.assignedTo.map(a => a.employee?._id || a.employee)
+      const assignees = await Employee.find({
+        _id: { $in: assigneeIds }
       })
       const sameDepAssignees = assignees.filter(emp => emp.department === user.department)
       if (sameDepAssignees.length > 0) {
@@ -249,8 +261,8 @@ async function checkTaskUpdatePermission(userId, task, userRole) {
 
     // Managers can update tasks for their team members
     if (userRole === 'manager') {
-      const assigneeIds = task.assignedTo.map(a => a.employee)
-      const teamMembers = await Employee.find({ 
+      const assigneeIds = task.assignedTo.map(a => a.employee?._id || a.employee)
+      const teamMembers = await Employee.find({
         reportingManager: userId,
         _id: { $in: assigneeIds }
       })
@@ -269,18 +281,15 @@ async function checkTaskUpdatePermission(userId, task, userRole) {
 // Helper function to check task delete permission
 async function checkTaskDeletePermission(userId, task, userRole) {
   try {
-    // Only admin and task creator can delete
-    if (userRole === 'admin') {
-      return true
-    }
-
-    if (task.assignedBy.toString() === userId.toString()) {
+    // Only the task creator can delete
+    const assignedById = task.assignedBy?._id || task.assignedBy
+    if (assignedById && assignedById.toString() === userId.toString()) {
       return true
     }
 
     return false
   } catch (error) {
-    console.error('Permission check error:', error)
+    console.error('Delete permission check error:', error)
     return false
   }
 }

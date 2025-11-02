@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import DailyGoal from '@/models/DailyGoal'
 import Employee from '@/models/Employee'
+import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Get daily goals
@@ -19,6 +20,10 @@ export async function GET(request) {
 
     await connectDB()
 
+    // Get current user's employee ID
+    const currentUser = await User.findById(decoded.userId).select('employeeId')
+    const currentEmployeeId = currentUser?.employeeId
+
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
     const employeeId = searchParams.get('employeeId')
@@ -26,16 +31,16 @@ export async function GET(request) {
     const endDate = searchParams.get('endDate')
 
     let query = {}
-    
+
     // Role-based access control
     if (decoded.role === 'employee') {
-      query.employee = decoded.userId
+      query.employee = currentEmployeeId
     } else if (employeeId) {
       query.employee = employeeId
     } else if (decoded.role === 'manager') {
       // Get team members for manager
-      const teamMembers = await Employee.find({ 
-        reportingManager: decoded.userId,
+      const teamMembers = await Employee.find({
+        reportingManager: currentEmployeeId,
         status: 'active'
       }).select('_id')
       query.employee = { $in: teamMembers.map(m => m._id) }
@@ -94,10 +99,14 @@ export async function POST(request) {
 
     await connectDB()
 
+    // Get current user's employee ID
+    const currentUser = await User.findById(decoded.userId).select('employeeId')
+    const currentEmployeeId = currentUser?.employeeId
+
     const { date, goals, employeeId } = await request.json()
-    
+
     // Determine target employee
-    let targetEmployeeId = decoded.userId
+    let targetEmployeeId = currentEmployeeId
     if (employeeId && ['admin', 'hr', 'manager'].includes(decoded.role)) {
       targetEmployeeId = employeeId
     }
@@ -185,6 +194,10 @@ export async function PUT(request) {
 
     await connectDB()
 
+    // Get current user's employee ID
+    const currentUser = await User.findById(decoded.userId).select('employeeId')
+    const currentEmployeeId = currentUser?.employeeId
+
     const { dailyGoalId, goalId, updateData, managerReview } = await request.json()
 
     const dailyGoal = await DailyGoal.findById(dailyGoalId)
@@ -193,7 +206,7 @@ export async function PUT(request) {
     }
 
     // Check permissions
-    const isOwner = dailyGoal.employee.toString() === decoded.userId
+    const isOwner = dailyGoal.employee.toString() === currentEmployeeId?.toString()
     const isManager = ['admin', 'hr', 'manager'].includes(decoded.role)
 
     if (!isOwner && !isManager) {
@@ -219,7 +232,7 @@ export async function PUT(request) {
     if (managerReview && isManager) {
       dailyGoal.managerReview = {
         ...managerReview,
-        reviewedBy: decoded.userId,
+        reviewedBy: currentEmployeeId,
         reviewDate: new Date()
       }
     }

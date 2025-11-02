@@ -31,6 +31,10 @@ const AttendanceSchema = new mongoose.Schema({
     enum: ['present', 'absent', 'half-day', 'late', 'on-leave', 'holiday', 'weekend', 'in-progress'],
     default: 'absent',
   },
+  workFromHome: {
+    type: Boolean,
+    default: false,
+  },
   workHours: {
     type: Number,
     default: 0,

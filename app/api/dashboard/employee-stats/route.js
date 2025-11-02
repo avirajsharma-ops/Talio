@@ -4,6 +4,9 @@ import Attendance from '@/models/Attendance'
 import LeaveBalance from '@/models/LeaveBalance'
 import Payroll from '@/models/Payroll'
 import Employee from '@/models/Employee'
+import Designation from '@/models/Designation'
+import Department from '@/models/Department'
+import User from '@/models/User'
 import Performance from '@/models/Performance'
 import { verifyToken } from '@/lib/auth'
 
@@ -22,11 +25,23 @@ export async function GET(request) {
 
     await connectDB()
 
-    // Find the employee
-    const employee = await Employee.findOne({ _id: decoded.userId })
-    if (!employee) {
-      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    // Find the user first to get the employeeId
+    const user = await User.findById(decoded.userId).populate({
+      path: 'employeeId',
+      populate: [
+        { path: 'designation', select: 'title code' },
+        { path: 'department', select: 'name' }
+      ]
+    })
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
     }
+
+    if (!user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee profile not found' }, { status: 404 })
+    }
+
+    const employee = user.employeeId
 
     const currentDate = new Date()
     const currentMonth = currentDate.getMonth() + 1
@@ -180,8 +195,10 @@ export async function GET(request) {
         employee: {
           name: `${employee.firstName} ${employee.lastName}`,
           employeeCode: employee.employeeCode,
+          employeeId: employee.employeeCode,
+          profilePicture: employee.profilePicture,
           department: employee.department,
-          designation: employee.designation
+          designation: employee.designation?.title || null
         }
       }
     })

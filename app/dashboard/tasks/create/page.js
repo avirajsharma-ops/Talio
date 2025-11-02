@@ -19,14 +19,14 @@ function CreateTaskContent() {
     estimatedHours: '',
     assignToSelf: true,
     assignToOthers: false,
-    selectedEmployees: [],
-    parentTask: ''
+    selectedEmployees: []
   })
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [createdTaskId, setCreatedTaskId] = useState(null)
   const [isInitializing, setIsInitializing] = useState(true)
   const [currentEmp, setCurrentEmp] = useState(null)
   const router = useRouter()
@@ -54,7 +54,7 @@ function CreateTaskContent() {
     initializeUser()
   }, []) // Empty dependency array - run only once on mount
 
-  // Resolve current employee and prefill parent task from URL
+  // Resolve current employee
   useEffect(() => {
     if (user && employees.length) {
       const myId = user.employeeId || user.id || user._id
@@ -62,16 +62,6 @@ function CreateTaskContent() {
       setCurrentEmp(me || null)
     }
   }, [user, employees])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const parent = params.get('parent')
-      if (parent) {
-        setFormData(prev => ({ ...prev, parentTask: parent }))
-      }
-    }
-  }, [])
 
 
   const fetchEmployees = async () => {
@@ -95,6 +85,8 @@ function CreateTaskContent() {
       console.error('Error fetching employees:', error)
     }
   }
+
+
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -165,7 +157,6 @@ function CreateTaskContent() {
         category: formData.category,
         dueDate: formData.dueDate,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : 0,
-        parentTask: formData.parentTask || undefined,
         assignedTo: assignees
       }
 
@@ -184,9 +175,8 @@ function CreateTaskContent() {
 
       if (response.ok && data.success) {
         setSuccess('Task created successfully!')
-        setTimeout(() => {
-          router.push('/dashboard/tasks/my-tasks')
-        }, 1500)
+        setCreatedTaskId(data.data?._id || null)
+        // Don't auto-redirect, let user choose to view or create another
       } else {
         setError(data.message || 'Failed to create task')
       }
@@ -267,7 +257,46 @@ function CreateTaskContent() {
 
           {success && (
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 text-sm">{success}</p>
+              <p className="text-green-800 text-sm mb-3">{success}</p>
+              <div className="flex flex-wrap gap-2">
+                {createdTaskId && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/dashboard/tasks/${createdTaskId}`)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                  >
+                    View Task
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccess('')
+                    setCreatedTaskId(null)
+                    setFormData({
+                      title: '',
+                      description: '',
+                      priority: 'medium',
+                      category: 'other',
+                      dueDate: '',
+                      estimatedHours: '',
+                      assignToSelf: true,
+                      assignToOthers: false,
+                      selectedEmployees: []
+                    })
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  Create Another Task
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard/tasks/my-tasks')}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Go to My Tasks
+                </button>
+              </div>
             </div>
           )}
 
@@ -302,32 +331,6 @@ function CreateTaskContent() {
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="Enter task description"
                 />
-              </div>
-
-              {/* Parent Task (optional) */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent Task (optional)
-                </label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    name="parentTask"
-                    value={formData.parentTask}
-                    onChange={handleInputChange}
-                    className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholder="Paste parent task ID or use 'Create subtask' from a task"
-                  />
-                  {formData.parentTask && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, parentTask: '' }))}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
               </div>
 
               <div>

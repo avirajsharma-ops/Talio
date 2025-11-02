@@ -38,7 +38,7 @@ export default function ManagerDashboard({ user }) {
     <div className="page-container space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg p-3 sm:p-6 text-white">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Manager Dashboard 👨‍💼</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Manager Dashboard</h1>
         <p className="text-purple-100 text-sm sm:text-base">Lead your team to success and track performance</p>
       </div>
 

@@ -114,6 +114,38 @@ const TaskSchema = new mongoose.Schema({
     max: 100,
     default: 0
   },
+  // Approval Workflow
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: null
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  },
+  approvedAt: Date,
+  rejectionReason: String,
+  estimatedActualProgress: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  managerRemarks: [{
+    remark: {
+      type: String,
+      required: true
+    },
+    addedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: true
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   // Subtasks and Dependencies
   parentTask: {
     type: mongoose.Schema.Types.ObjectId,
@@ -122,6 +154,33 @@ const TaskSchema = new mongoose.Schema({
   subtasks: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task'
+  }],
+  // Checklist for better completion tracking
+  checklist: [{
+    title: {
+      type: String,
+      required: true,
+      maxlength: 200
+    },
+    description: String,
+    completed: {
+      type: Boolean,
+      default: false
+    },
+    completedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee'
+    },
+    completedAt: Date,
+    order: {
+      type: Number,
+      default: 0
+    },
+    required: {
+      type: Boolean,
+      default: false
+    },
+    dueDate: Date
   }],
   dependencies: [{
     task: {
@@ -353,6 +412,17 @@ const TaskSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  // Soft Delete for History
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: Date,
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  },
+  deletionReason: String,
   // Audit Trail
   statusHistory: [{
     status: String,
@@ -444,16 +514,18 @@ TaskSchema.methods.addTimeEntry = function(employeeId, startTime, endTime, descr
 TaskSchema.methods.updateProgress = function(newProgress, updatedBy, notes) {
   const oldProgress = this.progress
   this.progress = Math.max(0, Math.min(100, newProgress))
-  
+
   // Auto-update status based on progress
   if (this.progress === 0 && this.status === 'in_progress') {
     this.status = 'assigned'
   } else if (this.progress > 0 && this.progress < 100 && this.status === 'assigned') {
     this.status = 'in_progress'
-  } else if (this.progress === 100 && this.status !== 'completed') {
+  } else if (this.progress === 100 && this.status !== 'completed' && this.status !== 'review') {
+    // Move to review status when task is marked complete (needs approval)
     this.status = 'review'
+    this.approvalStatus = 'pending'
   }
-  
+
   // Add status history
   if (oldProgress !== newProgress) {
     this.statusHistory.push({

@@ -20,6 +20,7 @@ export default function ApplyLeavePage() {
     reason: '',
     isHalfDay: false,
     halfDayPeriod: 'morning', // morning or afternoon
+    workFromHome: false,
     emergencyContact: '',
     handoverNotes: '',
   })
@@ -148,6 +149,7 @@ export default function ApplyLeavePage() {
           reason: '',
           isHalfDay: false,
           halfDayPeriod: 'morning',
+          workFromHome: false,
           emergencyContact: '',
           handoverNotes: '',
         })
@@ -232,10 +234,26 @@ export default function ApplyLeavePage() {
                     name="isHalfDay"
                     checked={formData.isHalfDay}
                     onChange={handleChange}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    disabled={formData.workFromHome}
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
                   />
                   <label className="text-sm font-medium text-gray-700">
                     Half Day Leave
+                  </label>
+                </div>
+
+                {/* Work From Home Option */}
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    name="workFromHome"
+                    checked={formData.workFromHome}
+                    onChange={handleChange}
+                    disabled={formData.isHalfDay}
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+                  />
+                  <label className="text-sm font-medium text-gray-700">
+                    Work From Home
                   </label>
                 </div>
 
@@ -426,7 +444,7 @@ export default function ApplyLeavePage() {
 
           {/* Quick Tips */}
           <div className="bg-yellow-50 rounded-lg p-4 mt-6">
-            <h4 className="font-medium text-yellow-800 mb-2">💡 Quick Tips</h4>
+            <h4 className="font-medium text-yellow-800 mb-2">Quick Tips</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
               <li>• Apply for leave at least 2 days in advance</li>
               <li>• Check your leave balance before applying</li>

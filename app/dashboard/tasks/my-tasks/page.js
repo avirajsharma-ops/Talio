@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  FaTasks, FaPlus, FaFilter, FaSearch, FaCalendarAlt, 
+import {
+  FaTasks, FaPlus, FaFilter, FaSearch, FaCalendarAlt,
   FaClock, FaUser, FaCheckCircle, FaExclamationTriangle,
-  FaEdit, FaEye, FaPlay, FaPause, FaCheck
+  FaEdit, FaEye, FaPlay, FaPause, FaCheck, FaTrash
 } from 'react-icons/fa'
 import RoleBasedAccess from '@/components/RoleBasedAccess'
 
@@ -16,6 +16,11 @@ export default function MyTasksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [user, setUser] = useState(null)
   const [stats, setStats] = useState({})
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [taskToDelete, setTaskToDelete] = useState(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [view, setView] = useState('personal') // personal, team, external
   const router = useRouter()
 
   useEffect(() => {
@@ -26,7 +31,7 @@ export default function MyTasksPage() {
     } else {
       router.push('/login')
     }
-  }, [])
+  }, [view])
 
   const fetchMyTasks = async () => {
     try {
@@ -34,7 +39,7 @@ export default function MyTasksPage() {
       const token = localStorage.getItem('token')
 
       let queryParams = new URLSearchParams({
-        view: 'personal',
+        view: view, // Use the current view state
         page: '1',
         limit: '50'
       })
@@ -137,8 +142,8 @@ export default function MyTasksPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          taskId, 
+        body: JSON.stringify({
+          taskId,
           action: 'reject',
           reason: 'Task rejected'
         })
@@ -149,6 +154,66 @@ export default function MyTasksPage() {
       }
     } catch (error) {
       console.error('Error rejecting task:', error)
+    }
+  }
+
+  const canDeleteTask = (task) => {
+    if (!user || !task) return false
+
+    // Get current user's employee ID
+    const myId = user.employeeId?._id || user.employeeId || user.id || user._id
+
+    // Get task creator's ID
+    const assignedById = task.assignedBy?._id || task.assignedBy
+
+    console.log('Delete check:', {
+      myId: myId?.toString(),
+      assignedById: assignedById?.toString(),
+      task: task.title
+    })
+
+    // Only the task creator can delete
+    if (assignedById && myId) {
+      return assignedById.toString() === myId.toString()
+    }
+
+    return false
+  }
+
+  const handleDeleteClick = (task) => {
+    setTaskToDelete(task)
+    setShowDeleteModal(true)
+  }
+
+  const deleteTask = async () => {
+    if (!taskToDelete || !deleteReason.trim()) return
+
+    try {
+      setDeleting(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/tasks/${taskToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason: deleteReason })
+      })
+
+      if (response.ok) {
+        setShowDeleteModal(false)
+        setTaskToDelete(null)
+        setDeleteReason('')
+        fetchMyTasks() // Refresh tasks
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to delete task')
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      alert('Failed to delete task')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -195,13 +260,13 @@ export default function MyTasksPage() {
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     if (filter === 'all') return matchesSearch
-    if (filter === 'pending') return matchesSearch && task.status === 'assigned'
-    if (filter === 'in_progress') return matchesSearch && task.status === 'in_progress'
+    if (filter === 'in_progress') return matchesSearch && (task.status === 'assigned' || task.status === 'in_progress')
+    if (filter === 'review') return matchesSearch && task.status === 'review'
     if (filter === 'completed') return matchesSearch && task.status === 'completed'
     if (filter === 'overdue') return matchesSearch && isOverdue(task.dueDate, task.status)
-    
+
     return matchesSearch
   })
 
@@ -217,33 +282,71 @@ export default function MyTasksPage() {
     <RoleBasedAccess allowedRoles={['admin', 'hr', 'manager', 'employee']}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white shadow-sm rounded-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaTasks className="mr-3 text-blue-600" />
-                My Tasks
+        <div className="bg-white shadow-sm rounded-lg p-3 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
+                <FaTasks className="mr-2 sm:mr-3 text-blue-600 flex-shrink-0" />
+                <span className="truncate">My Tasks</span>
               </h1>
-              <p className="text-gray-600">Manage your assigned tasks and track progress</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your assigned tasks and track progress</p>
             </div>
-            
-            <div className="flex space-x-3">
+
+            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
               <button
                 onClick={() => router.push('/dashboard/tasks/create')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+                className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
               >
-                <FaPlus className="w-4 h-4" />
+                <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span>Create Task</span>
               </button>
-              
+
               <button
                 onClick={() => router.push('/dashboard/tasks')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                className="bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-700 text-sm sm:text-base whitespace-nowrap"
               >
                 Dashboard
               </button>
             </div>
           </div>
+
+          {/* View Tabs (for managers) */}
+          {user && ['manager', 'admin'].includes(user.role) && (
+            <div className="border-b border-gray-200 mb-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setView('personal')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'personal'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  My Tasks
+                </button>
+                <button
+                  onClick={() => setView('team')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'team'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  Team Tasks
+                </button>
+                <button
+                  onClick={() => setView('external')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    view === 'external'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  External Tasks
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Filters and Search */}
           <div className="flex flex-col space-y-4 mb-6">
@@ -258,20 +361,20 @@ export default function MyTasksPage() {
                 All Tasks
               </button>
               <button
-                onClick={() => setFilter('assigned')}
-                className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                  filter === 'assigned' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Pending
-              </button>
-              <button
                 onClick={() => setFilter('in_progress')}
                 className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   filter === 'in_progress' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 In Progress
+              </button>
+              <button
+                onClick={() => setFilter('review')}
+                className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                  filter === 'review' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Under Review
               </button>
               <button
                 onClick={() => setFilter('completed')}
@@ -328,12 +431,14 @@ export default function MyTasksPage() {
               {filteredTasks.map((task) => {
                 const myAssignment = getMyAssignment(task)
                 return (
-                  <div key={task._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
+                  <div key={task._id} className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                    <div className="flex flex-col space-y-3">
                       <div className="flex-1">
                         {/* Title and Badges */}
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-3">
-                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 break-words">{task.title}</h3>
+                        <div className="mb-3">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                            {task.title}
+                          </h3>
                           <div className="flex flex-wrap gap-2">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
                               {task.status.replace('_', ' ')}
@@ -388,18 +493,18 @@ export default function MyTasksPage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex flex-row sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2 sm:ml-4">
+                      <div className="flex flex-wrap gap-2 mt-3">
                         {myAssignment?.status === 'pending' && (
                           <>
                             <button
                               onClick={() => acceptTask(task._id)}
-                              className="bg-green-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-green-700 transition-colors flex-1 sm:flex-none"
+                              className="bg-green-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-green-700 transition-colors flex-1 min-w-[100px]"
                             >
                               Accept
                             </button>
                             <button
                               onClick={() => rejectTask(task._id)}
-                              className="bg-red-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-red-700 transition-colors flex-1 sm:flex-none"
+                              className="bg-red-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-red-700 transition-colors flex-1 min-w-[100px]"
                             >
                               Reject
                             </button>
@@ -411,7 +516,7 @@ export default function MyTasksPage() {
                             {task.status === 'assigned' && (
                               <button
                                 onClick={() => updateTaskProgress(task._id, 10, 'in_progress')}
-                                className="bg-blue-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-blue-700 transition-colors flex items-center justify-center flex-1 sm:flex-none"
+                                className="bg-blue-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-blue-700 transition-colors flex items-center justify-center flex-1 min-w-[100px]"
                               >
                                 <FaPlay className="w-3 h-3 mr-1" />
                                 Start
@@ -421,7 +526,7 @@ export default function MyTasksPage() {
                             {task.status === 'in_progress' && (task.progress || 0) < 100 && (
                               <button
                                 onClick={() => updateTaskProgress(task._id, 100, 'review')}
-                                className="bg-green-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-green-700 transition-colors flex items-center justify-center flex-1 sm:flex-none"
+                                className="bg-green-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-green-700 transition-colors flex items-center justify-center flex-1 min-w-[100px]"
                               >
                                 <FaCheck className="w-3 h-3 mr-1" />
                                 Complete
@@ -432,11 +537,21 @@ export default function MyTasksPage() {
 
                         <button
                           onClick={() => router.push(`/dashboard/tasks/${task._id}`)}
-                          className="bg-gray-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-gray-700 transition-colors flex items-center justify-center flex-1 sm:flex-none"
+                          className="bg-gray-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-gray-700 transition-colors flex items-center justify-center flex-1 min-w-[100px]"
                         >
                           <FaEye className="w-3 h-3 mr-1" />
                           View
                         </button>
+
+                        {canDeleteTask(task) && (
+                          <button
+                            onClick={() => handleDeleteClick(task)}
+                            className="bg-red-600 text-white px-3 py-2 rounded text-xs sm:text-sm hover:bg-red-700 transition-colors flex items-center justify-center flex-1 min-w-[100px]"
+                          >
+                            <FaTrash className="w-3 h-3 mr-1" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -446,6 +561,51 @@ export default function MyTasksPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && taskToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Task</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "<strong>{taskToDelete.title}</strong>"?
+              This action will mark the task as deleted but preserve it in the task history.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for deletion <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                rows="3"
+                placeholder="Please provide a reason for deleting this task..."
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setTaskToDelete(null)
+                  setDeleteReason('')
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteTask}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                disabled={deleting || !deleteReason.trim()}
+              >
+                {deleting ? 'Deleting...' : 'Delete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RoleBasedAccess>
   )
 }
