@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }) {
 
         <Header toggleSidebar={toggleSidebar} />
 
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 relative z-0 pb-14 md:pb-6">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 relative z-0 pb-14 md:pb-6">
           {children}
         </main>
 

@@ -193,28 +193,54 @@ export default function ProfilePage() {
     const img = imageRef.current
     if (!img) return null
 
-    // Apply transformations
+    // Create a circular clipping path
     ctx.save()
-    ctx.translate(size / 2, size / 2)
-    ctx.rotate((imageRotation * Math.PI) / 180)
-    ctx.scale(imageScale, imageScale)
+    ctx.beginPath()
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+    ctx.closePath()
+    ctx.clip()
 
     // Apply filters
     ctx.filter = `brightness(${imageBrightness}%) contrast(${imageContrast}%) saturate(${imageSaturation}%)`
 
-    // Draw image centered with position offset
-    const drawSize = size / imageScale
+    // Calculate the image dimensions to match object-cover behavior
+    const imgAspect = img.naturalWidth / img.naturalHeight
+    const containerAspect = 1 // Square container (300x300 in preview, 400x400 in output)
+
+    let drawWidth, drawHeight, offsetX, offsetY
+
+    if (imgAspect > containerAspect) {
+      // Image is wider - fit to height
+      drawHeight = size
+      drawWidth = size * imgAspect
+      offsetX = -(drawWidth - size) / 2
+      offsetY = 0
+    } else {
+      // Image is taller - fit to width
+      drawWidth = size
+      drawHeight = size / imgAspect
+      offsetX = 0
+      offsetY = -(drawHeight - size) / 2
+    }
+
+    // Apply transformations
+    ctx.translate(size / 2, size / 2)
+    ctx.rotate((imageRotation * Math.PI) / 180)
+    ctx.scale(imageScale, imageScale)
+    ctx.translate(imagePosition.x, imagePosition.y)
+
+    // Draw the image
     ctx.drawImage(
       img,
-      -drawSize / 2 + imagePosition.x / imageScale,
-      -drawSize / 2 + imagePosition.y / imageScale,
-      drawSize,
-      drawSize
+      offsetX - size / 2,
+      offsetY - size / 2,
+      drawWidth,
+      drawHeight
     )
 
     ctx.restore()
 
-    return canvas.toDataURL('image/jpeg', 0.9)
+    return canvas.toDataURL('image/jpeg', 0.95)
   }
 
   const handleSaveImage = async () => {
