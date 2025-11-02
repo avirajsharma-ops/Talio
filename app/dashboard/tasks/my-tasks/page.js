@@ -626,7 +626,7 @@ export default function MyTasksPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && taskToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Task</h3>
             <p className="text-gray-600 mb-4">
@@ -671,7 +671,7 @@ export default function MyTasksPage() {
 
       {/* Send for Review Modal */}
       {showReviewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Send Task for Review</h3>
             <p className="text-sm text-gray-600 mb-4">

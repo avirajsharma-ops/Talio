@@ -1121,7 +1121,7 @@ export default function TaskDetailsPage() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Task</h3>
               <p className="text-gray-600 mb-4">
@@ -1164,7 +1164,7 @@ export default function TaskDetailsPage() {
 
         {/* Milestone Creation Modal */}
         {showMilestoneModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Add Milestone</h3>
               <div className="space-y-4">
@@ -1235,7 +1235,7 @@ export default function TaskDetailsPage() {
 
         {/* Approval Modal */}
         {showApprovalModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 {approvalAction === 'approve' ? 'Approve Task' : 'Reject Task'}
@@ -1299,7 +1299,7 @@ export default function TaskDetailsPage() {
 
         {/* Manager Remark Modal */}
         {showRemarkModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Add Manager Remark</h3>
               <div className="space-y-4">
@@ -1341,7 +1341,7 @@ export default function TaskDetailsPage() {
 
         {/* Send for Review Modal */}
         {showReviewModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Send Task for Review</h3>
               <p className="text-sm text-gray-600 mb-4">
