@@ -47,7 +47,20 @@ async function dropAllTasks() {
       }
     }
 
-    console.log('\n✅ All tasks and milestones have been removed from the database')
+    // Drop taskhistories collection (task history)
+    console.log('🗑️  Dropping taskhistories collection...')
+    try {
+      await db.collection('taskhistories').drop()
+      console.log('✅ Task histories collection dropped successfully')
+    } catch (error) {
+      if (error.message.includes('ns not found')) {
+        console.log('ℹ️  Task histories collection does not exist')
+      } else {
+        throw error
+      }
+    }
+
+    console.log('\n✅ All tasks, milestones, and task histories have been removed from the database')
     console.log('You can now start with fresh task data')
 
   } catch (error) {

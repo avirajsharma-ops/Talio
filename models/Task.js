@@ -126,6 +126,7 @@ const TaskSchema = new mongoose.Schema({
   },
   approvedAt: Date,
   rejectionReason: String,
+  completionRemarks: String,
   estimatedActualProgress: {
     type: Number,
     min: 0,
@@ -520,11 +521,9 @@ TaskSchema.methods.updateProgress = function(newProgress, updatedBy, notes) {
     this.status = 'assigned'
   } else if (this.progress > 0 && this.progress < 100 && this.status === 'assigned') {
     this.status = 'in_progress'
-  } else if (this.progress === 100 && this.status !== 'completed' && this.status !== 'review') {
-    // Move to review status when task is marked complete (needs approval)
-    this.status = 'review'
-    this.approvalStatus = 'pending'
   }
+  // Note: When progress reaches 100%, status does NOT automatically change
+  // Employee must manually send task for review using "Send for Review" button
 
   // Add status history
   if (oldProgress !== newProgress) {

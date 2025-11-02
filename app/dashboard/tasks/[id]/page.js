@@ -28,6 +28,8 @@ export default function TaskDetailsPage() {
   const [estimatedProgress, setEstimatedProgress] = useState(0)
   const [managerRemark, setManagerRemark] = useState('')
   const [showRemarkModal, setShowRemarkModal] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [completionRemarks, setCompletionRemarks] = useState('')
   const router = useRouter()
   const params = useParams()
 
@@ -358,7 +360,17 @@ export default function TaskDetailsPage() {
     return ['manager', 'admin'].includes(user.role) && task.status === 'review'
   }
 
+  const openReviewModal = () => {
+    setShowReviewModal(true)
+    setCompletionRemarks('')
+  }
+
   const sendForReview = async () => {
+    if (!completionRemarks.trim()) {
+      alert('Please provide completion remarks before sending for review')
+      return
+    }
+
     try {
       setUpdating(true)
       const token = localStorage.getItem('token')
@@ -371,12 +383,15 @@ export default function TaskDetailsPage() {
         body: JSON.stringify({
           progress: 100,
           status: 'review',
-          approvalStatus: 'pending'
+          approvalStatus: 'pending',
+          completionRemarks: completionRemarks
         })
       })
 
       if (response.ok) {
         alert('Task sent for review successfully')
+        setShowReviewModal(false)
+        setCompletionRemarks('')
         fetchTaskDetails()
       } else {
         const data = await response.json()
@@ -574,7 +589,7 @@ export default function TaskDetailsPage() {
 
                   {task.status === 'assigned' && task.approvalStatus === 'rejected' && (
                     <button
-                      onClick={sendForReview}
+                      onClick={openReviewModal}
                       disabled={updating}
                       className="bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
                     >
@@ -585,12 +600,23 @@ export default function TaskDetailsPage() {
 
                   {task.status === 'in_progress' && (task.progress || 0) < 100 && (
                     <button
-                      onClick={() => updateTaskProgress(100, 'review')}
+                      onClick={() => updateTaskProgress(100, 'in_progress')}
                       disabled={updating}
                       className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
                     >
                       <FaCheck className="w-3 h-3 mr-2" />
                       Mark Complete
+                    </button>
+                  )}
+
+                  {(task.status === 'in_progress' || task.status === 'assigned') && (task.progress || 0) === 100 && (
+                    <button
+                      onClick={openReviewModal}
+                      disabled={updating}
+                      className="bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 text-xs sm:text-sm flex items-center"
+                    >
+                      <FaCheckCircle className="w-3 h-3 mr-2" />
+                      Send for Review
                     </button>
                   )}
                 </>
@@ -1198,6 +1224,50 @@ export default function TaskDetailsPage() {
                   disabled={updating || !managerRemark.trim()}
                 >
                   {updating ? 'Adding...' : 'Add Remark'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Send for Review Modal */}
+        {showReviewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Send Task for Review</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Please provide completion remarks describing what you've accomplished and any important notes for the reviewer.
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Completion Remarks <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={completionRemarks}
+                  onChange={(e) => setCompletionRemarks(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  rows="5"
+                  placeholder="Describe what you've completed, any challenges faced, and any notes for the reviewer..."
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowReviewModal(false)
+                    setCompletionRemarks('')
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={sendForReview}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  disabled={updating || !completionRemarks.trim()}
+                >
+                  {updating ? 'Sending...' : 'Send for Review'}
                 </button>
               </div>
             </div>
