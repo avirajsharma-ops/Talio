@@ -51,11 +51,10 @@ export async function GET(request) {
       )
     }
 
-    // Get all team members in the department
+    // Get all team members in the department (including the department head)
     const teamMembers = await Employee.find({
       department: department._id,
-      status: 'active',
-      _id: { $ne: user.employeeId } // Exclude the department head themselves
+      status: 'active'
     })
       .populate('designation', 'name level')
       .populate('reportingManager', 'firstName lastName employeeCode')

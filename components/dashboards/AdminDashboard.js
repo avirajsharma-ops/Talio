@@ -452,7 +452,11 @@ export default function AdminDashboard({ user }) {
                   </div>
                   <div>
                     <span className="text-gray-600">Designation:</span>
-                    <span className="ml-2 font-medium">{selectedEmployee.designation?.title || 'N/A'}</span>
+                    <span className="ml-2 font-medium">
+                      {selectedEmployee.designation?.level && selectedEmployee.designation?.title
+                        ? `(${selectedEmployee.designation.level}) - ${selectedEmployee.designation.title}`
+                        : selectedEmployee.designation?.title || 'N/A'}
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-600">Status:</span>

@@ -95,6 +95,14 @@ export async function POST(request, { params }) {
       progressHistory: []
     })
 
+    // Add timeline entry to task
+    task.statusHistory.push({
+      status: `Milestone created: ${body.title}`,
+      changedBy: employeeId,
+      reason: body.description || 'New milestone added to task'
+    })
+    await task.save()
+
     // Update task progress based on all milestones
     await updateTaskProgress(taskId)
 

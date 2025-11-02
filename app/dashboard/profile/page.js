@@ -7,6 +7,9 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null)
   const [employee, setEmployee] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -37,6 +40,45 @@ export default function ProfilePage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEditClick = () => {
+    setEditForm({
+      phone: employee.phone || '',
+      address: employee.address || '',
+      emergencyContact: employee.emergencyContact || '',
+      bloodGroup: employee.bloodGroup || ''
+    })
+    setIsEditing(true)
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/employees/${employee._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editForm)
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('Profile updated successfully!')
+        setIsEditing(false)
+        fetchProfile() // Refresh profile data
+      } else {
+        alert(result.message || 'Failed to update profile')
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      alert('Failed to update profile')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -87,7 +129,11 @@ export default function ProfilePage() {
               </h2>
 
               {/* Designation */}
-              <p className="text-sm text-gray-300 mt-1">{employee.designation?.title || 'N/A'}</p>
+              <p className="text-sm text-gray-300 mt-1">
+                {employee.designation?.level && employee.designation?.title
+                  ? `(${employee.designation.level}) - ${employee.designation.title}`
+                  : employee.designation?.title || 'N/A'}
+              </p>
 
               {/* Department */}
               <p className="text-xs text-gray-400 mt-0.5">
@@ -103,7 +149,10 @@ export default function ProfilePage() {
               </span>
 
               {/* Edit Button */}
-              <button className="mt-6 w-full bg-white text-gray-800 hover:bg-gray-100 px-4 py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
+              <button
+                onClick={handleEditClick}
+                className="mt-6 w-full bg-white text-gray-800 hover:bg-gray-100 px-4 py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
                 <FaEdit />
                 <span>Edit Profile</span>
               </button>
@@ -257,6 +306,96 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Profile</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter address"
+                    rows="3"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Emergency Contact
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.emergencyContact}
+                    onChange={(e) => setEditForm({ ...editForm, emergencyContact: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter emergency contact"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Blood Group
+                  </label>
+                  <select
+                    value={editForm.bloodGroup}
+                    onChange={(e) => setEditForm({ ...editForm, bloodGroup: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select blood group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -188,7 +188,11 @@ export default function TeamMemberDetailsPage() {
                 <FaBriefcase className="mr-3 text-gray-400" />
                 <div>
                   <p className="text-xs text-gray-500">Designation</p>
-                  <p className="font-medium">{employee.designation?.name || 'N/A'}</p>
+                  <p className="font-medium">
+                    {employee.designation?.level && employee.designation?.name
+                      ? `(${employee.designation.level}) - ${employee.designation.name}`
+                      : employee.designation?.name || 'N/A'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center text-gray-600">

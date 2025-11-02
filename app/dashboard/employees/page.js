@@ -198,7 +198,9 @@ export default function EmployeesPage() {
                         {employee.department?.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {employee.designation?.title || 'N/A'}
+                        {employee.designation?.level && employee.designation?.title
+                          ? `(${employee.designation.level}) - ${employee.designation.title}`
+                          : employee.designation?.title || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

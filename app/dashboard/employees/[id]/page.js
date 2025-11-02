@@ -86,7 +86,9 @@ export default function EmployeeDetailPage() {
               {employee.firstName} {employee.lastName}
             </h1>
             <p className="text-lg text-gray-600 mt-1">
-              {employee.designation?.title || 'N/A'} • {employee.department?.name || 'N/A'}
+              {employee.designation?.level && employee.designation?.title
+                ? `(${employee.designation.level}) - ${employee.designation.title}`
+                : employee.designation?.title || 'N/A'} • {employee.department?.name || 'N/A'}
             </p>
             <div className="flex items-center space-x-4 mt-4">
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -167,7 +169,11 @@ export default function EmployeeDetailPage() {
               <FaBriefcase className="text-gray-400" />
               <div>
                 <p className="text-sm text-gray-600">Designation</p>
-                <p className="font-medium text-gray-800">{employee.designation?.title || 'N/A'}</p>
+                <p className="font-medium text-gray-800">
+                  {employee.designation?.level && employee.designation?.title
+                    ? `(${employee.designation.level}) - ${employee.designation.title}`
+                    : employee.designation?.title || 'N/A'}
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-3">

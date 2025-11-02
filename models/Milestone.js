@@ -53,6 +53,15 @@ const milestoneSchema = new mongoose.Schema({
     enum: ['not_started', 'in_progress', 'completed', 'on_hold'],
     default: 'not_started'
   },
+  completionRemark: {
+    type: String,
+    trim: true
+  },
+  completedAt: Date,
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  },
   progressHistory: [progressUpdateSchema],
   order: {
     type: Number,

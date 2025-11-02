@@ -143,7 +143,11 @@ export default function TeamMembersPage() {
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <FaBriefcase className="mr-2 text-gray-400" />
-                  <span>{member.designation?.name || 'No designation'}</span>
+                  <span>
+                    {member.designation?.level && member.designation?.name
+                      ? `(${member.designation.level}) - ${member.designation.name}`
+                      : member.designation?.name || 'No designation'}
+                  </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <FaEnvelope className="mr-2 text-gray-400" />

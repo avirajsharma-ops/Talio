@@ -22,6 +22,8 @@ export default function TaskDetailsPage() {
   const [editingMilestone, setEditingMilestone] = useState(null)
   const [milestoneProgress, setMilestoneProgress] = useState(0)
   const [milestoneRemark, setMilestoneRemark] = useState('')
+  const [completingMilestone, setCompletingMilestone] = useState(null)
+  const [milestoneCompletionRemark, setMilestoneCompletionRemark] = useState('')
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [approvalAction, setApprovalAction] = useState('approve')
   const [approvalReason, setApprovalReason] = useState('')
@@ -203,6 +205,45 @@ export default function TaskDetailsPage() {
     } catch (error) {
       console.error('Error creating milestone:', error)
       alert('Failed to create milestone')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const completeMilestone = async (milestoneId) => {
+    if (!milestoneCompletionRemark.trim()) {
+      alert('Completion remark is required')
+      return
+    }
+
+    try {
+      setUpdating(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/milestones/${milestoneId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          complete: true,
+          completionRemark: milestoneCompletionRemark
+        })
+      })
+
+      if (response.ok) {
+        setCompletingMilestone(null)
+        setMilestoneCompletionRemark('')
+        fetchMilestones()
+        fetchTaskDetails() // Refresh to update overall progress
+        alert('Milestone marked as completed')
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to complete milestone')
+      }
+    } catch (error) {
+      console.error('Error completing milestone:', error)
+      alert('Failed to complete milestone')
     } finally {
       setUpdating(false)
     }
@@ -914,73 +955,78 @@ export default function TaskDetailsPage() {
                           </button>
                         </div>
 
-                        {/* Progress Bar */}
+                        {/* Status Badge */}
                         <div className="mb-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-gray-600">Progress</span>
-                            <span className="text-xs font-semibold text-gray-900">{milestone.progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all"
-                              style={{ width: `${milestone.progress}%` }}
-                            />
-                          </div>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            milestone.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            milestone.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {milestone.status === 'completed' ? '✓ Completed' :
+                             milestone.status === 'in_progress' ? 'In Progress' :
+                             'Not Started'}
+                          </span>
                         </div>
 
-                        {/* Update Progress */}
-                        {editingMilestone === milestone._id ? (
-                          <div className="mt-3 p-2 bg-gray-50 rounded">
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Update Progress
-                            </label>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={milestoneProgress}
-                              onChange={(e) => setMilestoneProgress(parseInt(e.target.value))}
-                              className="w-full mb-2"
-                            />
-                            <div className="text-center text-sm font-semibold mb-2">{milestoneProgress}%</div>
-                            <textarea
-                              value={milestoneRemark}
-                              onChange={(e) => setMilestoneRemark(e.target.value)}
-                              placeholder="Add a remark (required)"
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-2"
-                              rows="2"
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => updateMilestoneProgress(milestone._id)}
-                                disabled={updating || !milestoneRemark.trim()}
-                                className="flex-1 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingMilestone(null)
-                                  setMilestoneProgress(0)
-                                  setMilestoneRemark('')
-                                }}
-                                className="flex-1 bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs hover:bg-gray-400"
-                              >
-                                Cancel
-                              </button>
+                        {/* Complete Milestone */}
+                        {milestone.status !== 'completed' && (
+                          completingMilestone === milestone._id ? (
+                            <div className="mt-3 p-2 bg-gray-50 rounded">
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Completion Remark <span className="text-red-500">*</span>
+                              </label>
+                              <textarea
+                                value={milestoneCompletionRemark}
+                                onChange={(e) => setMilestoneCompletionRemark(e.target.value)}
+                                placeholder="Describe what was accomplished in this milestone..."
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-2"
+                                rows="3"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => completeMilestone(milestone._id)}
+                                  disabled={updating || !milestoneCompletionRemark.trim()}
+                                  className="flex-1 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  {updating ? 'Completing...' : 'Mark Complete'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCompletingMilestone(null)
+                                    setMilestoneCompletionRemark('')
+                                  }}
+                                  className="flex-1 bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs hover:bg-gray-400"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setCompletingMilestone(milestone._id)
+                                setMilestoneCompletionRemark('')
+                              }}
+                              className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                              disabled={updating}
+                            >
+                              <FaCheckCircle className="inline mr-1" />
+                              Mark as Complete
+                            </button>
+                          )
+                        )}
+
+                        {/* Completion Info */}
+                        {milestone.status === 'completed' && milestone.completionRemark && (
+                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                            <p className="text-xs font-medium text-green-800 mb-1">Completion Remark:</p>
+                            <p className="text-xs text-green-700">{milestone.completionRemark}</p>
+                            {milestone.completedAt && (
+                              <p className="text-xs text-green-600 mt-1">
+                                Completed on {new Date(milestone.completedAt).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setEditingMilestone(milestone._id)
-                              setMilestoneProgress(milestone.progress)
-                              setMilestoneRemark('')
-                            }}
-                            className="mt-2 text-blue-600 hover:underline text-xs"
-                          >
-                            Update Progress
-                          </button>
                         )}
 
                         {/* Progress History */}
@@ -1097,8 +1143,14 @@ export default function TaskDetailsPage() {
                     type="date"
                     value={newMilestone.dueDate}
                     onChange={(e) => setNewMilestone({ ...newMilestone, dueDate: e.target.value })}
+                    max={task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : undefined}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  {task?.dueDate && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Milestone due date cannot exceed task deadline: {new Date(task.dueDate).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">

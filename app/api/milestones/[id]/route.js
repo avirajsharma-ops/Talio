@@ -31,8 +31,42 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
 
-    // Update progress with remark
-    if (body.progress !== undefined) {
+    // Handle milestone completion
+    if (body.complete === true) {
+      if (!body.completionRemark || !body.completionRemark.trim()) {
+        return NextResponse.json({
+          success: false,
+          message: 'Completion remark is required'
+        }, { status: 400 })
+      }
+
+      milestone.status = 'completed'
+      milestone.progress = 100
+      milestone.completionRemark = body.completionRemark
+      milestone.completedAt = new Date()
+      milestone.completedBy = employeeId
+
+      // Add to progress history
+      milestone.progressHistory.push({
+        progress: 100,
+        remark: body.completionRemark,
+        updatedBy: employeeId,
+        updatedAt: new Date()
+      })
+
+      // Add timeline entry to task
+      const task = await Task.findById(milestone.task)
+      if (task) {
+        task.statusHistory.push({
+          status: `Milestone completed: ${milestone.title}`,
+          changedBy: employeeId,
+          reason: body.completionRemark
+        })
+        await task.save()
+      }
+    }
+    // Update progress with remark (legacy support)
+    else if (body.progress !== undefined) {
       if (!body.remark || !body.remark.trim()) {
         return NextResponse.json(
           { success: false, message: 'Remark is required when updating progress' },
@@ -108,6 +142,17 @@ export async function DELETE(request, { params }) {
     milestone.deletedBy = employeeId
     await milestone.save()
 
+    // Add timeline entry to task
+    const task = await Task.findById(milestone.task)
+    if (task) {
+      task.statusHistory.push({
+        status: `Milestone deleted: ${milestone.title}`,
+        changedBy: employeeId,
+        reason: 'Milestone removed from task'
+      })
+      await task.save()
+    }
+
     // Update task progress based on remaining milestones
     await updateTaskProgress(milestone.task)
 
@@ -135,9 +180,10 @@ async function updateTaskProgress(taskId) {
       return
     }
 
-    // Calculate average progress
-    const totalProgress = milestones.reduce((sum, m) => sum + m.progress, 0)
-    const averageProgress = Math.round(totalProgress / milestones.length)
+    // Calculate progress based on completion ratio
+    const completedMilestones = milestones.filter(m => m.status === 'completed').length
+    const totalMilestones = milestones.length
+    const averageProgress = Math.round((completedMilestones / totalMilestones) * 100)
 
     // Get the task to check current status
     const task = await Task.findById(taskId)
