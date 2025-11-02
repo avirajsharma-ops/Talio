@@ -59,10 +59,17 @@ function CreateTaskContent() {
   // Resolve current employee
   useEffect(() => {
     if (user && employees.length) {
-      const myId = user.employeeId || user.id || user._id
+      // Handle both populated and non-populated employeeId
+      const myId = (typeof user.employeeId === 'object' && user.employeeId?._id)
+        ? user.employeeId._id
+        : (user.employeeId || user.id || user._id)
+
       console.log('Looking for current employee with ID:', myId)
+      console.log('User employeeId type:', typeof user.employeeId)
+      console.log('User employeeId value:', user.employeeId)
       console.log('Available employees:', employees.map(e => ({ id: e._id, name: `${e.firstName} ${e.lastName}` })))
-      const me = employees.find(e => e._id === myId)
+
+      const me = employees.find(e => e._id.toString() === myId.toString())
       console.log('Found current employee:', me)
       setCurrentEmp(me || null)
     }

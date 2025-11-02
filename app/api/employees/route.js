@@ -41,8 +41,8 @@ export async function GET(request) {
     const skip = (page - 1) * limit
 
     const employees = await Employee.find(query)
-      .populate('department', 'name')
-      .populate('designation', 'title levelName')
+      .populate('department', 'name _id')
+      .populate('designation', 'title levelName level')
       .populate('reportingManager', 'firstName lastName')
       .sort({ createdAt: -1 })
       .skip(skip)

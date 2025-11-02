@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCog, FaSearch, FaComments, FaTimes, FaSpinner } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { PWAStatus } from '@/components/PWAInstaller'
 
 export default function Header({ toggleSidebar }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -17,6 +18,7 @@ export default function Header({ toggleSidebar }) {
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [showMobileSearch, setShowMobileSearch] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [pageTitle, setPageTitle] = useState('HOME')
   const notifRef = useRef(null)
   const profileRef = useRef(null)
   const searchRef = useRef(null)
@@ -49,6 +51,64 @@ export default function Header({ toggleSidebar }) {
       document.removeEventListener('touchstart', handleClickOutside)
     }
   }, [])
+
+  // Update page title based on pathname
+  useEffect(() => {
+    const getPageTitle = (path) => {
+      if (!path) return 'HOME'
+
+      // Remove /dashboard prefix
+      const cleanPath = path.replace('/dashboard', '')
+
+      if (cleanPath === '' || cleanPath === '/') return 'HOME'
+
+      // Map routes to titles
+      const titleMap = {
+        '/tasks': 'TASKS',
+        '/tasks/my-tasks': 'MY TASKS',
+        '/tasks/team-tasks': 'TEAM TASKS',
+        '/tasks/create': 'CREATE TASK',
+        '/tasks/assign': 'ASSIGN TASKS',
+        '/chat': 'CHAT',
+        '/leave': 'LEAVE',
+        '/leave/apply': 'APPLY LEAVE',
+        '/leave/my-leaves': 'MY LEAVES',
+        '/attendance': 'ATTENDANCE',
+        '/profile': 'PROFILE',
+        '/settings': 'SETTINGS',
+        '/team': 'TEAM',
+        '/departments': 'DEPARTMENTS',
+        '/designations': 'DESIGNATIONS',
+        '/employees': 'EMPLOYEES',
+        '/recruitment': 'RECRUITMENT',
+        '/payroll': 'PAYROLL',
+        '/announcements': 'ANNOUNCEMENTS',
+        '/policies': 'POLICIES',
+        '/assets': 'ASSETS',
+        '/reports': 'REPORTS',
+        '/sandbox': 'IDEAS',
+      }
+
+      // Check for exact match
+      if (titleMap[cleanPath]) return titleMap[cleanPath]
+
+      // Check for partial match (for dynamic routes)
+      for (const [route, title] of Object.entries(titleMap)) {
+        if (cleanPath.startsWith(route)) return title
+      }
+
+      // Default: capitalize the last segment
+      const segments = cleanPath.split('/').filter(Boolean)
+      if (segments.length > 0) {
+        const lastSegment = segments[segments.length - 1]
+        return lastSegment.replace(/-/g, ' ').toUpperCase()
+      }
+
+      return 'HOME'
+    }
+
+    setPageTitle(getPageTitle(pathname))
+  }, [pathname])
 
   // Search functionality
   useEffect(() => {
@@ -256,7 +316,7 @@ export default function Header({ toggleSidebar }) {
 
         {/* Center - Page Title */}
         <div className="absolute left-1/2 transform -translate-x-1/2">
-          <h1 className="text-blue-600 text-lg font-semibold">HOME</h1>
+          <h1 className="text-blue-600 text-lg font-semibold">{pageTitle}</h1>
         </div>
 
         {/* Right side */}
