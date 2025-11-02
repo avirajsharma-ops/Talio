@@ -142,8 +142,8 @@ export default function Header({ toggleSidebar }) {
   // Don't render user-specific content until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <header className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] sm:py-4">
+      <header className="bg-white sticky top-0 z-10 border-b border-gray-200">
+        <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] py-3 sm:py-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={toggleSidebar}
@@ -161,10 +161,10 @@ export default function Header({ toggleSidebar }) {
   }
 
   return (
-    <header className="bg-white sticky top-0 z-10 shadow-sm">
-      <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] sm:py-4">
+    <header className="bg-white sticky top-0 z-10 border-b border-gray-200">
+      <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] py-3 sm:py-4">
         {/* Left side */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
           <button
             onClick={toggleSidebar}
             className="lg:hidden text-gray-600 hover:text-gray-900 focus:outline-none p-1"
@@ -254,13 +254,13 @@ export default function Header({ toggleSidebar }) {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-4">
-
-          <h1 className="text-blue-600 text-l">HOME</h1>
+        {/* Center - Page Title */}
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+          <h1 className="text-blue-600 text-lg font-semibold">HOME</h1>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4 flex-1 justify-end">
           {/* Chat Button - Desktop Only */}
           <button
             onClick={() => router.push('/dashboard/chat')}
