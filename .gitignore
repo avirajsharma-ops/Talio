@@ -62,3 +62,5 @@ pids
 # Optional eslint cache
 .eslintcache
 
+# SSL Certificates (Let's Encrypt)
+certbot/
