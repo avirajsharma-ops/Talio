@@ -13,22 +13,24 @@ export default function TaskApprovals() {
   const [action, setAction] = useState('')
   const [remarks, setRemarks] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('pending')
 
   useEffect(() => {
     fetchTaskApprovals()
-  }, [])
+  }, [statusFilter])
 
   const fetchTaskApprovals = async () => {
     try {
+      setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/team/task-approvals', {
+      const response = await fetch(`/api/team/task-approvals?status=${statusFilter}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
         setTasks(data.data)
       }
@@ -116,8 +118,46 @@ export default function TaskApprovals() {
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Approvals</h1>
           <p className="text-gray-600 mt-1">
-            {tasks.length} pending task {tasks.length === 1 ? 'approval' : 'approvals'}
+            {statusFilter === 'pending' ? `${tasks.length} pending task ${tasks.length === 1 ? 'approval' : 'approvals'}` :
+             statusFilter === 'completed' ? `${tasks.length} completed ${tasks.length === 1 ? 'task' : 'tasks'}` :
+             `${tasks.length} ${tasks.length === 1 ? 'task' : 'tasks'}`}
           </p>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                statusFilter === 'pending'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              Pending Approvals
+            </button>
+            <button
+              onClick={() => setStatusFilter('completed')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                statusFilter === 'completed'
+                  ? 'border-green-600 text-green-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              Completed Tasks
+            </button>
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                statusFilter === 'all'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              All Tasks
+            </button>
+          </div>
         </div>
 
         {/* Task List */}
@@ -125,12 +165,20 @@ export default function TaskApprovals() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <FaCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-            <p className="text-gray-600">There are no pending task approvals at the moment.</p>
+            <p className="text-gray-600">
+              {statusFilter === 'pending' ? 'There are no pending task approvals at the moment.' :
+               statusFilter === 'completed' ? 'No completed tasks found.' :
+               'No tasks found.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {tasks.map((task) => (
-              <div key={task._id} className="bg-white rounded-lg shadow p-6">
+              <div
+                key={task._id}
+                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => router.push(`/dashboard/tasks/${task._id}`)}
+              >
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between">
                   <div className="flex-1">
                     {/* Task Title */}
@@ -220,22 +268,31 @@ export default function TaskApprovals() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex md:flex-col space-x-3 md:space-x-0 md:space-y-3 mt-4 md:mt-0 md:ml-6">
-                    <button
-                      onClick={() => handleAction(task, 'approved')}
-                      className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition-colors"
-                    >
-                      <FaCheckCircle className="h-4 w-4" />
-                      <span>Approve</span>
-                    </button>
-                    <button
-                      onClick={() => handleAction(task, 'rejected')}
-                      className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors"
-                    >
-                      <FaTimesCircle className="h-4 w-4" />
-                      <span>Reject</span>
-                    </button>
-                  </div>
+                  {statusFilter === 'pending' && (
+                    <div className="flex md:flex-col space-x-3 md:space-x-0 md:space-y-3 mt-4 md:mt-0 md:ml-6" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleAction(task, 'approved')}
+                        className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg transition-colors"
+                      >
+                        <FaCheckCircle className="h-4 w-4" />
+                        <span>Approve</span>
+                      </button>
+                      <button
+                        onClick={() => handleAction(task, 'rejected')}
+                        className="flex-1 md:flex-none flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors"
+                      >
+                        <FaTimesCircle className="h-4 w-4" />
+                        <span>Reject</span>
+                      </button>
+                    </div>
+                  )}
+                  {statusFilter === 'completed' && (
+                    <div className="flex items-center mt-4 md:mt-0 md:ml-6">
+                      <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium text-sm">
+                        ✓ Approved
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

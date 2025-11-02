@@ -50,22 +50,24 @@ export async function GET(request) {
 
     const teamMemberIds = teamMembers.map(emp => emp._id)
 
-    // Get pending task approvals - ALL tasks in 'review' status in department
-    // Tasks in 'review' status are those marked complete but not yet approved
-    // Once approved, they move to 'completed' status
-    const pendingTasks = await Task.find({
-      $and: [
-        {
-          $or: [
-            // Tasks assigned to team members
-            { 'assignedTo.employee': { $in: teamMemberIds } },
-            // Tasks created by team members
-            { 'assignedBy': { $in: teamMemberIds } }
-          ]
-        },
-        // Task must be in review status (awaiting approval)
-        { status: 'review' },
-        // Task must not be approved or rejected yet
+    // Get query parameter for status filter
+    const { searchParams } = new URL(request.url)
+    const statusFilter = searchParams.get('status') || 'pending'
+
+    // Build query based on status filter
+    let taskQuery = {
+      $or: [
+        // Tasks assigned to team members
+        { 'assignedTo.employee': { $in: teamMemberIds } },
+        // Tasks created by team members
+        { 'assignedBy': { $in: teamMemberIds } }
+      ]
+    }
+
+    if (statusFilter === 'pending') {
+      // Pending approvals - tasks in 'review' status
+      taskQuery.status = 'review'
+      taskQuery.$and = [
         {
           $or: [
             { approvalStatus: 'pending' },
@@ -73,7 +75,17 @@ export async function GET(request) {
           ]
         }
       ]
-    })
+    } else if (statusFilter === 'completed') {
+      // Completed tasks - tasks that have been approved
+      taskQuery.status = 'completed'
+      taskQuery.approvalStatus = 'approved'
+    } else if (statusFilter === 'all') {
+      // All tasks in review or completed status
+      taskQuery.status = { $in: ['review', 'completed'] }
+    }
+
+    // Get task approvals based on filter
+    const pendingTasks = await Task.find(taskQuery)
       .populate({
         path: 'assignedTo.employee',
         select: 'firstName lastName employeeCode profilePicture email',

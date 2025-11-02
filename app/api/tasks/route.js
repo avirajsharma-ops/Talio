@@ -29,18 +29,26 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 20
     const skip = (page - 1) * limit
 
+    // Check if user is a department head
+    const Department = (await import('@/models/Department')).default
+    const isDepartmentHead = await Department.findOne({
+      head: currentEmployeeId,
+      isActive: true
+    })
+
     // Build query based on user role and view parameter
     let query = {}
     const view = searchParams.get('view') || 'personal'
 
     // Role-based filtering based on view
-    if (view === 'personal' || decoded.role === 'employee') {
-      // Personal view - tasks assigned to current employee or created by them
+    if (view === 'personal' && decoded.role === 'employee' && !isDepartmentHead) {
+      // Personal view for regular employees - tasks assigned to current employee or created by them
       query.$or = [
         { 'assignedTo.employee': currentEmployeeId },
         { assignedBy: { $in: [currentEmployeeId, decoded.userId] } }
       ]
-    } else if (view === 'team' && ['manager', 'hr', 'admin'].includes(decoded.role)) {
+    } else if ((view === 'personal' && isDepartmentHead) || (view === 'team' && ['manager', 'hr', 'admin'].includes(decoded.role)) || (view === 'department' && isDepartmentHead)) {
+      // Department heads see ALL department tasks by default
       // Team view - manager's team tasks (same department)
       const empDoc = await Employee.findById(currentEmployeeId)
       const teamMembers = await Employee.find({
@@ -68,7 +76,7 @@ export async function GET(request) {
         .filter(task => {
           return task.assignedTo.some(assignment => {
             const assigneeDept = assignment.employee?.department
-            return assigneeDept && assigneeDept !== empDoc?.department
+            return assigneeDept && assigneeDept.toString() !== empDoc?.department?.toString()
           })
         })
         .map(task => task._id)
