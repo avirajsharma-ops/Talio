@@ -775,52 +775,109 @@ export default function TaskDetailsPage() {
 
             {/* Approval Status */}
             {task.status === 'completed' && task.approvalStatus && (
-              <div className={`p-4 rounded-lg ${
-                task.approvalStatus === 'approved' ? 'bg-green-50 border border-green-200' :
-                task.approvalStatus === 'rejected' ? 'bg-red-50 border border-red-200' :
-                'bg-yellow-50 border border-yellow-200'
+              <div className={`p-4 sm:p-6 rounded-lg ${
+                task.approvalStatus === 'approved' ? 'bg-green-50 border-2 border-green-200' :
+                task.approvalStatus === 'rejected' ? 'bg-red-50 border-2 border-red-200' :
+                'bg-yellow-50 border-2 border-yellow-200'
               }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">
-                    Approval Status:
-                    <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                      task.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
-                      task.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {task.approvalStatus.toUpperCase()}
-                    </span>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                    Approval Status
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
+                    task.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                    task.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {task.approvalStatus.toUpperCase()}
                   </span>
                 </div>
+
                 {task.approvedBy && (
-                  <p className="text-sm text-gray-600">
-                    {task.approvalStatus === 'approved' ? 'Approved' : 'Reviewed'} by: {task.approvedBy.firstName} {task.approvedBy.lastName}
-                  </p>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200 mb-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">
+                      {task.approvalStatus === 'approved' ? 'Approved by:' : 'Reviewed by:'}
+                    </p>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold text-sm">
+                          {task.approvedBy.firstName?.[0]}{task.approvedBy.lastName?.[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {task.approvedBy.firstName} {task.approvedBy.lastName}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {task.approvedBy.designation?.levelName && task.approvedBy.designation?.title
+                            ? `${task.approvedBy.designation.levelName} - ${task.approvedBy.designation.title}`
+                            : task.approvedBy.designation?.title || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    {task.approvedAt && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {task.approvalStatus === 'approved' ? 'Approved' : 'Reviewed'} on: {new Date(task.approvedAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    )}
+                  </div>
                 )}
+
                 {task.rejectionReason && (
-                  <p className="text-sm text-gray-700 mt-2">
-                    <strong>Reason:</strong> {task.rejectionReason}
-                  </p>
+                  <div className="bg-white p-4 rounded-lg border border-red-200 mb-3">
+                    <p className="text-sm font-medium text-gray-900 mb-2">Rejection Reason:</p>
+                    <p className="text-sm text-gray-700">{task.rejectionReason}</p>
+                  </div>
                 )}
-                {task.estimatedActualProgress !== undefined && (
-                  <p className="text-sm text-gray-700 mt-1">
-                    <strong>Estimated Progress:</strong> {task.estimatedActualProgress}%
-                  </p>
+
+                {task.estimatedActualProgress !== undefined && task.estimatedActualProgress !== null && (
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <p className="text-sm font-medium text-gray-900 mb-2">Estimated Actual Progress:</p>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${task.estimatedActualProgress}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 min-w-[45px]">
+                        {task.estimatedActualProgress}%
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
 
             {/* Manager Remarks */}
             {task.managerRemarks && task.managerRemarks.length > 0 && (
-              <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Manager Remarks</h3>
-                <div className="space-y-2">
+              <div className="bg-purple-50 border-2 border-purple-200 p-4 sm:p-6 rounded-lg">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Manager Remarks</h3>
+                <div className="space-y-3">
                   {task.managerRemarks.map((remark, index) => (
-                    <div key={index} className="bg-white p-3 rounded border border-purple-100">
-                      <p className="text-sm text-gray-700">{remark.remark}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        By: {remark.addedBy?.firstName} {remark.addedBy?.lastName} • {formatDate(remark.addedAt)}
-                      </p>
+                    <div key={index} className="bg-white p-4 rounded-lg border border-purple-100 shadow-sm">
+                      <div className="flex items-start space-x-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-purple-600 font-semibold text-xs">
+                            {remark.addedBy?.firstName?.[0]}{remark.addedBy?.lastName?.[0]}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {remark.addedBy?.firstName} {remark.addedBy?.lastName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(remark.addedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 ml-11">{remark.remark}</p>
                     </div>
                   ))}
                 </div>

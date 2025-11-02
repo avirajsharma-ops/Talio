@@ -32,6 +32,15 @@ export async function GET(request, { params }) {
       .populate('project', 'name projectCode')
       .populate('parentTask', 'title taskNumber')
       .populate('subtasks', 'title taskNumber status progress dueDate')
+      .populate('approvedBy', 'firstName lastName employeeCode designation')
+      .populate({
+        path: 'approvedBy',
+        populate: {
+          path: 'designation',
+          select: 'title levelName'
+        }
+      })
+      .populate('managerRemarks.addedBy', 'firstName lastName employeeCode')
 
     if (!task) {
       return NextResponse.json(
