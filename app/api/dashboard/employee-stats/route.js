@@ -29,7 +29,7 @@ export async function GET(request) {
     const user = await User.findById(decoded.userId).populate({
       path: 'employeeId',
       populate: [
-        { path: 'designation', select: 'title code' },
+        { path: 'designation', select: 'title code levelName' },
         { path: 'department', select: 'name' }
       ]
     })
@@ -198,7 +198,8 @@ export async function GET(request) {
           employeeId: employee.employeeCode,
           profilePicture: employee.profilePicture,
           department: employee.department,
-          designation: employee.designation?.title || null
+          designation: employee.designation?.title || null,
+          levelName: employee.designation?.levelName || null
         }
       }
     })

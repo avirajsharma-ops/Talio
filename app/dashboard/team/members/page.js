@@ -145,7 +145,7 @@ export default function TeamMembersPage() {
                   <FaBriefcase className="mr-2 text-gray-400" />
                   <span>
                     {member.designation?.levelName && member.designation?.name
-                      ? `${member.designation.levelName} - ${member.designation.name}`
+                      ? `(${member.designation.levelName}) - ${member.designation.name}`
                       : member.designation?.name || 'No designation'}
                   </span>
                 </div>

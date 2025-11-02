@@ -198,7 +198,7 @@ export default function ProfilePage() {
               {/* Designation */}
               <p className="text-sm text-gray-300 mt-1">
                 {employee.designation?.levelName && employee.designation?.title
-                  ? `${employee.designation.levelName} - ${employee.designation.title}`
+                  ? `(${employee.designation.levelName}) - ${employee.designation.title}`
                   : employee.designation?.title || 'N/A'}
               </p>
 
@@ -392,7 +392,9 @@ export default function ProfilePage() {
               <div className="p-3 rounded-lg bg-gray-50">
                 <p className="text-xs text-gray-500 mb-1">Designation</p>
                 <p className="font-semibold text-gray-800 text-sm">
-                  {employee.designation?.title || 'N/A'}
+                  {employee.designation?.levelName && employee.designation?.title
+                    ? `(${employee.designation.levelName}) - ${employee.designation.title}`
+                    : employee.designation?.title || 'N/A'}
                 </p>
               </div>
 

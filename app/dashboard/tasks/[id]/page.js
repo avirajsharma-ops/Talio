@@ -810,7 +810,7 @@ export default function TaskDetailsPage() {
                         </p>
                         <p className="text-xs text-gray-600">
                           {task.approvedBy.designation?.levelName && task.approvedBy.designation?.title
-                            ? `${task.approvedBy.designation.levelName} - ${task.approvedBy.designation.title}`
+                            ? `(${task.approvedBy.designation.levelName}) - ${task.approvedBy.designation.title}`
                             : task.approvedBy.designation?.title || 'N/A'}
                         </p>
                       </div>

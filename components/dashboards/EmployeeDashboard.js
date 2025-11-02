@@ -174,71 +174,60 @@ export default function EmployeeDashboard({ user }) {
     try {
       const token = localStorage.getItem('token')
 
-      // Fetch recent tasks (last 5 updated)
-      const tasksResponse = await fetch(`/api/tasks?view=personal&limit=5&sort=-updatedAt`, {
+      // Fetch today's activities from the new activity API
+      const today = new Date().toISOString().split('T')[0]
+      const response = await fetch(`/api/activities?date=${today}&limit=50`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      const activities = []
-
-      if (tasksResponse.ok) {
-        const tasksData = await tasksResponse.json()
-        const tasks = tasksData.data || []
-
-        tasks.forEach(task => {
-          const timeDiff = Date.now() - new Date(task.updatedAt).getTime()
+      if (response.ok) {
+        const data = await response.json()
+        const activities = (data.data || []).map(activity => {
+          const activityTime = new Date(activity.createdAt)
+          const timeDiff = Date.now() - activityTime.getTime()
+          const minsAgo = Math.floor(timeDiff / (1000 * 60))
           const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60))
-          const daysAgo = Math.floor(hoursAgo / 24)
 
           let timeStr = ''
-          if (daysAgo > 0) {
-            timeStr = `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`
-          } else if (hoursAgo > 0) {
-            timeStr = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
-          } else {
+          if (minsAgo < 1) {
             timeStr = 'Just now'
+          } else if (minsAgo < 60) {
+            timeStr = `${minsAgo} min${minsAgo > 1 ? 's' : ''} ago`
+          } else {
+            timeStr = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
           }
 
-          let action = 'Task updated'
-          let color = 'bg-blue-100 text-blue-800'
-
-          if (task.status === 'completed') {
-            action = 'Task completed'
-            color = 'bg-green-100 text-green-800'
-          } else if (task.status === 'in_progress') {
-            action = 'Task in progress'
-            color = 'bg-yellow-100 text-yellow-800'
-          } else if (task.status === 'assigned') {
-            action = 'Task assigned'
-            color = 'bg-purple-100 text-purple-800'
+          // Map activity type to color
+          const colorMap = {
+            'attendance_checkin': 'bg-green-100 text-green-800',
+            'attendance_checkout': 'bg-blue-100 text-blue-800',
+            'leave_apply': 'bg-yellow-100 text-yellow-800',
+            'task_create': 'bg-purple-100 text-purple-800',
+            'task_update': 'bg-blue-100 text-blue-800',
+            'task_complete': 'bg-green-100 text-green-800',
+            'task_review': 'bg-yellow-100 text-yellow-800',
+            'milestone_create': 'bg-indigo-100 text-indigo-800',
+            'milestone_complete': 'bg-green-100 text-green-800',
+            'profile_update': 'bg-blue-100 text-blue-800',
+            'expense_submit': 'bg-yellow-100 text-yellow-800',
+            'goal_create': 'bg-indigo-100 text-indigo-800',
+            'goal_complete': 'bg-green-100 text-green-800',
           }
 
-          activities.push({
-            action,
-            details: task.title,
+          return {
+            action: activity.action,
+            details: activity.details || '',
             time: timeStr,
-            color
-          })
+            color: colorMap[activity.type] || 'bg-gray-100 text-gray-800'
+          }
         })
+
+        setRecentActivities(activities)
       }
-
-      // Add attendance activity if checked in today
-      if (todayAttendance?.checkIn) {
-        const checkInTime = new Date(todayAttendance.checkIn)
-        const timeDiff = Date.now() - checkInTime.getTime()
-        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60))
-
-        activities.unshift({
-          action: 'Clocked in',
-          details: `Started work at ${checkInTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`,
-          time: hoursAgo > 0 ? `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago` : 'Just now',
-          color: 'bg-green-100 text-green-800'
-        })
-      }
-
-      setRecentActivities(activities.slice(0, 5))
     } catch (error) {
       console.error('Fetch recent activities error:', error)
+      // Fallback to empty array
+      setRecentActivities([])
     }
   }
 
@@ -352,7 +341,9 @@ export default function EmployeeDashboard({ user }) {
             </h2>
             {dashboardStats?.employee?.designation && (
               <p className="text-xs text-gray-300 mt-0.5">
-                {dashboardStats.employee.designation}
+                {dashboardStats.employee.levelName && dashboardStats.employee.designation
+                  ? `(${dashboardStats.employee.levelName}) - ${dashboardStats.employee.designation}`
+                  : dashboardStats.employee.designation}
               </p>
             )}
           </div>

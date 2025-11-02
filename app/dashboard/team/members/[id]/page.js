@@ -190,7 +190,7 @@ export default function TeamMemberDetailsPage() {
                   <p className="text-xs text-gray-500">Designation</p>
                   <p className="font-medium">
                     {employee.designation?.levelName && employee.designation?.name
-                      ? `${employee.designation.levelName} - ${employee.designation.name}`
+                      ? `(${employee.designation.levelName}) - ${employee.designation.name}`
                       : employee.designation?.name || 'N/A'}
                   </p>
                 </div>
