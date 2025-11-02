@@ -32,12 +32,13 @@ ARG NEXT_PUBLIC_APP_NAME
 
 # Set environment variables for build
 ENV NODE_ENV=production
-ENV MONGODB_URI=${MONGODB_URI}
-ENV JWT_SECRET=${JWT_SECRET}
-ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-ENV NEXTAUTH_URL=${NEXTAUTH_URL}
-ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-ENV NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}
+# Use dummy values for build if not provided (actual values will be set at runtime)
+ENV MONGODB_URI=${MONGODB_URI:-mongodb://dummy:27017/dummy}
+ENV JWT_SECRET=${JWT_SECRET:-dummy-jwt-secret-for-build}
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dummy-nextauth-secret-for-build}
+ENV NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+ENV NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-HRMS}
 
 # Build the application
 RUN npm run build
