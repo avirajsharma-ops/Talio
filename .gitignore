@@ -64,3 +64,6 @@ pids
 
 # SSL Certificates (Let's Encrypt)
 certbot/
+
+# prod secrets
+.env.production
