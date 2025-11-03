@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { 
+import {
   FaArrowLeft, FaUser, FaEnvelope, FaPhone, FaCalendarAlt,
   FaBriefcase, FaStar, FaTasks, FaChartLine, FaComments,
   FaPaperPlane, FaExclamationCircle, FaCheckCircle, FaClock
 } from 'react-icons/fa'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function TeamMemberDetailsPage() {
   const router = useRouter()
@@ -189,9 +190,7 @@ export default function TeamMemberDetailsPage() {
                 <div>
                   <p className="text-xs text-gray-500">Designation</p>
                   <p className="font-medium">
-                    {employee.designation?.levelName && employee.designation?.title
-                      ? `(${employee.designation.levelName}) - ${employee.designation.title}`
-                      : employee.designation?.title || 'N/A'}
+                    {formatDesignation(employee.designation)}
                   </p>
                 </div>
               </div>

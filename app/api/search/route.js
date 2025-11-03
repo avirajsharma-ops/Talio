@@ -207,7 +207,7 @@ export async function GET(request) {
       _id: task._id,
       type: 'task',
       title: task.title,
-      subtitle: `Task #${task.taskNumber}`,
+      subtitle: `Project #${task.taskNumber}`,
       description: task.description?.substring(0, 100),
       meta: `${task.status} • ${task.priority}`,
       link: `/dashboard/tasks/my-tasks`

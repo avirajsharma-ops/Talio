@@ -6,13 +6,22 @@
 html {
   padding: 0 !important;
   margin: 0 !important;
+  /* Disable pull-to-refresh */
+  overscroll-behavior-y: contain;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   padding: 0 !important;
   margin: 0 !important;
-  padding-top: env(safe-area-inset-top) !important;
-  padding-bottom: env(safe-area-inset-bottom) !important;
+  /* Disable pull-to-refresh */
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 
 /* Hide scrollbar utility */

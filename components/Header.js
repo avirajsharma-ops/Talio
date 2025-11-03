@@ -19,6 +19,7 @@ export default function Header({ toggleSidebar }) {
   const [showMobileSearch, setShowMobileSearch] = useState(false)
   const [searching, setSearching] = useState(false)
   const [pageTitle, setPageTitle] = useState('HOME')
+  const [employeeData, setEmployeeData] = useState(null)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
   const searchRef = useRef(null)
@@ -28,9 +29,86 @@ export default function Header({ toggleSidebar }) {
     setMounted(true)
     const userData = localStorage.getItem('user')
     if (userData) {
-      setUser(JSON.parse(userData))
-    }
+      const parsedUser = JSON.parse(userData)
+      setUser(parsedUser)
 
+      // If user already has complete employee data from login, use it
+      if (parsedUser.firstName && parsedUser.designation) {
+        setEmployeeData({
+          firstName: parsedUser.firstName,
+          lastName: parsedUser.lastName,
+          profilePicture: parsedUser.profilePicture,
+          designation: parsedUser.designation,
+          department: parsedUser.department,
+          employeeNumber: parsedUser.employeeNumber,
+        })
+      }
+
+      // Always fetch fresh employee data to ensure it's up to date
+      // Handle both string ID and object with _id
+      const empId = typeof parsedUser.employeeId === 'object'
+        ? parsedUser.employeeId._id || parsedUser.employeeId
+        : parsedUser.employeeId
+
+      if (empId) {
+        fetchEmployeeData(empId)
+      }
+    }
+  }, [])
+
+  // Helper function to format designation with level name
+  const formatDesignation = (designation) => {
+    if (!designation) return 'N/A'
+
+    // Handle if designation is a string
+    if (typeof designation === 'string') return designation
+
+    // Handle if designation is an object
+    const title = designation.title || designation
+    const levelName = designation.levelName
+
+    if (levelName && title) {
+      return `(${levelName}) - ${title}`
+    }
+    return title || 'N/A'
+  }
+
+  const fetchEmployeeData = async (employeeId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/employees/${employeeId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (result.success) {
+        console.log('Employee Data Fetched:', result.data)
+        console.log('Designation Object:', result.data.designation)
+        console.log('Designation Title:', result.data.designation?.title)
+        console.log('Designation Level Name:', result.data.designation?.levelName)
+        setEmployeeData(result.data)
+
+        // Sync user data in localStorage with employee data
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+        const syncedUser = {
+          ...currentUser,
+          firstName: result.data.firstName,
+          lastName: result.data.lastName,
+          profilePicture: result.data.profilePicture,
+          designation: result.data.designation,
+          department: result.data.department,
+          employeeNumber: result.data.employeeNumber,
+        }
+        console.log('Synced User Data:', syncedUser)
+        console.log('Formatted Designation:', formatDesignation(result.data.designation))
+        localStorage.setItem('user', JSON.stringify(syncedUser))
+        setUser(syncedUser)
+      }
+    } catch (error) {
+      console.error('Error fetching employee data:', error)
+    }
+  }
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setShowNotifications(false)
@@ -64,11 +142,12 @@ export default function Header({ toggleSidebar }) {
 
       // Map routes to titles
       const titleMap = {
-        '/tasks': 'TASKS',
-        '/tasks/my-tasks': 'MY TASKS',
-        '/tasks/team-tasks': 'TEAM TASKS',
-        '/tasks/create': 'CREATE TASK',
-        '/tasks/assign': 'ASSIGN TASKS',
+        '/tasks': 'PROJECTS',
+        '/tasks/my-tasks': 'MY PROJECTS',
+        '/tasks/team-tasks': 'TEAM PROJECTS',
+        '/tasks/create': 'CREATE PROJECT',
+        '/tasks/assign': 'ASSIGN PROJECTS',
+        '/tasks/history': 'PROJECT HISTORY',
         '/chat': 'CHAT',
         '/leave': 'LEAVE',
         '/leave/apply': 'APPLY LEAVE',
@@ -202,7 +281,7 @@ export default function Header({ toggleSidebar }) {
   // Don't render user-specific content until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <header className="bg-white sticky top-0 z-[5] border-b border-gray-200">
+      <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200">
         <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] py-3 sm:py-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
@@ -221,7 +300,7 @@ export default function Header({ toggleSidebar }) {
   }
 
   return (
-    <header className="bg-white sticky top-0 z-[5] border-b border-gray-200">
+    <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200">
       <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] py-3 sm:py-4">
         {/* Left side */}
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
@@ -385,13 +464,26 @@ export default function Header({ toggleSidebar }) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center space-x-2 sm:space-x-3 p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <div className="w-[30px] h-[30px] sm:w-8 sm:h-8 bg-primary-500 rounded-full flex items-center justify-center">
-                {/* <img src=""> */}
-                <FaUser className="w-4 h-4 sm:w-4 sm:h-4 text-white" />
+              <div className="w-[30px] h-[30px] sm:w-8 sm:h-8 bg-primary-500 rounded-full flex items-center justify-center overflow-hidden">
+                {employeeData?.profilePicture ? (
+                  <img
+                    src={employeeData.profilePicture}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FaUser className="w-4 h-4 sm:w-4 sm:h-4 text-white" />
+                )}
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-gray-900 truncate max-w-32">{user?.email || 'User'}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role || 'Employee'}</p>
+                <p className="text-sm font-medium text-gray-900 truncate max-w-32">
+                  {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
+                   user?.firstName ? `${user.firstName} ${user.lastName}` :
+                   user?.email || 'User'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
+                </p>
               </div>
             </button>
 
@@ -399,6 +491,33 @@ export default function Header({ toggleSidebar }) {
               <>
                 <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={() => setShowProfileMenu(false)} />
                 <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  {/* User Info Section */}
+                  <div className="px-2 md:px-4 py-3 border-b border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {(employeeData?.profilePicture || user?.profilePicture) ? (
+                          <img
+                            src={employeeData?.profilePicture || user?.profilePicture}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FaUser className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
+                           user?.firstName ? `${user.firstName} ${user.lastName}` :
+                           user?.email || 'User'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <a
                     href="/dashboard/profile"
                     className="flex items-center space-x-2 px-2 md:px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

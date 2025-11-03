@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { FaPlus, FaTrash, FaUser, FaUsers, FaSearch, FaCheck, FaTimes } from 'react-icons/fa'
+import { formatDesignation } from '@/lib/formatters'
 
 const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mode = 'create' }) => {
   const [employees, setEmployees] = useState([])
@@ -277,8 +278,16 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
               <div key={assignee.employee} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <FaUser className="w-4 h-4 text-white" />
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                      {assignee.employeeData?.profilePicture ? (
+                        <img
+                          src={assignee.employeeData.profilePicture}
+                          alt={`${assignee.employeeData.firstName} ${assignee.employeeData.lastName}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FaUser className="w-4 h-4 text-white" />
+                      )}
                     </div>
                   </div>
                   <div>
@@ -383,7 +392,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                   <p><strong>Department Head:</strong> You can assign tasks to anyone in your department.</p>
                 ) : (
                   <>
-                    <p><strong>Your Level:</strong> {currentEmp.designation?.levelName || currentEmp.designation?.title || 'N/A'}</p>
+                    <p><strong>Your Level:</strong> {formatDesignation(currentEmp.designation)}</p>
                     <p className="mt-1">You can assign tasks to employees at your level or lower hierarchy. Department heads can assign to anyone in the department.</p>
                   </>
                 )}
@@ -419,19 +428,23 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                     className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                   >
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <FaUser className="w-4 h-4 text-white" />
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {employee.profilePicture ? (
+                          <img
+                            src={employee.profilePicture}
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FaUser className="w-4 h-4 text-white" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {employee.firstName} {employee.lastName}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
-                          {employee.employeeCode} • {
-                            employee.designation?.levelName && employee.designation?.title
-                              ? `${employee.designation.levelName} - ${employee.designation.title}`
-                              : employee.designation?.title || 'N/A'
-                          }
+                          {employee.employeeCode} • {formatDesignation(employee.designation)}
                         </p>
                       </div>
                     </div>

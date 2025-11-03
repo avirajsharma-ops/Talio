@@ -198,8 +198,7 @@ export async function GET(request) {
           employeeId: employee.employeeCode,
           profilePicture: employee.profilePicture,
           department: employee.department,
-          designation: employee.designation?.title || null,
-          levelName: employee.designation?.levelName || null
+          designation: employee.designation || null,
         }
       }
     })

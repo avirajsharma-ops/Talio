@@ -177,7 +177,7 @@ export default function TaskDetailsPage() {
 
   const createMilestone = async () => {
     if (!newMilestone.title.trim()) {
-      alert('Milestone title is required')
+      alert('Task title is required')
       return
     }
 
@@ -200,11 +200,11 @@ export default function TaskDetailsPage() {
         fetchTaskDetails() // Refresh to update overall progress
       } else {
         const data = await response.json()
-        alert(data.message || 'Failed to create milestone')
+        alert(data.message || 'Failed to create task')
       }
     } catch (error) {
       console.error('Error creating milestone:', error)
-      alert('Failed to create milestone')
+      alert('Failed to create task')
     } finally {
       setUpdating(false)
     }
@@ -236,14 +236,14 @@ export default function TaskDetailsPage() {
         setMilestoneCompletionRemark('')
         fetchMilestones()
         fetchTaskDetails() // Refresh to update overall progress
-        alert('Milestone marked as completed')
+        alert('Task marked as completed')
       } else {
         const data = await response.json()
-        alert(data.message || 'Failed to complete milestone')
+        alert(data.message || 'Failed to complete task')
       }
     } catch (error) {
       console.error('Error completing milestone:', error)
-      alert('Failed to complete milestone')
+      alert('Failed to complete task')
     } finally {
       setUpdating(false)
     }
@@ -278,18 +278,18 @@ export default function TaskDetailsPage() {
         fetchTaskDetails() // Refresh to update overall progress
       } else {
         const data = await response.json()
-        alert(data.message || 'Failed to update milestone')
+        alert(data.message || 'Failed to update task')
       }
     } catch (error) {
       console.error('Error updating milestone:', error)
-      alert('Failed to update milestone')
+      alert('Failed to update task')
     } finally {
       setUpdating(false)
     }
   }
 
   const deleteMilestone = async (milestoneId) => {
-    if (!confirm('Are you sure you want to delete this milestone?')) {
+    if (!confirm('Are you sure you want to delete this task?')) {
       return
     }
 
@@ -308,11 +308,11 @@ export default function TaskDetailsPage() {
         fetchTaskDetails() // Refresh to update overall progress
       } else {
         const data = await response.json()
-        alert(data.message || 'Failed to delete milestone')
+        alert(data.message || 'Failed to delete task')
       }
     } catch (error) {
       console.error('Error deleting milestone:', error)
-      alert('Failed to delete milestone')
+      alert('Failed to delete task')
     } finally {
       setUpdating(false)
     }
@@ -557,8 +557,8 @@ export default function TaskDetailsPage() {
     return (
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-sm rounded-lg p-6 text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Task Not Found</h2>
-          <p className="text-gray-600 mb-4">The task you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Project Not Found</h2>
+          <p className="text-gray-600 mb-4">The project you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
           <button
             onClick={() => router.back()}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -979,12 +979,12 @@ export default function TaskDetailsPage() {
               )}
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-gray-700">Milestones</p>
+                  <p className="text-sm font-semibold text-gray-700">Tasks</p>
                   <button
                     onClick={() => setShowMilestoneModal(true)}
                     className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                   >
-                    + Add Milestone
+                    + Add Task
                   </button>
                 </div>
                 {milestones && milestones.length > 0 ? (
@@ -1035,7 +1035,7 @@ export default function TaskDetailsPage() {
                               <textarea
                                 value={milestoneCompletionRemark}
                                 onChange={(e) => setMilestoneCompletionRemark(e.target.value)}
-                                placeholder="Describe what was accomplished in this milestone..."
+                                placeholder="Describe what was accomplished in this task..."
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-2"
                                 rows="3"
                               />
@@ -1112,7 +1112,7 @@ export default function TaskDetailsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-sm text-center py-4">No milestones yet. Add one to track progress!</p>
+                  <p className="text-gray-600 text-sm text-center py-4">No tasks yet. Add one to track progress!</p>
                 )}
               </div>
             </div>
@@ -1166,7 +1166,7 @@ export default function TaskDetailsPage() {
         {showMilestoneModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center style={{ zIndex: 99999 }} p-4">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Add Milestone</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Add Task</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1177,7 +1177,7 @@ export default function TaskDetailsPage() {
                     value={newMilestone.title}
                     onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Milestone title"
+                    placeholder="Task title"
                   />
                 </div>
                 <div>
@@ -1189,7 +1189,7 @@ export default function TaskDetailsPage() {
                     onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="3"
-                    placeholder="Milestone description"
+                    placeholder="Task description"
                   />
                 </div>
                 <div>
@@ -1205,7 +1205,7 @@ export default function TaskDetailsPage() {
                   />
                   {task?.dueDate && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Milestone due date cannot exceed task deadline: {new Date(task.dueDate).toLocaleDateString()}
+                      Task due date cannot exceed project deadline: {new Date(task.dueDate).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -1226,7 +1226,7 @@ export default function TaskDetailsPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   disabled={updating || !newMilestone.title.trim()}
                 >
-                  {updating ? 'Creating...' : 'Create Milestone'}
+                  {updating ? 'Creating...' : 'Create Task'}
                 </button>
               </div>
             </div>

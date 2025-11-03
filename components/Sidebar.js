@@ -65,8 +65,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
           { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-          { name: 'Task Approvals', path: '/dashboard/team/task-approvals' },
-          { name: 'Team Tasks', path: '/dashboard/tasks/team-tasks' },
+          { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
+          { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
         ]
       }
 
@@ -110,11 +110,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-[7]
+          fixed lg:static inset-y-0 left-0 z-[60] lg:z-[7]
           w-[70vw] md:w-[17rem] bg-gray-900 text-white
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col
+          flex flex-col h-screen
         `}
       >
         {/* Sticky Logo Section */}

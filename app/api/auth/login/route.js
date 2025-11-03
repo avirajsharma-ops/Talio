@@ -85,12 +85,35 @@ console.log(user,456);
       .setExpirationTime('7d')
       .sign(secret)
 
-    // Return user data without password
+    // Fetch full employee data if employeeId exists
+    let employeeData = null
+    if (user.employeeId) {
+      try {
+        const Employee = (await import('@/models/Employee')).default
+        employeeData = await Employee.findById(user.employeeId)
+          .populate('designation')
+          .populate('department')
+          .lean()
+      } catch (error) {
+        console.error('Error fetching employee data:', error)
+      }
+    }
+
+    // Return user data without password, including employee details
     const userData = {
       id: user._id,
       email: user.email,
       role: user.role,
       employeeId: user.employeeId,
+      // Include employee data if available
+      ...(employeeData && {
+        firstName: employeeData.firstName,
+        lastName: employeeData.lastName,
+        profilePicture: employeeData.profilePicture,
+        designation: employeeData.designation,
+        department: employeeData.department,
+        employeeNumber: employeeData.employeeNumber,
+      })
     }
 
     return NextResponse.json({

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaEdit, FaArrowLeft, FaBriefcase, FaCalendarAlt } from 'react-icons/fa'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function EmployeeDetailPage() {
   const params = useParams()
@@ -78,17 +79,25 @@ export default function EmployeeDetailPage() {
       {/* Profile Card */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-start space-x-6">
-          <div className="bg-primary-100 p-6 rounded-full">
-            <FaUser className="text-primary-500 text-5xl" />
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center flex-shrink-0">
+            {employee.profilePicture ? (
+              <img
+                src={employee.profilePicture}
+                alt={`${employee.firstName} ${employee.lastName}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-3xl font-bold text-white">
+                {employee.firstName?.[0]}{employee.lastName?.[0]}
+              </span>
+            )}
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-800">
               {employee.firstName} {employee.lastName}
             </h1>
             <p className="text-lg text-gray-600 mt-1">
-              {employee.designation?.levelName && employee.designation?.title
-                ? `(${employee.designation.levelName}) - ${employee.designation.title}`
-                : employee.designation?.title || 'N/A'} • {employee.department?.name || 'N/A'}
+              {formatDesignation(employee.designation)} • {employee.department?.name || 'N/A'}
             </p>
             <div className="flex items-center space-x-4 mt-4">
               <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -170,9 +179,7 @@ export default function EmployeeDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Designation</p>
                 <p className="font-medium text-gray-800">
-                  {employee.designation?.levelName && employee.designation?.title
-                    ? `(${employee.designation.levelName}) - ${employee.designation.title}`
-                    : employee.designation?.title || 'N/A'}
+                  {formatDesignation(employee.designation)}
                 </p>
               </div>
             </div>

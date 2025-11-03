@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter } from 'react-icons/fa'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function EmployeesPage() {
   const router = useRouter()
@@ -179,8 +180,16 @@ export default function EmployeesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-                              {employee.firstName?.[0]}{employee.lastName?.[0]}
+                            <div className="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold overflow-hidden">
+                              {employee.profilePicture ? (
+                                <img
+                                  src={employee.profilePicture}
+                                  alt={`${employee.firstName} ${employee.lastName}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span>{employee.firstName?.[0]}{employee.lastName?.[0]}</span>
+                              )}
                             </div>
                           </div>
                           <div className="ml-4">
@@ -198,9 +207,7 @@ export default function EmployeesPage() {
                         {employee.department?.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {employee.designation?.levelName && employee.designation?.title
-                          ? `(${employee.designation.levelName}) - ${employee.designation.title}`
-                          : employee.designation?.title || 'N/A'}
+                        {formatDesignation(employee.designation)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

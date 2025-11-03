@@ -9,6 +9,7 @@ import {
   FaExclamationTriangle, FaGift, FaSignInAlt, FaSignOutAlt
 } from 'react-icons/fa'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function EmployeeDashboard({ user }) {
   const [announcements, setAnnouncements] = useState([])
@@ -341,9 +342,7 @@ export default function EmployeeDashboard({ user }) {
             </h2>
             {dashboardStats?.employee?.designation && (
               <p className="text-xs text-gray-300 mt-0.5">
-                {dashboardStats.employee.levelName && dashboardStats.employee.designation
-                  ? `(${dashboardStats.employee.levelName}) - ${dashboardStats.employee.designation}`
-                  : dashboardStats.employee.designation}
+                {formatDesignation(dashboardStats.employee.designation)}
               </p>
             )}
           </div>

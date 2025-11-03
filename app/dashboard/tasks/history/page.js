@@ -87,8 +87,8 @@ export default function TaskHistoryPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Task History</h1>
-          <p className="text-sm sm:text-base text-gray-600">View all tasks including deleted ones</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Project History</h1>
+          <p className="text-sm sm:text-base text-gray-600">View all projects including deleted ones</p>
         </div>
 
         {/* Filters */}
@@ -100,7 +100,7 @@ export default function TaskHistoryPage() {
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder="Search projects..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -151,7 +151,7 @@ export default function TaskHistoryPage() {
           </div>
         ) : tasks.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <p className="text-gray-500">No tasks found</p>
+            <p className="text-gray-500">No projects found</p>
           </div>
         ) : (
           <div className="space-y-3">

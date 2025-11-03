@@ -15,7 +15,7 @@ export default function BottomNav() {
       active: pathname === '/dashboard'
     },
     {
-      name: 'Tasks',
+      name: 'Projects',
       icon: '/assets/fi-rr-chart-pie-alt.svg',
       path: '/dashboard/tasks/my-tasks',
       active: pathname.startsWith('/dashboard/tasks')
@@ -41,33 +41,26 @@ export default function BottomNav() {
   ]
 
   return (
-
-  <div className='bg-[#1A2A5A] w-full h-20 relative p-2 md:hidden'  >
-    <div className=" fixed bottom-0 left-0 right-0    bg-transparent z-[5]" style={{ margin: 0, padding: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex items-center justify-around" style={{ margin: '-0.5rem', padding: '1.4rem  1.2rem' }}>
+    <div className="fixed bottom-0 left-0 right-0 bg-[#1A2A5A] z-[40] md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex items-center justify-around py-2 px-4">
       
         {navItems.map((item) => {
-          const Icon = item.icon
           return (
             <button
               key={item.path}
               onClick={() => router.push(item.path)}
-              className={`p-0 h-14 w-14    rounded-full transition-all duration-300     ${
+              className={`p-0 h-14 w-14 rounded-full transition-all duration-300 ${
                 item.active
-                  ? 'bg-[#7FBEB0] rounded-full -translate-y-[34px] shadow-[0_0px_0_10px_#F9FAFB] '
-                  : ' text-gray-600'
+                  ? 'bg-[#7FBEB0] -translate-y-[34px] shadow-[0_0px_0_10px_#F9FAFB]'
+                  : 'text-gray-600'
               }`}
-              style={{ margin: 0,
-                
-               }}
+              style={{ margin: 0 }}
             >
-              <img src={item.icon} width={24} height={24 } className="   transition-transform duration-300" />
-              {/* <Icon  /> */}
+              <img src={item.icon} width={24} height={24} className="transition-transform duration-300" />
             </button>
           )
         })}
       </div>
-    </div>
     </div>
   )
 }

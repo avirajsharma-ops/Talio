@@ -7,9 +7,11 @@ import {
   FaUsers, FaClock, FaCalendarAlt, FaMoneyBillWave,
   FaChartLine, FaBriefcase, FaArrowUp, FaArrowDown,
   FaUserPlus, FaBuilding, FaExclamationTriangle, FaEye,
-  FaEdit, FaCheck, FaTimes, FaSearch
+  FaEdit, FaCheck, FaTimes, FaSearch, FaUser,
+  FaSignInAlt, FaSignOutAlt, FaCheckCircle
 } from 'react-icons/fa'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function AdminDashboard({ user }) {
   const router = useRouter()
@@ -26,9 +28,16 @@ export default function AdminDashboard({ user }) {
   const [showEmployeeModal, setShowEmployeeModal] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [employeeSearch, setEmployeeSearch] = useState('')
+  const [todayAttendance, setTodayAttendance] = useState(null)
+  const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [employeeData, setEmployeeData] = useState(null)
 
   useEffect(() => {
     fetchDashboardData()
+    if (user?.employeeId?._id) {
+      fetchTodayAttendance()
+      fetchEmployeeData()
+    }
   }, [])
 
   const fetchDashboardData = async () => {
@@ -78,6 +87,107 @@ export default function AdminDashboard({ user }) {
       value: dept.employeeCount || 0,
       color: colors[index % colors.length]
     }))
+  }
+
+  const fetchTodayAttendance = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const today = new Date().toISOString().split('T')[0]
+
+      const response = await fetch(`/api/attendance?employeeId=${user.employeeId._id}&date=${today}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+      if (data.success && data.data.length > 0) {
+        setTodayAttendance(data.data[0])
+      }
+    } catch (error) {
+      console.error('Fetch today attendance error:', error)
+    }
+  }
+
+  const fetchEmployeeData = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/employees/${user.employeeId._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const result = await response.json()
+      if (result.success) {
+        setEmployeeData(result.data)
+      }
+    } catch (error) {
+      console.error('Error fetching employee data:', error)
+    }
+  }
+
+  const handleClockIn = async () => {
+    if (!user?.employeeId?._id) return
+    setAttendanceLoading(true)
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          employeeId: user.employeeId._id,
+          type: 'clock-in',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Clocked in successfully!')
+        setTodayAttendance(data.data)
+      } else {
+        toast.error(data.message || 'Failed to clock in')
+      }
+    } catch (error) {
+      console.error('Clock in error:', error)
+      toast.error('An error occurred while clocking in')
+    } finally {
+      setAttendanceLoading(false)
+    }
+  }
+
+  const handleClockOut = async () => {
+    if (!user?.employeeId?._id) return
+    setAttendanceLoading(true)
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          employeeId: user.employeeId._id,
+          type: 'clock-out',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Clocked out successfully! 👋')
+        setTodayAttendance(data.data)
+      } else {
+        toast.error(data.message || 'Failed to clock out')
+      }
+    } catch (error) {
+      console.error('Clock out error:', error)
+      toast.error('An error occurred while clocking out')
+    } finally {
+      setAttendanceLoading(false)
+    }
   }
 
   const getStatsData = () => {
@@ -154,6 +264,155 @@ export default function AdminDashboard({ user }) {
 
   return (
     <div className="page-container space-y-5 sm:space-y-8">
+      {/* Check-In/Check-Out Section */}
+      <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
+        {/* User Profile Section */}
+        <div className="flex items-center gap-3 mb-4">
+          {/* Profile Picture */}
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
+            {employeeData?.profilePicture ? (
+              <img
+                src={employeeData.profilePicture}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <FaUser className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            )}
+          </div>
+
+          {/* User Name and ID */}
+          <div>
+            <p className="text-xs text-gray-300 mb-0.5">
+              ID: {employeeData?.employeeCode || user?.employeeId?.employeeCode || '---'}
+            </p>
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
+              {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
+               (user?.employeeId?.firstName && user?.employeeId?.lastName
+                ? `${user.employeeId.firstName} ${user.employeeId.lastName}`
+                : 'User')}
+            </h2>
+            {employeeData?.designation && (
+              <p className="text-xs text-gray-300 mt-0.5">
+                {formatDesignation(employeeData.designation)}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 sm:gap-3">
+          <button
+            onClick={handleClockIn}
+            disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
+            className="bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+          >
+            <span>Check In</span>
+          </button>
+
+          <button
+            onClick={handleClockOut}
+            disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
+            className="bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+          >
+            <span>Check Out</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Glance Section */}
+      <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-2xl p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Quick Glance</h3>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Check In Time */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                <FaSignInAlt className="w-2.5 h-2.5 text-gray-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Check In Time</p>
+            </div>
+            <div className="bg-green-100 rounded-lg p-3">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
+                {todayAttendance?.checkIn
+                  ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })
+                  : '--:--'}
+              </p>
+            </div>
+          </div>
+
+          {/* Check Out Time */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                <FaSignOutAlt className="w-2.5 h-2.5 text-gray-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Check Out Time</p>
+            </div>
+            <div className="bg-red-100 rounded-lg p-3">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
+                {todayAttendance?.checkOut
+                  ? new Date(todayAttendance.checkOut).toLocaleTimeString('en-IN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })
+                  : '--:--'}
+              </p>
+            </div>
+          </div>
+
+          {/* Work Hours */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                <FaClock className="w-2.5 h-2.5 text-gray-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Work Hours</p>
+            </div>
+            <div className="bg-yellow-100 rounded-lg p-3">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
+                {todayAttendance?.workHours
+                  ? `${todayAttendance.workHours}h`
+                  : '--:--'}
+              </p>
+            </div>
+          </div>
+
+          {/* Work Status */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
+                <FaCheckCircle className="w-2.5 h-2.5 text-gray-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Work Status</p>
+            </div>
+            <div className={`rounded-lg p-3 ${
+              todayAttendance?.status === 'present' ? 'bg-green-100' :
+              todayAttendance?.status === 'half-day' ? 'bg-yellow-100' :
+              todayAttendance?.status === 'in-progress' ? 'bg-blue-100' :
+              todayAttendance?.workFromHome ? 'bg-purple-100' :
+              todayAttendance?.status === 'on-leave' ? 'bg-orange-100' :
+              'bg-red-100'
+            }`}>
+              <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 capitalize">
+                {todayAttendance?.workFromHome ? 'WFH' :
+                 todayAttendance?.status === 'present' ? 'Present' :
+                 todayAttendance?.status === 'half-day' ? 'Half Day' :
+                 todayAttendance?.status === 'in-progress' ? 'In Progress' :
+                 todayAttendance?.status === 'on-leave' ? 'On Leave' :
+                 'Absent'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
         <h1 className="text-3xl font-bold mb-2">Admin Dashboard </h1>
@@ -440,8 +699,16 @@ export default function AdminDashboard({ user }) {
               {/* Employee Info */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                    {selectedEmployee.firstName?.charAt(0)}{selectedEmployee.lastName?.charAt(0)}
+                  <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden">
+                    {selectedEmployee.profilePicture ? (
+                      <img
+                        src={selectedEmployee.profilePicture}
+                        alt={`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{selectedEmployee.firstName?.charAt(0)}{selectedEmployee.lastName?.charAt(0)}</span>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-gray-900">
@@ -460,9 +727,7 @@ export default function AdminDashboard({ user }) {
                   <div>
                     <span className="text-gray-600">Designation:</span>
                     <span className="ml-2 font-medium">
-                      {selectedEmployee.designation?.levelName && selectedEmployee.designation?.title
-                        ? `(${selectedEmployee.designation.levelName}) - ${selectedEmployee.designation.title}`
-                        : selectedEmployee.designation?.title || 'N/A'}
+                      {formatDesignation(selectedEmployee.designation)}
                     </span>
                   </div>
                   <div>

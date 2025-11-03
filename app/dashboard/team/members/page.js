@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { 
+import {
   FaUsers, FaSearch, FaUser, FaEnvelope, FaPhone, FaCalendarAlt,
   FaBriefcase, FaStar, FaChartLine
 } from 'react-icons/fa'
+import { formatDesignation } from '@/lib/formatters'
 
 export default function TeamMembersPage() {
   const router = useRouter()
@@ -144,9 +145,7 @@ export default function TeamMembersPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <FaBriefcase className="mr-2 text-gray-400" />
                   <span>
-                    {member.designation?.levelName && member.designation?.title
-                      ? `(${member.designation.levelName}) - ${member.designation.title}`
-                      : member.designation?.title || 'No designation'}
+                    {formatDesignation(member.designation) || 'No designation'}
                   </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
