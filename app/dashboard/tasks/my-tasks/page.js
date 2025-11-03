@@ -338,9 +338,9 @@ export default function MyTasksPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
                 <FaTasks className="mr-2 sm:mr-3 text-blue-600 flex-shrink-0" />
-                <span className="truncate">My Tasks</span>
+                <span className="truncate">My Projects</span>
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your assigned tasks and track progress</p>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your assigned Projects and track progress</p>
             </div>
 
             <div className="flex gap-2 sm:gap-3 flex-shrink-0">
@@ -349,7 +349,7 @@ export default function MyTasksPage() {
                 className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
               >
                 <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span>Create Task</span>
+                <span>Create Project</span>
               </button>
 
               <button
@@ -373,7 +373,7 @@ export default function MyTasksPage() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  My Tasks
+                  My Projects
                 </button>
                 <button
                   onClick={() => setView('team')}
@@ -383,7 +383,7 @@ export default function MyTasksPage() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  Team Tasks
+                  Team Projects
                 </button>
                 <button
                   onClick={() => setView('external')}
@@ -393,7 +393,7 @@ export default function MyTasksPage() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  External Tasks
+                  External Projects
                 </button>
               </div>
             </div>
@@ -409,7 +409,7 @@ export default function MyTasksPage() {
                   filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                All Tasks
+                All Projects
               </button>
               <button
                 onClick={() => setFilter('in_progress')}
@@ -449,7 +449,7 @@ export default function MyTasksPage() {
             <div className="relative w-full sm:w-auto sm:max-w-md">
               <input
                 type="text"
-                placeholder="Search tasks..."
+                placeholder="Search Projects..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -466,15 +466,15 @@ export default function MyTasksPage() {
           ) : filteredTasks.length === 0 ? (
             <div className="text-center py-8">
               <FaTasks className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Projects found</h3>
               <p className="text-gray-500">
-                {filter === 'all' ? 'You don\'t have any tasks assigned yet.' : `No ${filter} tasks found.`}
+                {filter === 'all' ? 'You don\'t have any Projects assigned yet.' : `No ${filter} tasks found.`}
               </p>
               <button
                 onClick={() => router.push('/dashboard/tasks/create')}
                 className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
               >
-                Create Your First Task
+                Create Your First Project
               </button>
             </div>
           ) : (
@@ -631,7 +631,7 @@ export default function MyTasksPage() {
             <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Task</h3>
             <p className="text-gray-600 mb-4">
               Are you sure you want to delete "<strong>{taskToDelete.title}</strong>"?
-              This action will mark the task as deleted but preserve it in the task history.
+              This action will mark the project as deleted but preserve it in the task history.
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -642,7 +642,7 @@ export default function MyTasksPage() {
                 onChange={(e) => setDeleteReason(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 rows="3"
-                placeholder="Please provide a reason for deleting this task..."
+                placeholder="Please provide a reason for deleting this project..."
               />
             </div>
             <div className="flex justify-end space-x-3">
@@ -673,7 +673,7 @@ export default function MyTasksPage() {
       {showReviewModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 style={{ zIndex: 99999 }}">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Send Task for Review</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Send project for Review</h3>
             <p className="text-sm text-gray-600 mb-4">
               Please provide completion remarks describing what you've accomplished and any important notes for the reviewer.
             </p>

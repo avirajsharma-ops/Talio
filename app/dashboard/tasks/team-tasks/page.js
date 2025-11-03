@@ -165,7 +165,7 @@ export default function TeamTasksPage() {
         <div className="flex items-center mb-2">
           <FaUsers className="text-blue-600 mr-3 text-2xl" />
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Team Tasks</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Team Projects</h1>
             <p className="text-gray-600 text-sm sm:text-base">
               {department?.name} Department
               {isDepartmentHead && <span className="ml-2 text-blue-600 font-medium">(Department Head)</span>}
@@ -178,7 +178,7 @@ export default function TeamTasksPage() {
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium">Total Tasks</p>
+              <p className="text-xs sm:text-sm text-gray-600 font-medium">Total Projects</p>
               <p className="text-2xl sm:text-3xl font-bold text-gray-900">{tasks.length}</p>
             </div>
             <FaTasks className="text-blue-500 text-xl sm:text-2xl" />
@@ -270,12 +270,12 @@ export default function TeamTasksPage() {
       {loading ? (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading team tasks...</p>
+          <p className="mt-4 text-gray-600">Loading team projects...</p>
         </div>
       ) : filteredTasks.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <FaTasks className="text-gray-400 text-4xl mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No Tasks Found</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">No projects Found</h3>
           <p className="text-gray-600">
             {filters.search || filters.status || filters.priority 
               ? 'Try adjusting your filters' 
@@ -346,7 +346,7 @@ export default function TeamTasksPage() {
                   <div className="border-t border-gray-200 pt-4 mb-4">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                       <FaHistory className="mr-2" />
-                      Task Timeline
+                      Project Timeline
                     </h4>
                     <div className="space-y-3">
                       {task.timeline.map((event, index) => (

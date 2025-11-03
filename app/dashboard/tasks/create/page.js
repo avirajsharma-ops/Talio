@@ -211,7 +211,7 @@ function CreateTaskContent() {
         setCreatedTaskId(data.data?._id || null)
         // Don't auto-redirect, let user choose to view or create another
       } else {
-        setError(data.message || 'Failed to create task')
+        setError(data.message || 'Failed to create Project')
       }
     } catch (error) {
       console.error('Error creating task:', error)
@@ -330,9 +330,9 @@ function CreateTaskContent() {
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
                   <FaTasks className="mr-3 text-blue-600" />
-                  Create New Task
+                  Create New Project
                 </h1>
-                <p className="text-gray-600 text-sm sm:text-base">Create and assign a new task</p>
+                <p className="text-gray-600 text-sm sm:text-base">Create and assign a new project</p>
               </div>
             </div>
           </div>
@@ -354,7 +354,7 @@ function CreateTaskContent() {
                     onClick={() => router.push(`/dashboard/tasks/${createdTaskId}`)}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
                   >
-                    View Task
+                    View Project
                   </button>
                 )}
                 <button
@@ -376,14 +376,14 @@ function CreateTaskContent() {
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                 >
-                  Create Another Task
+                  Create Another Project
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push('/dashboard/tasks/my-tasks')}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
                 >
-                  Go to My Tasks
+                  Go to My Projects
                 </button>
               </div>
             </div>
@@ -395,7 +395,7 @@ function CreateTaskContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Task Title *
+                  Project Title *
                 </label>
                 <input
                   type="text"
@@ -418,7 +418,7 @@ function CreateTaskContent() {
                   onChange={handleInputChange}
                   rows={4}
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter task description"
+                  placeholder="Enter Project description"
                 />
               </div>
 
@@ -497,7 +497,7 @@ function CreateTaskContent() {
 
             {/* Assignment Section */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Task Assignment</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Project Assignment</h3>
 
               <div className="space-y-4">
                 <div className="flex items-center">
@@ -589,7 +589,7 @@ function CreateTaskContent() {
                 ) : (
                   <>
                     <FaSave className="w-4 h-4 mr-2" />
-                    Create Task
+                    Create Project
                   </>
                 )}
               </button>

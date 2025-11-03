@@ -215,15 +215,7 @@ export const roleBasedMenus = {
   // MANAGER - Team management focused
   manager: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { 
-      name: 'My Team', 
-      icon: FaUsers, 
-      path: '/dashboard/employees',
-      submenu: [
-        { name: 'Team Members', path: '/dashboard/employees' },
-        { name: 'Departments', path: '/dashboard/departments' },
-      ]
-    },
+    
     { 
       name: 'Attendance', 
       icon: FaClock, 

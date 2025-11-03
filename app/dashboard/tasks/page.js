@@ -69,13 +69,13 @@ export default function TasksPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
                 <FaTasks className="mr-3 text-blue-600" />
-                Task Management
+                Project Management
               </h1>
               <p className="text-gray-600 text-sm sm:text-base mt-1">
-                {user.role === 'admin' ? 'Manage tasks across the entire organization' :
-                 user.role === 'hr' ? 'Manage department and organizational tasks' :
-                 user.role === 'manager' ? 'Manage your team tasks and assignments' :
-                 'Manage your personal tasks and collaborate with colleagues'}
+                {user.role === 'admin' ? 'Manage Projects across the entire organization' :
+                 user.role === 'hr' ? 'Manage department and organizational Projects' :
+                 user.role === 'manager' ? 'Manage your team Projects and assignments' :
+                 'Manage your personal Projects and collaborate with colleagues'}
               </p>
             </div>
 
@@ -86,14 +86,14 @@ export default function TasksPage() {
                 className="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center"
               >
                 <FaPlus className="mr-2" />
-                Create Task
+                Create Projects
               </button>
 
               <button
                 onClick={() => router.push('/dashboard/tasks/my-tasks')}
                 className="bg-purple-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
               >
-                My Tasks
+                My Projects
               </button>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function TasksPage() {
             <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Tasks</p>
+                  <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Projects</p>
                   <p className="text-lg sm:text-2xl font-bold text-blue-900">
                     {loading ? '...' : stats.totalTasks}
                   </p>
@@ -169,9 +169,9 @@ export default function TasksPage() {
             >
               <div className="flex items-center mb-2">
                 <FaTasks className="text-blue-600 mr-2" />
-                <h3 className="font-semibold text-blue-900">My Tasks</h3>
+                <h3 className="font-semibold text-blue-900">My Projects</h3>
               </div>
-              <p className="text-sm text-blue-700">View and manage your assigned tasks</p>
+              <p className="text-sm text-blue-700">View and manage your assigned Projects</p>
             </div>
 
             <div
@@ -180,9 +180,9 @@ export default function TasksPage() {
             >
               <div className="flex items-center mb-2">
                 <FaPlus className="text-green-600 mr-2" />
-                <h3 className="font-semibold text-green-900">Create Task</h3>
+                <h3 className="font-semibold text-green-900">Create Projects</h3>
               </div>
-              <p className="text-sm text-green-700">Create new tasks for yourself or others</p>
+              <p className="text-sm text-green-700">Create new Projects for yourself or others</p>
             </div>
 
             {(user.role === 'manager' || user.role === 'hr' || user.role === 'admin') && (
@@ -193,13 +193,13 @@ export default function TasksPage() {
                 <div className="flex items-center mb-2">
                   <FaUsers className="text-yellow-600 mr-2" />
                   <h3 className="font-semibold text-yellow-900">
-                    {user.role === 'manager' ? 'Team Tasks' :
-                     user.role === 'hr' ? 'Department Tasks' : 'All Tasks'}
+                    {user.role === 'manager' ? 'Team Projects' :
+                     user.role === 'hr' ? 'Department Projects' : 'All Projects'}
                   </h3>
                 </div>
                 <p className="text-sm text-yellow-700">
-                  {user.role === 'manager' ? 'Manage your team\'s tasks' :
-                   user.role === 'hr' ? 'Manage department tasks' : 'Manage all organizational tasks'}
+                  {user.role === 'manager' ? 'Manage your team\'s Projects' :
+                   user.role === 'hr' ? 'Manage department Projects' : 'Manage all organizational Projects'}
                 </p>
               </div>
             )}
@@ -213,7 +213,7 @@ export default function TasksPage() {
                   <FaUsers className="text-indigo-600 mr-2" />
                   <h3 className="font-semibold text-indigo-900">Assign to Colleague</h3>
                 </div>
-                <p className="text-sm text-indigo-700">Assign tasks to your colleagues</p>
+                <p className="text-sm text-indigo-700">Assign Projects to your colleagues</p>
               </div>
             )}
 
@@ -223,9 +223,9 @@ export default function TasksPage() {
             >
               <div className="flex items-center mb-2">
                 <FaHistory className="text-purple-600 mr-2" />
-                <h3 className="font-semibold text-purple-900">Task History</h3>
+                <h3 className="font-semibold text-purple-900">Projects History</h3>
               </div>
-              <p className="text-sm text-purple-700">View all tasks including deleted ones</p>
+              <p className="text-sm text-purple-700">View all projects including deleted ones</p>
             </div>
           </div>
         </div>

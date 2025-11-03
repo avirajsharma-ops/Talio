@@ -146,16 +146,16 @@ export default function AssignTaskPage() {
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
                   <FaUsers className="mr-2 sm:mr-3 text-blue-600" />
-                  Assign Tasks
+                  Assign Project
                 </h1>
                 <p className="text-sm sm:text-base text-gray-600 hidden sm:block">
-                  {user.role === 'admin' ? 'Assign tasks to any employee in the organization' :
-                   user.role === 'hr' ? 'Assign tasks to employees in your department' :
-                   user.role === 'manager' ? 'Assign tasks to your team members' :
-                   'Assign tasks to your colleagues'}
+                  {user.role === 'admin' ? 'Assign Projects to any employee in the organization' :
+                   user.role === 'hr' ? 'Assign Projects to employees in your department' :
+                   user.role === 'manager' ? 'Assign Projects to your team members' :
+                   'Assign Projects to your colleagues'}
                 </p>
                 <p className="text-xs text-gray-600 sm:hidden">
-                  Assign tasks to your colleagues
+                  Assign Projects to your colleagues
                 </p>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function AssignTaskPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{selectedTask.title}</h3>
-                    <p className="text-sm text-gray-600">Task #{selectedTask.taskNumber}</p>
+                    <p className="text-sm text-gray-600">Project #{selectedTask.taskNumber}</p>
                   </div>
                   <button
                     onClick={() => setSelectedTask(null)}
@@ -215,7 +215,7 @@ export default function AssignTaskPage() {
                 <div className="relative flex-1 max-w-md">
                   <input
                     type="text"
-                    placeholder="Search tasks..."
+                    placeholder="Search Projects..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
@@ -249,8 +249,8 @@ export default function AssignTaskPage() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
                   <p className="text-gray-500">
                     {searchTerm || statusFilter !== 'all' 
-                      ? 'No tasks match your current filters.' 
-                      : 'No tasks available for assignment.'}
+                      ? 'No Projects match your current filters.' 
+                      : 'No Projects available for assignment.'}
                   </p>
                 </div>
               ) : (
