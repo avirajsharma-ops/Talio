@@ -133,39 +133,39 @@ export default function Header({ toggleSidebar }) {
   // Update page title based on pathname
   useEffect(() => {
     const getPageTitle = (path) => {
-      if (!path) return 'HOME'
+      if (!path) return 'Home'
 
       // Remove /dashboard prefix
       const cleanPath = path.replace('/dashboard', '')
 
-      if (cleanPath === '' || cleanPath === '/') return 'HOME'
+      if (cleanPath === '' || cleanPath === '/') return 'Home'
 
       // Map routes to titles
       const titleMap = {
-        '/tasks': 'PROJECTS',
-        '/tasks/my-tasks': 'MY PROJECTS',
-        '/tasks/team-tasks': 'TEAM PROJECTS',
-        '/tasks/create': 'CREATE PROJECT',
-        '/tasks/assign': 'ASSIGN PROJECTS',
-        '/tasks/history': 'PROJECT HISTORY',
-        '/chat': 'CHAT',
-        '/leave': 'LEAVE',
-        '/leave/apply': 'APPLY LEAVE',
-        '/leave/my-leaves': 'MY LEAVES',
-        '/attendance': 'ATTENDANCE',
-        '/profile': 'PROFILE',
-        '/settings': 'SETTINGS',
-        '/team': 'TEAM',
-        '/departments': 'DEPARTMENTS',
-        '/designations': 'DESIGNATIONS',
-        '/employees': 'EMPLOYEES',
-        '/recruitment': 'RECRUITMENT',
-        '/payroll': 'PAYROLL',
-        '/announcements': 'ANNOUNCEMENTS',
-        '/policies': 'POLICIES',
-        '/assets': 'ASSETS',
-        '/reports': 'REPORTS',
-        '/sandbox': 'IDEAS',
+        '/tasks': 'Projects',
+        '/tasks/my-tasks': 'My Projects',
+        '/tasks/team-tasks': 'Team Projects',
+        '/tasks/create': 'Create Project',
+        '/tasks/assign': 'Assign Projects',
+        '/tasks/history': 'Project History',
+        '/chat': 'Chat',
+        '/leave': 'Leave',
+        '/leave/apply': 'Apply Leave',
+        '/leave/my-leaves': 'My Leaves',
+        '/attendance': 'Attendance',
+        '/profile': 'Profile',
+        '/settings': 'Settings',
+        '/team': 'Team',
+        '/departments': 'Departments',
+        '/designations': 'Designations',
+        '/employees': 'Employees',
+        '/recruitment': 'Recruitment',
+        '/payroll': 'Payroll',
+        '/announcements': 'Announcements',
+        '/policies': 'Policies',
+        '/assets': 'Assets',
+        '/reports': 'Reports',
+        '/sandbox': 'Ideas',
       }
 
       // Check for exact match
@@ -176,14 +176,18 @@ export default function Header({ toggleSidebar }) {
         if (cleanPath.startsWith(route)) return title
       }
 
-      // Default: capitalize the last segment
+      // Default: capitalize the last segment (Title Case)
       const segments = cleanPath.split('/').filter(Boolean)
       if (segments.length > 0) {
         const lastSegment = segments[segments.length - 1]
-        return lastSegment.replace(/-/g, ' ').toUpperCase()
+        return lastSegment
+          .replace(/-/g, ' ')
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ')
       }
 
-      return 'HOME'
+      return 'Home'
     }
 
     setPageTitle(getPageTitle(pathname))
@@ -320,7 +324,7 @@ export default function Header({ toggleSidebar }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search everything..."
-                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               {searching && (
                 <FaSpinner className="absolute right-3 animate-spin text-blue-600 w-4 h-4" />
@@ -409,8 +413,8 @@ export default function Header({ toggleSidebar }) {
             <span className="text-sm font-medium">Chat</span>
           </button>
 
-          {/* PWA Status */}
-          <PWAStatus />
+          {/* PWA Status - Hidden */}
+          {/* <PWAStatus /> */}
 
           {/* Mobile Search Icon */}
           <button
@@ -552,7 +556,7 @@ export default function Header({ toggleSidebar }) {
         <div className="fixed inset-0 bg-white z-[100] md:hidden">
           <div className="flex flex-col h-full">
             {/* Search Header - Match header height */}
-            <div className="flex items-center gap-2 px-4 h-16 border-b border-gray-200 bg-white">
+            <div className="flex items-center gap-3 px-3 h-16 border-b border-gray-200 bg-white">
               <button
                 onClick={closeMobileSearch}
                 className="p-2 text-gray-600 hover:text-gray-800 flex-shrink-0"
@@ -566,7 +570,7 @@ export default function Header({ toggleSidebar }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search everything..."
-                  className="w-full h-10 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full h-11 pl-10 pr-10 bg-gray-50 border border-gray-100 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
                   autoFocus
                 />
                 {searchQuery && !searching && (

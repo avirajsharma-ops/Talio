@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }) {
         <Header toggleSidebar={toggleSidebar} />
 
         {/* Main content with padding for fixed header and bottom nav */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-24 pb-24 md:pb-6 relative z-0">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0">
           {children}
         </main>
 

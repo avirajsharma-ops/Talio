@@ -18,51 +18,66 @@ export default function NotificationPermissionPopup() {
   const [permissionGranted, setPermissionGranted] = useState(false)
 
   useEffect(() => {
+    console.log('NotificationPermissionPopup: Initializing...')
+
     // Check if notifications are supported
     if (!isNotificationSupported()) {
+      console.log('NotificationPermissionPopup: Notifications not supported')
       return
     }
 
     // Check current permission status
     const currentPermission = getNotificationPermission()
-    
+    console.log('NotificationPermissionPopup: Current permission:', currentPermission)
+
     // If already granted, don't show prompt
     if (currentPermission === 'granted') {
+      console.log('NotificationPermissionPopup: Permission already granted')
       setPermissionGranted(true)
       return
     }
 
     // If already denied, don't show prompt
     if (currentPermission === 'denied') {
+      console.log('NotificationPermissionPopup: Permission denied')
       return
     }
 
     // Check if user has dismissed the prompt before
     if (hasUserDismissedNotificationPrompt()) {
+      console.log('NotificationPermissionPopup: User has dismissed prompt before')
       return
     }
 
-    // Show prompt after 5 seconds
+    // Show prompt after 3 seconds
+    console.log('NotificationPermissionPopup: Will show prompt in 3 seconds')
     const timer = setTimeout(() => {
+      console.log('NotificationPermissionPopup: Showing prompt now')
       setShowPrompt(true)
-    }, 5000)
+    }, 3000)
 
     return () => clearTimeout(timer)
   }, [])
 
   const handleEnableNotifications = async () => {
+    console.log('NotificationPermissionPopup: User clicked enable')
     setIsRequesting(true)
 
     try {
+      console.log('NotificationPermissionPopup: Requesting permission...')
+      // This will trigger the native browser notification permission prompt
       const permission = await requestNotificationPermission()
-      
+      console.log('NotificationPermissionPopup: Permission result:', permission)
+
       if (permission === 'granted') {
+        console.log('NotificationPermissionPopup: Permission granted!')
         setPermissionGranted(true)
         saveNotificationPreference(true)
         setShowPrompt(false)
-        
+
         // Show a test notification
         setTimeout(async () => {
+          console.log('NotificationPermissionPopup: Showing test notification')
           await showNotification('🎉 Notifications Enabled!', {
             body: 'You will now receive important updates from Talio HRMS.',
             icon: '/icons/icon-192x192.png',
@@ -78,12 +93,12 @@ export default function NotificationPermissionPopup() {
           })
         }, 500)
       } else {
-        console.log('Notification permission denied')
+        console.log('NotificationPermissionPopup: Permission denied by user')
         setShowPrompt(false)
         markNotificationPromptDismissed()
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error)
+      console.error('NotificationPermissionPopup: Error requesting permission:', error)
     } finally {
       setIsRequesting(false)
     }
@@ -99,11 +114,11 @@ export default function NotificationPermissionPopup() {
     <>
       {/* Backdrop - Non-dismissible */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-[100] animate-fade-in"
+        className="fixed inset-0 bg-black bg-opacity-50 z-[9999] animate-fade-in"
       />
 
       {/* Popup */}
-      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[101] w-[90%] max-w-md animate-slide-up">
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[10000] w-[90%] max-w-md animate-slide-up">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white relative">
