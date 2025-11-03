@@ -39,7 +39,7 @@ export default function NotificationPermissionPopup() {
 
     // If already denied, don't show prompt
     if (currentPermission === 'denied') {
-      console.log('NotificationPermissionPopup: Permission denied')
+      console.log('NotificationPermissionPopup: Permission denied by browser')
       return
     }
 
@@ -49,14 +49,14 @@ export default function NotificationPermissionPopup() {
       return
     }
 
-    // Show prompt after 3 seconds
-    console.log('NotificationPermissionPopup: Will show prompt in 3 seconds')
-    const timer = setTimeout(() => {
-      console.log('NotificationPermissionPopup: Showing prompt now')
+    // If permission is 'default' (not asked yet), show prompt immediately
+    if (currentPermission === 'default') {
+      console.log('NotificationPermissionPopup: Permission not requested yet, showing prompt immediately')
       setShowPrompt(true)
-    }, 3000)
+      return
+    }
 
-    return () => clearTimeout(timer)
+    return () => {}
   }, [])
 
   const handleEnableNotifications = async () => {

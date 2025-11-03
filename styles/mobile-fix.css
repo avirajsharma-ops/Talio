@@ -16,14 +16,14 @@ body {
   .page-container {
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
-    padding-bottom: 3.5rem !important; /* Buffer for bottom bar */
+    padding-bottom: 8rem !important; /* Buffer for bottom bar - increased for better spacing */
   }
 
   /* Main layout outer padding only */
   main {
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
-    padding-bottom: 3.5rem !important; /* Buffer for bottom bar */
+    padding-bottom: 8rem !important; /* Buffer for bottom bar - increased for better spacing */
   }
 
   /* STANDARDIZED CARD PADDING - All cards get consistent 1rem padding */
