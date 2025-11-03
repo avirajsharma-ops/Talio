@@ -42,9 +42,8 @@ export default function BottomNav() {
 
   return (
 
-  <div className='bg-[#1A2A5A] w-full h-20 relative z-10 p-2  '  > 
-    <div className=" fixed bottom-0 left-0 right-0    bg-transparent z-[5] 
-    md:hidden" style={{ margin: 0, padding: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+  <div className='bg-[#1A2A5A] w-full h-20 relative z-10 p-2 md:hidden'  >
+    <div className=" fixed bottom-0 left-0 right-0    bg-transparent z-[5]" style={{ margin: 0, padding: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex items-center justify-around" style={{ margin: '-0.5rem', padding: '1.4rem  1.2rem' }}>
       
         {navItems.map((item) => {
