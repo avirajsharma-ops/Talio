@@ -8,10 +8,12 @@ import { FaPlus, FaEye, FaEdit, FaTrash, FaStar, FaSearch, FaFilter } from 'reac
 export default function PerformanceReviewsPage() {
   const router = useRouter()
   const [reviews, setReviews] = useState([])
+  const [teamReviews, setTeamReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [viewMode, setViewMode] = useState('all') // 'all', 'formal', 'team'
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -19,45 +21,79 @@ export default function PerformanceReviewsPage() {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
       fetchReviews()
+      fetchTeamReviews()
     }
   }, [])
 
   const fetchReviews = async () => {
     try {
-      // Mock data for now
-      const mockReviews = [
-        {
-          _id: '1',
-          employee: { firstName: 'John', lastName: 'Doe', employeeCode: 'EMP001' },
-          reviewer: { firstName: 'Jane', lastName: 'Smith' },
-          reviewPeriod: 'Q4 2024',
-          overallRating: 4.2,
-          status: 'completed',
-          reviewDate: '2024-12-15',
-          summary: 'Excellent performance with strong leadership skills and consistent delivery.',
-          strengths: ['Leadership', 'Problem Solving', 'Communication'],
-          areasOfImprovement: ['Time Management', 'Delegation']
-        },
-        {
-          _id: '2',
-          employee: { firstName: 'Alice', lastName: 'Johnson', employeeCode: 'EMP002' },
-          reviewer: { firstName: 'Bob', lastName: 'Wilson' },
-          reviewPeriod: 'Q4 2024',
-          overallRating: 3.8,
-          status: 'pending',
-          reviewDate: '2024-12-20',
-          summary: 'Good performance with room for improvement in technical skills.',
-          strengths: ['Teamwork', 'Reliability'],
-          areasOfImprovement: ['Technical Skills', 'Initiative']
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/performance/reviews', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      ]
-      
-      setReviews(mockReviews)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setReviews(data.data || [])
+      } else {
+        toast.error(data.message || 'Failed to fetch reviews')
+      }
     } catch (error) {
       console.error('Fetch reviews error:', error)
       toast.error('Failed to fetch performance reviews')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTeamReviews = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user'))
+
+      // Handle both string ID and object with _id
+      const empId = typeof userData.employeeId === 'object'
+        ? userData.employeeId._id || userData.employeeId
+        : userData.employeeId
+
+      // Fetch employee's reviews/remarks
+      const response = await fetch(`/api/employees/${empId}/reviews`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Handle both string ID and object with _id
+        const empId = typeof userData.employeeId === 'object'
+          ? userData.employeeId._id || userData.employeeId
+          : userData.employeeId
+
+        // Transform team reviews to match review format
+        const transformedReviews = (data.data || []).map(review => ({
+          _id: review._id,
+          type: 'team_review',
+          reviewType: review.type,
+          employee: {
+            _id: empId,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            employeeCode: userData.employeeCode
+          },
+          reviewer: review.reviewedBy,
+          overallRating: review.rating,
+          content: review.content,
+          category: review.category,
+          status: 'completed',
+          createdAt: review.createdAt
+        }))
+        setTeamReviews(transformedReviews)
+      }
+    } catch (error) {
+      console.error('Fetch team reviews error:', error)
     }
   }
 
@@ -101,13 +137,18 @@ export default function PerformanceReviewsPage() {
     return stars
   }
 
-  const filteredReviews = reviews.filter(review => {
-    const matchesSearch = searchTerm === '' || 
-      `${review.employee.firstName} ${review.employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.employee.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())
-    
+  // Combine formal reviews and team reviews based on view mode
+  const allReviews = viewMode === 'formal' ? reviews :
+                     viewMode === 'team' ? teamReviews :
+                     [...reviews, ...teamReviews]
+
+  const filteredReviews = allReviews.filter(review => {
+    const matchesSearch = searchTerm === '' ||
+      `${review.employee?.firstName || ''} ${review.employee?.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (review.employee?.employeeCode || '').toLowerCase().includes(searchTerm.toLowerCase())
+
     const matchesFilter = filterStatus === 'all' || review.status === filterStatus
-    
+
     return matchesSearch && matchesFilter
   })
 
@@ -142,6 +183,34 @@ export default function PerformanceReviewsPage() {
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div className="flex items-center space-x-4">
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('all')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'all' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                All ({allReviews.length})
+              </button>
+              <button
+                onClick={() => setViewMode('formal')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'formal' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Formal ({reviews.length})
+              </button>
+              <button
+                onClick={() => setViewMode('team')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'team' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Team ({teamReviews.length})
+              </button>
+            </div>
+
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
@@ -182,21 +251,33 @@ export default function PerformanceReviewsPage() {
             {canManageReviews() ? 'Create your first performance review to get started.' : 'No performance reviews have been created yet.'}
           </p>
         </div>
-      ) : (
+      ) :(
         <div className="space-y-4">
           {filteredReviews.map((review) => (
             <div key={review._id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-[88px] h-[88px] bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
                     {review.employee.firstName.charAt(0)}{review.employee.lastName.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {review.employee.firstName} {review.employee.lastName}
-                    </h3>
-                    <p className="text-sm text-gray-500">{review.employee.employeeCode}</p>
-                    <p className="text-sm text-gray-600">{review.reviewPeriod}</p>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {review.employee?.firstName} {review.employee?.lastName}
+                      </h3>
+                      {review.type === 'team_review' && (
+                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
+                          Team Review
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">{review.employee?.employeeCode}</p>
+                    {review.reviewPeriod && <p className="text-sm text-gray-600">{review.reviewPeriod}</p>}
+                    {review.type === 'team_review' && (
+                      <p className="text-sm text-gray-600">
+                        Type: {review.reviewType} | Category: {review.category}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -236,7 +317,7 @@ export default function PerformanceReviewsPage() {
               </div>
 
               <div className="mb-4">
-                <p className="text-gray-700 line-clamp-2">{review.summary}</p>
+                <p className="text-gray-700 line-clamp-2">{review.summary || review.content || 'No summary provided'}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

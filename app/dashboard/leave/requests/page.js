@@ -268,38 +268,38 @@ export default function LeaveRequestsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                  <p className="text-gray-900">{formatDate(selectedLeave.startDate)}</p>
+                  <p className="text-gray-900">{selectedLeave?.startDate ? formatDate(selectedLeave.startDate) : 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <p className="text-gray-900">{formatDate(selectedLeave.endDate)}</p>
+                  <p className="text-gray-900">{selectedLeave?.endDate ? formatDate(selectedLeave.endDate) : 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
-                  <p className="text-gray-900">{calculateDuration(selectedLeave.startDate, selectedLeave.endDate)} day(s)</p>
+                  <p className="text-gray-900">{selectedLeave?.startDate && selectedLeave?.endDate ? calculateDuration(selectedLeave.startDate, selectedLeave.endDate) : 0} day(s)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Applied Date</label>
-                  <p className="text-gray-900">{formatDate(selectedLeave.appliedDate)}</p>
+                  <p className="text-gray-900">{selectedLeave?.appliedDate ? formatDate(selectedLeave.appliedDate) : 'N/A'}</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedLeave.reason}</p>
+                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedLeave?.reason || 'No reason provided'}</p>
               </div>
 
-              {selectedLeave.status === 'approved' && selectedLeave.approvedBy && (
+              {selectedLeave?.status === 'approved' && selectedLeave?.approvedBy && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Approved By</label>
-                  <p className="text-gray-900">{selectedLeave.approvedBy.firstName} {selectedLeave.approvedBy.lastName}</p>
-                  {selectedLeave.approvedDate && (
+                  <p className="text-gray-900">{selectedLeave.approvedBy?.firstName} {selectedLeave.approvedBy?.lastName}</p>
+                  {selectedLeave?.approvedDate && (
                     <p className="text-sm text-gray-500">on {formatDate(selectedLeave.approvedDate)}</p>
                   )}
                 </div>
               )}
 
-              {selectedLeave.status === 'rejected' && selectedLeave.rejectionReason && (
+              {selectedLeave?.status === 'rejected' && selectedLeave?.rejectionReason && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Rejection Reason</label>
                   <p className="text-red-600 bg-red-50 p-3 rounded-lg">{selectedLeave.rejectionReason}</p>

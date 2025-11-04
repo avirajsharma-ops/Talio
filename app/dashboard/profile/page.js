@@ -350,49 +350,21 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="mb-4 sm:mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">My Profile</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">View and manage your profile information</p>
+          {/* <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">My Profile</h1> */}
+          {/* <p className="text-sm sm:text-base text-gray-600 mt-1">View and manage your profile information</p> */}
         </div>
-        <div className="flex gap-2">
-          {!isEditing ? (
-            <button
-              onClick={handleEditClick}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-semibold shadow-md"
-            >
-              <FaEdit />
-              <span className="hidden sm:inline">Edit Profile</span>
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={handleCancelEdit}
-                disabled={saving}
-                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
-              >
-                <FaTimes />
-                <span className="hidden sm:inline">Cancel</span>
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
-              >
-                <FaSave />
-                <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
-              </button>
-            </>
-          )}
-        </div>
+        
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Profile Card - Navy Blue Background */}
         <div className="lg:col-span-1">
-          <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-6 text-white">
-            <div className="flex flex-col items-center">
+          <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-6 sm:p-8 text-white">
+            {/* Profile Picture + Info Row */}
+            <div className="flex items-start gap-4 sm:gap-6 mb-8">
               {/* Profile Picture */}
-              <div className="relative mb-4">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+              <div className="relative flex-shrink-0">
+                <div className="w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
                   {employee.profilePicture ? (
                     <img
                       src={employee.profilePicture}
@@ -400,23 +372,24 @@ export default function ProfilePage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-3xl sm:text-4xl font-bold text-white">
+                    <span className="text-4xl sm:text-5xl font-bold text-white">
                       {employee.firstName?.[0]}{employee.lastName?.[0]}
                     </span>
                   )}
                 </div>
 
-                {/* Camera Icon Button */}
+                {/* Camera Icon Button - Cyan/Teal Background */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="absolute bottom-1 right-1 w-11 h-11 sm:w-11 sm:h-11 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10 border-0 border-white"
+                  className="absolute bottom-1 right-1 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10 border-3 border-white"
+                  style={{ backgroundColor: '#4FC3F7' }}
                   title="Change profile picture"
                 >
                   {uploadingImage ? (
-                    <div className="w-6 h-6 border-1 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    <FaCamera className="text-white text-base sm:text-sm" />
+                    <FaCamera className="text-white text-base sm:text-lg" />
                   )}
                 </button>
 
@@ -430,35 +403,73 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Employee ID */}
-              <p className="text-xs text-gray-300 mb-2">
-                ID: {employee.employeeCode}
-              </p>
+              {/* Employee Info */}
+              <div className="flex-1 pt-2">
+                {/* Employee ID */}
+                <p className="text-sm sm:text-base text-gray-300 mb-1">
+                  ID:{employee.employeeCode}
+                </p>
 
-              {/* Name */}
-              <h2 className="text-xl sm:text-2xl font-bold text-white text-center">
-                {employee.firstName} {employee.lastName}
-              </h2>
+                {/* Name */}
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">
+                  {employee.firstName} {employee.lastName}
+                </h2>
 
-              {/* Designation */}
-              <p className="text-sm text-gray-300 mt-1">
-                {employee.designation?.levelName && employee.designation?.title
-                  ? `(${employee.designation.levelName}) - ${employee.designation.title}`
-                  : employee.designation?.title || 'N/A'}
-              </p>
+                {/* Designation & Department */}
+                <div className="text-sm sm:text-base text-gray-300">
+                  <p>
+                    {employee.designation?.levelName && employee.designation?.title
+                      ? `${employee.designation.levelName} | ${employee.designation.title}`
+                      : employee.designation?.title || 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-              {/* Department */}
-              <p className="text-xs text-gray-400 mt-0.5">
-                {employee.department?.name || 'N/A'}
-              </p>
+            {/* Buttons Row */}
+            <div className="flex gap-3 sm:gap-4">
+              {/* Status Badge - Green */}
+              <div className="flex-1">
+                <button className={`w-full h-12 sm:h-14 px-4 rounded-xl text-base sm:text-lg font-bold text-center transition-colors ${
+                  employee.status === 'active'
+                    ? 'bg-[#4CAF50] hover:bg-[#45a049] text-white'
+                    : 'bg-gray-500 hover:bg-gray-600 text-white'
+                }`}>
+                  {employee.status === 'active' ? 'Active' : employee.status?.toUpperCase() || 'ACTIVE'}
+                </button>
+              </div>
 
-              {/* Status Badge */}
-              <span className={`mt-4 px-4 py-2 rounded-full text-sm font-semibold ${
-                employee.status === 'active' ? 'bg-green-500 text-white' :
-                'bg-gray-500 text-white'
-              }`}>
-                {employee.status?.toUpperCase()}
-              </span>
+              {/* Edit Profile Button - Blue */}
+              <div className="flex-1">
+                {!isEditing ? (
+                  <button
+                    onClick={handleEditClick}
+                    className="w-full h-12 sm:h-14 px-4 rounded-xl text-base sm:text-lg font-bold text-center transition-colors bg-[#2196F3] hover:bg-[#1976D2] text-white flex items-center justify-center gap-2"
+                  >
+                    <FaEdit className="text-base sm:text-lg" />
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                      className="flex-1 bg-gray-200 text-gray-800 px-3 py-2 rounded-xl hover:bg-gray-300 flex items-center justify-center gap-1 text-sm font-bold disabled:opacity-50 transition-colors"
+                    >
+                      <FaTimes />
+                      <span className="hidden sm:inline">Cancel</span>
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="flex-1 bg-[#4CAF50] text-white px-3 py-2 rounded-xl hover:bg-[#45a049] flex items-center justify-center gap-1 text-sm font-bold disabled:opacity-50 transition-colors"
+                    >
+                      <FaSave />
+                      <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

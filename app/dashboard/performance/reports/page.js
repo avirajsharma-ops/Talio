@@ -12,7 +12,15 @@ export default function PerformanceReportsPage() {
     departmentPerformance: [],
     performanceTrends: [],
     ratingDistribution: [],
-    goalCompletion: []
+    goalCompletion: [],
+    totalReviews: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    taskCompletionRate: 0,
+    avgRating: 0,
+    avgPerformanceScore: 0,
+    goalCompletionRate: 0,
+    topPerformers: 0
   })
   const [selectedPeriod, setSelectedPeriod] = useState('2024')
   const [selectedDepartment, setSelectedDepartment] = useState('all')
@@ -28,39 +36,148 @@ export default function PerformanceReportsPage() {
 
   const fetchReportData = async () => {
     try {
-      // Mock data for reports
-      const mockData = {
-        departmentPerformance: [
-          { department: 'Engineering', avgRating: 4.2, employees: 25, completedGoals: 18 },
-          { department: 'Marketing', avgRating: 3.8, employees: 12, completedGoals: 9 },
-          { department: 'Sales', avgRating: 4.0, employees: 18, completedGoals: 14 },
-          { department: 'HR', avgRating: 4.1, employees: 8, completedGoals: 6 },
-          { department: 'Finance', avgRating: 3.9, employees: 10, completedGoals: 8 }
-        ],
-        performanceTrends: [
-          { month: 'Jan', avgRating: 3.8, reviews: 15 },
-          { month: 'Feb', avgRating: 3.9, reviews: 18 },
-          { month: 'Mar', avgRating: 4.0, reviews: 22 },
-          { month: 'Apr', avgRating: 4.1, reviews: 20 },
-          { month: 'May', avgRating: 4.0, reviews: 25 },
-          { month: 'Jun', avgRating: 4.2, reviews: 28 }
-        ],
-        ratingDistribution: [
-          { rating: '5 Stars', count: 25, percentage: 35 },
-          { rating: '4 Stars', count: 30, percentage: 42 },
-          { rating: '3 Stars', count: 12, percentage: 17 },
-          { rating: '2 Stars', count: 3, percentage: 4 },
-          { rating: '1 Star', count: 1, percentage: 2 }
-        ],
-        goalCompletion: [
-          { quarter: 'Q1', completed: 85, total: 100, percentage: 85 },
-          { quarter: 'Q2', completed: 92, total: 110, percentage: 84 },
-          { quarter: 'Q3', completed: 78, total: 95, percentage: 82 },
-          { quarter: 'Q4', completed: 88, total: 105, percentage: 84 }
-        ]
-      }
-      
-      setReportData(mockData)
+      const token = localStorage.getItem('token')
+
+      // Fetch performance calculations, reviews, goals, and tasks from API
+      const [performanceResponse, reviewsResponse, goalsResponse, tasksResponse] = await Promise.all([
+        fetch('/api/performance/calculate', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/performance/reviews', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/performance/goals', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/tasks?limit=1000', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
+
+      const performanceData = await performanceResponse.json()
+      const reviewsData = await reviewsResponse.json()
+      const goalsData = await goalsResponse.json()
+      const tasksData = await tasksResponse.json()
+
+      const performanceMetrics = performanceData.success ? performanceData.data : []
+      const reviews = reviewsData.success ? reviewsData.data : []
+      const goals = goalsData.success ? goalsData.data : []
+      const tasks = tasksData.success ? tasksData.data : []
+
+      // Calculate department performance using performance metrics
+      const deptMap = {}
+
+      // Use performance metrics which include both reviews and project data
+      performanceMetrics.forEach(metric => {
+        const dept = metric.employee?.department?.name || 'Unknown'
+        if (!deptMap[dept]) {
+          deptMap[dept] = {
+            totalScore: 0,
+            count: 0,
+            employees: new Set(),
+            completedTasks: 0,
+            totalTasks: 0,
+            onTimeRate: 0
+          }
+        }
+        deptMap[dept].totalScore += metric.metrics.performanceScore || 0
+        deptMap[dept].count += 1
+        deptMap[dept].employees.add(metric.employee?._id)
+        deptMap[dept].completedTasks += metric.metrics.completedTasks || 0
+        deptMap[dept].totalTasks += metric.metrics.totalTasks || 0
+        deptMap[dept].onTimeRate += metric.metrics.onTimeRate || 0
+      })
+
+      const departmentPerformance = Object.keys(deptMap).map(dept => ({
+        department: dept,
+        avgScore: deptMap[dept].count > 0 ? (deptMap[dept].totalScore / deptMap[dept].count).toFixed(1) : 0,
+        employees: deptMap[dept].employees.size,
+        completedTasks: deptMap[dept].completedTasks,
+        totalTasks: deptMap[dept].totalTasks,
+        taskCompletionRate: deptMap[dept].totalTasks > 0
+          ? ((deptMap[dept].completedTasks / deptMap[dept].totalTasks) * 100).toFixed(1)
+          : 0,
+        avgOnTimeRate: deptMap[dept].count > 0 ? (deptMap[dept].onTimeRate / deptMap[dept].count).toFixed(1) : 0
+      })).sort((a, b) => parseFloat(b.avgScore) - parseFloat(a.avgScore))
+
+      // Calculate performance trends (last 6 months)
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const trendsMap = {}
+      reviews.forEach(review => {
+        const date = new Date(review.reviewDate || review.createdAt)
+        const monthKey = `${monthNames[date.getMonth()]}`
+        if (!trendsMap[monthKey]) {
+          trendsMap[monthKey] = { totalRating: 0, count: 0 }
+        }
+        trendsMap[monthKey].totalRating += review.overallRating || 0
+        trendsMap[monthKey].count += 1
+      })
+
+      const performanceTrends = Object.keys(trendsMap).map(month => ({
+        month,
+        avgRating: trendsMap[month].count > 0 ? (trendsMap[month].totalRating / trendsMap[month].count).toFixed(1) : 0,
+        reviews: trendsMap[month].count
+      }))
+
+      // Calculate rating distribution
+      const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      reviews.forEach(review => {
+        const rating = Math.round(review.overallRating || 0)
+        if (rating >= 1 && rating <= 5) {
+          ratingCounts[rating]++
+        }
+      })
+
+      const totalReviews = reviews.length || 1
+      const ratingDistribution = [
+        { rating: '5 Stars', count: ratingCounts[5], percentage: Math.round((ratingCounts[5] / totalReviews) * 100) },
+        { rating: '4 Stars', count: ratingCounts[4], percentage: Math.round((ratingCounts[4] / totalReviews) * 100) },
+        { rating: '3 Stars', count: ratingCounts[3], percentage: Math.round((ratingCounts[3] / totalReviews) * 100) },
+        { rating: '2 Stars', count: ratingCounts[2], percentage: Math.round((ratingCounts[2] / totalReviews) * 100) },
+        { rating: '1 Star', count: ratingCounts[1], percentage: Math.round((ratingCounts[1] / totalReviews) * 100) }
+      ]
+
+      // Calculate goal completion by quarter
+      const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+      const goalCompletion = quarters.map((quarter, index) => {
+        const quarterGoals = goals.filter(g => {
+          const date = new Date(g.dueDate || g.createdAt)
+          const month = date.getMonth()
+          return Math.floor(month / 3) === index
+        })
+        const completed = quarterGoals.filter(g => g.status === 'completed').length
+        const total = quarterGoals.length || 1
+        return {
+          quarter,
+          completed,
+          total,
+          percentage: Math.round((completed / total) * 100)
+        }
+      })
+
+      // Calculate overall metrics
+      const totalTasks = tasks.length
+      const completedTasks = tasks.filter(t => t.status === 'completed').length
+      const avgPerformanceScore = performanceMetrics.length > 0
+        ? (performanceMetrics.reduce((sum, p) => sum + (p.metrics.performanceScore || 0), 0) / performanceMetrics.length).toFixed(1)
+        : 0
+      const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+      const topPerformers = performanceMetrics.filter(p => p.metrics.performanceScore >= 85).length
+
+      setReportData({
+        departmentPerformance,
+        performanceTrends,
+        ratingDistribution,
+        goalCompletion,
+        totalReviews: reviews.length,
+        totalTasks,
+        completedTasks,
+        taskCompletionRate,
+        avgRating: reviews.length > 0 ? (reviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / reviews.length).toFixed(1) : 0,
+        avgPerformanceScore,
+        goalCompletionRate: goals.length > 0 ? Math.round((goals.filter(g => g.status === 'completed').length / goals.length) * 100) : 0,
+        topPerformers
+      })
     } catch (error) {
       console.error('Fetch report data error:', error)
       toast.error('Failed to fetch report data')
@@ -144,12 +261,14 @@ export default function PerformanceReportsPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-6">
         {[
-          { title: 'Total Reviews', value: '128', icon: FaChartBar, color: 'bg-blue-500' },
-          { title: 'Avg Rating', value: '4.1', icon: FaTrophy, color: 'bg-yellow-500' },
-          { title: 'Goal Completion', value: '84%', icon: FaUsers, color: 'bg-green-500' },
-          { title: 'Top Performers', value: '25', icon: FaTrophy, color: 'bg-purple-500' },
+          { title: 'Total Reviews', value: reportData.totalReviews || 0, icon: FaChartBar, color: 'bg-blue-500' },
+          { title: 'Total Projects', value: reportData.totalTasks || 0, icon: FaChartBar, color: 'bg-indigo-500' },
+          { title: 'Avg Performance', value: reportData.avgPerformanceScore || '0', icon: FaTrophy, color: 'bg-yellow-500' },
+          { title: 'Project Completion', value: `${reportData.taskCompletionRate || 0}%`, icon: FaUsers, color: 'bg-green-500' },
+          { title: 'Goal Completion', value: `${reportData.goalCompletionRate || 0}%`, icon: FaUsers, color: 'bg-teal-500' },
+          { title: 'Top Performers', value: reportData.topPerformers || 0, icon: FaTrophy, color: 'bg-purple-500' },
         ].map((stat, index) => (
           <div key={index} className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
@@ -170,7 +289,7 @@ export default function PerformanceReportsPage() {
         {/* Department Performance */}
         <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-lg overflow-hidden">
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
-            <h3 className="text-sm sm:text-base font-bold text-gray-800">Department Performance</h3>
+            <h3 className="text-sm sm:text-base font-bold text-gray-800">Department Performance (Score & Task Completion)</h3>
           </div>
           <div className="h-80 sm:h-80 pr-4 sm:pr-6 pb-4 sm:pb-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -182,7 +301,9 @@ export default function PerformanceReportsPage() {
                   labelStyle={{ fontSize: '11px', color: '#374151' }}
                   contentStyle={{ fontSize: '11px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                 />
-                <Bar dataKey="avgRating" fill="#3B82F6" name="Avg Rating" radius={[8, 8, 0, 0]} />
+                <Legend wrapperStyle={{ fontSize: '10px' }} />
+                <Bar dataKey="avgScore" fill="#3B82F6" name="Avg Performance Score" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="taskCompletionRate" fill="#10B981" name="Task Completion %" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -227,7 +348,7 @@ export default function PerformanceReportsPage() {
                   fill="#8884d8"
                   dataKey="count"
                 >
-                  {reportData.ratingDistribution.map((entry, index) => (
+                  {reportData.ratingDistribution.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

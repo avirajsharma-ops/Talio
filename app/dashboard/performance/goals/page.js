@@ -8,10 +8,12 @@ import { FaPlus, FaEye, FaEdit, FaTrash, FaBullseye, FaSearch, FaFilter, FaCalen
 export default function PerformanceGoalsPage() {
   const router = useRouter()
   const [goals, setGoals] = useState([])
+  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [viewMode, setViewMode] = useState('all') // 'all', 'goals', 'projects'
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -19,60 +21,77 @@ export default function PerformanceGoalsPage() {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
       fetchGoals()
+      fetchProjects()
     }
   }, [])
 
   const fetchGoals = async () => {
     try {
-      // Mock data for now
-      const mockGoals = [
-        {
-          _id: '1',
-          employee: { firstName: 'John', lastName: 'Doe', employeeCode: 'EMP001' },
-          title: 'Complete Project Alpha',
-          description: 'Lead the development of Project Alpha and deliver on time',
-          category: 'Project Management',
-          priority: 'high',
-          status: 'in-progress',
-          progress: 75,
-          startDate: '2024-01-01',
-          dueDate: '2025-03-31',
-          createdBy: { firstName: 'Jane', lastName: 'Smith' }
-        },
-        {
-          _id: '2',
-          employee: { firstName: 'Alice', lastName: 'Johnson', employeeCode: 'EMP002' },
-          title: 'Improve Technical Skills',
-          description: 'Complete advanced JavaScript and React certification',
-          category: 'Skill Development',
-          priority: 'medium',
-          status: 'not-started',
-          progress: 0,
-          startDate: '2024-02-01',
-          dueDate: '2025-06-30',
-          createdBy: { firstName: 'Bob', lastName: 'Wilson' }
-        },
-        {
-          _id: '3',
-          employee: { firstName: 'Mike', lastName: 'Brown', employeeCode: 'EMP003' },
-          title: 'Team Leadership',
-          description: 'Successfully lead a team of 5 developers',
-          category: 'Leadership',
-          priority: 'high',
-          status: 'completed',
-          progress: 100,
-          startDate: '2024-01-15',
-          dueDate: '2024-12-31',
-          createdBy: { firstName: 'Sarah', lastName: 'Davis' }
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/performance/goals', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      ]
-      
-      setGoals(mockGoals)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setGoals(data.data || [])
+      } else {
+        toast.error(data.message || 'Failed to fetch goals')
+      }
     } catch (error) {
       console.error('Fetch goals error:', error)
       toast.error('Failed to fetch performance goals')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user'))
+
+      // Handle both string ID and object with _id
+      const empId = typeof userData.employeeId === 'object'
+        ? userData.employeeId._id || userData.employeeId
+        : userData.employeeId
+
+      // Fetch assigned projects/tasks using actual employee ID
+      const response = await fetch(`/api/tasks?employee=${empId}&limit=100`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Transform tasks into goal format
+        const projectGoals = (data.data || []).map(task => ({
+          _id: task._id,
+          title: task.title,
+          description: task.description,
+          type: 'project',
+          status: task.status,
+          progress: task.progress || 0,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          startDate: task.startDate,
+          completedAt: task.completedAt,
+          employee: {
+            _id: empId,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            employeeCode: userData.employeeCode
+          },
+          assignedBy: task.assignedBy,
+          createdAt: task.createdAt
+        }))
+        setProjects(projectGoals)
+      }
+    } catch (error) {
+      console.error('Fetch projects error:', error)
     }
   }
 
@@ -117,14 +136,19 @@ export default function PerformanceGoalsPage() {
     return status !== 'completed' && new Date(dueDate) < new Date()
   }
 
-  const filteredGoals = goals.filter(goal => {
-    const matchesSearch = searchTerm === '' || 
-      `${goal.employee.firstName} ${goal.employee.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      goal.employee.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // Combine goals and projects based on view mode
+  const allItems = viewMode === 'goals' ? goals :
+                   viewMode === 'projects' ? projects :
+                   [...goals, ...projects]
+
+  const filteredGoals = allItems.filter(goal => {
+    const matchesSearch = searchTerm === '' ||
+      `${goal.employee?.firstName || ''} ${goal.employee?.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (goal.employee?.employeeCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       goal.title.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesFilter = filterStatus === 'all' || goal.status === filterStatus
-    
+
     return matchesSearch && matchesFilter
   })
 
@@ -156,12 +180,13 @@ export default function PerformanceGoalsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
         {[
           { title: 'Total Goals', value: goals.length, color: 'bg-blue-500' },
-          { title: 'Completed', value: goals.filter(g => g.status === 'completed').length, color: 'bg-green-500' },
-          { title: 'In Progress', value: goals.filter(g => g.status === 'in-progress').length, color: 'bg-yellow-500' },
-          { title: 'Overdue', value: goals.filter(g => isOverdue(g.dueDate, g.status)).length, color: 'bg-red-500' },
+          { title: 'Total Projects', value: projects.length, color: 'bg-purple-500' },
+          { title: 'Completed', value: allItems.filter(g => g.status === 'completed').length, color: 'bg-green-500' },
+          { title: 'In Progress', value: allItems.filter(g => g.status === 'in_progress' || g.status === 'in-progress').length, color: 'bg-yellow-500' },
+          { title: 'Overdue', value: allItems.filter(g => isOverdue(g.dueDate, g.status)).length, color: 'bg-red-500' },
         ].map((stat, index) => (
           <div key={index} className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
@@ -181,11 +206,39 @@ export default function PerformanceGoalsPage() {
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div className="flex items-center space-x-4">
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('all')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'all' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                All ({allItems.length})
+              </button>
+              <button
+                onClick={() => setViewMode('goals')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'goals' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Goals ({goals.length})
+              </button>
+              <button
+                onClick={() => setViewMode('projects')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'projects' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Projects ({projects.length})
+              </button>
+            </div>
+
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search goals or employees..."
+                placeholder="Search goals, projects or employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -234,12 +287,17 @@ export default function PerformanceGoalsPage() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{goal.title}</h3>
+                      {goal.type === 'project' && (
+                        <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 font-medium">
+                          Project
+                        </span>
+                      )}
                       <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(goal.priority)}`}>
                         {goal.priority} priority
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{goal.employee.firstName} {goal.employee.lastName} ({goal.employee.employeeCode})</p>
-                    <p className="text-gray-700 mb-3">{goal.description}</p>
+                    <p className="text-sm text-gray-600 mb-2">{goal.employee?.firstName} {goal.employee?.lastName} ({goal.employee?.employeeCode})</p>
+                    <p className="text-gray-700 mb-3">{goal.description || 'No description provided'}</p>
                     
                     {/* Progress Bar */}
                     <div className="mb-3">
@@ -266,7 +324,10 @@ export default function PerformanceGoalsPage() {
                           <span className="text-red-600 font-medium">(Overdue)</span>
                         )}
                       </div>
-                      <span>Category: {goal.category}</span>
+                      {goal.category && <span>Category: {goal.category}</span>}
+                      {goal.type === 'project' && goal.assignedBy && (
+                        <span>Assigned by: {goal.assignedBy.firstName} {goal.assignedBy.lastName}</span>
+                      )}
                     </div>
                   </div>
                 </div>

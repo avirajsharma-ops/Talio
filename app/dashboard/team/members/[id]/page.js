@@ -147,7 +147,7 @@ export default function TeamMemberDetailsPage() {
   const { employee, taskStats, recentTasks } = memberData
 
   return (
-    <div className="px-4 py-4 sm:p-6 lg:p-8 pb-14 md:pb-6">
+    <div className="px-4 py-4 sm:p-6 lg:p-8 pb-24 md:pb-6">
       {/* Header */}
       <div className="mb-6">
         <button

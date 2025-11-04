@@ -35,125 +35,38 @@ export default function PerformancePage() {
   const fetchPerformanceData = async () => {
     try {
       const token = localStorage.getItem('token')
-      const userData = JSON.parse(localStorage.getItem('user'))
 
-      // Fetch data based on user role
-      let mockReviews = []
-      let mockGoals = []
+      // Fetch reviews from API
+      const reviewsResponse = await fetch('/api/performance/reviews', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
 
-      if (userData.role === 'employee') {
-        // Employee sees only their own data
-        mockReviews = [
-          {
-            _id: '1',
-            employee: { firstName: userData.employeeId?.firstName || 'Your', lastName: userData.employeeId?.lastName || 'Name' },
-            reviewPeriod: 'Q4 2024',
-            overallRating: 4,
-            status: 'completed',
-            summary: 'Good performance with room for improvement'
-          }
-        ]
-        mockGoals = [
-          {
-            _id: '1',
-            title: 'Complete assigned tasks on time',
-            dueDate: '2025-03-31',
-            status: 'in-progress',
-            progress: 75
-          }
-        ]
-      } else if (userData.role === 'manager') {
-        // Manager sees team data
-        mockReviews = [
-          {
-            _id: '1',
-            employee: { firstName: 'John', lastName: 'Doe' },
-            reviewPeriod: 'Q4 2024',
-            overallRating: 4,
-            status: 'completed',
-            summary: 'Excellent performance with strong leadership skills'
-          },
-          {
-            _id: '2',
-            employee: { firstName: 'Jane', lastName: 'Smith' },
-            reviewPeriod: 'Q4 2024',
-            overallRating: 3.5,
-            status: 'pending',
-            summary: 'Pending review'
-          }
-        ]
-        mockGoals = [
-          {
-            _id: '1',
-            title: 'Team Project Alpha',
-            dueDate: '2025-03-31',
-            status: 'in-progress',
-            progress: 75
-          },
-          {
-            _id: '2',
-            title: 'Improve team productivity',
-            dueDate: '2025-04-30',
-            status: 'in-progress',
-            progress: 50
-          }
-        ]
-      } else {
-        // HR/Admin sees all organizational data
-        mockReviews = [
-          {
-            _id: '1',
-            employee: { firstName: 'John', lastName: 'Doe' },
-            reviewPeriod: 'Q4 2024',
-            overallRating: 4,
-            status: 'completed',
-            summary: 'Excellent performance with strong leadership skills'
-          },
-          {
-            _id: '2',
-            employee: { firstName: 'Jane', lastName: 'Smith' },
-            reviewPeriod: 'Q4 2024',
-            overallRating: 3.5,
-            status: 'pending',
-            summary: 'Pending review'
-          },
-          {
-            _id: '3',
-            employee: { firstName: 'Bob', lastName: 'Johnson' },
-            reviewPeriod: 'Q3 2024',
-            overallRating: 4.5,
-            status: 'completed',
-            summary: 'Outstanding performance'
-          }
-        ]
-        mockGoals = [
-          {
-            _id: '1',
-            title: 'Organizational Goal 1',
-            dueDate: '2025-03-31',
-            status: 'in-progress',
-            progress: 75
-          },
-          {
-            _id: '2',
-            title: 'Organizational Goal 2',
-            dueDate: '2025-04-30',
-            status: 'completed',
-            progress: 100
-          }
-        ]
-      }
+      const reviewsData = await reviewsResponse.json()
+
+      // Fetch goals from API
+      const goalsResponse = await fetch('/api/performance/goals', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const goalsData = await goalsResponse.json()
+
+      const reviews = reviewsData.success ? reviewsData.data : []
+      const goals = goalsData.success ? goalsData.data : []
 
       setPerformanceData({
-        reviews: mockReviews,
-        goals: mockGoals,
+        reviews,
+        goals,
         stats: {
-          totalReviews: mockReviews.length,
-          completedGoals: mockGoals.filter(g => g.status === 'completed').length,
-          averageRating: mockReviews.length > 0
-            ? (mockReviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / mockReviews.length).toFixed(1)
+          totalReviews: reviews.length,
+          completedGoals: goals.filter(g => g.status === 'completed').length,
+          averageRating: reviews.length > 0
+            ? (reviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / reviews.length).toFixed(1)
             : 0,
-          pendingReviews: mockReviews.filter(r => r.status === 'pending').length
+          pendingReviews: reviews.filter(r => r.status === 'pending').length
         }
       })
     } catch (error) {

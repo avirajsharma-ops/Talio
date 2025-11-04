@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
+import connectDB from '@/lib/mongodb'
+import Performance from '@/models/Performance'
+import Employee from '@/models/Employee'
 
 // GET - Fetch performance reviews
 export async function GET(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     const decoded = await verifyToken(token)
-    
+
     if (!decoded) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
+
+    await connectDB()
 
     const { searchParams } = new URL(request.url)
     const employeeId = searchParams.get('employeeId')
@@ -17,103 +22,72 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 10
 
-    // Mock data for now - replace with actual database queries
-    const mockReviews = [
-      {
-        _id: '1',
-        employee: { 
-          _id: 'emp1',
-          firstName: 'John', 
-          lastName: 'Doe', 
-          employeeCode: 'EMP001',
-          department: 'Engineering'
-        },
-        reviewer: { 
-          _id: 'rev1',
-          firstName: 'Jane', 
-          lastName: 'Smith' 
-        },
-        reviewPeriod: 'Q4 2024',
-        overallRating: 4.2,
-        status: 'completed',
-        reviewDate: '2024-12-15T00:00:00.000Z',
-        summary: 'Excellent performance with strong leadership skills and consistent delivery.',
-        strengths: ['Leadership', 'Problem Solving', 'Communication'],
-        areasOfImprovement: ['Time Management', 'Delegation'],
-        goals: [
-          { title: 'Improve team collaboration', status: 'achieved' },
-          { title: 'Complete certification', status: 'in-progress' }
-        ],
-        comments: 'John has shown exceptional growth this quarter.',
-        createdAt: '2024-12-15T00:00:00.000Z',
-        updatedAt: '2024-12-15T00:00:00.000Z'
-      },
-      {
-        _id: '2',
-        employee: { 
-          _id: 'emp2',
-          firstName: 'Alice', 
-          lastName: 'Johnson', 
-          employeeCode: 'EMP002',
-          department: 'Marketing'
-        },
-        reviewer: { 
-          _id: 'rev2',
-          firstName: 'Bob', 
-          lastName: 'Wilson' 
-        },
-        reviewPeriod: 'Q4 2024',
-        overallRating: 3.8,
-        status: 'pending',
-        reviewDate: '2024-12-20T00:00:00.000Z',
-        summary: 'Good performance with room for improvement in technical skills.',
-        strengths: ['Teamwork', 'Reliability'],
-        areasOfImprovement: ['Technical Skills', 'Initiative'],
-        goals: [
-          { title: 'Learn new marketing tools', status: 'not-started' },
-          { title: 'Increase campaign ROI', status: 'in-progress' }
-        ],
-        comments: 'Alice is a reliable team member with potential for growth.',
-        createdAt: '2024-12-20T00:00:00.000Z',
-        updatedAt: '2024-12-20T00:00:00.000Z'
-      }
-    ]
+    // Build query based on role
+    let query = {}
 
-    // Filter based on role and parameters
-    let filteredReviews = mockReviews
-
-    // Role-based filtering
     if (decoded.role === 'employee') {
       // Employees can only see their own reviews
-      filteredReviews = mockReviews.filter(review => review.employee._id === decoded.employeeId)
+      query.employee = decoded.employeeId
     } else if (decoded.role === 'manager') {
       // Managers can see reviews for their team members
-      // For now, show all reviews (in real implementation, filter by department/team)
-      filteredReviews = mockReviews
-    }
-    // Admin and HR can see all reviews
+      const teamMembers = await Employee.find({
+        reportingManager: decoded.employeeId,
+        status: 'active'
+      }).select('_id')
 
-    // Apply filters
+      const teamMemberIds = teamMembers.map(member => member._id)
+      query.employee = { $in: [...teamMemberIds, decoded.employeeId] }
+    }
+    // Admin and HR can see all reviews (no filter)
+
+    // Apply additional filters
     if (employeeId) {
-      filteredReviews = filteredReviews.filter(review => review.employee._id === employeeId)
+      query.employee = employeeId
     }
 
     if (status) {
-      filteredReviews = filteredReviews.filter(review => review.status === status)
+      query.status = status
     }
 
-    // Pagination
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedReviews = filteredReviews.slice(startIndex, endIndex)
+    // Fetch reviews from database
+    const totalReviews = await Performance.countDocuments(query)
+    const reviews = await Performance.find(query)
+      .populate('employee', 'firstName lastName employeeCode department designation')
+      .populate('reviewer', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+
+    // Transform data to match frontend expectations
+    const transformedReviews = reviews.map(review => ({
+      _id: review._id,
+      employee: review.employee,
+      reviewer: review.reviewer,
+      reviewPeriod: `${new Date(review.reviewPeriod.startDate).toLocaleDateString()} - ${new Date(review.reviewPeriod.endDate).toLocaleDateString()}`,
+      reviewType: review.reviewType,
+      overallRating: review.overallRating || 0,
+      status: review.status,
+      reviewDate: review.submittedDate || review.createdAt,
+      summary: review.strengths || '',
+      strengths: review.strengths ? [review.strengths] : [],
+      areasOfImprovement: review.areasOfImprovement ? [review.areasOfImprovement] : [],
+      goals: review.goals || [],
+      comments: review.employeeComments || '',
+      kras: review.kras || [],
+      kpis: review.kpis || [],
+      competencies: review.competencies || [],
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt
+    }))
 
     return NextResponse.json({
       success: true,
-      data: paginatedReviews,
+      data: transformedReviews,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(filteredReviews.length / limit),
-        totalItems: filteredReviews.length,
+        totalPages: Math.ceil(totalReviews / limit),
+        totalItems: totalReviews,
         itemsPerPage: limit
       }
     })
@@ -132,7 +106,7 @@ export async function POST(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     const decoded = await verifyToken(token)
-    
+
     if (!decoded) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
@@ -142,53 +116,58 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
     }
 
+    await connectDB()
+
     const body = await request.json()
     const {
       employeeId,
-      reviewPeriod,
+      reviewType,
+      reviewPeriodStart,
+      reviewPeriodEnd,
       overallRating,
-      summary,
       strengths,
       areasOfImprovement,
       goals,
-      comments
+      kras,
+      kpis,
+      competencies,
+      trainingRecommendations,
+      employeeComments
     } = body
 
     // Validate required fields
-    if (!employeeId || !reviewPeriod || !overallRating) {
+    if (!employeeId || !reviewType || !reviewPeriodStart || !reviewPeriodEnd) {
       return NextResponse.json(
-        { success: false, message: 'Employee ID, review period, and overall rating are required' },
+        { success: false, message: 'Employee ID, review type, and review period are required' },
         { status: 400 }
       )
     }
 
-    // Mock creation - replace with actual database save
-    const newReview = {
-      _id: Date.now().toString(),
-      employee: {
-        _id: employeeId,
-        firstName: 'Mock',
-        lastName: 'Employee',
-        employeeCode: 'EMP999',
-        department: 'Mock Department'
+    // Create new performance review
+    const newReview = await Performance.create({
+      employee: employeeId,
+      reviewPeriod: {
+        startDate: new Date(reviewPeriodStart),
+        endDate: new Date(reviewPeriodEnd)
       },
-      reviewer: {
-        _id: decoded.employeeId,
-        firstName: decoded.firstName || 'Reviewer',
-        lastName: decoded.lastName || 'Name'
-      },
-      reviewPeriod,
-      overallRating: parseFloat(overallRating),
-      status: 'completed',
-      reviewDate: new Date().toISOString(),
-      summary: summary || '',
-      strengths: strengths || [],
-      areasOfImprovement: areasOfImprovement || [],
+      reviewType,
+      reviewer: decoded.employeeId,
+      kras: kras || [],
+      kpis: kpis || [],
+      competencies: competencies || [],
+      overallRating: parseFloat(overallRating) || 0,
+      strengths: strengths || '',
+      areasOfImprovement: areasOfImprovement || '',
+      trainingRecommendations: trainingRecommendations || [],
       goals: goals || [],
-      comments: comments || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+      employeeComments: employeeComments || '',
+      status: 'submitted',
+      submittedDate: new Date()
+    })
+
+    // Populate the review
+    await newReview.populate('employee', 'firstName lastName employeeCode department')
+    await newReview.populate('reviewer', 'firstName lastName')
 
     return NextResponse.json({
       success: true,
@@ -199,7 +178,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Create performance review error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: 'Internal server error', error: error.message },
       { status: 500 }
     )
   }
