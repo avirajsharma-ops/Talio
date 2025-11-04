@@ -7,7 +7,7 @@ import User from '@/models/User'
 import { sendChatMessageNotification } from '@/lib/pushNotifications'
 
 // GET - Fetch messages for a chat
-export async function GET(request, { params }) {
+export async function GET(request, context) {
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) {
@@ -21,6 +21,7 @@ export async function GET(request, { params }) {
 
     await dbConnect()
 
+    const params = await context.params
     const { chatId } = params
 
     // Get user's employee ID
@@ -54,7 +55,7 @@ export async function GET(request, { params }) {
 }
 
 // POST - Send a message
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) {
@@ -68,6 +69,7 @@ export async function POST(request, { params }) {
 
     await dbConnect()
 
+    const params = await context.params
     const { chatId } = params
     const body = await request.json()
     const { content, fileUrl, fileName, fileType, fileSize } = body
