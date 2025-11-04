@@ -16,25 +16,25 @@ export default function BottomNav() {
     },
     {
       name: 'Projects',
-      icon: '/assets/fi-rr-chart-pie-alt.svg',
+      icon: '/assets/fi-rr-briefcase.svg',
       path: '/dashboard/tasks/my-tasks',
       active: pathname.startsWith('/dashboard/tasks')
     },
     {
       name: 'Chat',
-      icon: '/assets/fi-rr-clock.svg',
+      icon: '/assets/fi-rr-comment.svg',
       path: '/dashboard/chat',
       active: pathname.startsWith('/dashboard/chat')
     },
     {
       name: 'Leave',
-      icon: '/assets/fi-rr-clock.svg',
+      icon: '/assets/fi-rr-calendar.svg',
       path: '/dashboard/leave',
       active: pathname.startsWith('/dashboard/leave')
     },
     {
       name: 'Ideas',
-      icon:'/assets/fi-rr-home.svg',
+      icon: '/assets/fi-rr-bulb.svg',
       path: '/dashboard/sandbox',
       active: pathname.startsWith('/dashboard/sandbox')
     }

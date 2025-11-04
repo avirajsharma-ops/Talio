@@ -29,9 +29,14 @@ export default function DashboardLayout({ children }) {
         <Header toggleSidebar={toggleSidebar} />
 
         {/* Main content with padding for fixed header and bottom nav */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0">
+        <main className="flex-1 overflow-y-auto md:mb-0 mb-8 px-4 sm:px-6 lg:px-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0">
           {children}
         </main>
+
+        {/* Gradient above bottom nav - Mobile only */}
+        <div className="md:hidden fixed bottom-[72px] left-0  right-0 h-[96px] pointer-events-none z-[39]"
+             style={{ background: 'linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, #F9FAFB 71.18%)' }}>
+        </div>
 
         {/* Bottom Navigation for Mobile */}
         <BottomNav />
