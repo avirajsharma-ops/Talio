@@ -30,11 +30,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
-    // Only admin, hr, or system can send push notifications
-    if (!['admin', 'hr', 'system'].includes(decoded.role)) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 })
-    }
-
     await connectDB()
 
     const { userIds, title, body, icon, badge, data, url } = await request.json()
