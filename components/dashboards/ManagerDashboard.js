@@ -10,8 +10,10 @@ import {
 import toast from 'react-hot-toast'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatDesignation } from '@/lib/formatters'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function ManagerDashboard({ user }) {
+  const { theme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
   const [teamMembers, setTeamMembers] = useState([])
@@ -549,17 +551,17 @@ export default function ManagerDashboard({ user }) {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Manager Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { name: 'Review Leaves', icon: FaCalendarAlt, href: '/dashboard/leave/approvals', color: 'bg-green-500' },
-              { name: 'Team Performance', icon: FaChartLine, href: '/dashboard/performance/reviews', color: 'bg-blue-500' },
-              { name: 'Create Review', icon: FaAward, href: '/dashboard/performance/create', color: 'bg-purple-500' },
-              { name: 'Mark Attendance', icon: FaClock, href: '/dashboard/attendance', color: 'bg-red-500' },
+              { name: 'Review Leaves', icon: FaCalendarAlt, href: '/dashboard/leave/approvals' },
+              { name: 'Team Performance', icon: FaChartLine, href: '/dashboard/performance/reviews' },
+              { name: 'Create Review', icon: FaAward, href: '/dashboard/performance/create' },
+              { name: 'Mark Attendance', icon: FaClock, href: '/dashboard/attendance' },
             ].map((action, index) => (
               <a
                 key={index}
                 href={action.href}
                 className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <div className={`${action.color} p-3 rounded-lg mb-3`}>
+                <div className="p-3 rounded-lg mb-3" style={{ backgroundColor: theme.primary[500] }}>
                   <action.icon className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-sm font-medium text-gray-900 text-center">{action.name}</span>
@@ -596,7 +598,7 @@ export default function ManagerDashboard({ user }) {
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: theme.primary[500] }}>
                           {initials}
                         </div>
                       )}
@@ -650,7 +652,10 @@ export default function ManagerDashboard({ user }) {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleApproveLeave(leave._id)}
-                        className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                        className="px-3 py-1 text-white text-xs rounded transition-colors"
+                        style={{ backgroundColor: theme.primary[500] }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.primary[600]}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.primary[500]}
                       >
                         Approve
                       </button>

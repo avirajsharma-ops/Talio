@@ -12,9 +12,11 @@ import {
 } from 'react-icons/fa'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatDesignation } from '@/lib/formatters'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function AdminDashboard({ user }) {
   const router = useRouter()
+  const { theme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState({
     employees: [],
@@ -746,7 +748,10 @@ export default function AdminDashboard({ user }) {
                     setShowEmployeeModal(false)
                     router.push(`/dashboard/employees/edit/${selectedEmployee._id}`)
                   }}
-                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  className="flex-1 px-4 py-2 text-white rounded-lg transition-colors"
+                  style={{ backgroundColor: theme.primary[500] }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.primary[600]}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.primary[500]}
                 >
                   Edit Employee
                 </button>
@@ -755,7 +760,10 @@ export default function AdminDashboard({ user }) {
                     setShowEmployeeModal(false)
                     router.push(`/dashboard/leave/requests?employee=${selectedEmployee._id}`)
                   }}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  className="flex-1 px-4 py-2 text-white rounded-lg transition-colors"
+                  style={{ backgroundColor: theme.primary[500] }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme.primary[600]}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = theme.primary[500]}
                 >
                   View Leaves
                 </button>
