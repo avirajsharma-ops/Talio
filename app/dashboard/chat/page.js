@@ -19,17 +19,32 @@ export default function ChatPage() {
   const [groupName, setGroupName] = useState('')
   const [currentUserId, setCurrentUserId] = useState(null)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState(null)
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchChats()
     fetchEmployees()
+
+    // Poll for new chats every 5 seconds
+    const chatInterval = setInterval(() => {
+      fetchChats()
+    }, 5000)
+
+    return () => clearInterval(chatInterval)
   }, [])
 
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat._id)
+
+      // Poll for new messages every 3 seconds when chat is selected
+      const messageInterval = setInterval(() => {
+        fetchMessages(selectedChat._id)
+      }, 3000)
+
+      return () => clearInterval(messageInterval)
     }
   }, [selectedChat])
 
@@ -393,7 +408,12 @@ export default function ChatPage() {
                               {msg.fileUrl ? (
                                 <div className={`px-4 py-3 rounded-2xl ${isMine ? 'bg-gradient-to-r from-[#6B7FFF] to-[#5A6EEE] text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
                                   {msg.fileType?.startsWith('image/') ? (
-                                    <img src={msg.fileUrl} alt={msg.fileName} className="max-w-full rounded-lg mb-2" />
+                                    <img
+                                      src={msg.fileUrl}
+                                      alt={msg.fileName}
+                                      className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => setLightboxImage(msg.fileUrl)}
+                                    />
                                   ) : (
                                     <div className="flex items-center gap-3">
                                       {getFileIcon(msg.fileType)}
@@ -450,7 +470,7 @@ export default function ChatPage() {
                     <button
                       onClick={handleSendMessage}
                       disabled={sending || !message.trim()}
-                      className="text-gray-400 hover:text-[#6B7FFF] transition-colors disabled:opacity-30 flex-shrink-0"
+                      className="text-gray-400 hover:text-[#6B7FFF] transition-colors disabled:opacity-30 flex-shrink-0 mr-2 md:mr-0"
                       title="Send message"
                     >
                       {sending ? (
@@ -613,6 +633,30 @@ export default function ChatPage() {
             >
               Create Group ({selectedEmployees.length} members)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox for images */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-[200] flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-[201]"
+            title="Close"
+          >
+            <FaTimes className="text-3xl" />
+          </button>
+          <div className="relative max-w-7xl max-h-full">
+            <img
+              src={lightboxImage}
+              alt="Full size"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}
