@@ -245,6 +245,38 @@ export default function ChatPage() {
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   }
 
+  const formatMessageTime = (date) => {
+    const d = new Date(date)
+    const now = new Date()
+    const diffDays = Math.floor((now - d) / 86400000)
+
+    // If today, show time
+    if (diffDays === 0) {
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }
+    // If yesterday
+    if (diffDays === 1) {
+      return 'Yesterday ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }
+    // If within a week, show day name
+    if (diffDays < 7) {
+      return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }
+    // Otherwise show date
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const getDateSeparator = (date) => {
+    const d = new Date(date)
+    const now = new Date()
+    const diffDays = Math.floor((now - d) / 86400000)
+
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return d.toLocaleDateString('en-US', { weekday: 'long' })
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  }
+
   const filteredChats = chats.filter(chat =>
     getChatName(chat).toLowerCase().includes(chatSearchQuery.toLowerCase())
   )
@@ -379,11 +411,6 @@ export default function ChatPage() {
 
                 {/* Messages Area - Clean white background */}
                 <div className="flex-1 overflow-y-auto px-4 py-6 pb-24 md:pb-6 md:px-6 md:py-6 space-y-4 bg-white md:bg-gray-50">
-                  {/* Date separator */}
-                  <div className="flex justify-center mb-4">
-                    <span className="text-xs text-gray-400 bg-gray-100 md:bg-white px-3 py-1 rounded-full">Today</span>
-                  </div>
-
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <FaComments className="text-5xl mb-3 opacity-30" />
@@ -392,45 +419,60 @@ export default function ChatPage() {
                   ) : (
                     messages.map((msg, idx) => {
                       const isMine = msg.sender._id === currentUserId
+                      const showDateSeparator = idx === 0 || getDateSeparator(messages[idx - 1].createdAt) !== getDateSeparator(msg.createdAt)
+
                       return (
-                        <div key={idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-3`}>
-                          <div className={`max-w-[80%] sm:max-w-sm ${isMine ? '' : 'flex items-start gap-2.5'}`}>
-                            {!isMine && (
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#6B7FFF] to-[#5A6EEE] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                {msg.sender.profilePicture ? (
-                                  <img src={msg.sender.profilePicture} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <FaUser className="text-white text-sm" />
-                                )}
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              {msg.fileUrl ? (
-                                <div className={`px-4 py-3 rounded-2xl ${isMine ? 'bg-gradient-to-r from-[#6B7FFF] to-[#5A6EEE] text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
-                                  {msg.fileType?.startsWith('image/') ? (
-                                    <img
-                                      src={msg.fileUrl}
-                                      alt={msg.fileName}
-                                      className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => setLightboxImage(msg.fileUrl)}
-                                    />
+                        <div key={idx}>
+                          {/* Date separator */}
+                          {showDateSeparator && (
+                            <div className="flex justify-center mb-4 mt-2">
+                              <span className="text-xs text-gray-400 bg-gray-100 md:bg-white px-3 py-1 rounded-full">
+                                {getDateSeparator(msg.createdAt)}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-3`}>
+                            <div className={`max-w-[80%] sm:max-w-sm ${isMine ? '' : 'flex items-start gap-2.5'}`}>
+                              {!isMine && (
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#6B7FFF] to-[#5A6EEE] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                  {msg.sender.profilePicture ? (
+                                    <img src={msg.sender.profilePicture} alt="" className="w-full h-full object-cover" />
                                   ) : (
-                                    <div className="flex items-center gap-3">
-                                      {getFileIcon(msg.fileType)}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate">{msg.fileName}</p>
-                                        <p className="text-xs opacity-75">{formatFileSize(msg.fileSize)}</p>
-                                      </div>
-                                    </div>
+                                    <FaUser className="text-white text-sm" />
                                   )}
-                                  <p className="text-xs mt-2 opacity-75">{formatTime(msg.createdAt)}</p>
-                                </div>
-                              ) : (
-                                <div className={`px-4 py-3 rounded-2xl ${isMine ? 'bg-gradient-to-r from-[#6B7FFF] to-[#5A6EEE] text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
-                                  {!isMine && selectedChat.isGroup && <p className="text-xs font-semibold mb-1 opacity-90">{msg.sender.firstName} {msg.sender.lastName}</p>}
-                                  <p className="text-[15px] leading-relaxed">{msg.content}</p>
                                 </div>
                               )}
+                              <div className="flex-1">
+                                {msg.fileUrl ? (
+                                  <div className={`px-4 py-3 rounded-2xl ${isMine ? 'bg-gradient-to-r from-[#6B7FFF] to-[#5A6EEE] text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
+                                    {msg.fileType?.startsWith('image/') ? (
+                                      <img
+                                        src={msg.fileUrl}
+                                        alt={msg.fileName}
+                                        className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setLightboxImage(msg.fileUrl)}
+                                      />
+                                    ) : (
+                                      <div className="flex items-center gap-3">
+                                        {getFileIcon(msg.fileType)}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-semibold truncate">{msg.fileName}</p>
+                                          <p className="text-xs opacity-75">{formatFileSize(msg.fileSize)}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {msg.content && <p className="text-[15px] leading-relaxed mb-1">{msg.content}</p>}
+                                    <p className="text-xs mt-1 opacity-75">{formatMessageTime(msg.createdAt)}</p>
+                                  </div>
+                                ) : (
+                                  <div className={`px-4 py-3 rounded-2xl ${isMine ? 'bg-gradient-to-r from-[#6B7FFF] to-[#5A6EEE] text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`}>
+                                    {!isMine && selectedChat.isGroup && <p className="text-xs font-semibold mb-1 opacity-90">{msg.sender.firstName} {msg.sender.lastName}</p>}
+                                    <p className="text-[15px] leading-relaxed mb-1">{msg.content}</p>
+                                    <p className="text-xs opacity-75">{formatMessageTime(msg.createdAt)}</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -452,7 +494,7 @@ export default function ChatPage() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFile}
-                      className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                      className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 flex-shrink-0 ml-1"
                       title="Attach file"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,7 +512,7 @@ export default function ChatPage() {
                     <button
                       onClick={handleSendMessage}
                       disabled={sending || !message.trim()}
-                      className="text-gray-400 hover:text-[#6B7FFF] transition-colors disabled:opacity-30 flex-shrink-0 mr-2 md:mr-0"
+                      className="text-gray-400 hover:text-[#6B7FFF] transition-colors disabled:opacity-30 flex-shrink-0 mr-1"
                       title="Send message"
                     >
                       {sending ? (

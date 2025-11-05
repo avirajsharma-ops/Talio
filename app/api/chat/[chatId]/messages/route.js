@@ -136,6 +136,7 @@ export async function POST(request, context) {
     // Send push notifications to other participants (not the sender)
     try {
       const otherParticipants = chat.participants.filter(p => p.toString() !== user._id.toString())
+      console.log(`[Chat Notification] Other participants count: ${otherParticipants.length}`)
 
       if (otherParticipants.length > 0) {
         // Get User IDs from Employee IDs
@@ -144,12 +145,14 @@ export async function POST(request, context) {
         }).select('_id')
 
         const recipientUserIds = recipientUsers.map(u => u._id.toString())
+        console.log(`[Chat Notification] Recipient user IDs: ${recipientUserIds.join(', ')}`)
 
         if (recipientUserIds.length > 0) {
           const senderName = `${user.firstName} ${user.lastName}`
+          console.log(`[Chat Notification] Sending notification from: ${senderName}`)
 
           // Send push notification
-          await sendChatMessageNotification(
+          const notifResult = await sendChatMessageNotification(
             {
               content: content || fileName || 'Sent a file',
               chatId: chatId,
@@ -160,12 +163,17 @@ export async function POST(request, context) {
             token // Use the user's token for authorization
           )
 
-          console.log(`Push notification sent to ${recipientUserIds.length} recipient(s)`)
+          console.log(`[Chat Notification] Result:`, notifResult)
+          console.log(`[Chat Notification] Push notification sent to ${recipientUserIds.length} recipient(s)`)
+        } else {
+          console.log(`[Chat Notification] No recipient user IDs found`)
         }
+      } else {
+        console.log(`[Chat Notification] No other participants to notify`)
       }
     } catch (notifError) {
       // Don't fail the message send if notification fails
-      console.error('Failed to send push notification:', notifError)
+      console.error('[Chat Notification] Failed to send push notification:', notifError)
     }
 
     return NextResponse.json({
