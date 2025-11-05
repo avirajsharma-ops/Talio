@@ -410,7 +410,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Messages Area - Clean white background with scroll */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 pb-44 md:pb-12 md:px-6 md:py-6 space-y-4 bg-white md:bg-gray-50 min-h-0">
+                <div className="flex-1 overflow-y-auto -mt-[0.8em] mb-12 overflow-x-hidden px-4 py-6 pb-44 md:pb-12 md:px-6 md:py-6 space-y-4 bg-white md:bg-gray-50 min-h-0">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <FaComments className="text-5xl mb-3 opacity-30" />
