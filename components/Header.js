@@ -5,8 +5,10 @@ import { useRouter, usePathname } from 'next/navigation'
 import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCog, FaSearch, FaComments, FaTimes, FaSpinner } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { PWAStatus } from '@/components/PWAInstaller'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function Header({ toggleSidebar }) {
+  const { theme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState(null)
@@ -341,10 +343,11 @@ export default function Header({ toggleSidebar }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search everything..."
-                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:border-transparent transition-all"
+                style={{ '--tw-ring-color': theme.primary[500] }}
               />
               {searching && (
-                <FaSpinner className="absolute right-3 animate-spin text-blue-600 w-4 h-4" />
+                <FaSpinner className="absolute right-3 animate-spin w-4 h-4" style={{ color: theme.primary[600] }} />
               )}
               {searchQuery && !searching && (
                 <button
@@ -374,7 +377,16 @@ export default function Header({ toggleSidebar }) {
                           <div
                             key={item._id || index}
                             onClick={() => handleSearchResultClick(item.link)}
-                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors"
+                            className="px-4 py-3 cursor-pointer border-b border-gray-50 last:border-b-0 transition-colors"
+                            style={{
+                              backgroundColor: 'transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = theme.primary[50]
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                            }}
                           >
                             <div className="flex items-start gap-3">
                               <div className="text-xl flex-shrink-0 mt-0.5">{getResultIcon(item.type)}</div>
@@ -389,7 +401,7 @@ export default function Header({ toggleSidebar }) {
                                   )}
                                 </div>
                                 {item.subtitle && (
-                                  <p className="text-xs text-blue-600 mb-1">{item.subtitle}</p>
+                                  <p className="text-xs mb-1" style={{ color: theme.primary[600] }}>{item.subtitle}</p>
                                 )}
                                 {item.description && (
                                   <p className="text-xs text-gray-500 line-clamp-1">{item.description}</p>
@@ -416,7 +428,7 @@ export default function Header({ toggleSidebar }) {
 
         {/* Center - Page Title */}
         <div className="absolute left-1/2 transform -translate-x-1/2">
-          <h1 className="md:text-blue-600 text-black text-lg font-semibold">{pageTitle}</h1>
+          <h1 className="text-lg font-semibold" style={{ color: window.innerWidth >= 768 ? theme.primary[600] : '#000000' }}>{pageTitle}</h1>
         </div>
 
         {/* Right side */}
@@ -424,7 +436,18 @@ export default function Header({ toggleSidebar }) {
           {/* Chat Button - Desktop Only */}
           <button
             onClick={() => router.push('/dashboard/chat')}
-            className="hidden md:flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+            style={{
+              color: 'var(--color-text-secondary)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = theme.primary[600]
+              e.currentTarget.style.backgroundColor = theme.primary[50]
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <FaComments className="w-5 h-5" />
             <span className="text-sm font-medium">Chat</span>
@@ -436,7 +459,18 @@ export default function Header({ toggleSidebar }) {
           {/* Mobile Search Icon */}
           <button
             onClick={() => setShowMobileSearch(true)}
-            className="md:hidden p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="md:hidden p-2 rounded-lg transition-colors"
+            style={{
+              color: 'var(--color-text-secondary)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = theme.primary[600]
+              e.currentTarget.style.backgroundColor = theme.primary[50]
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <FaSearch className="w-5 h-5" />
           </button>
@@ -594,7 +628,8 @@ export default function Header({ toggleSidebar }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search everything..."
-                  className="w-full h-11 pl-10 pr-10 bg-gray-50 border border-gray-100 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full h-11 pl-10 pr-10 bg-gray-50 border border-gray-100 rounded-lg focus:ring-1 focus:border-transparent text-sm"
+                  style={{ '--tw-ring-color': theme.primary[500] }}
                   autoFocus
                 />
                 {searchQuery && !searching && (
@@ -610,7 +645,7 @@ export default function Header({ toggleSidebar }) {
                 )}
                 {searching && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <FaSpinner className="animate-spin text-blue-600 w-4 h-4" />
+                    <FaSpinner className="animate-spin w-4 h-4" style={{ color: theme.primary[600] }} />
                   </div>
                 )}
               </div>
@@ -628,7 +663,7 @@ export default function Header({ toggleSidebar }) {
                 </div>
               ) : searching ? (
                 <div className="flex items-center justify-center h-full">
-                  <FaSpinner className="animate-spin text-blue-600 w-8 h-8" />
+                  <FaSpinner className="animate-spin w-8 h-8" style={{ color: theme.primary[600] }} />
                 </div>
               ) : searchResults ? (
 <div>
@@ -643,7 +678,22 @@ export default function Header({ toggleSidebar }) {
                           <div
                             key={item._id || index}
                             onClick={() => handleSearchResultClick(item.link)}
-                            className="px-4 py-4 hover:bg-blue-50 active:bg-blue-100 cursor-pointer border-b border-gray-50 transition-colors"
+                            className="px-4 py-4 cursor-pointer border-b border-gray-50 transition-colors"
+                            style={{
+                              backgroundColor: 'transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = theme.primary[50]
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                            }}
+                            onTouchStart={(e) => {
+                              e.currentTarget.style.backgroundColor = theme.primary[100]
+                            }}
+                            onTouchEnd={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                            }}
                           >
                             <div className="flex items-start gap-3">
                               <div className="text-2xl flex-shrink-0 mt-1">{getResultIcon(item.type)}</div>
@@ -655,7 +705,7 @@ export default function Header({ toggleSidebar }) {
                                   )}
                                 </div>
                                 {item.subtitle && (
-                                  <p className="text-sm text-blue-600 mb-1">{item.subtitle}</p>
+                                  <p className="text-sm mb-1" style={{ color: theme.primary[600] }}>{item.subtitle}</p>
                                 )}
                                 {item.description && (
                                   <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>

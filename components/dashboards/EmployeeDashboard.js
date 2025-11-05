@@ -10,8 +10,10 @@ import {
 } from 'react-icons/fa'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatDesignation } from '@/lib/formatters'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function EmployeeDashboard({ user }) {
+  const { theme } = useTheme()
   const [announcements, setAnnouncements] = useState([])
   const [holidays, setHolidays] = useState([])
   const [dashboardStats, setDashboardStats] = useState(null)
@@ -265,7 +267,7 @@ export default function EmployeeDashboard({ user }) {
       value: `${dashboardStats.stats.hoursThisMonth.value}h`,
       change: `${dashboardStats.stats.hoursThisMonth.change >= 0 ? '+' : ''}${dashboardStats.stats.hoursThisMonth.change}h`,
       icon: FaClock,
-      color: 'bg-blue-500',
+      color: theme.primary[500],
       trend: dashboardStats.stats.hoursThisMonth.trend
     },
     {
@@ -273,7 +275,7 @@ export default function EmployeeDashboard({ user }) {
       value: `${dashboardStats.stats.leaveBalance.value} days`,
       change: `${dashboardStats.stats.leaveBalance.change >= 0 ? '+' : ''}${dashboardStats.stats.leaveBalance.change}`,
       icon: FaCalendarAlt,
-      color: 'bg-green-500',
+      color: theme.primary[500],
       trend: dashboardStats.stats.leaveBalance.trend
     },
     {
@@ -281,7 +283,7 @@ export default function EmployeeDashboard({ user }) {
       value: `₹${dashboardStats.stats.thisMonthSalary.value.toLocaleString()}`,
       change: `${dashboardStats.stats.thisMonthSalary.change >= 0 ? '+' : ''}₹${Math.abs(dashboardStats.stats.thisMonthSalary.change).toLocaleString()}`,
       icon: FaMoneyBillWave,
-      color: 'bg-purple-500',
+      color: theme.primary[500],
       trend: dashboardStats.stats.thisMonthSalary.trend
     },
     {
@@ -289,7 +291,7 @@ export default function EmployeeDashboard({ user }) {
       value: `${dashboardStats.stats.pendingTasks.value}`,
       change: `${dashboardStats.stats.pendingTasks.change >= 0 ? '+' : ''}${dashboardStats.stats.pendingTasks.change}`,
       icon: FaFileAlt,
-      color: 'bg-yellow-500',
+      color: theme.primary[500],
       trend: dashboardStats.stats.pendingTasks.trend
     },
     {
@@ -564,7 +566,7 @@ export default function EmployeeDashboard({ user }) {
                   <span className="text-gray-500 text-xs sm:text-sm ml-1 hidden sm:inline">vs last month</span>
                 </div>
               </div>
-              <div className={`${stat.color} p-3 sm:p-4 rounded-lg flex-shrink-0 ml-3`}>
+              <div className="p-3 sm:p-4 rounded-lg flex-shrink-0 ml-3" style={{ backgroundColor: stat.color }}>
                 <stat.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
             </div>
