@@ -383,7 +383,7 @@ export default function ChatPage() {
           </div>
 
           {/* Chat Messages - Full screen on mobile */}
-          <div className={`md:col-span-2 flex flex-col h-full ${selectedChat ? 'flex' : 'hidden md:flex'}`}>
+          <div className={`md:col-span-2 flex flex-col h-full overflow-hidden ${selectedChat ? 'flex' : 'hidden md:flex'}`}>
             {selectedChat ? (
               <>
                 {/* Chat Header - Clean minimal design */}
@@ -409,8 +409,8 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {/* Messages Area - Clean white background */}
-                <div className="flex-1 overflow-y-auto px-4 py-6 pb-24 md:pb-6 md:px-6 md:py-6 space-y-4 bg-white md:bg-gray-50">
+                {/* Messages Area - Clean white background with scroll */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 pb-24 md:pb-6 md:px-6 md:py-6 space-y-4 bg-white md:bg-gray-50 min-h-0">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <FaComments className="text-5xl mb-3 opacity-30" />
