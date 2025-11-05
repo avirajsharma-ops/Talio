@@ -20,6 +20,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [user, setUser] = useState(null)
   const [mounted, setMounted] = useState(false)
   const [isDepartmentHead, setIsDepartmentHead] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   // Load user only once on mount
   useEffect(() => {
@@ -133,11 +134,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* Sticky Logo Section */}
         <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
           <div className="flex items-center justify-between">
-            <img
-              src="/assets/logo.png"
-              alt="Talio Logo"
-              className="h-10 w-auto object-contain"
-            />
+            <div className="bg-white rounded-full p-2 flex items-center justify-center">
+              <img
+                src="/assets/logo.png"
+                alt="Talio Logo"
+                className="h-10 w-auto object-contain"
+              />
+            </div>
             <button
               onClick={() => setIsOpen(false)}
               className="lg:hidden hover:opacity-70 focus:outline-none"
@@ -233,19 +236,19 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* Settings and Logout Section - Fixed at bottom */}
-        <div className="flex items-center justify-center p-[8px] sm:p-4 space-y-2 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
+        <div className="flex flex-col p-[8px] sm:p-4 space-y-3 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
           {/* Settings Button */}
           <Link
             href="/dashboard/settings"
             onClick={handleLinkClick}
-            className="w-full flex items-center ml-1 mt-[10px] md:mt-[6px] space-x-3 px-2 md:py-1 py-2 rounded-xl transition-all duration-200 group cursor-pointer"
+            className="w-full flex items-center space-x-3 px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 group cursor-pointer"
             style={{
               backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-500)' : 'transparent',
               color: pathname === '/dashboard/settings' ? 'white' : 'var(--color-text-primary)'
             }}
           >
             <div
-              className="md:p-2 rounded-lg transition-colors"
+              className="p-2 rounded-lg transition-colors"
               style={{
                 backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-600)' : 'var(--color-primary-100)',
                 color: pathname === '/dashboard/settings' ? 'white' : 'var(--color-primary-700)'
@@ -258,8 +261,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
           {/* Logout Button */}
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 sm:px-4 py-1 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full flex items-center space-x-3 px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
             style={{ color: 'var(--color-text-primary)' }}
           >
             <div className="p-2 rounded-lg transition-colors group-hover:bg-red-700 group-hover:text-white" style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}>
@@ -269,6 +272,50 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </button>
         </div>
       </aside>
+
+      {/* Logout Confirmation Popup */}
+      {showLogoutConfirm && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
+            onClick={() => setShowLogoutConfirm(false)}
+          />
+
+          {/* Confirmation Modal */}
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[10000] w-[90%] max-w-sm">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 bg-red-500 text-white">
+                <h3 className="text-lg font-semibold">Confirm Logout</h3>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-6">
+                <p className="text-gray-700 text-center">
+                  Are you sure you want to logout?
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-4 bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }
