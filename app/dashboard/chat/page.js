@@ -254,49 +254,54 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="page-container pb-16 md:pb-6">
+    <div className={`${selectedChat ? 'fixed inset-0 z-50 md:relative md:inset-auto md:z-0' : ''} md:page-container md:pb-6`}>
       {/* Header - Hide on mobile when chat is selected */}
-      <div className={`mb-4 sm:mb-6 flex items-center justify-between ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`px-4 pt-4 pb-3 md:px-0 md:pt-0 md:pb-0 md:mb-4 flex items-center justify-between ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Chat</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Connect with your team</p>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Chat</h1>
+          <p className="text-xs md:text-sm lg:text-base text-gray-600 mt-1">Connect with your team</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowNewChatModal(true)}
-            className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+            className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
           >
             <FaUserPlus /> <span className="hidden sm:inline">New</span>
           </button>
           <button
             onClick={() => setShowGroupModal(true)}
-            className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
+            className="bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
           >
             <FaUsers /> <span className="hidden sm:inline">Group</span>
           </button>
         </div>
       </div>
 
-      {/* Chat Container - Full screen on mobile when chat selected */}
-      <div className={`bg-white rounded-2xl shadow-md overflow-hidden ${
-        selectedChat ? 'fixed inset-0 md:relative z-50 md:z-0 rounded-none md:rounded-2xl' : 'relative'
-      }`} style={{ height: selectedChat ? '100vh' : 'calc(100vh - 220px)', maxHeight: selectedChat ? '100vh' : 'calc(100vh - 220px)' }}>
+      {/* Chat Container - Fixed height, no scrolling */}
+      <div className={`bg-white overflow-hidden ${
+        selectedChat
+          ? 'h-screen md:h-auto md:rounded-2xl md:shadow-md'
+          : 'mx-4 md:mx-0 rounded-2xl shadow-md'
+      }`} style={{
+        height: selectedChat ? '100vh' : 'calc(100vh - 180px)',
+        maxHeight: selectedChat ? '100vh' : 'calc(100vh - 180px)'
+      }}>
         <div className="grid grid-cols-1 md:grid-cols-3 h-full">
           {/* Chat List - Hide on mobile when chat is selected */}
-          <div className={`border-r border-gray-200 ${selectedChat ? 'hidden md:block' : 'block'}`}>
-            <div className="p-4 border-b border-gray-200">
+          <div className={`border-r border-gray-200 flex flex-col h-full ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
+            <div className="p-3 md:p-4 border-b border-gray-200 flex-shrink-0">
               <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
                 <input
                   type="text"
                   value={chatSearchQuery}
                   onChange={(e) => setChatSearchQuery(e.target.value)}
                   placeholder="Search chats..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 />
               </div>
             </div>
-            <div className="overflow-y-auto" style={{ height: 'calc(100% - 73px)' }}>
+            <div className="overflow-y-auto flex-1">
               {filteredChats.length === 0 ? (
                 <div className="p-4 text-center text-gray-500 text-sm">
                   No chats yet. Start a new conversation!
@@ -335,24 +340,24 @@ export default function ChatPage() {
           </div>
 
           {/* Chat Messages - Full screen on mobile */}
-          <div className={`md:col-span-2 flex flex-col ${selectedChat ? 'flex' : 'hidden md:flex'}`}>
+          <div className={`md:col-span-2 flex flex-col h-full ${selectedChat ? 'flex' : 'hidden md:flex'}`}>
             {selectedChat ? (
               <>
                 {/* Chat Header */}
-                <div className="p-3 md:p-4 border-b border-gray-200 flex items-center gap-3 bg-white">
+                <div className="p-3 md:p-4 border-b border-gray-200 flex items-center gap-3 bg-white flex-shrink-0">
                   <button
                     onClick={() => setSelectedChat(null)}
                     className="md:hidden text-gray-600 hover:text-gray-800 p-2 -ml-2"
                   >
                     <FaArrowLeft className="text-lg" />
                   </button>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                     {getChatAvatar(selectedChat) ? (
                       <img src={getChatAvatar(selectedChat)} alt="" className="w-full h-full object-cover" />
                     ) : selectedChat.isGroup ? (
-                      <FaUsers className="text-white" />
+                      <FaUsers className="text-white text-sm" />
                     ) : (
-                      <FaUser className="text-white" />
+                      <FaUser className="text-white text-sm" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -361,11 +366,8 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 bg-gray-50" style={{
-                  height: selectedChat ? 'calc(100vh - 140px)' : 'calc(100% - 130px)',
-                  maxHeight: selectedChat ? 'calc(100vh - 140px)' : 'calc(100% - 130px)'
-                }}>
+                {/* Messages Area - Flexible height */}
+                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 bg-gray-50">
                   {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <FaComments className="text-5xl mb-3 opacity-50" />
@@ -418,10 +420,10 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Input */}
-                <div className="p-3 md:p-4 border-t border-gray-200 bg-white">
+                {/* Message Input - Fixed at bottom */}
+                <div className="p-3 md:p-4 border-t border-gray-200 bg-white flex-shrink-0">
                   {showEmojiPicker && (
-                    <div className="mb-2 p-2 bg-gray-50 rounded-lg flex flex-wrap gap-1 sm:gap-2">
+                    <div className="mb-2 p-2 bg-gray-50 rounded-lg flex flex-wrap gap-1 sm:gap-2 max-h-32 overflow-y-auto">
                       {emojis.map((emoji, idx) => (
                         <button
                           key={idx}
@@ -443,17 +445,17 @@ export default function ChatPage() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingFile}
-                      className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                      className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
                       title="Attach file"
                     >
-                      <FaPaperclip className="text-lg sm:text-xl" />
+                      <FaPaperclip className="text-base md:text-lg" />
                     </button>
                     <button
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                       title="Add emoji"
                     >
-                      <FaSmile className="text-lg sm:text-xl" />
+                      <FaSmile className="text-base md:text-lg" />
                     </button>
                     <input
                       type="text"
@@ -461,16 +463,16 @@ export default function ChatPage() {
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                       placeholder="Type a message..."
-                      className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
+                      className="flex-1 px-3 md:px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={sending || !message.trim()}
-                      className="bg-blue-600 text-white p-2.5 sm:p-3 rounded-full hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center min-w-[40px]"
+                      className="bg-blue-600 text-white p-2.5 md:p-3 rounded-full hover:bg-blue-700 transition-colors disabled:bg-gray-400 flex items-center justify-center min-w-[40px] flex-shrink-0"
                       title="Send message"
                     >
                       {sending ? (
-                        <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 md:h-5 md:w-5 border-b-2 border-white"></div>
                       ) : (
                         <FaPaperPlane className="text-sm" />
                       )}
