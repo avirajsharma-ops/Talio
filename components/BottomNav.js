@@ -41,11 +41,11 @@ export default function BottomNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[40] md:hidden backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-[40] md:hidden"
       style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: 'var(--color-bg-sidebar)',
         paddingBottom: 'env(safe-area-inset-bottom)',
-        borderTop: '1px solid rgba(0, 0, 0, 0.1)'
+        borderTop: '1px solid var(--color-primary-200)'
       }}
     >
       <div className="flex items-center justify-around py-2 px-4">
@@ -67,7 +67,7 @@ export default function BottomNav() {
               style={{
                 margin: 0,
                 backgroundColor: item.active ? 'var(--color-primary-500)' : 'transparent',
-                boxShadow: item.active && !isChat ? '0 0 0 10px rgba(255, 255, 255, 0.9)' : 'none'
+                boxShadow: item.active && !isChat ? '0 0 0 10px var(--color-bg-main)' : 'none'
               }}
             >
               <img

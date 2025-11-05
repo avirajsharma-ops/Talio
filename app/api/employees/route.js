@@ -20,7 +20,7 @@ export async function GET(request) {
 
     // Build query
     const query = {}
-    
+
     if (search) {
       query.$or = [
         { firstName: { $regex: search, $options: 'i' } },
@@ -40,19 +40,57 @@ export async function GET(request) {
 
     const skip = (page - 1) * limit
 
+    // Fetch employees with populated fields
     const employees = await Employee.find(query)
-      .populate('department', 'name _id')
-      .populate('designation', 'title levelName level')
-      .populate('reportingManager', 'firstName lastName')
+      .populate({
+        path: 'department',
+        select: 'name _id',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'designation',
+        select: 'title levelName level',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'reportingManager',
+        select: 'firstName lastName',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .lean()
+
+    // Get user data for each employee (reverse lookup)
+    const employeeIds = employees.map(emp => emp._id)
+    const users = await User.find({ employeeId: { $in: employeeIds } })
+      .select('_id email role employeeId')
+      .lean()
+
+    // Create a map of employeeId to user data
+    const userMap = {}
+    users.forEach(user => {
+      if (user.employeeId) {
+        userMap[user.employeeId.toString()] = {
+          _id: user._id,
+          email: user.email,
+          role: user.role
+        }
+      }
+    })
+
+    // Add user data to employees
+    const employeesWithUsers = employees.map(emp => ({
+      ...emp,
+      userId: userMap[emp._id.toString()] || null
+    }))
 
     const total = await Employee.countDocuments(query)
 
     return NextResponse.json({
       success: true,
-      data: employees,
+      data: employeesWithUsers,
       pagination: {
         page,
         limit,
@@ -62,8 +100,9 @@ export async function GET(request) {
     })
   } catch (error) {
     console.error('Get employees error:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch employees' },
+      { success: false, message: 'Failed to fetch employees', error: error.message },
       { status: 500 }
     )
   }

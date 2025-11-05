@@ -81,7 +81,7 @@ export default function AnnouncementsPage() {
   }
 
   const canManageAnnouncements = () => {
-    return user && user.role === 'admin'
+    return user && (user.role === 'admin' || user.role === 'hr' || user.role === 'department_head')
   }
 
   return (
@@ -118,12 +118,18 @@ export default function AnnouncementsPage() {
           announcements.map((announcement) => (
             <div
               key={announcement._id}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+              className={`rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow ${
+                announcement.isDepartmentAnnouncement
+                  ? 'bg-purple-50 border-l-4 border-purple-500'
+                  : 'bg-white'
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <FaBullhorn className="text-primary-500 text-xl" />
+                  <div className="flex items-center space-x-3 mb-2 flex-wrap">
+                    <FaBullhorn className={`text-xl ${
+                      announcement.isDepartmentAnnouncement ? 'text-purple-600' : 'text-primary-500'
+                    }`} />
                     <h3 className="text-xl font-bold text-gray-800">
                       {announcement.title}
                     </h3>
@@ -134,13 +140,18 @@ export default function AnnouncementsPage() {
                     }`}>
                       {announcement.priority}
                     </span>
+                    {announcement.isDepartmentAnnouncement && (
+                      <span className="px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        Department
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-gray-600 mb-4 whitespace-pre-wrap">
                     {announcement.content}
                   </p>
 
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-4 text-sm text-gray-500 flex-wrap">
                     <div className="flex items-center space-x-1">
                       <FaCalendarAlt />
                       <span>
@@ -156,9 +167,9 @@ export default function AnnouncementsPage() {
                         By {announcement.createdBy.firstName} {announcement.createdBy.lastName}
                       </span>
                     )}
-                    {announcement.department && (
-                      <span className="px-2 py-1 bg-gray-100 rounded">
-                        {announcement.department}
+                    {announcement.departments && announcement.departments.length > 0 && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                        {announcement.departments.map(d => d.name).join(', ')}
                       </span>
                     )}
                   </div>

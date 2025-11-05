@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Policy from '@/models/Policy'
+import User from '@/models/User'
+import Employee from '@/models/Employee'
+import { sendOneSignalNotification } from '@/lib/onesignal'
 
 // PUT - Update policy
 export async function PUT(request, { params }) {
@@ -20,6 +23,52 @@ export async function PUT(request, { params }) {
         { success: false, message: 'Policy not found' },
         { status: 404 }
       )
+    }
+
+    // Send push notification to relevant users about policy update
+    try {
+      let targetUserIds = []
+
+      if (policy.applicableTo === 'all') {
+        const allUsers = await User.find({}).select('_id')
+        targetUserIds = allUsers.map(u => u._id.toString())
+      } else if (policy.applicableTo === 'department' && policy.department) {
+        const deptEmployees = await Employee.find({
+          department: policy.department,
+          status: 'active'
+        }).select('_id')
+
+        const employeeIds = deptEmployees.map(e => e._id.toString())
+        const users = await User.find({
+          employeeId: { $in: employeeIds }
+        }).select('_id')
+
+        targetUserIds = users.map(u => u._id.toString())
+      } else if (policy.applicableTo === 'specific' && policy.specificEmployees && policy.specificEmployees.length > 0) {
+        const employeeIds = policy.specificEmployees.map(e => e.toString())
+        const users = await User.find({
+          employeeId: { $in: employeeIds }
+        }).select('_id')
+
+        targetUserIds = users.map(u => u._id.toString())
+      }
+
+      if (targetUserIds.length > 0) {
+        await sendOneSignalNotification({
+          userIds: targetUserIds,
+          title: '📋 Policy Updated',
+          message: `${policy.title} has been updated - Please review`,
+          url: '/dashboard/policies',
+          data: {
+            type: 'policy_update',
+            policyId: policy._id.toString()
+          }
+        })
+
+        console.log(`Policy update notification sent to ${targetUserIds.length} user(s)`)
+      }
+    } catch (notifError) {
+      console.error('Failed to send policy update notification:', notifError)
     }
 
     return NextResponse.json({

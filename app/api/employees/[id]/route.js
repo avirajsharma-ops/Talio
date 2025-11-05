@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Employee from '@/models/Employee'
+import User from '@/models/User'
 import { logActivity } from '@/lib/activityLogger'
 
 // GET - Get single employee
@@ -9,9 +10,22 @@ export async function GET(request, { params }) {
     await connectDB()
 
     const employee = await Employee.findById(params.id)
-      .populate('department', 'name')
-      .populate('designation', 'title levelName')
-      .populate('reportingManager', 'firstName lastName email')
+      .populate({
+        path: 'department',
+        select: 'name',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'designation',
+        select: 'title levelName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'reportingManager',
+        select: 'firstName lastName email',
+        options: { strictPopulate: false }
+      })
+      .lean()
 
     if (!employee) {
       return NextResponse.json(
@@ -20,14 +34,26 @@ export async function GET(request, { params }) {
       )
     }
 
+    // Get user data for this employee (reverse lookup)
+    const user = await User.findOne({ employeeId: params.id })
+      .select('_id email role')
+      .lean()
+
+    // Add user data to employee
+    const employeeWithUser = {
+      ...employee,
+      userId: user || null
+    }
+
     return NextResponse.json({
       success: true,
-      data: employee,
+      data: employeeWithUser,
     })
   } catch (error) {
     console.error('Get employee error:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch employee' },
+      { success: false, message: 'Failed to fetch employee', error: error.message },
       { status: 500 }
     )
   }

@@ -9,8 +9,20 @@ export const isNotificationSupported = () => {
 }
 
 // Get current notification permission status
-export const getNotificationPermission = () => {
+export const getNotificationPermission = async () => {
   if (!isNotificationSupported()) return 'unsupported'
+
+  // Try to get permission from OneSignal first
+  if (typeof window !== 'undefined' && window.OneSignal) {
+    try {
+      const permission = await window.OneSignal.Notifications.permission
+      return permission ? 'granted' : Notification.permission
+    } catch (error) {
+      console.warn('[Notifications] Error getting OneSignal permission, using fallback:', error)
+    }
+  }
+
+  // Fallback to native browser permission
   return Notification.permission
 }
 
@@ -21,7 +33,25 @@ export const requestNotificationPermission = async () => {
   }
 
   try {
-    const permission = await Notification.requestPermission()
+    let permission = null
+
+    // Try OneSignal first
+    if (typeof window !== 'undefined' && window.OneSignal) {
+      try {
+        console.log('[Notifications] Using OneSignal.Notifications.requestPermission()...')
+        const granted = await window.OneSignal.Notifications.requestPermission()
+        permission = granted ? 'granted' : 'denied'
+        console.log('[Notifications] OneSignal permission result:', permission)
+        return permission
+      } catch (error) {
+        console.warn('[Notifications] OneSignal permission request failed, using fallback:', error)
+      }
+    }
+
+    // Fallback to native browser API
+    console.log('[Notifications] Using native Notification.requestPermission()...')
+    permission = await Notification.requestPermission()
+    console.log('[Notifications] Native permission result:', permission)
     return permission
   } catch (error) {
     console.error('Error requesting notification permission:', error)

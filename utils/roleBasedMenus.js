@@ -2,7 +2,7 @@ import {
   FaTachometerAlt, FaUsers, FaClock, FaCalendarAlt, FaMoneyBillWave,
   FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
   FaBox, FaReceipt, FaPlane, FaHeadset, FaBook, FaGraduationCap,
-  FaBullhorn, FaCog, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
+  FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
   FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends
 } from 'react-icons/fa'
 
@@ -115,18 +115,6 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { name: 'Users Management', icon: FaUser, path: '/dashboard/users' },
-    
-    {
-      name: 'Settings',
-      icon: FaCog,
-      path: '/dashboard/settings',
-      submenu: [
-        { name: 'Company Settings', path: '/dashboard/settings/company' },
-        { name: 'Preferences', path: '/dashboard/settings/preferences' },
-        { name: 'Locations', path: '/dashboard/settings/locations' },
-      ]
-    },
   ],
 
   // HR - HR management focused

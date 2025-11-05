@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck } from 'react-icons/fa'
+import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -12,6 +12,7 @@ const GeofenceMap = dynamic(() => import('@/components/GeofenceMap'), { ssr: fal
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company')
   const [userRole, setUserRole] = useState('')
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -19,7 +20,29 @@ export default function SettingsPage() {
       const user = JSON.parse(userData)
       setUserRole(user.role)
     }
+    checkDepartmentHead()
   }, [])
+
+  // Check if user is a department head
+  const checkDepartmentHead = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/team/check-head', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success && data.isDepartmentHead) {
+        setIsDepartmentHead(true)
+      }
+    } catch (error) {
+      console.error('Error checking department head:', error)
+    }
+  }
 
   // Define tabs based on user role
   const getTabs = () => {
@@ -30,6 +53,13 @@ export default function SettingsPage() {
       baseTabs.push(
         { id: 'company', name: 'Company Settings', icon: FaBuilding },
         { id: 'geofencing', name: 'Geofencing', icon: FaMapMarkerAlt },
+      )
+    }
+
+    // Admin, HR, and Department Heads get notifications (check both role and isDepartmentHead flag)
+    if (userRole === 'admin' || userRole === 'hr' || userRole === 'department_head' || isDepartmentHead) {
+      baseTabs.push(
+        { id: 'notifications', name: 'Notifications', icon: FaBell }
       )
     }
 
@@ -47,10 +77,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'hr') {
       setActiveTab('company')
+    } else if (userRole === 'department_head' || isDepartmentHead) {
+      setActiveTab('notifications')
     } else {
       setActiveTab('personalization')
     }
-  }, [userRole])
+  }, [userRole, isDepartmentHead])
 
   return (
     <div className="p-3 sm:p-6 pb-20 md:pb-6">
@@ -123,6 +155,7 @@ export default function SettingsPage() {
         <div className="flex-1 rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           {activeTab === 'company' && <CompanySettingsTab />}
           {activeTab === 'geofencing' && <GeofencingTab />}
+          {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'personalization' && <PersonalizationTab />}
         </div>
       </div>
@@ -1127,6 +1160,17 @@ function PersonalizationTab() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Notifications Tab (Admin/HR/Department Head only)
+function NotificationsTab() {
+  const NotificationManagement = dynamic(() => import('@/components/NotificationManagement'), { ssr: false })
+
+  return (
+    <div>
+      <NotificationManagement />
     </div>
   )
 }

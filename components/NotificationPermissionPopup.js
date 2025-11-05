@@ -33,7 +33,7 @@ export default function NotificationPermissionPopup() {
     const checkPermissionStatus = async () => {
       try {
         // 1. Check notification permission
-        const notifPermission = getNotificationPermission()
+        const notifPermission = await getNotificationPermission()
         setNotificationStatus(notifPermission)
 
         // 2. Check location permission - More robust detection
@@ -186,11 +186,26 @@ export default function NotificationPermissionPopup() {
 
       if (currentNotifPermission === 'granted') {
         console.log('✅ [Permissions] Notifications already granted')
+        setNotificationStatus('granted')
+
+        // Check if OneSignal is available and user is subscribed
+        if (typeof window !== 'undefined' && window.OneSignal) {
+          try {
+            const isSubscribed = await window.OneSignal.User.PushSubscription.optedIn
+            if (!isSubscribed) {
+              console.log('🔔 [Permissions] OneSignal not subscribed, subscribing now...')
+              await window.OneSignal.User.PushSubscription.optIn()
+              console.log('✅ [Permissions] OneSignal subscription successful')
+            }
+          } catch (error) {
+            console.error('❌ [Permissions] Error checking/subscribing OneSignal:', error)
+          }
+        }
+
         toast.success('Notifications are already enabled!', {
           duration: 3000,
           icon: '✅'
         })
-        setNotificationStatus('granted')
       } else if (currentNotifPermission === 'denied') {
         console.log('❌ [Permissions] Notifications are DENIED')
         setNotificationStatus('denied')
@@ -206,10 +221,30 @@ export default function NotificationPermissionPopup() {
           }
         )
       } else {
-        // Permission is 'default' - trigger native popup
-        console.log('🔔 [Permissions] Triggering NATIVE notification popup...')
-        const permission = await Notification.requestPermission()
-        console.log('🔔 [Permissions] Notification permission result:', permission)
+        // Permission is 'default' - use OneSignal's method first, fallback to native
+        console.log('🔔 [Permissions] Requesting notification permission...')
+        let permission = null
+
+        // Try OneSignal first
+        if (typeof window !== 'undefined' && window.OneSignal) {
+          try {
+            console.log('🔔 [Permissions] Using OneSignal.Notifications.requestPermission()...')
+            const granted = await window.OneSignal.Notifications.requestPermission()
+            permission = granted ? 'granted' : 'denied'
+            console.log('🔔 [Permissions] OneSignal permission result:', permission)
+          } catch (error) {
+            console.warn('⚠️ [Permissions] OneSignal permission request failed, using fallback:', error)
+            permission = null
+          }
+        }
+
+        // Fallback to native browser API if OneSignal failed or not available
+        if (permission === null) {
+          console.log('🔔 [Permissions] Using native Notification.requestPermission()...')
+          permission = await Notification.requestPermission()
+          console.log('🔔 [Permissions] Native permission result:', permission)
+        }
+
         setNotificationStatus(permission)
 
         if (permission === 'granted') {
@@ -218,15 +253,17 @@ export default function NotificationPermissionPopup() {
             icon: '✅'
           })
 
-          // Subscribe to push notifications
-          try {
-            const subscription = await subscribeToPushNotifications()
-            if (subscription) {
-              await savePushSubscriptionToServer(subscription)
-              console.log('✅ [Permissions] Push subscription saved')
+          // If we used native API, subscribe to push notifications manually
+          if (typeof window === 'undefined' || !window.OneSignal) {
+            try {
+              const subscription = await subscribeToPushNotifications()
+              if (subscription) {
+                await savePushSubscriptionToServer(subscription)
+                console.log('✅ [Permissions] Push subscription saved')
+              }
+            } catch (error) {
+              console.error('❌ [Permissions] Error subscribing to push:', error)
             }
-          } catch (error) {
-            console.error('❌ [Permissions] Error subscribing to push:', error)
           }
         } else if (permission === 'denied') {
           toast.error('Notification permission was denied', {
@@ -379,6 +416,20 @@ export default function NotificationPermissionPopup() {
       if (currentNotifPermission === 'granted') {
         notificationGranted = true
         console.log('✅ [Permissions] Notifications already granted')
+
+        // Check if OneSignal is available and user is subscribed
+        if (typeof window !== 'undefined' && window.OneSignal) {
+          try {
+            const isSubscribed = await window.OneSignal.User.PushSubscription.optedIn
+            if (!isSubscribed) {
+              console.log('🔔 [Permissions] OneSignal not subscribed, subscribing now...')
+              await window.OneSignal.User.PushSubscription.optIn()
+              console.log('✅ [Permissions] OneSignal subscription successful')
+            }
+          } catch (error) {
+            console.error('❌ [Permissions] Error checking/subscribing OneSignal:', error)
+          }
+        }
       } else if (currentNotifPermission === 'denied') {
         console.log('❌ [Permissions] Notifications are DENIED - showing manual instructions')
         setNotificationStatus('denied')
@@ -396,26 +447,46 @@ export default function NotificationPermissionPopup() {
         setIsRequesting(false)
         return
       } else {
-        // Permission is 'default' - trigger native popup
-        console.log('🔔 [Permissions] Triggering NATIVE notification popup...')
-        try {
-          const permission = await Notification.requestPermission()
-          console.log('🔔 [Permissions] Notification permission result:', permission)
-          notificationGranted = permission === 'granted'
-          setNotificationStatus(permission)
+        // Permission is 'default' - use OneSignal's method first, fallback to native
+        console.log('🔔 [Permissions] Requesting notification permission...')
+        let permission = null
 
-          if (permission === 'denied') {
-            toast.error('Notification permission was denied. Please enable it in browser settings.', {
-              duration: 5000,
-              icon: '❌'
+        // Try OneSignal first
+        if (typeof window !== 'undefined' && window.OneSignal) {
+          try {
+            console.log('🔔 [Permissions] Using OneSignal.Notifications.requestPermission()...')
+            const granted = await window.OneSignal.Notifications.requestPermission()
+            permission = granted ? 'granted' : 'denied'
+            console.log('🔔 [Permissions] OneSignal permission result:', permission)
+          } catch (error) {
+            console.warn('⚠️ [Permissions] OneSignal permission request failed, using fallback:', error)
+            permission = null
+          }
+        }
+
+        // Fallback to native browser API if OneSignal failed or not available
+        if (permission === null) {
+          try {
+            console.log('🔔 [Permissions] Using native Notification.requestPermission()...')
+            permission = await Notification.requestPermission()
+            console.log('🔔 [Permissions] Native permission result:', permission)
+          } catch (error) {
+            console.error('❌ [Permissions] Error requesting notification permission:', error)
+            toast.error('Failed to request notification permission', {
+              duration: 4000
             })
             setIsRequesting(false)
             return
           }
-        } catch (error) {
-          console.error('❌ [Permissions] Error requesting notification permission:', error)
-          toast.error('Failed to request notification permission', {
-            duration: 4000
+        }
+
+        notificationGranted = permission === 'granted'
+        setNotificationStatus(permission)
+
+        if (permission === 'denied') {
+          toast.error('Notification permission was denied. Please enable it in browser settings.', {
+            duration: 5000,
+            icon: '❌'
           })
           setIsRequesting(false)
           return
@@ -535,15 +606,23 @@ export default function NotificationPermissionPopup() {
           icon: '🎉'
         })
 
-        // Subscribe to push notifications
+        // Subscribe to push notifications (only if OneSignal is not available)
         setTimeout(async () => {
           try {
-            console.log('📲 [Permissions] Subscribing to push notifications...')
-            const subscription = await subscribeToPushNotifications()
+            // Check if OneSignal is handling subscriptions
+            if (typeof window !== 'undefined' && window.OneSignal) {
+              console.log('✅ [Permissions] OneSignal is handling push subscriptions')
+              // OneSignal automatically handles subscription when permission is granted
+              // No need to manually subscribe
+            } else {
+              // Fallback to manual subscription if OneSignal is not available
+              console.log('📲 [Permissions] Subscribing to push notifications manually...')
+              const subscription = await subscribeToPushNotifications()
 
-            if (subscription) {
-              await savePushSubscriptionToServer(subscription)
-              console.log('✅ [Permissions] Push subscription saved to server')
+              if (subscription) {
+                await savePushSubscriptionToServer(subscription)
+                console.log('✅ [Permissions] Push subscription saved to server')
+              }
             }
 
             // Show a test notification

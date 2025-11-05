@@ -115,7 +115,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       {/* Mobile overlay with backdrop blur */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[6] lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -134,7 +134,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* Sticky Logo Section */}
         <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
           <div className="flex items-center justify-between">
-            <div className="bg-white rounded-full p-2 flex items-center justify-center">
+            <div className="bg-white rounded-full px-4 py-2 flex items-center justify-center">
               <img
                 src="/assets/logo.png"
                 alt="Talio Logo"
@@ -236,39 +236,39 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* Settings and Logout Section - Fixed at bottom */}
-        <div className="flex flex-col p-[8px] sm:p-4 space-y-3 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
+        <div className="flex flex-row gap-2 py-2 px-4 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
           {/* Settings Button */}
           <Link
             href="/dashboard/settings"
             onClick={handleLinkClick}
-            className="w-full flex items-center space-x-3 px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 group cursor-pointer"
+            className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group cursor-pointer"
             style={{
               backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-500)' : 'transparent',
               color: pathname === '/dashboard/settings' ? 'white' : 'var(--color-text-primary)'
             }}
           >
             <div
-              className="p-2 rounded-lg transition-colors"
+              className="p-1.5 rounded-lg transition-colors"
               style={{
                 backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-600)' : 'var(--color-primary-100)',
                 color: pathname === '/dashboard/settings' ? 'white' : 'var(--color-primary-700)'
               }}
             >
-              <FaCog className="w-4 h-4" />
+              <FaCog className="w-3.5 h-3.5" />
             </div>
-            <span className="text-sm font-medium">Settings</span>
+            <span className="text-xs sm:text-sm font-medium">Settings</span>
           </Link>
 
           {/* Logout Button */}
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center space-x-3 px-3 sm:px-4 py-2 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
+            className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
             style={{ color: 'var(--color-text-primary)' }}
           >
-            <div className="p-2 rounded-lg transition-colors group-hover:bg-red-700 group-hover:text-white" style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}>
-              <FaSignOutAlt className="w-4 h-4" />
+            <div className="p-1.5 rounded-lg transition-colors group-hover:bg-red-700 group-hover:text-white" style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}>
+              <FaSignOutAlt className="w-3.5 h-3.5" />
             </div>
-            <span className="text-sm font-medium">Logout</span>
+            <span className="text-xs sm:text-sm font-medium">Logout</span>
           </button>
         </div>
       </aside>

@@ -6,6 +6,7 @@ import '../styles/card-redesign.css'
 import '../styles/theme.css'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import OneSignalInit from '@/components/OneSignalInit'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -64,6 +65,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className={inter.className}>
         <ThemeProvider>
+          <OneSignalInit />
           {children}
           <Toaster
             position="top-right"

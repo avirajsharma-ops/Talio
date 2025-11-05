@@ -48,6 +48,14 @@ const AnnouncementSchema = new mongoose.Schema({
     ref: 'Employee',
     required: true,
   },
+  createdByRole: {
+    type: String,
+    enum: ['admin', 'hr', 'department_head'],
+  },
+  isDepartmentAnnouncement: {
+    type: Boolean,
+    default: false,
+  },
   status: {
     type: String,
     enum: ['draft', 'published', 'expired', 'archived'],

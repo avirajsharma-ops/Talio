@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Policy from '@/models/Policy'
+import User from '@/models/User'
+import Employee from '@/models/Employee'
+import { sendOneSignalNotification } from '@/lib/onesignal'
 
 // GET - List policies
 export async function GET(request) {
@@ -44,6 +47,56 @@ export async function POST(request) {
 
     const populatedPolicy = await Policy.findById(policy._id)
       .populate('createdBy', 'firstName lastName')
+
+    // Send push notification to relevant users
+    try {
+      let targetUserIds = []
+
+      if (policy.applicableTo === 'all') {
+        // Send to all users
+        const allUsers = await User.find({}).select('_id')
+        targetUserIds = allUsers.map(u => u._id.toString())
+      } else if (policy.applicableTo === 'department' && policy.department) {
+        // Send to department users
+        const deptEmployees = await Employee.find({
+          department: policy.department,
+          status: 'active'
+        }).select('_id')
+
+        const employeeIds = deptEmployees.map(e => e._id.toString())
+        const users = await User.find({
+          employeeId: { $in: employeeIds }
+        }).select('_id')
+
+        targetUserIds = users.map(u => u._id.toString())
+      } else if (policy.applicableTo === 'specific' && policy.specificEmployees && policy.specificEmployees.length > 0) {
+        // Send to specific employees
+        const employeeIds = policy.specificEmployees.map(e => e.toString())
+        const users = await User.find({
+          employeeId: { $in: employeeIds }
+        }).select('_id')
+
+        targetUserIds = users.map(u => u._id.toString())
+      }
+
+      if (targetUserIds.length > 0) {
+        await sendOneSignalNotification({
+          userIds: targetUserIds,
+          title: '📋 New Policy Published',
+          message: `${policy.title} - Please review and acknowledge`,
+          url: '/dashboard/policies',
+          data: {
+            type: 'policy',
+            policyId: policy._id.toString()
+          }
+        })
+
+        console.log(`Policy notification sent to ${targetUserIds.length} user(s)`)
+      }
+    } catch (notifError) {
+      console.error('Failed to send policy notification:', notifError)
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({
       success: true,
