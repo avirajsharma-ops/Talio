@@ -116,17 +116,7 @@ export const roleBasedMenus = {
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
     { name: 'Users Management', icon: FaUser, path: '/dashboard/users' },
-    {
-      name: 'Team',
-      icon: FaUserFriends,
-      path: '/dashboard/team',
-      submenu: [
-        { name: 'Team Members', path: '/dashboard/team/members' },
-        { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-        { name: 'Task Approvals', path: '/dashboard/team/task-approvals' },
-        { name: 'Geofencing', path: '/dashboard/team/geofencing' },
-      ]
-    },
+    
     {
       name: 'Settings',
       icon: FaCog,
@@ -221,17 +211,7 @@ export const roleBasedMenus = {
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    {
-      name: 'Team',
-      icon: FaUserFriends,
-      path: '/dashboard/team',
-      submenu: [
-        { name: 'Team Members', path: '/dashboard/team/members' },
-        { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-        { name: 'Task Approvals', path: '/dashboard/team/task-approvals' },
-        { name: 'Geofencing', path: '/dashboard/team/geofencing' },
-      ]
-    },
+   
   ],
 
   // MANAGER - Team management focused
@@ -294,17 +274,7 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    {
-      name: 'Team',
-      icon: FaUserFriends,
-      path: '/dashboard/team',
-      submenu: [
-        { name: 'Team Members', path: '/dashboard/team/members' },
-        { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-        { name: 'Task Approvals', path: '/dashboard/team/task-approvals' },
-        { name: 'Geofencing', path: '/dashboard/team/geofencing' },
-      ]
-    },
+    
   ],
 
   // EMPLOYEE - Personal focused

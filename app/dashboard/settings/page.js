@@ -62,7 +62,7 @@ export default function SettingsPage() {
 
       {/* Mobile Tabs */}
       <div className="md:hidden mb-4">
-        <div className="bg-white rounded-lg shadow-md p-2 overflow-x-auto">
+        <div className="rounded-lg shadow-md p-2 overflow-x-auto" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <div className="flex space-x-2 min-w-max">
             {tabs.map((tab) => {
               const Icon = tab.icon
@@ -70,11 +70,11 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-primary-500 text-white'
-                      : 'text-gray-700 bg-gray-100'
-                  }`}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  style={{
+                    backgroundColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'var(--color-primary-100)',
+                    color: activeTab === tab.id ? '#FFFFFF' : 'var(--color-primary-700)'
+                  }}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm">{tab.name}</span>
@@ -87,7 +87,7 @@ export default function SettingsPage() {
 
       <div className="flex gap-4 sm:gap-6">
         {/* Desktop Sidebar */}
-        <div className="hidden md:block w-56 lg:w-64 bg-white rounded-lg shadow-md p-4">
+        <div className="hidden md:block w-56 lg:w-64 rounded-lg shadow-md p-4" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <nav className="space-y-2">
             {tabs.map((tab) => {
               const Icon = tab.icon
@@ -95,11 +95,21 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-primary-500 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'transparent',
+                    color: activeTab === tab.id ? '#FFFFFF' : '#374151'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-primary-100)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }
+                  }}
                 >
                   <Icon />
                   <span>{tab.name}</span>
@@ -110,7 +120,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <div className="flex-1 rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           {activeTab === 'company' && <CompanySettingsTab />}
           {activeTab === 'geofencing' && <GeofencingTab />}
           {activeTab === 'personalization' && <PersonalizationTab />}
@@ -961,40 +971,45 @@ function PersonalizationTab() {
   const themeColors = {
     default: {
       primary: '#3B82F6',
-      gradient: 'from-blue-500 to-blue-600',
-      ring: 'ring-blue-500',
+      secondary: '#2563EB',
+      border: '#3B82F6',
+      bgLight: '#EFF6FF',
     },
     purple: {
       primary: '#A855F7',
-      gradient: 'from-purple-500 to-purple-600',
-      ring: 'ring-purple-500',
+      secondary: '#9333EA',
+      border: '#A855F7',
+      bgLight: '#FAF5FF',
     },
     green: {
       primary: '#22C55E',
-      gradient: 'from-green-500 to-green-600',
-      ring: 'ring-green-500',
+      secondary: '#16A34A',
+      border: '#22C55E',
+      bgLight: '#F0FDF4',
     },
     orange: {
       primary: '#F97316',
-      gradient: 'from-orange-500 to-orange-600',
-      ring: 'ring-orange-500',
+      secondary: '#EA580C',
+      border: '#F97316',
+      bgLight: '#FFF7ED',
     },
     teal: {
       primary: '#14B8A6',
-      gradient: 'from-teal-500 to-teal-600',
-      ring: 'ring-teal-500',
+      secondary: '#0D9488',
+      border: '#14B8A6',
+      bgLight: '#F0FDFA',
     },
   }
 
   return (
     <div>
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-        <FaPalette className="text-primary-500" />
+        <FaPalette style={{ color: 'var(--color-primary-500)' }} />
         <span>Personalization</span>
       </h2>
       <p className="text-gray-600 mb-6">Customize the look and feel of your dashboard</p>
 
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
+      <div className="rounded-lg p-6 border border-gray-200" style={{ backgroundColor: 'var(--color-bg-card)' }}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Theme</h3>
         <p className="text-sm text-gray-600 mb-6">Select a color theme that suits your preference. The theme will be applied across the entire application.</p>
 
@@ -1014,16 +1029,21 @@ function PersonalizationTab() {
                     duration: 2000,
                   })
                 }}
-                className={`relative p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
-                  isActive
-                    ? `border-${themeKey === 'default' ? 'blue' : themeKey}-500 bg-gradient-to-br ${colors.gradient} bg-opacity-5`
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
+                className="relative p-6 rounded-xl border-2 transition-all hover:shadow-lg"
+                style={{
+                  borderColor: isActive ? colors.border : '#E5E7EB',
+                  backgroundColor: isActive ? colors.bgLight : '#FFFFFF',
+                }}
               >
                 {/* Active Indicator */}
                 {isActive && (
                   <div className="absolute top-3 right-3">
-                    <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${colors.gradient} flex items-center justify-center shadow-md`}>
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center shadow-md"
+                      style={{
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`
+                      }}
+                    >
                       <FaCheck className="w-4 h-4 text-white" />
                     </div>
                   </div>
@@ -1032,11 +1052,34 @@ function PersonalizationTab() {
                 {/* Theme Preview */}
                 <div className="mb-4">
                   <div className="flex gap-2 mb-3">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colors.gradient} shadow-md`}></div>
+                    <div
+                      className="w-12 h-12 rounded-lg shadow-md"
+                      style={{
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`
+                      }}
+                    ></div>
                     <div className="flex flex-col gap-1">
-                      <div className={`w-16 h-3 rounded bg-gradient-to-r ${colors.gradient} opacity-70`}></div>
-                      <div className={`w-12 h-3 rounded bg-gradient-to-r ${colors.gradient} opacity-50`}></div>
-                      <div className={`w-14 h-3 rounded bg-gradient-to-r ${colors.gradient} opacity-30`}></div>
+                      <div
+                        className="w-16 h-3 rounded"
+                        style={{
+                          background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                          opacity: 0.7
+                        }}
+                      ></div>
+                      <div
+                        className="w-12 h-3 rounded"
+                        style={{
+                          background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                          opacity: 0.5
+                        }}
+                      ></div>
+                      <div
+                        className="w-14 h-3 rounded"
+                        style={{
+                          background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                          opacity: 0.3
+                        }}
+                      ></div>
                     </div>
                   </div>
                 </div>
@@ -1055,12 +1098,29 @@ function PersonalizationTab() {
           })}
         </div>
 
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div
+          className="mt-8 p-4 border rounded-lg"
+          style={{
+            backgroundColor: 'var(--color-primary-50)',
+            borderColor: 'var(--color-primary-200)'
+          }}
+        >
           <div className="flex items-start gap-3">
-            <FaPalette className="text-blue-500 w-5 h-5 mt-0.5 flex-shrink-0" />
+            <FaPalette
+              className="w-5 h-5 mt-0.5 flex-shrink-0"
+              style={{ color: 'var(--color-primary-500)' }}
+            />
             <div>
-              <h4 className="font-semibold text-blue-900 mb-1">Theme Preview</h4>
-              <p className="text-sm text-blue-700">
+              <h4
+                className="font-semibold mb-1"
+                style={{ color: 'var(--color-primary-900)' }}
+              >
+                Theme Preview
+              </h4>
+              <p
+                className="text-sm"
+                style={{ color: 'var(--color-primary-700)' }}
+              >
                 Your selected theme will be applied immediately across all pages. The theme preference is saved in your browser and will persist across sessions.
               </p>
             </div>

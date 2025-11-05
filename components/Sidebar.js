@@ -71,6 +71,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
           { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
           { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+          {name: 'Geofencing', path: '/dashboard/team/geofencing'}
         ]
       }
 

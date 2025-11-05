@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { FaUserPlus, FaUsers, FaTimes, FaFile, FaImage, FaFilePdf, FaUser, FaComments, FaArrowLeft } from 'react-icons/fa'
+import { useSocket } from '@/contexts/SocketContext'
 
 export default function ChatPage() {
   const [chats, setChats] = useState([])
@@ -20,33 +21,88 @@ export default function ChatPage() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [lightboxImage, setLightboxImage] = useState(null)
+  const [typingUsers, setTypingUsers] = useState({})
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
+  const typingTimeoutRef = useRef(null)
+
+  // Get Socket.IO context
+  const { isConnected, joinChat, leaveChat, sendMessage: sendSocketMessage, onNewMessage, sendTyping, sendStopTyping, onUserTyping, onUserStopTyping } = useSocket()
 
   useEffect(() => {
     fetchChats()
     fetchEmployees()
-
-    // Poll for new chats every 5 seconds
-    const chatInterval = setInterval(() => {
-      fetchChats()
-    }, 5000)
-
-    return () => clearInterval(chatInterval)
   }, [])
 
+  // WebSocket: Join/leave chat rooms
   useEffect(() => {
-    if (selectedChat) {
+    if (selectedChat && isConnected) {
+      // Join the chat room
+      joinChat(selectedChat._id)
+
+      // Fetch initial messages only once
       fetchMessages(selectedChat._id)
 
-      // Poll for new messages every 3 seconds when chat is selected
-      const messageInterval = setInterval(() => {
-        fetchMessages(selectedChat._id)
-      }, 3000)
-
-      return () => clearInterval(messageInterval)
+      // Cleanup: leave chat when component unmounts or chat changes
+      return () => {
+        leaveChat(selectedChat._id)
+      }
     }
-  }, [selectedChat])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?._id, isConnected])
+
+  // WebSocket: Listen for new messages
+  useEffect(() => {
+    if (!selectedChat) return
+
+    const unsubscribe = onNewMessage((data) => {
+      const { chatId, message: newMessage } = data
+
+      // Only update if it's for the current chat
+      if (chatId === selectedChat._id) {
+        console.log('📨 [WebSocket] Received new message:', newMessage)
+
+        // Add message to the list if it's not already there
+        setMessages(prev => {
+          const exists = prev.some(msg => msg._id === newMessage._id)
+          if (exists) return prev
+          return [...prev, newMessage]
+        })
+      }
+    })
+
+    return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?._id])
+
+  // WebSocket: Listen for typing indicators
+  useEffect(() => {
+    if (!selectedChat) return
+
+    const unsubscribeTyping = onUserTyping((data) => {
+      const { userId, userName, chatId } = data
+      if (chatId === selectedChat._id && userId !== currentUserId) {
+        setTypingUsers(prev => ({ ...prev, [userId]: userName }))
+      }
+    })
+
+    const unsubscribeStopTyping = onUserStopTyping((data) => {
+      const { userId, chatId } = data
+      if (chatId === selectedChat._id) {
+        setTypingUsers(prev => {
+          const newTyping = { ...prev }
+          delete newTyping[userId]
+          return newTyping
+        })
+      }
+    })
+
+    return () => {
+      unsubscribeTyping?.()
+      unsubscribeStopTyping?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?._id, currentUserId])
 
   useEffect(() => {
     scrollToBottom()
@@ -112,26 +168,67 @@ export default function ChatPage() {
 
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedChat || sending) return
+
+    // Stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+      sendStopTyping(selectedChat._id, currentUserId)
+    }
+
     setSending(true)
+    const messageContent = message
+    setMessage('') // Clear input immediately for better UX
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/chat/${selectedChat._id}/messages`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: message })
+        body: JSON.stringify({ content: messageContent })
       })
       const result = await response.json()
       if (result.success) {
-        setMessages([...messages, result.data])
-        setMessage('')
-        setShowEmojiPicker(false)
+        // Broadcast via WebSocket
+        sendSocketMessage(selectedChat._id, result.data)
+
+        // Update local state
+        setMessages(prev => [...prev, result.data])
+
+        // Update chat list
         fetchChats()
+      } else {
+        // Restore message if failed
+        setMessage(messageContent)
       }
     } catch (error) {
       console.error('Error:', error)
+      // Restore message if failed
+      setMessage(messageContent)
     } finally {
       setSending(false)
     }
+  }
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!selectedChat || !currentUserId) return
+
+    // Get current user name
+    const userData = localStorage.getItem('user')
+    const userName = userData ? JSON.parse(userData).firstName : 'User'
+
+    // Send typing indicator
+    sendTyping(selectedChat._id, currentUserId, userName)
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    // Set timeout to stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      sendStopTyping(selectedChat._id, currentUserId)
+    }, 2000)
   }
 
   const handleFileUpload = async (e) => {
@@ -339,7 +436,14 @@ export default function ChatPage() {
           <div className={`border-r border-gray-100 flex flex-col h-full bg-white ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
             {/* Chat list header - no search, clean design */}
             <div className="flex-shrink-0 px-4 py-4 md:px-6 md:py-5 border-b border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900">Chats</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Chats</h2>
+                {/* WebSocket Connection Status */}
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-xs text-gray-500">{isConnected ? 'Live' : 'Offline'}</span>
+                </div>
+              </div>
             </div>
 
             <div className="overflow-y-auto flex-1">
@@ -479,6 +583,28 @@ export default function ChatPage() {
                       )
                     })
                   )}
+
+                  {/* Typing Indicator */}
+                  {Object.keys(typingUsers).length > 0 && (
+                    <div className="flex justify-start mb-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#6B7FFF] to-[#5A6EEE] flex items-center justify-center flex-shrink-0">
+                          <FaUser className="text-white text-sm" />
+                        </div>
+                        <div className="px-4 py-3 rounded-2xl bg-gray-100 text-gray-900 rounded-bl-md">
+                          <p className="text-xs text-gray-500 mb-1">
+                            {Object.values(typingUsers).join(', ')} {Object.keys(typingUsers).length === 1 ? 'is' : 'are'} typing...
+                          </p>
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -504,7 +630,10 @@ export default function ChatPage() {
                     <input
                       type="text"
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => {
+                        setMessage(e.target.value)
+                        handleTyping()
+                      }}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                       placeholder="Ok, see U in a bar after work"
                       className="flex-1 px-4 py-2.5 border-0 rounded-full focus:outline-none text-[15px] bg-gray-50 text-gray-900 placeholder-gray-400"
