@@ -240,7 +240,7 @@ export default function ManagerDashboard({ user }) {
   if (!stats) {
     return (
       <div className="page-container">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="rounded-lg shadow-md p-8 text-center" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <p className="text-gray-600">Unable to load manager dashboard data</p>
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function ManagerDashboard({ user }) {
   return (
     <div className="page-container space-y-5 sm:space-y-8">
       {/* Check-In/Check-Out Section */}
-      <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
+      <div style={{ background: 'var(--color-accent-gradient)' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
         {/* User Profile Section */}
         <div className="flex items-center gap-3 mb-4">
           {/* Profile Picture */}
@@ -305,7 +305,7 @@ export default function ManagerDashboard({ user }) {
           <button
             onClick={handleClockIn}
             disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
-            className="bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+            className="btn-theme-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
             <span>Check In</span>
           </button>
@@ -313,7 +313,7 @@ export default function ManagerDashboard({ user }) {
           <button
             onClick={handleClockOut}
             disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
-            className="bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+            className="btn-theme-secondary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
             <span>Check Out</span>
           </button>
@@ -321,7 +321,7 @@ export default function ManagerDashboard({ user }) {
       </div>
 
       {/* Quick Glance Section */}
-      <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-2xl p-4 sm:p-6">
+      <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-2xl p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Quick Glance</h3>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -419,7 +419,7 @@ export default function ManagerDashboard({ user }) {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {managerStatsData.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow">
+          <div key={index} className="rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow" style={{ backgroundColor: 'var(--color-bg-card)' }}>
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <p className="text-gray-500 text-xs sm:text-sm font-medium truncate">{stat.title}</p>
@@ -447,7 +447,7 @@ export default function ManagerDashboard({ user }) {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
         {/* Team Attendance */}
-        <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-lg overflow-hidden">
+        <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-lg overflow-hidden">
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
             <h3 className="text-sm sm:text-base font-bold text-gray-800">Team Attendance This Week</h3>
           </div>
@@ -469,7 +469,7 @@ export default function ManagerDashboard({ user }) {
         </div>
 
         {/* Team Performance Trend */}
-        <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-lg overflow-hidden">
+        <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-lg overflow-hidden">
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
             <h3 className="text-sm sm:text-base font-bold text-gray-800">Team Performance Trend</h3>
           </div>
@@ -494,7 +494,7 @@ export default function ManagerDashboard({ user }) {
       {/* Team Management & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Team Activities */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Team Activities</h3>
           <div className="space-y-4">
             {recentActivities.length > 0 ? (
@@ -545,7 +545,7 @@ export default function ManagerDashboard({ user }) {
         </div>
 
         {/* Manager Quick Actions */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Manager Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
@@ -572,7 +572,7 @@ export default function ManagerDashboard({ user }) {
       {/* Team Members & Pending Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Team Members */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Members</h3>
           <div className="space-y-3">
             {teamMembers.length > 0 ? (
@@ -624,7 +624,7 @@ export default function ManagerDashboard({ user }) {
         </div>
 
         {/* Pending Leave Approvals */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Leave Approvals</h3>
           <div className="space-y-4">
             {pendingLeaves.length > 0 ? (

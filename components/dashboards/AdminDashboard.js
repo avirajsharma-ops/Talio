@@ -265,7 +265,7 @@ export default function AdminDashboard({ user }) {
   return (
     <div className="page-container space-y-5 sm:space-y-8">
       {/* Check-In/Check-Out Section */}
-      <div style={{ backgroundColor: '#1A295A' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
+      <div style={{ background: 'var(--color-accent-gradient)' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
         {/* User Profile Section */}
         <div className="flex items-center gap-3 mb-4">
           {/* Profile Picture */}
@@ -305,7 +305,7 @@ export default function AdminDashboard({ user }) {
           <button
             onClick={handleClockIn}
             disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
-            className="bg-white text-gray-800 hover:bg-gray-100 disabled:bg-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+            className="btn-theme-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
             <span>Check In</span>
           </button>
@@ -313,7 +313,7 @@ export default function AdminDashboard({ user }) {
           <button
             onClick={handleClockOut}
             disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
-            className="bg-transparent border-2 border-white text-white hover:bg-white hover:bg-opacity-10 disabled:border-gray-500 disabled:text-gray-500 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
+            className="btn-theme-secondary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
             <span>Check Out</span>
           </button>
@@ -321,7 +321,7 @@ export default function AdminDashboard({ user }) {
       </div>
 
       {/* Quick Glance Section */}
-      <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-2xl p-4 sm:p-6">
+      <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-2xl p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Quick Glance</h3>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -421,7 +421,8 @@ export default function AdminDashboard({ user }) {
         {statsData.map((stat, index) => (
           <div
             key={index}
-            className="bg-white rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            className="rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            style={{ backgroundColor: 'var(--color-bg-card)' }}
             onClick={() => router.push(stat.href)}
           >
             <div className="flex items-center justify-between">
@@ -440,7 +441,7 @@ export default function AdminDashboard({ user }) {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
         {/* Department Distribution */}
-        <div style={{ backgroundColor: '#EEF3FF' }} className="rounded-lg overflow-hidden">
+        <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-lg overflow-hidden">
           <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
             <h3 className="text-sm sm:text-base font-bold text-gray-800">Department Distribution</h3>
           </div>
@@ -477,7 +478,7 @@ export default function AdminDashboard({ user }) {
         </div>
 
         {/* Recent Leave Requests */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Recent Leave Requests</h3>
             <button
@@ -542,7 +543,7 @@ export default function AdminDashboard({ user }) {
       </div>
 
       {/* Employee Management Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
         <div className="md:flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold  md:mt-0 mt-3 md:mb-0 mb-4 text-gray-900">Employee Management</h3>
           <div className="flex space-x-3">
@@ -575,7 +576,7 @@ export default function AdminDashboard({ user }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200" style={{ backgroundColor: 'var(--color-bg-card)' }}>
               {(Array.isArray(dashboardData.employees) ? dashboardData.employees : [])
                 .filter(emp =>
                   employeeSearch === '' ||
@@ -636,7 +637,7 @@ export default function AdminDashboard({ user }) {
       </div>
 
       {/* Admin Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -662,7 +663,7 @@ export default function AdminDashboard({ user }) {
       {/* Employee Details Modal */}
       {showEmployeeModal && selectedEmployee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+          <div className="rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-card)' }}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Employee Details</h2>
               <button
