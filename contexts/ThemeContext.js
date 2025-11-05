@@ -196,33 +196,6 @@ export function ThemeProvider({ children }) {
     // Apply accent colors
     root.style.setProperty('--color-accent-profile', theme.accent.profile)
     root.style.setProperty('--color-accent-gradient', theme.accent.gradient)
-
-    // Update meta theme-color tags dynamically (for mobile browser navbar/status bar)
-    const sidebarColor = theme.background.sidebar
-
-    // Update theme-color meta tag
-    let themeColorMeta = document.querySelector('meta[name="theme-color"]')
-    if (themeColorMeta) {
-      themeColorMeta.setAttribute('content', sidebarColor)
-    }
-
-    // Update msapplication-navbutton-color meta tag
-    let msNavButtonMeta = document.querySelector('meta[name="msapplication-navbutton-color"]')
-    if (msNavButtonMeta) {
-      msNavButtonMeta.setAttribute('content', sidebarColor)
-    }
-
-    // Update msapplication-TileColor meta tag
-    let msTileColorMeta = document.querySelector('meta[name="msapplication-TileColor"]')
-    if (msTileColorMeta) {
-      msTileColorMeta.setAttribute('content', sidebarColor)
-    }
-
-    // Update apple-mobile-web-app-status-bar-style
-    let appleStatusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-    if (appleStatusBarMeta) {
-      appleStatusBarMeta.setAttribute('content', 'black-translucent')
-    }
   }
 
   const changeTheme = (themeName) => {

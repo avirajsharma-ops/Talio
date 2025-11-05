@@ -8,6 +8,7 @@ import BottomNav from '@/components/BottomNav'
 import PWAInstaller, { OfflineIndicator } from '@/components/PWAInstaller'
 import NotificationPermissionPopup from '@/components/NotificationPermissionPopup'
 import OutOfPremisesPopup from '@/components/OutOfPremisesPopup'
+import ThemeMetaTags from '@/components/ThemeMetaTags'
 import { useNotificationInit } from '@/hooks/useNotifications'
 import useGeofencing from '@/hooks/useGeofencing'
 
@@ -30,6 +31,9 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
+      {/* Dynamic theme meta tags for mobile browser bars */}
+      <ThemeMetaTags />
+
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
