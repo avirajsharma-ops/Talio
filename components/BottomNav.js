@@ -9,7 +9,7 @@ export default function BottomNav() {
   const { theme } = useTheme()
 
   // Get theme colors with fallbacks
-  const bottomNavColor = theme?.primary?.[900] || '#192A5A'
+  const bottomNavColor = 'transparent' // Transparent bottom nav as requested
   const activeButtonColor = theme?.primary?.[600] || '#3B82F6'
 
   const navItems = [

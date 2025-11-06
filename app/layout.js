@@ -6,7 +6,7 @@ import '../styles/card-redesign.css'
 import '../styles/theme.css'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/contexts/ThemeContext'
-import OneSignalInit from '@/components/OneSignalInit'
+import FirebaseInit from '@/components/FirebaseInit'
 import PermissionHandler from '@/components/PermissionHandler'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -63,12 +63,10 @@ export default function RootLayout({ children }) {
         <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
         <link rel="shortcut icon" href="/favicon.ico" />
-        {/* OneSignal SDK - Load early for push notifications */}
-        <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
       </head>
       <body className={inter.className}>
         <ThemeProvider>
-          <OneSignalInit />
+          <FirebaseInit />
           <PermissionHandler />
           {children}
           <Toaster

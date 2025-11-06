@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { FaBell, FaTimes } from 'react-icons/fa'
+import { requestFCMToken, getStoredFCMToken } from '@/lib/firebase'
 
 /**
- * Persistent OneSignal Subscription Banner
- * Shows when user is logged in but not subscribed to OneSignal
+ * Persistent Firebase Cloud Messaging Subscription Banner
+ * Shows when user is logged in but not subscribed to FCM
  * Handles both permission and subscription separately
  */
 export default function NotificationBanner() {
@@ -38,40 +39,37 @@ export default function NotificationBanner() {
           return
         }
 
-        console.log('[NotificationBanner] User is logged in, checking OneSignal...')
+        console.log('[NotificationBanner] User is logged in, checking Firebase...')
 
-        // Wait for OneSignal to be ready
-        if (typeof window === 'undefined' || !window.OneSignal || !window.OneSignalReady) {
-          console.log('[NotificationBanner] OneSignal not ready yet (OneSignal:', !!window.OneSignal, ', OneSignalReady:', !!window.OneSignalReady, '), retrying in 1s...')
+        // Wait for Firebase to be ready
+        if (typeof window === 'undefined' || !window.FirebaseReady) {
+          console.log('[NotificationBanner] Firebase not ready yet, retrying in 1s...')
           setTimeout(checkNotificationStatus, 1000)
           return
         }
 
-        console.log('[NotificationBanner] ✅ OneSignal is ready, checking status...')
+        console.log('[NotificationBanner] ✅ Firebase is ready, checking status...')
 
         // Check browser notification permission
-        const permission = await window.OneSignal.Notifications.permissionNative
+        const permission = typeof Notification !== 'undefined' ? Notification.permission : 'default'
         setPermissionStatus(permission)
         console.log('[NotificationBanner] Permission:', permission)
 
-        // Check OneSignal subscription status (this is separate from permission!)
-        const subscribed = await window.OneSignal.User.PushSubscription.optedIn
+        // Check if FCM token exists (indicates subscription)
+        const fcmToken = getStoredFCMToken()
+        const subscribed = !!fcmToken && permission === 'granted'
         setIsSubscribed(subscribed)
-        console.log('[NotificationBanner] Subscribed:', subscribed)
-
-        // Get user ID to verify login
-        const externalUserId = await window.OneSignal.User.getExternalId()
-        console.log('[NotificationBanner] External User ID:', externalUserId)
+        console.log('[NotificationBanner] Subscribed:', subscribed, 'Token exists:', !!fcmToken)
 
         console.log('[NotificationBanner] ✅ Status check complete:', {
           permission,
           subscribed,
-          externalUserId,
+          hasFCMToken: !!fcmToken,
           isLoggedIn: true,
           willShowBanner: !subscribed
         })
 
-        // Show banner if user is logged in but NOT subscribed to OneSignal
+        // Show banner if user is logged in but NOT subscribed to FCM
         // Permission can be granted, but subscription might not be active
         if (!subscribed) {
           console.log('[NotificationBanner] 🔔 SHOWING BANNER - User not subscribed')
@@ -100,15 +98,16 @@ export default function NotificationBanner() {
         return
       }
 
-      if (window.OneSignal && window.OneSignalReady) {
+      if (window.FirebaseReady) {
         try {
-          const perm = await window.OneSignal.Notifications.permissionNative
-          const subscribed = await window.OneSignal.User.PushSubscription.optedIn
+          const perm = typeof Notification !== 'undefined' ? Notification.permission : 'default'
+          const fcmToken = getStoredFCMToken()
+          const subscribed = !!fcmToken && perm === 'granted'
 
           setPermissionStatus(perm)
           setIsSubscribed(subscribed)
 
-          console.log('[NotificationBanner] Periodic check:', { perm, subscribed })
+          console.log('[NotificationBanner] Periodic check:', { perm, subscribed, hasFCMToken: !!fcmToken })
 
           // Show banner only if not subscribed (regardless of permission)
           setShow(!subscribed)
@@ -126,27 +125,13 @@ export default function NotificationBanner() {
       console.log('[NotificationBanner] Subscribe button clicked')
       console.log('[NotificationBanner] Current status:', { permissionStatus, isSubscribed })
 
-      if (typeof window === 'undefined' || !window.OneSignal) {
-        console.error('[NotificationBanner] OneSignal not available')
-        alert('OneSignal is not loaded yet. Please refresh the page and try again.')
+      if (typeof window === 'undefined') {
+        console.error('[NotificationBanner] Window not available')
+        alert('Please try again in a moment.')
         return
       }
 
-      // Step 1: Check/Request browser notification permission
-      if (permissionStatus !== 'granted') {
-        console.log('[NotificationBanner] Requesting browser notification permission...')
-        const granted = await window.OneSignal.Notifications.requestPermission()
-        console.log('[NotificationBanner] Permission result:', granted)
-
-        if (!granted) {
-          alert('Please allow notifications in your browser to continue.')
-          return
-        }
-
-        setPermissionStatus('granted')
-      }
-
-      // Step 2: Login user to OneSignal with their external user ID
+      // Get user ID from token
       const token = localStorage.getItem('token')
       if (!token) {
         console.error('[NotificationBanner] No auth token found')
@@ -154,70 +139,51 @@ export default function NotificationBanner() {
         return
       }
 
+      let userId
       try {
         const payload = JSON.parse(atob(token.split('.')[1]))
-        const userId = payload.userId
+        userId = payload.userId
 
         if (!userId) {
           console.error('[NotificationBanner] No user ID in token')
           alert('Invalid user session. Please log in again.')
           return
         }
-
-        console.log('[NotificationBanner] Logging in user to OneSignal:', userId)
-        await window.OneSignal.login(userId)
-
-        // Set user tags for better targeting
-        await window.OneSignal.User.addTags({
-          userId: userId,
-          platform: 'web',
-          appVersion: '1.0.0',
-          subscribedAt: new Date().toISOString()
-        })
-        console.log('[NotificationBanner] User logged in and tags set')
       } catch (error) {
-        console.error('[NotificationBanner] Error logging in user:', error)
-        alert('Failed to set up your user profile. Please try again.')
+        console.error('[NotificationBanner] Error parsing token:', error)
+        alert('Invalid user session. Please log in again.')
         return
       }
 
-      // Step 3: Subscribe to push notifications (this is the key step!)
-      console.log('[NotificationBanner] Subscribing to OneSignal push notifications...')
-      await window.OneSignal.User.PushSubscription.optIn()
+      console.log('[NotificationBanner] Requesting FCM token for user:', userId)
 
-      // Wait a moment for subscription to complete
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Request FCM token (this will also request permission if needed)
+      const fcmToken = await requestFCMToken()
 
-      // Step 4: Verify subscription
-      const subscribed = await window.OneSignal.User.PushSubscription.optedIn
-      const playerId = await window.OneSignal.User.PushSubscription.id
-      const externalUserId = await window.OneSignal.User.getExternalId()
-
-      console.log('[NotificationBanner] Subscription verification:', {
-        subscribed,
-        playerId,
-        externalUserId
-      })
-
-      if (subscribed && playerId) {
-        setIsSubscribed(true)
-        setShow(false)
-
-        // Show success notification
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('✅ Successfully Subscribed!', {
-            body: 'You will now receive important updates, messages, and alerts from Talio HRMS.',
-            icon: '/icons/icon-192x192.png',
-            badge: '/icons/icon-96x96.png',
-            tag: 'subscription-success'
-          })
-        }
-
-        console.log('[NotificationBanner] ✅ Subscription successful!')
-      } else {
-        console.error('[NotificationBanner] Subscription verification failed:', { subscribed, playerId })
-        alert('Subscription completed but verification failed. Please refresh the page.')
+      if (!fcmToken) {
+        console.error('[NotificationBanner] Failed to get FCM token')
+        alert('Failed to subscribe to notifications. Please check your browser settings and try again.')
+        return
       }
+
+      console.log('[NotificationBanner] ✅ FCM token obtained')
+
+      // Update state
+      setIsSubscribed(true)
+      setPermissionStatus('granted')
+      setShow(false)
+
+      // Show success notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('✅ Successfully Subscribed!', {
+          body: 'You will now receive important updates, messages, and alerts from Talio HRMS.',
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-96x96.png',
+          tag: 'subscription-success'
+        })
+      }
+
+      console.log('[NotificationBanner] ✅ Subscription successful!')
     } catch (error) {
       console.error('[NotificationBanner] Error during subscription:', error)
       alert('Failed to subscribe to notifications. Error: ' + error.message)
@@ -243,16 +209,16 @@ export default function NotificationBanner() {
     if (permissionStatus !== 'granted') {
       return {
         title: '🔔 Enable Notifications',
-        message: 'Allow browser notifications and subscribe to receive important updates about tasks, messages, and announcements.',
+        message: 'Allow browser notifications to receive important updates about tasks, messages, and announcements.',
         buttonText: 'Enable & Subscribe',
         buttonAction: handleSubscribe
       }
     }
 
-    // Permission granted but not subscribed to OneSignal
+    // Permission granted but not subscribed to FCM
     return {
       title: '📬 Complete Notification Setup',
-      message: 'You have allowed notifications, but need to subscribe to OneSignal to receive push notifications.',
+      message: 'You have allowed notifications, but need to subscribe to receive push notifications.',
       buttonText: 'Subscribe Now',
       buttonAction: handleSubscribe
     }
