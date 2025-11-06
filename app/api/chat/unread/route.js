@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import dbConnect from '@/lib/mongodb'
 import Chat from '@/models/Chat'
 import Employee from '@/models/Employee'
+import User from '@/models/User'
 
 // GET - Get unread message count for current user
 export async function GET(request) {
@@ -16,8 +17,15 @@ export async function GET(request) {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    const employee = await Employee.findOne({ userId: decoded.userId })
-    
+
+    // Get user to find employee ID
+    const userDoc = await User.findById(decoded.userId).select('employeeId')
+    if (!userDoc || !userDoc.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    }
+
+    // Get employee details
+    const employee = await Employee.findById(userDoc.employeeId)
     if (!employee) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
