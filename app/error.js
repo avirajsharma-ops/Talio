@@ -1,12 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { FaExclamationTriangle, FaHome, FaRedo } from 'react-icons/fa'
 
 export default function Error({ error, reset }) {
+  const [useCachedPage, setUseCachedPage] = useState(false)
+
   useEffect(() => {
     // Log the error to an error reporting service
     console.error('Application Error:', error)
+
+    // Try to use cached error page if available
+    const cachedErrorPage = localStorage.getItem('talio_error_page')
+    if (cachedErrorPage) {
+      setUseCachedPage(true)
+      // Replace the current page with the cached error page
+      document.open()
+      document.write(cachedErrorPage)
+      document.close()
+    }
   }, [error])
 
   return (

@@ -7,6 +7,7 @@ import '../styles/theme.css'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import FirebaseInit from '@/components/FirebaseInit'
+import ErrorPageCache from '@/components/ErrorPageCache'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -66,6 +67,7 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ThemeProvider>
           <FirebaseInit />
+          <ErrorPageCache />
           {children}
           <Toaster
             position="top-right"
