@@ -4,14 +4,24 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Install dependencies needed for building
-RUN apk add --no-cache libc6-compat
+# Install dependencies needed for building (including for sharp and native modules)
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev
 
 # Copy package files
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci
+# Use --legacy-peer-deps to avoid peer dependency conflicts
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
