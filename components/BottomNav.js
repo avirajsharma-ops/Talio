@@ -1,10 +1,16 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const { theme } = useTheme()
+
+  // Get theme colors with fallbacks
+  const bottomNavColor = theme?.primary?.[900] || '#192A5A'
+  const activeButtonColor = theme?.primary?.[600] || '#3B82F6'
 
   const navItems = [
     {
@@ -43,7 +49,7 @@ export default function BottomNav() {
     <div
       className="fixed bottom-0 left-0 right-0 z-[40] md:hidden"
       style={{
-        backgroundColor: '#192A5A',
+        backgroundColor: bottomNavColor,
         paddingBottom: 'env(safe-area-inset-bottom)',
         borderTop: '1px solid rgba(255, 255, 255, 0.1)'
       }}
@@ -66,7 +72,7 @@ export default function BottomNav() {
               }`}
               style={{
                 margin: 0,
-                backgroundColor: item.active ? '#3B82F6' : 'transparent',
+                backgroundColor: item.active ? activeButtonColor : 'transparent',
                 boxShadow: item.active && !isChat ? '0 0 0 10px var(--color-bg-main)' : 'none'
               }}
             >
