@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Leave from '@/models/Leave'
 import LeaveBalance from '@/models/LeaveBalance'
+import Employee from '@/models/Employee'
+import User from '@/models/User'
+import { sendLeaveApprovedNotification, sendLeaveRejectedNotification } from '@/lib/notificationService'
 
 // PUT - Update leave status (Approve/Reject)
 export async function PUT(request, { params }) {
@@ -54,6 +57,41 @@ export async function PUT(request, { params }) {
       .populate('employee', 'firstName lastName employeeCode')
       .populate('leaveType', 'name')
       .populate('approvedBy', 'firstName lastName')
+
+    // Send notification to employee
+    try {
+      const employee = await Employee.findById(leave.employee).select('userId')
+      const employeeUserId = employee?.userId
+
+      if (employeeUserId) {
+        const leaveTypeName = populatedLeave.leaveType?.name || 'Leave'
+        const startDate = new Date(leave.startDate).toLocaleDateString()
+        const endDate = new Date(leave.endDate).toLocaleDateString()
+
+        if (status === 'approved') {
+          await sendLeaveApprovedNotification({
+            leaveId: leave._id.toString(),
+            employeeId: employeeUserId,
+            leaveType: leaveTypeName,
+            startDate,
+            endDate,
+            approvedBy: approvedBy
+          })
+        } else if (status === 'rejected') {
+          await sendLeaveRejectedNotification({
+            leaveId: leave._id.toString(),
+            employeeId: employeeUserId,
+            leaveType: leaveTypeName,
+            startDate,
+            endDate,
+            rejectedBy: approvedBy,
+            reason: rejectionReason
+          })
+        }
+      }
+    } catch (notifError) {
+      console.error('Failed to send leave status notification:', notifError)
+    }
 
     return NextResponse.json({
       success: true,

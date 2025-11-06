@@ -115,7 +115,12 @@ export default function LoginPage() {
   // Show loading screen while checking session
   if (checking) {
     return (
-      <div className="min-h-screen text-black flex items-center justify-center bg-white">
+      <div className="min-h-screen text-black flex items-center justify-center bg-white" style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+        <style jsx global>{`
+          html, body {
+            background-color: #FFFFFF !important;
+          }
+        `}</style>
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Checking session...</p>
@@ -125,7 +130,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen text-black flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen text-black flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+      <style jsx global>{`
+        html, body {
+          background-color: #FFFFFF !important;
+        }
+      `}</style>
       <div className="max-w-md w-full space-y-18 bg-white px-2 py-5  rounded-2xl shadow-2xl">
         <div>
           <div className="flex justify-center mb-6">

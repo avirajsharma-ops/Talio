@@ -44,10 +44,12 @@
 #### Backend API
 - ✅ `app/api/fcm/save-token/route.js` - FCM token management endpoint
 - ✅ `app/api/notifications/send/route.js` - Updated to use Firebase instead of OneSignal
+- ✅ `app/api/notifications/config/route.js` - Updated to check Firebase status
 
 #### Frontend Components
 - ✅ `app/layout.js` - Replaced OneSignalInit with FirebaseInit
 - ✅ `components/NotificationBanner.js` - Updated to use Firebase APIs
+- ✅ `components/NotificationManagement.js` - All OneSignal references removed
 
 #### Database Schema
 - ✅ `models/User.js` - Added fcmTokens array field

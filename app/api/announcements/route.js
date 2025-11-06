@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb'
 import Announcement from '@/models/Announcement'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import { sendAnnouncementNotification } from '@/lib/pushNotifications'
+import { sendAnnouncementNotification } from '@/lib/notificationService'
 import jwt from 'jsonwebtoken'
 
 // GET - List announcements
@@ -147,25 +147,26 @@ export async function POST(request) {
       const userIds = targetUsers.map(u => u._id.toString())
 
       if (userIds.length > 0) {
-        const creator = await Employee.findById(data.createdBy).select('firstName lastName')
-        const creatorName = creator ? `${creator.firstName} ${creator.lastName}` : 'Admin'
+        // Get creator user ID
+        const creatorEmployee = await Employee.findById(data.createdBy).select('userId')
+        const creatorUserId = creatorEmployee?.userId
 
-        await sendAnnouncementNotification(
-          {
-            _id: announcement._id,
-            title: announcement.title,
-            content: announcement.content,
-            priority: announcement.priority || 'normal'
-          },
-          userIds,
-          creatorName,
-          null // No token needed for system notifications
-        )
+        // Send Firebase notification
+        await sendAnnouncementNotification({
+          announcementId: announcement._id.toString(),
+          title: announcement.title,
+          content: announcement.content,
+          targetUserIds: userIds,
+          createdBy: creatorUserId
+        })
 
         // Emit Socket.IO event for real-time notification
         try {
           const io = global.io
           if (io) {
+            const creator = await Employee.findById(data.createdBy).select('firstName lastName')
+            const creatorName = creator ? `${creator.firstName} ${creator.lastName}` : 'Admin'
+
             userIds.forEach(userId => {
               io.to(`user:${userId}`).emit('new-announcement', {
                 _id: announcement._id.toString(),
@@ -181,7 +182,7 @@ export async function POST(request) {
           console.error('Failed to emit Socket.IO announcement event:', socketError)
         }
 
-        console.log(`Announcement notification sent to ${userIds.length} user(s)`)
+        console.log(`Firebase announcement notification sent to ${userIds.length} user(s)`)
       }
     } catch (notifError) {
       console.error('Failed to send announcement notification:', notifError)

@@ -24,49 +24,38 @@ export async function GET(request) {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET)
     const { payload: decoded } = await jwtVerify(token, secret)
 
-    // Check if API key is configured by reading from .env.local file
-    let appId = process.env.ONESIGNAL_APP_ID
-    let restApiKey = process.env.ONESIGNAL_REST_API_KEY
-
-    // Try to read from .env.local file for most up-to-date values
-    try {
-      const envPath = path.join(process.cwd(), '.env.local')
-      if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8')
-        const appIdMatch = envContent.match(/ONESIGNAL_APP_ID=(.*)/)
-        const apiKeyMatch = envContent.match(/ONESIGNAL_REST_API_KEY=(.*)/)
-
-        if (appIdMatch && appIdMatch[1]) {
-          appId = appIdMatch[1].trim()
-        }
-        if (apiKeyMatch && apiKeyMatch[1]) {
-          restApiKey = apiKeyMatch[1].trim()
-        }
-      }
-    } catch (fileError) {
-      console.error('Error reading .env.local:', fileError)
-      // Continue with process.env values
-    }
+    // Check if Firebase is configured
+    const firebaseProjectId = process.env.FIREBASE_PROJECT_ID
+    const firebaseClientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY
+    const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+    const firebaseVapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
 
     const configured = !!(
-      appId &&
-      restApiKey &&
-      restApiKey !== 'your-onesignal-rest-api-key-here' &&
-      restApiKey.length > 20
+      firebaseProjectId &&
+      firebaseClientEmail &&
+      firebasePrivateKey &&
+      firebaseApiKey &&
+      firebaseVapidKey &&
+      firebaseProjectId !== 'YOUR_PROJECT_ID' &&
+      firebasePrivateKey.includes('BEGIN PRIVATE KEY')
     )
 
-    // Only admins can see the masked API key
+    // Only admins can see the masked Firebase config
     if (decoded.role === 'admin') {
-      const maskedApiKey = restApiKey && restApiKey !== 'your-onesignal-rest-api-key-here'
-        ? restApiKey.substring(0, 8) + '...' + restApiKey.substring(restApiKey.length - 4)
+      const maskedPrivateKey = firebasePrivateKey && firebasePrivateKey.includes('BEGIN PRIVATE KEY')
+        ? '***CONFIGURED***'
         : ''
 
       return NextResponse.json({
         success: true,
         configured,
         config: {
-          appId: appId || '',
-          restApiKey: maskedApiKey
+          projectId: firebaseProjectId || '',
+          clientEmail: firebaseClientEmail || '',
+          privateKey: maskedPrivateKey,
+          apiKey: firebaseApiKey ? firebaseApiKey.substring(0, 10) + '...' : '',
+          vapidKey: firebaseVapidKey ? firebaseVapidKey.substring(0, 10) + '...' : ''
         }
       })
     } else {
@@ -85,7 +74,8 @@ export async function GET(request) {
   }
 }
 
-// POST - Save OneSignal configuration (admin only)
+// POST - Firebase configuration is managed via .env.local file
+// This endpoint is kept for compatibility but returns info message
 export async function POST(request) {
   try {
     await connectDB()
@@ -103,97 +93,23 @@ export async function POST(request) {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET)
     const { payload: decoded } = await jwtVerify(token, secret)
 
-    // Only admin can update configuration
+    // Only admin can access configuration
     if (decoded.role !== 'admin') {
       return NextResponse.json(
-        { success: false, message: 'Only administrators can update configuration' },
+        { success: false, message: 'Only administrators can access configuration' },
         { status: 403 }
       )
     }
 
-    const { appId, restApiKey } = await request.json()
-
-    // Validate inputs
-    if (!appId || !restApiKey) {
-      return NextResponse.json(
-        { success: false, message: 'App ID and REST API Key are required' },
-        { status: 400 }
-      )
-    }
-
-    // Validate App ID format (UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(appId)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid App ID format. Should be a UUID.' },
-        { status: 400 }
-      )
-    }
-
-    // Validate REST API Key (should be a long string)
-    if (restApiKey.length < 20) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid REST API Key. Key seems too short.' },
-        { status: 400 }
-      )
-    }
-
-    // Update environment variables in .env.local and .env.production
-    const envFiles = ['.env.local', '.env.production']
-    
-    for (const envFile of envFiles) {
-      const envPath = path.join(process.cwd(), envFile)
-      
-      try {
-        let envContent = ''
-        
-        // Read existing content if file exists
-        if (fs.existsSync(envPath)) {
-          envContent = fs.readFileSync(envPath, 'utf8')
-        }
-
-        // Update or add ONESIGNAL_APP_ID
-        if (envContent.includes('ONESIGNAL_APP_ID=')) {
-          envContent = envContent.replace(
-            /ONESIGNAL_APP_ID=.*/,
-            `ONESIGNAL_APP_ID=${appId}`
-          )
-        } else {
-          envContent += `\nONESIGNAL_APP_ID=${appId}`
-        }
-
-        // Update or add ONESIGNAL_REST_API_KEY
-        if (envContent.includes('ONESIGNAL_REST_API_KEY=')) {
-          envContent = envContent.replace(
-            /ONESIGNAL_REST_API_KEY=.*/,
-            `ONESIGNAL_REST_API_KEY=${restApiKey}`
-          )
-        } else {
-          envContent += `\nONESIGNAL_REST_API_KEY=${restApiKey}`
-        }
-
-        // Write updated content
-        fs.writeFileSync(envPath, envContent, 'utf8')
-        console.log(`Updated ${envFile} with OneSignal credentials`)
-      } catch (fileError) {
-        console.error(`Error updating ${envFile}:`, fileError)
-        // Continue with other files even if one fails
-      }
-    }
-
-    // Update process.env for immediate effect (requires server restart for full effect)
-    process.env.ONESIGNAL_APP_ID = appId
-    process.env.ONESIGNAL_REST_API_KEY = restApiKey
-
     return NextResponse.json({
       success: true,
-      message: 'OneSignal configuration saved successfully. Please restart the server for changes to take full effect.',
-      requiresRestart: true
+      message: 'Firebase is configured via environment variables in .env.local file. No UI configuration needed.',
+      configured: true
     })
   } catch (error) {
-    console.error('Save config error:', error)
+    console.error('Config endpoint error:', error)
     return NextResponse.json(
-      { success: false, message: 'Failed to save configuration' },
+      { success: false, message: 'Failed to access configuration' },
       { status: 500 }
     )
   }

@@ -6,7 +6,7 @@ import Project from '@/models/Project'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 import { logActivity } from '@/lib/activityLogger'
-import { sendTaskAssignmentNotification } from '@/lib/pushNotifications'
+import { sendTaskAssignedNotification, sendTaskStatusUpdateNotification, sendTaskCompletedNotification } from '@/lib/notificationService'
 
 // GET - Fetch tasks with filters and pagination
 export async function GET(request) {
@@ -408,25 +408,24 @@ export async function POST(request) {
       const assignedUserIds = assignedUsers.map(u => u._id.toString())
 
       if (assignedUserIds.length > 0) {
-        const assigner = await Employee.findById(currentEmployeeId).select('firstName lastName')
-        const assignerName = assigner ? `${assigner.firstName} ${assigner.lastName}` : 'Manager'
-
-        await sendTaskAssignmentNotification(
-          {
-            _id: task._id,
+        // Send Firebase notification to each assignee
+        for (const assigneeUserId of assignedUserIds) {
+          await sendTaskAssignedNotification({
+            taskId: task._id.toString(),
+            assigneeId: assigneeUserId,
             title: task.title,
-            priority: task.priority,
+            assignedBy: decoded.userId,
             dueDate: task.dueDate
-          },
-          assignedUserIds,
-          assignerName,
-          token
-        )
+          })
+        }
 
         // Emit Socket.IO event for real-time notification
         try {
           const io = global.io
           if (io) {
+            const assigner = await Employee.findById(currentEmployeeId).select('firstName lastName')
+            const assignerName = assigner ? `${assigner.firstName} ${assigner.lastName}` : 'Manager'
+
             assignedUserIds.forEach(userId => {
               io.to(`user:${userId}`).emit('task-assigned', {
                 _id: task._id.toString(),
@@ -442,7 +441,7 @@ export async function POST(request) {
           console.error('Failed to emit Socket.IO task-assigned event:', socketError)
         }
 
-        console.log(`Task assignment notification sent to ${assignedUserIds.length} user(s)`)
+        console.log(`Firebase task assignment notifications sent to ${assignedUserIds.length} user(s)`)
       }
     } catch (notifError) {
       console.error('Failed to send task assignment notification:', notifError)

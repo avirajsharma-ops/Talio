@@ -65,7 +65,7 @@ export default function NotificationManagement() {
     }
   }
 
-  // Check if OneSignal API key is configured
+  // Check if Firebase is configured
   const checkApiKeyStatus = async () => {
     try {
       const token = localStorage.getItem('token')
@@ -79,7 +79,7 @@ export default function NotificationManagement() {
         setApiKeyConfigured(data.configured)
       }
     } catch (error) {
-      console.error('Error checking API key status:', error)
+      console.error('Error checking Firebase status:', error)
     } finally {
       setCheckingApiKey(false)
     }
@@ -128,7 +128,7 @@ export default function NotificationManagement() {
         <p className="text-gray-600 mb-6">Send, schedule, and manage push notifications</p>
       </div>
 
-      {/* API Key Warning Banner */}
+      {/* Firebase Status Banner */}
       {!checkingApiKey && !apiKeyConfigured && userRole === 'admin' && (
         <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
           <div className="flex items-start gap-3">
@@ -139,16 +139,37 @@ export default function NotificationManagement() {
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-yellow-800">
-                OneSignal API Key Not Configured
+                Firebase Not Configured
               </h3>
               <p className="mt-1 text-sm text-yellow-700">
-                Notifications cannot be sent until you configure the OneSignal REST API key.
+                Firebase Cloud Messaging is not configured. Please check your .env.local file and ensure all Firebase credentials are set.
                 <button
                   onClick={() => setActiveTab('config')}
                   className="ml-1 font-semibold underline hover:text-yellow-900"
                 >
-                  Click here to configure
+                  View configuration status
                 </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Firebase Configured Success Banner */}
+      {!checkingApiKey && apiKeyConfigured && userRole === 'admin' && (
+        <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-green-800">
+                Firebase Cloud Messaging is Active
+              </h3>
+              <p className="mt-1 text-sm text-green-700">
+                Your Firebase integration is configured and ready to send push notifications.
               </p>
             </div>
           </div>
@@ -331,7 +352,7 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-      {/* API Key Warning - Only show if actually not configured */}
+      {/* Firebase Status Info - Only show if not configured */}
       {!apiKeyConfigured && (
         <div className="bg-blue-50 border-l-4 border-blue-400 p-3 sm:p-4 rounded-lg">
           <div className="flex items-start gap-2 sm:gap-3">
@@ -342,15 +363,15 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-xs sm:text-sm font-medium text-blue-800">
-                OneSignal Configuration Recommended
+                Firebase Configuration Required
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-blue-700">
-                OneSignal is not configured. Web and desktop push notifications require OneSignal setup.
+                Firebase Cloud Messaging is not configured. Please check your .env.local file.
                 {userRole === 'admin' && (
-                  <span> Please go to the <strong>Configuration</strong> tab to set up OneSignal.</span>
+                  <span> Go to the <strong>Configuration</strong> tab to view Firebase status.</span>
                 )}
                 <br />
-                <span className="text-xs">Note: Native app notifications work independently and will still function.</span>
+                <span className="text-xs">Note: Notifications will work once Firebase credentials are properly set in environment variables.</span>
               </p>
             </div>
           </div>
@@ -1481,15 +1502,10 @@ function NotificationHistoryTab({ userRole, userDepartment, isDepartmentHead }) 
   )
 }
 
-// Configuration Tab (Admin Only)
+// Configuration Tab (Admin Only) - Firebase Status Display
 function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
-  const [formData, setFormData] = useState({
-    appId: '',
-    restApiKey: ''
-  })
-  const [saving, setSaving] = useState(false)
+  const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
     fetchCurrentConfig()
@@ -1504,67 +1520,13 @@ function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
         }
       })
       const data = await response.json()
-      if (data.success && data.config) {
-        setFormData({
-          appId: data.config.appId || '',
-          restApiKey: data.config.restApiKey || ''
-        })
+      if (data.success) {
+        setConfig(data.config || {})
       }
     } catch (error) {
       console.error('Error fetching config:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setSaving(true)
-
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/notifications/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        toast.success('OneSignal configuration saved successfully!')
-        onConfigUpdate() // Refresh API key status
-      } else {
-        toast.error(data.message || 'Failed to save configuration')
-      }
-    } catch (error) {
-      console.error('Error saving config:', error)
-      toast.error('Failed to save configuration')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const testConfiguration = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/notifications/test', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      const data = await response.json()
-      if (data.success) {
-        toast.success('Configuration test successful! OneSignal is working.')
-      } else {
-        toast.error(data.message || 'Configuration test failed')
-      }
-    } catch (error) {
-      console.error('Error testing config:', error)
-      toast.error('Failed to test configuration')
     }
   }
 
@@ -1601,131 +1563,104 @@ function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
             <h3 className={`text-sm font-medium ${
               apiKeyConfigured ? 'text-green-800' : 'text-yellow-800'
             }`}>
-              {apiKeyConfigured ? 'OneSignal is Configured' : 'OneSignal Not Configured'}
+              {apiKeyConfigured ? 'Firebase Cloud Messaging is Configured' : 'Firebase Not Configured'}
             </h3>
             <p className={`mt-1 text-sm ${
               apiKeyConfigured ? 'text-green-700' : 'text-yellow-700'
             }`}>
               {apiKeyConfigured
-                ? 'Your OneSignal integration is active and ready to send notifications.'
-                : 'Please configure your OneSignal API credentials below to enable push notifications.'}
+                ? 'Your Firebase integration is active and ready to send push notifications.'
+                : 'Firebase Cloud Messaging is not configured. Please check your .env.local file.'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Configuration Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Firebase Configuration Status */}
+      <div className="space-y-6">
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">OneSignal Configuration</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Firebase Cloud Messaging Configuration</h3>
 
           <div className="space-y-4">
-            {/* App ID */}
+            {/* Project ID */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                OneSignal App ID
+                Firebase Project ID
               </label>
-              <input
-                type="text"
-                value={formData.appId}
-                onChange={(e) => setFormData({ ...formData, appId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-colors"
-                style={{ '--tw-ring-color': 'var(--color-primary-500)' }}
-                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary-500)'}
-                onBlur={(e) => e.currentTarget.style.borderColor = '#D1D5DB'}
-                placeholder="f7b9d1a1-5095-4be8-8a74-2af13058e7b2"
-                required
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Find this in your OneSignal dashboard under Settings → Keys & IDs
-              </p>
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                {config?.projectId || 'Not configured'}
+              </div>
             </div>
 
-            {/* REST API Key */}
+            {/* Client Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                OneSignal REST API Key
+                Service Account Email
               </label>
-              <div className="relative">
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={formData.restApiKey}
-                  onChange={(e) => setFormData({ ...formData, restApiKey: e.target.value })}
-                  className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-colors"
-                  style={{ '--tw-ring-color': 'var(--color-primary-500)' }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary-500)'}
-                  onBlur={(e) => e.currentTarget.style.borderColor = '#D1D5DB'}
-                  placeholder="Enter your REST API Key"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                >
-                  {showApiKey ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                {config?.clientEmail || 'Not configured'}
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Find this in your OneSignal dashboard under Settings → Keys & IDs → REST API Key
-              </p>
+            </div>
+
+            {/* Private Key Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Private Key Status
+              </label>
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                {config?.privateKey || 'Not configured'}
+              </div>
+            </div>
+
+            {/* API Key */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Firebase API Key
+              </label>
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                {config?.apiKey || 'Not configured'}
+              </div>
+            </div>
+
+            {/* VAPID Key */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                VAPID Key (Web Push)
+              </label>
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
+                {config?.vapidKey || 'Not configured'}
+              </div>
             </div>
           </div>
 
           {/* Help Section */}
           <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'var(--color-primary-50)' }}>
-            <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-primary-800)' }}>How to get your OneSignal credentials:</h4>
-            <ol className="text-sm space-y-1 list-decimal list-inside" style={{ color: 'var(--color-primary-700)' }}>
-              <li>Go to <a href="https://app.onesignal.com/" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: 'var(--color-primary-700)' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary-900)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-primary-700)'}>OneSignal Dashboard</a></li>
-              <li>Select your app or create a new one</li>
-              <li>Navigate to Settings → Keys & IDs</li>
-              <li>Copy the App ID and REST API Key</li>
-              <li>Paste them in the fields above</li>
-            </ol>
+            <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-primary-800)' }}>Firebase Configuration</h4>
+            <p className="text-sm mb-2" style={{ color: 'var(--color-primary-700)' }}>
+              Firebase Cloud Messaging is configured via environment variables in the <code className="bg-white px-1 rounded">.env.local</code> file.
+            </p>
+            <p className="text-sm" style={{ color: 'var(--color-primary-700)' }}>
+              To update Firebase credentials, edit the <code className="bg-white px-1 rounded">.env.local</code> file and restart the server.
+            </p>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={testConfiguration}
-            disabled={!apiKeyConfigured}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Test Configuration
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            style={{
-              backgroundColor: saving ? '#9CA3AF' : 'var(--color-primary-600)'
-            }}
-            onMouseEnter={(e) => {
-              if (!saving) {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!saving) {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
-              }
-            }}
-          >
-            {saving ? 'Saving...' : 'Save Configuration'}
-          </button>
+        {/* Info Box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <h4 className="text-sm font-semibold text-blue-800 mb-1">About Firebase Cloud Messaging</h4>
+              <p className="text-sm text-blue-700">
+                Firebase Cloud Messaging (FCM) provides a reliable and battery-efficient connection between your server and devices.
+                It allows you to send notifications and data messages to users across platforms.
+              </p>
+            </div>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

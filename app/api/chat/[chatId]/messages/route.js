@@ -4,7 +4,7 @@ import dbConnect from '@/lib/mongodb'
 import Chat from '@/models/Chat'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
-import { sendChatMessageNotification } from '@/lib/pushNotifications'
+import { sendMessageNotification } from '@/lib/notificationService'
 
 // GET - Fetch messages for a chat
 export async function GET(request, context) {
@@ -167,23 +167,17 @@ export async function POST(request, context) {
         console.log(`[Chat Notification] Recipient user IDs: ${recipientUserIds.join(', ')}`)
 
         if (recipientUserIds.length > 0) {
-          const senderName = `${user.firstName} ${user.lastName}`
-          console.log(`[Chat Notification] Sending notification from: ${senderName}`)
+          // Send Firebase notification to each recipient
+          for (const recipientId of recipientUserIds) {
+            await sendMessageNotification({
+              senderId: decoded.userId,
+              recipientId,
+              message: content || fileName || 'Sent a file',
+              chatId
+            })
+          }
 
-          // Send push notification
-          const notifResult = await sendChatMessageNotification(
-            {
-              content: content || fileName || 'Sent a file',
-              chatId: chatId,
-              _id: newMessage._id
-            },
-            recipientUserIds,
-            senderName,
-            token // Use the user's token for authorization
-          )
-
-          console.log(`[Chat Notification] Result:`, notifResult)
-          console.log(`[Chat Notification] Push notification sent to ${recipientUserIds.length} recipient(s)`)
+          console.log(`[Chat Notification] Firebase notifications sent to ${recipientUserIds.length} recipient(s)`)
         } else {
           console.log(`[Chat Notification] No recipient user IDs found`)
         }

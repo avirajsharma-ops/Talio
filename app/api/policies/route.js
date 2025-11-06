@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb'
 import Policy from '@/models/Policy'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPolicyNotification } from '@/lib/notificationService'
 
 // GET - List policies
 export async function GET(request) {
@@ -80,18 +80,19 @@ export async function POST(request) {
       }
 
       if (targetUserIds.length > 0) {
-        await sendOneSignalNotification({
-          userIds: targetUserIds,
-          title: '📋 New Policy Published',
-          message: `${policy.title} - Please review and acknowledge`,
-          url: '/dashboard/policies',
-          data: {
-            type: 'policy',
-            policyId: policy._id.toString()
-          }
+        // Get creator user ID
+        const creatorEmployee = await Employee.findById(data.createdBy).select('userId')
+        const creatorUserId = creatorEmployee?.userId
+
+        // Send Firebase notification
+        await sendPolicyNotification({
+          policyId: policy._id.toString(),
+          title: policy.title,
+          targetUserIds,
+          createdBy: creatorUserId
         })
 
-        console.log(`Policy notification sent to ${targetUserIds.length} user(s)`)
+        console.log(`Firebase policy notification sent to ${targetUserIds.length} user(s)`)
       }
     } catch (notifError) {
       console.error('Failed to send policy notification:', notifError)
