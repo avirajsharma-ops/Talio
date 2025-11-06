@@ -208,6 +208,38 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+
+                    // Only handle main frame errors
+                    if (request?.isForMainFrame == true) {
+                        android.util.Log.e("WebView", "Error loading page: ${error?.description}")
+                        // Load offline error page
+                        view?.loadUrl("file:///android_asset/error-fallback.html")
+                    }
+                }
+
+                override fun onReceivedHttpError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    errorResponse: WebResourceResponse?
+                ) {
+                    super.onReceivedHttpError(view, request, errorResponse)
+
+                    // Only handle main frame errors with 5xx status codes
+                    if (request?.isForMainFrame == true &&
+                        errorResponse?.statusCode != null &&
+                        errorResponse.statusCode >= 500) {
+                        android.util.Log.e("WebView", "HTTP Error: ${errorResponse.statusCode}")
+                        // Load offline error page
+                        view?.loadUrl("file:///android_asset/error-fallback.html")
+                    }
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
 
