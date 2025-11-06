@@ -43,9 +43,9 @@ export default function BottomNav() {
     <div
       className="fixed bottom-0 left-0 right-0 z-[40] md:hidden"
       style={{
-        backgroundColor: 'var(--color-bg-sidebar)',
+        backgroundColor: '#192A5A',
         paddingBottom: 'env(safe-area-inset-bottom)',
-        borderTop: '1px solid var(--color-primary-200)'
+        borderTop: '1px solid rgba(255, 255, 255, 0.1)'
       }}
     >
       <div className="flex items-center justify-around py-2 px-4">
@@ -66,7 +66,7 @@ export default function BottomNav() {
               }`}
               style={{
                 margin: 0,
-                backgroundColor: item.active ? 'var(--color-primary-500)' : 'transparent',
+                backgroundColor: item.active ? '#3B82F6' : 'transparent',
                 boxShadow: item.active && !isChat ? '0 0 0 10px var(--color-bg-main)' : 'none'
               }}
             >

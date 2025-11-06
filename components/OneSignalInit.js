@@ -14,47 +14,48 @@ export default function OneSignalInit() {
     // Only run on client side
     if (typeof window === 'undefined') return
 
+    console.log('[OneSignalInit] Starting initialization...')
+
     // Initialize OneSignal
     const initOneSignal = async () => {
       try {
-        // Load OneSignal SDK
+        // Make OneSignal globally available immediately
         window.OneSignalDeferred = window.OneSignalDeferred || []
-        
+
+        console.log('[OneSignalInit] Pushing init function to OneSignalDeferred queue...')
+
         window.OneSignalDeferred.push(async function(OneSignal) {
-          console.log('[OneSignal] Initializing...')
-          
+          console.log('[OneSignalInit] ✅ OneSignal SDK loaded, initializing...')
+
           await OneSignal.init({
             appId: "f7b9d1a1-5095-4be8-8a74-2af13058e7b2",
             safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
-            
+
             // Notification settings
             allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
-            
+
             // Auto-resubscribe
             autoResubscribe: true,
-            
+
             // Service worker path
             serviceWorkerPath: '/OneSignalSDKWorker.js',
             serviceWorkerUpdaterPath: '/OneSignalSDKWorker.js',
-            
+
             // Notification prompt settings
             notifyButton: {
               enable: false, // We'll use custom UI
             },
-            
+
             // Welcome notification (disabled)
             welcomeNotification: {
               disable: true
             },
-            
-            // Prompt options - Enable native slidedown with auto-prompt
+
+            // Prompt options - DISABLE auto-prompt, use custom banner instead
             promptOptions: {
               slidedown: {
-                enabled: true,
-                autoPrompt: true, // Automatically show when not subscribed
-                actionMessage: "Notifications are required to use this app. Please enable notifications to receive important updates about tasks, messages, and announcements.",
-                acceptButtonText: "Enable Notifications",
-                cancelButtonText: "Cancel", // Will be hidden via CSS
+                enabled: false, // Disable OneSignal's native prompt
+                autoPrompt: false, // Don't auto-prompt
                 prompts: [
                   {
                     type: "push",
@@ -108,7 +109,11 @@ export default function OneSignalInit() {
             }
           })
 
-          console.log('[OneSignal] Initialized successfully')
+          console.log('[OneSignalInit] ✅ OneSignal initialized successfully')
+
+          // Set global flag to indicate OneSignal is ready
+          window.OneSignalReady = true
+          console.log('[OneSignalInit] Set window.OneSignalReady = true')
 
           // Get user ID from localStorage
           const token = localStorage.getItem('token')

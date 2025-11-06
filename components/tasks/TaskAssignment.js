@@ -500,9 +500,9 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                 )}
               </div>
             )}
-            </div>
+          </div>
 
-            {/* Load More Button */}
+          {/* Load More Button */}
             {employeeHasMore && !employeeLoading && filteredEmployees.length > 0 && (
               <div className="border-t border-gray-200 p-3">
                 <button

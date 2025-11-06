@@ -8,6 +8,7 @@ import BottomNav from '@/components/BottomNav'
 import PWAInstaller, { OfflineIndicator } from '@/components/PWAInstaller'
 import OutOfPremisesPopup from '@/components/OutOfPremisesPopup'
 import NotificationBanner from '@/components/NotificationBanner'
+import OfflineDetector from '@/components/OfflineDetector'
 import ThemeMetaTags from '@/components/ThemeMetaTags'
 import { useNotificationInit } from '@/hooks/useNotifications'
 import useGeofencing from '@/hooks/useGeofencing'
@@ -35,6 +36,9 @@ export default function DashboardLayout({ children }) {
       <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
         {/* Dynamic theme meta tags for mobile browser bars */}
         <ThemeMetaTags />
+
+        {/* Offline Detector - Monitors connection and redirects to offline page */}
+        <OfflineDetector />
 
         {/* Notification Banner - Shows when notifications are disabled */}
         <NotificationBanner />

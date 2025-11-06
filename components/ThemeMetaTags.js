@@ -10,7 +10,8 @@ export default function ThemeMetaTags() {
     const theme = themes[currentTheme]
     if (!theme) return
 
-    const sidebarColor = theme.background.sidebar
+    // Bottom navigation bar color - fixed to #192A5A
+    const bottomNavColor = '#192A5A'
 
     // Keep top status bar WHITE (doesn't change with theme)
     let themeColorMeta = document.querySelector('meta[name="theme-color"]')
@@ -21,17 +22,23 @@ export default function ThemeMetaTags() {
     }
     themeColorMeta.setAttribute('content', '#ffffff')
 
-    // Update msapplication-navbutton-color to match sidebar (for Windows Phone)
+    // Update msapplication-navbutton-color to match bottom nav (for Windows Phone)
     let msNavButtonMeta = document.querySelector('meta[name="msapplication-navbutton-color"]')
-    if (msNavButtonMeta) {
-      msNavButtonMeta.setAttribute('content', sidebarColor)
+    if (!msNavButtonMeta) {
+      msNavButtonMeta = document.createElement('meta')
+      msNavButtonMeta.name = 'msapplication-navbutton-color'
+      document.head.appendChild(msNavButtonMeta)
     }
+    msNavButtonMeta.setAttribute('content', bottomNavColor)
 
-    // Update msapplication-TileColor to match sidebar (for Windows tiles)
+    // Update msapplication-TileColor to match bottom nav (for Windows tiles)
     let msTileColorMeta = document.querySelector('meta[name="msapplication-TileColor"]')
-    if (msTileColorMeta) {
-      msTileColorMeta.setAttribute('content', sidebarColor)
+    if (!msTileColorMeta) {
+      msTileColorMeta = document.createElement('meta')
+      msTileColorMeta.name = 'msapplication-TileColor'
+      document.head.appendChild(msTileColorMeta)
     }
+    msTileColorMeta.setAttribute('content', bottomNavColor)
   }, [currentTheme])
 
   return null

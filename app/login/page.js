@@ -115,7 +115,7 @@ export default function LoginPage() {
   // Show loading screen while checking session
   if (checking) {
     return (
-      <div className="min-h-screen text-black flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="min-h-screen text-black flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Checking session...</p>

@@ -34,44 +34,58 @@ export default function NotificationBanner() {
       try {
         // First check if user is logged in
         if (!checkLoginStatus()) {
+          console.log('[NotificationBanner] User not logged in, hiding banner')
           return
         }
 
+        console.log('[NotificationBanner] User is logged in, checking OneSignal...')
+
         // Wait for OneSignal to be ready
-        if (typeof window === 'undefined' || !window.OneSignal) {
+        if (typeof window === 'undefined' || !window.OneSignal || !window.OneSignalReady) {
+          console.log('[NotificationBanner] OneSignal not ready yet (OneSignal:', !!window.OneSignal, ', OneSignalReady:', !!window.OneSignalReady, '), retrying in 1s...')
           setTimeout(checkNotificationStatus, 1000)
           return
         }
 
+        console.log('[NotificationBanner] ✅ OneSignal is ready, checking status...')
+
         // Check browser notification permission
         const permission = await window.OneSignal.Notifications.permissionNative
         setPermissionStatus(permission)
+        console.log('[NotificationBanner] Permission:', permission)
 
         // Check OneSignal subscription status (this is separate from permission!)
         const subscribed = await window.OneSignal.User.PushSubscription.optedIn
         setIsSubscribed(subscribed)
+        console.log('[NotificationBanner] Subscribed:', subscribed)
 
         // Get user ID to verify login
         const externalUserId = await window.OneSignal.User.getExternalId()
+        console.log('[NotificationBanner] External User ID:', externalUserId)
 
-        console.log('[NotificationBanner] Status check:', {
+        console.log('[NotificationBanner] ✅ Status check complete:', {
           permission,
           subscribed,
           externalUserId,
-          isLoggedIn: true
+          isLoggedIn: true,
+          willShowBanner: !subscribed
         })
 
         // Show banner if user is logged in but NOT subscribed to OneSignal
         // Permission can be granted, but subscription might not be active
         if (!subscribed) {
+          console.log('[NotificationBanner] 🔔 SHOWING BANNER - User not subscribed')
           setShow(true)
         } else {
+          console.log('[NotificationBanner] ✓ Hiding banner - User already subscribed')
           setShow(false)
         }
 
         setIsLoading(false)
       } catch (error) {
-        console.error('[NotificationBanner] Error checking status:', error)
+        console.error('[NotificationBanner] ❌ Error checking status:', error)
+        // Show banner on error to be safe
+        setShow(true)
         setIsLoading(false)
       }
     }
@@ -86,7 +100,7 @@ export default function NotificationBanner() {
         return
       }
 
-      if (window.OneSignal) {
+      if (window.OneSignal && window.OneSignalReady) {
         try {
           const perm = await window.OneSignal.Notifications.permissionNative
           const subscribed = await window.OneSignal.User.PushSubscription.optedIn
