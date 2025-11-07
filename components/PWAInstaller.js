@@ -10,6 +10,8 @@ export default function PWAInstaller() {
   const [isInstalling, setIsInstalling] = useState(false)
 
   useEffect(() => {
+    let installPromptTimeout
+
     // Check if app is already installed
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true)
@@ -26,9 +28,9 @@ export default function PWAInstaller() {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      
+
       // Show install prompt after 3 seconds
-      setTimeout(() => {
+      installPromptTimeout = setTimeout(() => {
         if (!isInstalled) {
           setShowInstallPrompt(true)
         }
@@ -50,6 +52,7 @@ export default function PWAInstaller() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
+      if (installPromptTimeout) clearTimeout(installPromptTimeout)
     }
   }, [isInstalled])
 
