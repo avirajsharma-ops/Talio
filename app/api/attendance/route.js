@@ -3,7 +3,71 @@ import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
 import Leave from '@/models/Leave'
+import CompanySettings from '@/models/CompanySettings'
+import GeofenceLocation from '@/models/GeofenceLocation'
 import { logActivity } from '@/lib/activityLogger'
+
+// Calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3 // Earth's radius in meters
+  const φ1 = lat1 * Math.PI / 180
+  const φ2 = lat2 * Math.PI / 180
+  const Δφ = (lat2 - lat1) * Math.PI / 180
+  const Δλ = (lon2 - lon1) * Math.PI / 180
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+  return R * c // Distance in meters
+}
+
+// Check employee against multiple geofence locations
+async function checkGeofenceLocation(latitude, longitude, employeeId, departmentId) {
+  const locations = await GeofenceLocation.find({ isActive: true })
+
+  let closestLocation = null
+  let minDistance = Infinity
+  let isWithinAnyGeofence = false
+
+  for (const location of locations) {
+    // Check if employee is allowed at this location
+    const isAllowed =
+      location.allowedDepartments.length === 0 ||
+      location.allowedDepartments.some(dept => dept.toString() === departmentId?.toString()) ||
+      location.allowedEmployees.some(emp => emp.toString() === employeeId.toString())
+
+    if (!isAllowed) continue
+
+    const distance = calculateDistance(
+      latitude,
+      longitude,
+      location.center.latitude,
+      location.center.longitude
+    )
+
+    const isWithin = distance <= location.radius
+
+    if (isWithin) {
+      isWithinAnyGeofence = true
+      if (distance < minDistance) {
+        minDistance = distance
+        closestLocation = location
+      }
+    } else if (!isWithinAnyGeofence && distance < minDistance) {
+      // Track closest location even if not within
+      minDistance = distance
+      closestLocation = location
+    }
+  }
+
+  return {
+    isWithinGeofence: isWithinAnyGeofence,
+    location: closestLocation,
+    distance: Math.round(minDistance)
+  }
+}
 
 // GET - List attendance records
 export async function GET(request) {
@@ -57,12 +121,16 @@ export async function POST(request) {
     await connectDB()
 
     const data = await request.json()
-    const { employeeId, type } = data // type: 'clock-in' or 'clock-out'
+    const { employeeId, type, latitude, longitude, address } = data // type: 'clock-in' or 'clock-out'
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
+
+    // Get company settings and employee data
+    const settings = await CompanySettings.findOne()
+    const employee = await Employee.findById(employeeId).populate('department')
 
     // Check for approved leave or work from home for today
     const todayLeave = await Leave.findOne({
@@ -96,6 +164,38 @@ export async function POST(request) {
         )
       }
 
+      // Geofence validation
+      let geofenceValidated = false
+      let geofenceLocation = null
+      let geofenceLocationName = null
+
+      if (settings?.geofence?.enabled && latitude && longitude && !todayLeave?.workFromHome) {
+        if (settings.geofence.useMultipleLocations) {
+          const geofenceCheck = await checkGeofenceLocation(
+            latitude,
+            longitude,
+            employeeId,
+            employee?.department?._id
+          )
+
+          if (settings.geofence.strictMode && !geofenceCheck.isWithinGeofence) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: `You must be within ${geofenceCheck.distance}m of an office location to check in. Closest location: ${geofenceCheck.location?.name || 'Unknown'}`,
+                distance: geofenceCheck.distance,
+                closestLocation: geofenceCheck.location?.name
+              },
+              { status: 403 }
+            )
+          }
+
+          geofenceValidated = geofenceCheck.isWithinGeofence
+          geofenceLocation = geofenceCheck.location?._id
+          geofenceLocationName = geofenceCheck.location?.name
+        }
+      }
+
       const checkInTime = new Date()
 
       // Office timing: 11:00 AM to 7:00 PM
@@ -113,22 +213,29 @@ export async function POST(request) {
         checkInStatus = 'late'
       }
 
+      const attendanceData = {
+        checkIn: checkInTime,
+        checkInStatus: checkInStatus,
+        status: 'in-progress',
+        workFromHome: todayLeave?.workFromHome || false,
+        geofenceValidated,
+        'location.checkIn': {
+          latitude,
+          longitude,
+          address,
+          geofenceLocation,
+          geofenceLocationName
+        }
+      }
+
       if (!attendance) {
         attendance = await Attendance.create({
           employee: employeeId,
           date: new Date(),
-          checkIn: checkInTime,
-          checkInStatus: checkInStatus,
-          status: 'in-progress', // Status will be determined on checkout
-          workFromHome: todayLeave?.workFromHome || false
+          ...attendanceData
         })
       } else {
-        attendance.checkIn = checkInTime
-        attendance.checkInStatus = checkInStatus
-        attendance.status = 'in-progress' // Status will be determined on checkout
-        if (todayLeave?.workFromHome) {
-          attendance.workFromHome = true
-        }
+        Object.assign(attendance, attendanceData)
         await attendance.save()
       }
 
@@ -162,8 +269,38 @@ export async function POST(request) {
         )
       }
 
+      // Geofence validation for check-out
+      let geofenceLocation = null
+      let geofenceLocationName = null
+
+      if (settings?.geofence?.enabled && latitude && longitude && !todayLeave?.workFromHome) {
+        if (settings.geofence.useMultipleLocations) {
+          const geofenceCheck = await checkGeofenceLocation(
+            latitude,
+            longitude,
+            employeeId,
+            employee?.department?._id
+          )
+
+          geofenceLocation = geofenceCheck.location?._id
+          geofenceLocationName = geofenceCheck.location?.name
+        }
+      }
+
       const checkOutTime = new Date()
       attendance.checkOut = checkOutTime
+
+      // Store check-out location
+      if (!attendance.location) {
+        attendance.location = {}
+      }
+      attendance.location.checkOut = {
+        latitude,
+        longitude,
+        address,
+        geofenceLocation,
+        geofenceLocationName
+      }
 
       // Office end time: 7:00 PM
       const officeEndTime = new Date(checkOutTime)

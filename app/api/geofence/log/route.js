@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import GeofenceLog from '@/models/GeofenceLog'
+import GeofenceLocation from '@/models/GeofenceLocation'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import CompanySettings from '@/models/CompanySettings'
@@ -26,14 +27,99 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 function isDuringWorkHours(checkInTime, checkOutTime) {
   const now = new Date()
   const currentTime = now.getHours() * 60 + now.getMinutes() // Minutes since midnight
-  
+
   const [checkInHour, checkInMin] = checkInTime.split(':').map(Number)
   const [checkOutHour, checkOutMin] = checkOutTime.split(':').map(Number)
-  
+
   const checkInMinutes = checkInHour * 60 + checkInMin
   const checkOutMinutes = checkOutHour * 60 + checkOutMin
-  
+
   return currentTime >= checkInMinutes && currentTime <= checkOutMinutes
+}
+
+// Check if current time is during break time
+function isDuringBreakTime(breakTimings) {
+  if (!breakTimings || breakTimings.length === 0) return { isDuringBreak: false }
+
+  const now = new Date()
+  const currentTime = now.getHours() * 60 + now.getMinutes()
+  const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()]
+
+  for (const breakTiming of breakTimings) {
+    if (!breakTiming.isActive) continue
+
+    // Check if today is in the break timing's days
+    if (breakTiming.days && breakTiming.days.length > 0 && !breakTiming.days.includes(currentDay)) {
+      continue
+    }
+
+    const [startHour, startMin] = breakTiming.startTime.split(':').map(Number)
+    const [endHour, endMin] = breakTiming.endTime.split(':').map(Number)
+
+    const startMinutes = startHour * 60 + startMin
+    const endMinutes = endHour * 60 + endMin
+
+    if (currentTime >= startMinutes && currentTime <= endMinutes) {
+      return { isDuringBreak: true, breakName: breakTiming.name }
+    }
+  }
+
+  return { isDuringBreak: false }
+}
+
+// Check employee against multiple geofence locations
+async function checkMultipleGeofences(latitude, longitude, employeeId, departmentId) {
+  const locations = await GeofenceLocation.find({ isActive: true })
+
+  const checkedLocations = []
+  let closestLocation = null
+  let minDistance = Infinity
+  let isWithinAnyGeofence = false
+
+  for (const location of locations) {
+    // Check if employee is allowed at this location
+    const isAllowed =
+      location.allowedDepartments.length === 0 ||
+      location.allowedDepartments.some(dept => dept.toString() === departmentId?.toString()) ||
+      location.allowedEmployees.some(emp => emp.toString() === employeeId.toString())
+
+    if (!isAllowed) continue
+
+    const distance = calculateDistance(
+      latitude,
+      longitude,
+      location.center.latitude,
+      location.center.longitude
+    )
+
+    const isWithin = distance <= location.radius
+
+    checkedLocations.push({
+      locationId: location._id,
+      locationName: location.name,
+      distance: Math.round(distance),
+      isWithin
+    })
+
+    if (isWithin) {
+      isWithinAnyGeofence = true
+      if (distance < minDistance) {
+        minDistance = distance
+        closestLocation = location
+      }
+    } else if (!isWithinAnyGeofence && distance < minDistance) {
+      // Track closest location even if not within
+      minDistance = distance
+      closestLocation = location
+    }
+  }
+
+  return {
+    isWithinAnyGeofence,
+    closestLocation,
+    closestDistance: Math.round(minDistance),
+    checkedLocations
+  }
 }
 
 // POST - Log geofence event
@@ -82,16 +168,58 @@ export async function POST(request) {
       )
     }
 
-    // Calculate distance from geofence center
-    const distance = calculateDistance(
-      latitude,
-      longitude,
-      settings.geofence.center.latitude,
-      settings.geofence.center.longitude
-    )
-
-    const isWithinGeofence = distance <= settings.geofence.radius
     const duringWorkHours = isDuringWorkHours(settings.checkInTime, settings.checkOutTime)
+
+    // Check if during break time
+    const breakCheck = isDuringBreakTime(settings.breakTimings)
+
+    let isWithinGeofence = false
+    let distance = 0
+    let geofenceCenter = null
+    let geofenceRadius = 0
+    let geofenceLocation = null
+    let geofenceLocationName = null
+    let checkedLocations = []
+
+    // Check if using multiple locations
+    if (settings.geofence.useMultipleLocations) {
+      const multiCheck = await checkMultipleGeofences(
+        latitude,
+        longitude,
+        employee._id,
+        employee.department?._id
+      )
+
+      isWithinGeofence = multiCheck.isWithinAnyGeofence
+      distance = multiCheck.closestDistance
+      checkedLocations = multiCheck.checkedLocations
+
+      if (multiCheck.closestLocation) {
+        geofenceLocation = multiCheck.closestLocation._id
+        geofenceLocationName = multiCheck.closestLocation.name
+        geofenceCenter = {
+          latitude: multiCheck.closestLocation.center.latitude,
+          longitude: multiCheck.closestLocation.center.longitude,
+        }
+        geofenceRadius = multiCheck.closestLocation.radius
+      }
+    } else {
+      // Legacy single location check
+      if (settings.geofence.center?.latitude && settings.geofence.center?.longitude) {
+        distance = calculateDistance(
+          latitude,
+          longitude,
+          settings.geofence.center.latitude,
+          settings.geofence.center.longitude
+        )
+        isWithinGeofence = distance <= settings.geofence.radius
+        geofenceCenter = {
+          latitude: settings.geofence.center.latitude,
+          longitude: settings.geofence.center.longitude,
+        }
+        geofenceRadius = settings.geofence.radius
+      }
+    }
 
     // Create geofence log
     const logData = {
@@ -104,13 +232,15 @@ export async function POST(request) {
         accuracy,
         timestamp: new Date(),
       },
-      geofenceCenter: {
-        latitude: settings.geofence.center.latitude,
-        longitude: settings.geofence.center.longitude,
-      },
-      geofenceRadius: settings.geofence.radius,
+      geofenceCenter,
+      geofenceRadius,
       distanceFromCenter: Math.round(distance),
       isWithinGeofence,
+      geofenceLocation,
+      geofenceLocationName,
+      checkedLocations,
+      duringBreakTime: breakCheck.isDuringBreak,
+      breakTimingName: breakCheck.breakName,
       department: employee.department?._id,
       reportingManager: employee.reportingManager?._id,
       duringWorkHours,
@@ -119,8 +249,8 @@ export async function POST(request) {
       },
     }
 
-    // If outside geofence during work hours and reason provided
-    if (!isWithinGeofence && duringWorkHours && reason) {
+    // If outside geofence during work hours and reason provided (and not during break)
+    if (!isWithinGeofence && duringWorkHours && !breakCheck.isDuringBreak && reason) {
       logData.outOfPremisesRequest = {
         reason,
         requestedAt: new Date(),
@@ -131,7 +261,7 @@ export async function POST(request) {
     const log = await GeofenceLog.create(logData)
 
     // Populate for response
-    await log.populate('employee reportingManager department')
+    await log.populate('employee reportingManager department geofenceLocation')
 
     return NextResponse.json({
       success: true,
@@ -140,7 +270,9 @@ export async function POST(request) {
         log,
         isWithinGeofence,
         distance: Math.round(distance),
-        requiresApproval: !isWithinGeofence && duringWorkHours && settings.geofence.requireApproval,
+        locationName: geofenceLocationName,
+        duringBreakTime: breakCheck.isDuringBreak,
+        requiresApproval: !isWithinGeofence && duringWorkHours && !breakCheck.isDuringBreak && settings.geofence.requireApproval,
       }
     })
 
@@ -209,6 +341,7 @@ export async function GET(request) {
       .populate('employee', 'firstName lastName employeeCode profilePicture')
       .populate('reportingManager', 'firstName lastName')
       .populate('department', 'name')
+      .populate('geofenceLocation', 'name address')
       .populate('outOfPremisesRequest.reviewedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(limit)

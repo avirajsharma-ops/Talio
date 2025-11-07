@@ -47,6 +47,28 @@ const GeofenceLogSchema = new mongoose.Schema({
     type: Boolean,
     required: true,
   },
+  // Multiple locations support
+  geofenceLocation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GeofenceLocation',
+  },
+  geofenceLocationName: String, // Cached for quick access
+  // All checked locations (for debugging)
+  checkedLocations: [{
+    locationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GeofenceLocation',
+    },
+    locationName: String,
+    distance: Number,
+    isWithin: Boolean,
+  }],
+  // Break timing info
+  duringBreakTime: {
+    type: Boolean,
+    default: false,
+  },
+  breakTimingName: String,
   
   // Out of Premises Request
   outOfPremisesRequest: {

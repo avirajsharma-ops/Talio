@@ -52,12 +52,36 @@ const AttendanceSchema = new mongoose.Schema({
       latitude: Number,
       longitude: Number,
       address: String,
+      geofenceLocation: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'GeofenceLocation',
+      },
+      geofenceLocationName: String, // Cached for quick access
     },
     checkOut: {
       latitude: Number,
       longitude: Number,
       address: String,
+      geofenceLocation: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'GeofenceLocation',
+      },
+      geofenceLocationName: String, // Cached for quick access
     },
+  },
+  // Geofence validation
+  geofenceValidated: {
+    type: Boolean,
+    default: false,
+  },
+  geofenceOverride: {
+    approved: Boolean,
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+    },
+    approvedAt: Date,
+    reason: String,
   },
   remarks: {
     type: String,

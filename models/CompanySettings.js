@@ -60,19 +60,16 @@ const CompanySettingsSchema = new mongoose.Schema({
       type: Boolean,
       default: false,
     },
+    // Legacy single location support (kept for backward compatibility)
+    // Optional - only used when useMultipleLocations is false
     center: {
-      latitude: {
-        type: Number,
-        required: function() { return this.geofence.enabled; }
-      },
-      longitude: {
-        type: Number,
-        required: function() { return this.geofence.enabled; }
-      },
+      type: mongoose.Schema.Types.Mixed,
+      required: false,
     },
     radius: {
       type: Number, // Radius in meters
       default: 100,
+      required: false,
     },
     strictMode: {
       type: Boolean,
@@ -86,7 +83,37 @@ const CompanySettingsSchema = new mongoose.Schema({
       type: Boolean,
       default: true, // Require manager approval when outside geofence
     },
+    // Multiple locations support
+    useMultipleLocations: {
+      type: Boolean,
+      default: true, // Always use GeofenceLocation collection for multiple locations
+    },
   },
+
+  // Break Timings (when geofencing is paused)
+  breakTimings: [{
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    startTime: {
+      type: String, // Format: "HH:MM"
+      required: true,
+    },
+    endTime: {
+      type: String, // Format: "HH:MM"
+      required: true,
+    },
+    days: [{
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+    }],
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  }],
   
   // Attendance Settings
   attendance: {

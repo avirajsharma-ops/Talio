@@ -30,17 +30,47 @@ export default function useGeofencing() {
   // Check if current time is during work hours
   const isDuringWorkHours = (checkInTime, checkOutTime) => {
     if (!checkInTime || !checkOutTime) return false
-    
+
     const now = new Date()
     const currentTime = now.getHours() * 60 + now.getMinutes()
-    
+
     const [checkInHour, checkInMin] = checkInTime.split(':').map(Number)
     const [checkOutHour, checkOutMin] = checkOutTime.split(':').map(Number)
-    
+
     const checkInMinutes = checkInHour * 60 + checkInMin
     const checkOutMinutes = checkOutHour * 60 + checkOutMin
-    
+
     return currentTime >= checkInMinutes && currentTime <= checkOutMinutes
+  }
+
+  // Check if current time is during break time
+  const isDuringBreakTime = (breakTimings) => {
+    if (!breakTimings || breakTimings.length === 0) return false
+
+    const now = new Date()
+    const currentTime = now.getHours() * 60 + now.getMinutes()
+    const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()]
+
+    for (const breakTiming of breakTimings) {
+      if (!breakTiming.isActive) continue
+
+      // Check if today is in the break timing's days
+      if (breakTiming.days && breakTiming.days.length > 0 && !breakTiming.days.includes(currentDay)) {
+        continue
+      }
+
+      const [startHour, startMin] = breakTiming.startTime.split(':').map(Number)
+      const [endHour, endMin] = breakTiming.endTime.split(':').map(Number)
+
+      const startMinutes = startHour * 60 + startMin
+      const endMinutes = endHour * 60 + endMin
+
+      if (currentTime >= startMinutes && currentTime <= endMinutes) {
+        return true
+      }
+    }
+
+    return false
   }
 
   // Fetch geofence settings
@@ -106,52 +136,49 @@ export default function useGeofencing() {
       return
     }
 
-    // Calculate distance from geofence center
-    const distance = calculateDistance(
-      position.coords.latitude,
-      position.coords.longitude,
-      geofenceSettings.geofence.center.latitude,
-      geofenceSettings.geofence.center.longitude
-    )
-
-    const withinGeofence = distance <= geofenceSettings.geofence.radius
     const duringWorkHours = isDuringWorkHours(
       geofenceSettings.checkInTime,
       geofenceSettings.checkOutTime
     )
 
-    // Check if status changed
-    const statusChanged = withinGeofence !== isWithinGeofence
-
-    // Log location if:
-    // 1. Status changed (entered or exited geofence)
-    // 2. Outside geofence during work hours
-    // 3. Periodic update (every 15 minutes)
-    const now = Date.now()
-    const shouldLog = statusChanged || 
-                     (!withinGeofence && duringWorkHours) ||
-                     (!lastCheckTime || (now - lastCheckTime) > 15 * 60 * 1000)
-
-    if (shouldLog) {
-      const eventType = statusChanged ? (withinGeofence ? 'entry' : 'exit') : 'location_update'
-      const logData = await logLocation(position, eventType)
-      
-      setLastCheckTime(now)
-
-      // If outside geofence during work hours and requires approval
-      if (!withinGeofence && duringWorkHours && geofenceSettings.geofence.requireApproval && statusChanged) {
-        // Show popup asking for reason
-        showOutOfPremisesPopup(position)
-      } else if (!withinGeofence && duringWorkHours && geofenceSettings.geofence.notifyOnExit && statusChanged) {
-        // Just notify
-        toast.error('You are outside the office premises during work hours', {
-          duration: 5000,
-          icon: '📍'
-        })
-      }
+    // Check if during break time - skip geofencing if true
+    const duringBreak = isDuringBreakTime(geofenceSettings.breakTimings)
+    if (duringBreak) {
+      return // Don't track during break times
     }
 
-    setIsWithinGeofence(withinGeofence)
+    // The API will handle checking multiple locations
+    // We just need to log the location and get the response
+    const now = Date.now()
+    const shouldLog = !lastCheckTime || (now - lastCheckTime) > 15 * 60 * 1000 // Every 15 minutes
+
+    if (shouldLog || !isWithinGeofence) {
+      const eventType = 'location_update'
+      const logData = await logLocation(position, eventType)
+
+      setLastCheckTime(now)
+
+      if (logData) {
+        const wasWithinGeofence = isWithinGeofence
+        const nowWithinGeofence = logData.isWithinGeofence
+        const statusChanged = wasWithinGeofence !== nowWithinGeofence
+
+        setIsWithinGeofence(nowWithinGeofence)
+
+        // If outside geofence during work hours and requires approval
+        if (!nowWithinGeofence && duringWorkHours && logData.requiresApproval && statusChanged) {
+          // Show popup asking for reason
+          showOutOfPremisesPopup(position)
+        } else if (!nowWithinGeofence && duringWorkHours && geofenceSettings.geofence.notifyOnExit && statusChanged) {
+          // Just notify
+          const locationMsg = logData.locationName ? ` (Closest: ${logData.locationName})` : ''
+          toast.error(`You are outside the office premises during work hours${locationMsg}`, {
+            duration: 5000,
+            icon: '📍'
+          })
+        }
+      }
+    }
   }, [geofenceSettings, isWithinGeofence, lastCheckTime, logLocation])
 
   // Show popup for out-of-premises reason
