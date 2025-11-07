@@ -207,7 +207,7 @@ export function ThemeProvider({ children }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ currentTheme, changeTheme, themes }}>
+    <ThemeContext.Provider value={{ currentTheme, changeTheme, themes, theme: themes[currentTheme] }}>
       {children}
     </ThemeContext.Provider>
   )

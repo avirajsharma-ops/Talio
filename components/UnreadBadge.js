@@ -3,7 +3,8 @@
 import { useTheme } from '@/contexts/ThemeContext'
 
 export default function UnreadBadge({ count, className = '' }) {
-  const { theme } = useTheme()
+  const { currentTheme, themes } = useTheme()
+  const theme = themes[currentTheme] || themes.default
 
   if (!count || count === 0) return null
 
