@@ -449,7 +449,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Task created successfully',
+      message: 'Project created successfully',
       data: task
     })
 

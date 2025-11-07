@@ -123,7 +123,7 @@ export default function PreferencesPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">System Preferences</h1>
           <p className="text-gray-600 mt-1">Configure system-wide settings and preferences</p>

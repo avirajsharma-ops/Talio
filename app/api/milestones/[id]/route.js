@@ -59,7 +59,7 @@ export async function PUT(request, { params }) {
       const task = await Task.findById(milestone.task)
       if (task) {
         task.statusHistory.push({
-          status: `Milestone completed: ${milestone.title}`,
+          status: `Task completed: ${milestone.title}`,
           changedBy: employeeId,
           reason: body.completionRemark
         })
@@ -212,7 +212,7 @@ async function updateTaskProgress(taskId) {
     if (averageProgress > 0 && task.status === 'assigned') {
       task.status = 'in_progress'
       task.statusHistory.push({
-        status: 'Task status changed to in_progress',
+        status: 'Project status changed to in_progress',
         changedBy: null,
         reason: 'Work started on milestones'
       })

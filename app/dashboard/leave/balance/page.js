@@ -123,7 +123,7 @@ export default function LeaveBalancePage() {
   return (
     <div className="p-6 pb-24 md:pb-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Leave Balance</h1>
           <p className="text-gray-600 mt-1">Track your leave entitlements and usage</p>

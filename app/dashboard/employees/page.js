@@ -113,7 +113,7 @@ export default function EmployeesPage() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Employees</h1>
           <p className="text-gray-600 mt-1">

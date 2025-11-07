@@ -179,7 +179,7 @@ function CreateTaskContent() {
       console.log('Final assignees array:', assignees)
 
       if (assignees.length === 0) {
-        setError('Please assign the task to at least one person')
+        setError('Please assign the Project to at least one person')
         return
       }
 
@@ -207,15 +207,15 @@ function CreateTaskContent() {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        setSuccess('Task created successfully!')
+        setSuccess('Project created successfully!')
         setCreatedTaskId(data.data?._id || null)
         // Don't auto-redirect, let user choose to view or create another
       } else {
         setError(data.message || 'Failed to create Project')
       }
     } catch (error) {
-      console.error('Error creating task:', error)
-      setError('An error occurred while creating the task')
+      console.error('Error creating Project:', error)
+      setError('An error occurred while creating the Project')
     } finally {
       setLoading(false)
     }
@@ -403,7 +403,7 @@ function CreateTaskContent() {
                   value={formData.title}
                   onChange={handleInputChange}
                   className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                  placeholder="Enter task title"
+                  placeholder="Enter Project title"
                   required
                 />
               </div>

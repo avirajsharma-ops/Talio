@@ -140,7 +140,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: 'Task created successfully',
+      message: 'Project created successfully',
       data: populatedTask,
     }, { status: 201 })
   } catch (error) {

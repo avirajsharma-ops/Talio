@@ -34,7 +34,7 @@ export default function AssetsPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Assets</h1>
           <p className="text-gray-600 mt-1">Manage company assets and equipment</p>
