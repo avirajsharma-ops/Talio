@@ -104,8 +104,8 @@ const TaskDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Task Management Dashboard</h1>
-          <p className="text-gray-600">Manage and track tasks across your organization</p>
+          <h1 className="text-2xl font-bold text-gray-900">Project Management Dashboard</h1>
+          <p className="text-gray-600">Manage and track Projects across your organization</p>
         </div>
         <div className="flex space-x-4">
           {/* View Selector */}

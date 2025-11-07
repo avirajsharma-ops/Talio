@@ -198,46 +198,50 @@ export default function LeaveAllocationsPage() {
   return (
     <div className="p-6 pb-24 md:pb-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Leave Allocations</h1>
           <p className="text-gray-600 mt-1">Manage employee leave balances and allocations</p>
         </div>
-        <div className="flex space-x-3">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            {[2024, 2025, 2026, 2027].map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-          <button
-            onClick={exportBalances}
-            className="px-4 py-2 btn-theme-secondary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
-          >
-            <FaDownload className="w-4 h-4" />
-            <span>Export</span>
-          </button>
-          <button
-            onClick={handleBulkAllocation}
-            className="px-4 py-2 btn-theme-primary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
-          >
-            <FaUsers className="w-4 h-4" />
-            <span>Bulk Allocate</span>
-          </button>
-          <button
-            onClick={() => {
-              resetForm()
-              setShowModal(true)
-            }}
-            className="px-4 py-2 btn-theme-primary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
-          >
-            <FaPlus className="w-4 h-4" />
-            <span>Add Allocation</span>
-          </button>
-        </div>
+       <div className="grid grid-cols-2 md:flex md:space-x-3 md:space-y-0 space-y-2  md:justify-between md:items-center md:flex-row flex-col mb-6 gap-2">
+  <select
+    value={selectedYear}
+    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+    className="px-4 py-2 md:h-[45px] h-[45px] mt-2.5 md:mt-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+  >
+    {[2024, 2025, 2026, 2027].map(year => (
+      <option key={year} value={year}>{year}</option>
+    ))}
+  </select>
+
+  <button
+    onClick={exportBalances}
+    className="px-4 py-2 btn-theme-secondary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
+  >
+    <FaDownload className="w-4 h-4" />
+    <span>Export</span>
+  </button>
+
+  <button
+    onClick={handleBulkAllocation}
+    className="px-4 py-2 btn-theme-primary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
+  >
+    <FaUsers className="w-4 h-4" />
+    <span>Bulk Allocate</span>
+  </button>
+
+  <button
+    onClick={() => {
+      resetForm()
+      setShowModal(true)
+    }}
+    className="px-4 py-2 btn-theme-primary rounded-lg transition-all duration-200 flex items-center space-x-2 font-semibold shadow-md hover:shadow-lg"
+  >
+    <FaPlus className="w-4 h-4" />
+    <span>Add Allocation</span>
+  </button>
+</div>
+
       </div>
 
       {/* Stats Cards */}

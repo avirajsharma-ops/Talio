@@ -193,7 +193,7 @@ export async function GET(request) {
         type: 'created',
         date: task.createdAt,
         actor: task.assignedBy,
-        description: 'Task created'
+        description: 'Project created'
       })
 
       // Status history - ALL task status changes including milestone events

@@ -46,11 +46,11 @@ export default function TeamTasksPage() {
         setIsDepartmentHead(data.meta.isDepartmentHead)
         setDepartment(data.meta.department)
       } else {
-        toast.error(data.message || 'Failed to fetch team tasks')
+        toast.error(data.message || 'Failed to fetch team Projects')
       }
     } catch (error) {
-      console.error('Error fetching team tasks:', error)
-      toast.error('Failed to fetch team tasks')
+      console.error('Error fetching team Projects:', error)
+      toast.error('Failed to fetch team Projects')
     } finally {
       setLoading(false)
     }
@@ -225,7 +225,7 @@ export default function TeamTasksPage() {
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search tasks..."
+              placeholder="Search Projects..."
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -279,7 +279,7 @@ export default function TeamTasksPage() {
           <p className="text-gray-600">
             {filters.search || filters.status || filters.priority 
               ? 'Try adjusting your filters' 
-              : 'No tasks assigned to your team yet'}
+              : 'No Projects assigned to your team yet'}
           </p>
         </div>
       ) : (

@@ -35,7 +35,7 @@ export default function TaskApprovals() {
         setTasks(data.data)
       }
     } catch (error) {
-      console.error('Error fetching task approvals:', error)
+      console.error('Error fetching Project approvals:', error)
     } finally {
       setLoading(false)
     }
@@ -116,7 +116,7 @@ export default function TaskApprovals() {
             <FaArrowLeft className="h-5 w-5 mr-2" />
             Back to Team Dashboard
           </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Approvals</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Project Approvals</h1>
           <p className="text-gray-600 mt-1">
             {statusFilter === 'pending' ? `${tasks.length} pending task ${tasks.length === 1 ? 'approval' : 'approvals'}` :
              statusFilter === 'completed' ? `${tasks.length} completed ${tasks.length === 1 ? 'task' : 'tasks'}` :
@@ -166,7 +166,7 @@ export default function TaskApprovals() {
             <FaCheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
             <p className="text-gray-600">
-              {statusFilter === 'pending' ? 'There are no pending task approvals at the moment.' :
+              {statusFilter === 'pending' ? 'There are no pending project approvals at the moment.' :
                statusFilter === 'completed' ? 'No completed tasks found.' :
                'No tasks found.'}
             </p>

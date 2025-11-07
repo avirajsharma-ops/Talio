@@ -180,7 +180,7 @@ export default function TeamDashboard() {
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Task Approvals</h2>
+            <h2 className="text-xl font-bold text-gray-900">Project Approvals</h2>
             <div className="bg-purple-100 p-2 rounded-lg">
               <FaFileAlt className="h-5 w-5 text-purple-600" />
             </div>
@@ -234,7 +234,7 @@ export default function TeamDashboard() {
 
           {teamData?.recentTasks?.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Task Approvals</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Project Approvals</h3>
               <div className="space-y-2">
                 {teamData.recentTasks.map((task) => (
                   <div key={task._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
