@@ -91,6 +91,7 @@ class NotificationService : Service() {
             socket?.on("task-approved", onTaskApproved)
             socket?.on("task-rejected", onTaskRejected)
             socket?.on("custom-notification", onCustomNotification)
+            socket?.on("geofence-approval", onGeofenceApproval)
 
             socket?.connect()
             Log.d(TAG, "Connecting to Socket.IO server...")
@@ -267,6 +268,28 @@ class NotificationService : Service() {
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error handling custom notification", e)
+        }
+    }
+
+    private val onGeofenceApproval = Emitter.Listener { args ->
+        try {
+            val data = args[0] as JSONObject
+            val action = data.getString("action")
+            val notification = data.getJSONObject("notification")
+            val title = notification.getString("title")
+            val body = notification.getString("body")
+            val url = notification.optString("url", "/dashboard/geofence")
+
+            Log.d(TAG, "Geofence approval: $action")
+
+            val icon = if (action == "approved") "✅" else "❌"
+            notificationManager.showGeneralNotification(
+                title = "$icon $title",
+                message = body,
+                url = url
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling geofence approval", e)
         }
     }
 

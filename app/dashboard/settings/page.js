@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
@@ -563,11 +564,672 @@ function CompanySettingsTab() {
   )
 }
 
+// Geofence Locations Manager Component (must be defined before GeofencingTab)
+function GeofenceLocationsManager() {
+  const [locations, setLocations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingLocation, setEditingLocation] = useState(null)
+  const [isMounted, setIsMounted] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    address: '',
+    center: { latitude: 28.6139, longitude: 77.2090 },
+    radius: 100,
+    isActive: true,
+    isPrimary: false,
+    strictMode: false,
+  })
+
+  // Check if component is mounted (client-side)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    fetchLocations()
+  }, [])
+
+  useEffect(() => {
+    console.log('🟢 showModal state changed to:', showModal)
+  }, [showModal])
+
+  const fetchLocations = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/geofence/locations?activeOnly=true', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setLocations(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOpenModal = (location = null) => {
+    if (location) {
+      // Editing existing location
+      setEditingLocation(location)
+      setFormData({
+        name: location.name || '',
+        description: location.description || '',
+        address: location.address || '',
+        center: location.center || { latitude: 28.6139, longitude: 77.2090 },
+        radius: location.radius || 100,
+        isActive: location.isActive !== undefined ? location.isActive : true,
+        isPrimary: location.isPrimary || false,
+        strictMode: location.strictMode || false,
+      })
+      setShowModal(true)
+    } else {
+      // Adding new location
+      setEditingLocation(null)
+
+      // Set default form data first
+      const defaultFormData = {
+        name: '',
+        description: '',
+        address: '',
+        center: { latitude: 28.6139, longitude: 77.2090 },
+        radius: 100,
+        isActive: true,
+        isPrimary: false,
+        strictMode: false,
+      }
+
+      setFormData(defaultFormData)
+
+      // Show modal immediately
+      setShowModal(true)
+
+      // Try to get current location in the background
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            // Update form data with current location
+            setFormData(prev => ({
+              ...prev,
+              center: {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              }
+            }))
+          },
+          (error) => {
+            // Keep default location if geolocation fails
+            console.error('Error getting location:', error)
+          }
+        )
+      }
+    }
+  }
+
+  const handleSave = async () => {
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      toast.error('Please enter a location name')
+      return
+    }
+
+    if (!formData.center || !formData.center.latitude || !formData.center.longitude) {
+      toast.error('Please set valid coordinates')
+      return
+    }
+
+    if (!formData.radius || formData.radius < 10) {
+      toast.error('Radius must be at least 10 meters')
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const url = editingLocation
+        ? `/api/geofence/locations/${editingLocation._id}`
+        : '/api/geofence/locations'
+
+      const response = await fetch(url, {
+        method: editingLocation ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success(editingLocation ? 'Location updated successfully' : 'Location added successfully')
+        fetchLocations()
+        setShowModal(false)
+        // Reset form data
+        setFormData({
+          name: '',
+          description: '',
+          address: '',
+          center: { latitude: 28.6139, longitude: 77.2090 },
+          radius: 100,
+          isActive: true,
+          isPrimary: false,
+          strictMode: false,
+        })
+        setEditingLocation(null)
+      } else {
+        toast.error(data.message || 'Failed to save location')
+      }
+    } catch (error) {
+      console.error('Error saving location:', error)
+      toast.error('Failed to save location')
+    }
+  }
+
+  const handleDelete = async (locationId) => {
+    if (!confirm('Are you sure you want to delete this location?')) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/geofence/locations/${locationId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Location deleted successfully')
+        fetchLocations()
+      } else {
+        toast.error(data.message || 'Failed to delete location')
+      }
+    } catch (error) {
+      console.error('Error deleting location:', error)
+      toast.error('Failed to delete location')
+    }
+  }
+
+  const handleMapUpdate = async (newPos, newRadius) => {
+    console.log('Map updated:', newPos, newRadius)
+
+    // newPos is an object { lat, lng }
+    // First update coordinates and radius
+    setFormData(prev => ({
+      ...prev,
+      center: { latitude: newPos.lat, longitude: newPos.lng },
+      radius: newRadius
+    }))
+
+    // Reverse geocoding to get address
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${newPos.lat},${newPos.lng}&key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
+      )
+      const data = await response.json()
+
+      console.log('Geocoding response:', data)
+
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        const result = data.results[0]
+        const address = result.formatted_address
+
+        // Extract location name from address components
+        let locationName = ''
+        const addressComponents = result.address_components
+
+        // Try to get a meaningful location name
+        const locality = addressComponents.find(c => c.types.includes('locality'))
+        const sublocality = addressComponents.find(c => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+        const neighborhood = addressComponents.find(c => c.types.includes('neighborhood'))
+        const premise = addressComponents.find(c => c.types.includes('premise'))
+
+        if (premise) {
+          locationName = premise.long_name
+        } else if (neighborhood) {
+          locationName = neighborhood.long_name
+        } else if (sublocality) {
+          locationName = sublocality.long_name
+        } else if (locality) {
+          locationName = locality.long_name
+        }
+
+        console.log('Extracted location name:', locationName)
+        console.log('Extracted address:', address)
+
+        // Update form data with address and location name
+        setFormData(prev => ({
+          ...prev,
+          center: { latitude: newPos.lat, longitude: newPos.lng },
+          radius: newRadius,
+          address: address,
+          name: prev.name || locationName // Only update name if it's empty
+        }))
+      } else {
+        console.error('Geocoding failed:', data.status, data.error_message)
+      }
+    } catch (error) {
+      console.error('Error fetching address:', error)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg p-6 border border-gray-200">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <FaMapMarkerAlt className="text-primary-500" />
+            <span>Office Locations</span>
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">Manage multiple office locations. Employees can check in from any configured location.</p>
+        </div>
+        <button
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          <FaMapMarkerAlt />
+          Add Location
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Loading locations...</div>
+      ) : locations.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <FaMapMarkerAlt className="mx-auto text-4xl text-gray-400 mb-3" />
+          <p className="text-gray-600 mb-4">No locations configured yet</p>
+          <button
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+          >
+            Add Your First Location
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {locations.map((location) => (
+            <div
+              key={location._id}
+              className={`border-2 rounded-lg p-4 ${
+                location.isPrimary ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-white'
+              } hover:shadow-md transition-shadow`}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-gray-900">{location.name}</h4>
+                  {location.isPrimary && (
+                    <span className="text-yellow-500" title="Primary Location">⭐</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleOpenModal(location)}
+                    className="text-blue-600 hover:text-blue-800"
+                    title="Edit"
+                  >
+                    ✏️
+                  </button>
+                  {!location.isPrimary && (
+                    <button
+                      onClick={() => handleDelete(location._id)}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {location.address && (
+                <p className="text-sm text-gray-600 mb-2">{location.address}</p>
+              )}
+
+              <div className="text-xs text-gray-500 space-y-1">
+                <div>📍 {location.center?.latitude?.toFixed(6)}, {location.center?.longitude?.toFixed(6)}</div>
+                <div>📏 Radius: {location.radius}m</div>
+                <div className="flex gap-2 mt-2">
+                  {location.isActive ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Active</span>
+                  ) : (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">Inactive</span>
+                  )}
+                  {location.strictMode && (
+                    <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">Strict</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal - Rendered using Portal */}
+      {isMounted && showModal && createPortal(
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{
+            zIndex: 99999,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'none'
+          }}
+          onClick={() => {
+            setShowModal(false)
+            setEditingLocation(null)
+          }}
+        >
+          <div
+            className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e5e7eb'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              className="px-6 py-4 border-b flex items-center justify-between"
+              style={{
+                borderColor: '#e5e7eb',
+                background: 'linear-gradient(to right, #f9fafb, #f3f4f6)'
+              }}
+            >
+              <h3
+                className="text-xl font-bold flex items-center gap-3"
+                style={{ color: '#111827' }}
+              >
+                <div className="p-2 rounded-lg" style={{ backgroundColor: '#3b82f6', opacity: 0.1 }}>
+                  <FaMapMarkerAlt style={{ color: '#3b82f6' }} size={20} />
+                </div>
+                {editingLocation ? 'Edit Location' : 'Add New Location'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowModal(false)
+                  setEditingLocation(null)
+                }}
+                className="p-2 rounded-lg transition-all hover:rotate-90 hover:bg-red-100"
+                style={{
+                  color: '#6b7280',
+                  backgroundColor: '#f3f4f6'
+                }}
+              >
+                <span className="text-xl">✕</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto flex-1" style={{ backgroundColor: '#ffffff' }}>
+              {/* Name & Address Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label
+                    className="block text-sm font-semibold mb-2"
+                    style={{ color: '#111827' }}
+                  >
+                    Location Name <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    style={{
+                      backgroundColor: '#f9fafb',
+                      border: '1.5px solid #d1d5db',
+                      color: '#111827',
+                      outline: 'none'
+                    }}
+                    placeholder="e.g., Main Office, Branch 1"
+                  />
+                </div>
+                <div>
+                  <label
+                    className="block text-sm font-semibold mb-2"
+                    style={{ color: '#111827' }}
+                  >
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    style={{
+                      backgroundColor: '#f9fafb',
+                      border: '1.5px solid #d1d5db',
+                      color: '#111827',
+                      outline: 'none'
+                    }}
+                    placeholder="Full address (auto-filled from map)"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label
+                  className="block text-sm font-semibold mb-2"
+                  style={{ color: '#111827' }}
+                >
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 resize-none"
+                  style={{
+                    backgroundColor: '#f9fafb',
+                    border: '1.5px solid #d1d5db',
+                    color: '#111827',
+                    outline: 'none'
+                  }}
+                  rows="2"
+                  placeholder="Optional description for this location"
+                />
+              </div>
+
+              {/* Coordinates & Radius Row */}
+              <div className="p-4 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
+                <h4 className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>
+                  Geofence Coordinates
+                </h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label
+                      className="block text-xs font-medium mb-1.5"
+                      style={{ color: '#6b7280' }}
+                    >
+                      Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={formData.center.latitude}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        center: { ...formData.center, latitude: parseFloat(e.target.value) || 0 }
+                      })}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1.5px solid #d1d5db',
+                        color: '#111827',
+                        outline: 'none'
+                      }}
+                      placeholder="28.6139"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-xs font-medium mb-1.5"
+                      style={{ color: '#6b7280' }}
+                    >
+                      Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={formData.center.longitude}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        center: { ...formData.center, longitude: parseFloat(e.target.value) || 0 }
+                      })}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1.5px solid #d1d5db',
+                        color: '#111827',
+                        outline: 'none'
+                      }}
+                      placeholder="77.2090"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-xs font-medium mb-1.5"
+                      style={{ color: '#6b7280' }}
+                    >
+                      Radius (meters)
+                    </label>
+                    <input
+                      type="number"
+                      min="10"
+                      step="10"
+                      value={formData.radius}
+                      onChange={(e) => setFormData({ ...formData, radius: parseInt(e.target.value) || 100 })}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1.5px solid #d1d5db',
+                        color: '#111827',
+                        outline: 'none'
+                      }}
+                      placeholder="100"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+                  💡 Drag the marker or resize the circle on the map to adjust the geofence area. Address will auto-fill!
+                </p>
+              </div>
+
+              {/* Map */}
+              <div
+                className="rounded-xl overflow-hidden shadow-lg"
+                style={{
+                  height: '400px',
+                  border: '2px solid #d1d5db'
+                }}
+              >
+                <GeofenceMap
+                  center={{
+                    lat: parseFloat(formData.center.latitude) || 28.6139,
+                    lng: parseFloat(formData.center.longitude) || 77.2090
+                  }}
+                  radius={parseInt(formData.radius) || 100}
+                  onUpdate={handleMapUpdate}
+                />
+              </div>
+
+              {/* Options - Compact */}
+              <div className="flex flex-wrap gap-6 p-4 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: '#3b82f6' }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: '#111827' }}
+                  >
+                    Active
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isPrimary}
+                    onChange={(e) => setFormData({ ...formData, isPrimary: e.target.checked })}
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: '#3b82f6' }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: '#111827' }}
+                  >
+                    Primary Location
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.strictMode}
+                    onChange={(e) => setFormData({ ...formData, strictMode: e.target.checked })}
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: '#3b82f6' }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: '#111827' }}
+                  >
+                    Strict Mode
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              className="px-6 py-4 border-t flex justify-end gap-3"
+              style={{
+                borderColor: '#e5e7eb',
+                backgroundColor: '#f9fafb'
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowModal(false)
+                  setEditingLocation(null)
+                }}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-105 hover:bg-gray-100"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#6b7280',
+                  border: '1.5px solid #d1d5db'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:bg-blue-600 shadow-lg"
+                style={{
+                  backgroundColor: '#3b82f6',
+                }}
+              >
+                {editingLocation ? '✓ Update Location' : '+ Add Location'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 // Geofencing Tab (Admin/HR only)
 function GeofencingTab() {
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [breakTimings, setBreakTimings] = useState([])
 
   useEffect(() => {
     fetchSettings()
@@ -584,6 +1246,7 @@ function GeofencingTab() {
       const data = await response.json()
       if (data.success) {
         setSettings(data.data)
+        setBreakTimings(data.data.breakTimings || [])
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -591,6 +1254,40 @@ function GeofencingTab() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const addBreakTiming = () => {
+    setBreakTimings([
+      ...breakTimings,
+      {
+        name: '',
+        startTime: '13:00',
+        endTime: '14:00',
+        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        isActive: true
+      }
+    ])
+  }
+
+  const updateBreakTiming = (index, field, value) => {
+    const updated = [...breakTimings]
+    updated[index] = { ...updated[index], [field]: value }
+    setBreakTimings(updated)
+  }
+
+  const toggleBreakDay = (index, day) => {
+    const updated = [...breakTimings]
+    const days = updated[index].days || []
+    if (days.includes(day)) {
+      updated[index].days = days.filter(d => d !== day)
+    } else {
+      updated[index].days = [...days, day]
+    }
+    setBreakTimings(updated)
+  }
+
+  const removeBreakTiming = (index) => {
+    setBreakTimings(breakTimings.filter((_, i) => i !== index))
   }
 
   const handleSave = async (e) => {
@@ -602,15 +1299,12 @@ function GeofencingTab() {
       const updatedSettings = {
         geofence: {
           enabled: formData.get('enabled') === 'on',
-          center: {
-            latitude: parseFloat(formData.get('latitude')) || 0,
-            longitude: parseFloat(formData.get('longitude')) || 0,
-          },
-          radius: parseInt(formData.get('radius')) || 100,
           strictMode: formData.get('strictMode') === 'on',
           notifyOnExit: formData.get('notifyOnExit') === 'on',
           requireApproval: formData.get('requireApproval') === 'on',
-        }
+          useMultipleLocations: true, // Always use multiple locations
+        },
+        breakTimings: breakTimings
       }
 
       const token = localStorage.getItem('token')
@@ -636,13 +1330,6 @@ function GeofencingTab() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const handleMapUpdate = (center, radius) => {
-    // Update form values when map is updated
-    document.getElementById('latitude').value = center.lat
-    document.getElementById('longitude').value = center.lng
-    document.getElementById('radius').value = radius
   }
 
   if (loading) {
@@ -674,65 +1361,8 @@ function GeofencingTab() {
           </label>
         </div>
 
-        {/* Geofence Center & Radius */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FaMapMarkerAlt className="text-primary-500" />
-            <span>Office Location & Geofence Radius</span>
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">Set your office location and define the geofence boundary. Drag the marker or click on the map to set the center point.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Latitude</label>
-              <input
-                type="number"
-                id="latitude"
-                name="latitude"
-                step="any"
-                defaultValue={settings?.geofence?.center?.latitude || 0}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="0.000000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Longitude</label>
-              <input
-                type="number"
-                id="longitude"
-                name="longitude"
-                step="any"
-                defaultValue={settings?.geofence?.center?.longitude || 0}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="0.000000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Radius (meters)</label>
-              <input
-                type="number"
-                id="radius"
-                name="radius"
-                min="10"
-                defaultValue={settings?.geofence?.radius || 100}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="100"
-              />
-            </div>
-          </div>
-
-          {/* Map */}
-          <div className="border-2 border-gray-300 rounded-lg overflow-hidden shadow-md" style={{ height: '450px' }}>
-            <GeofenceMap
-              center={{
-                lat: settings?.geofence?.center?.latitude || 0,
-                lng: settings?.geofence?.center?.longitude || 0
-              }}
-              radius={settings?.geofence?.radius || 100}
-              onUpdate={handleMapUpdate}
-            />
-          </div>
-        </div>
+        {/* Office Locations */}
+        <GeofenceLocationsManager />
 
         {/* Geofence Options */}
         <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -780,6 +1410,108 @@ function GeofencingTab() {
               </div>
             </label>
           </div>
+        </div>
+
+        {/* Break Timings */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FaClock className="text-primary-500" />
+                <span>Break Timings</span>
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">Configure break times when geofencing tracking is paused</p>
+            </div>
+            <button
+              type="button"
+              onClick={addBreakTiming}
+              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+            >
+              <span>+</span> Add Break
+            </button>
+          </div>
+
+          {breakTimings.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <FaClock className="mx-auto text-gray-400 text-4xl mb-3" />
+              <p className="text-gray-600">No break timings configured</p>
+              <p className="text-sm text-gray-500 mt-1">Click "Add Break" to configure break times</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {breakTimings.map((breakTiming, index) => (
+                <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-start mb-3">
+                    <input
+                      type="text"
+                      value={breakTiming.name}
+                      onChange={(e) => updateBreakTiming(index, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg mr-2 focus:ring-2 focus:ring-primary-500"
+                      placeholder="Break name (e.g., Lunch Break)"
+                    />
+                    <label className="flex items-center gap-2 mr-2">
+                      <input
+                        type="checkbox"
+                        checked={breakTiming.isActive}
+                        onChange={(e) => updateBreakTiming(index, 'isActive', e.target.checked)}
+                        className="w-4 h-4 rounded text-primary-500 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeBreakTiming(index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={breakTiming.startTime}
+                        onChange={(e) => updateBreakTiming(index, 'startTime', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={breakTiming.endTime}
+                        onChange={(e) => updateBreakTiming(index, 'endTime', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-2">Active Days</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleBreakDay(index, day)}
+                          className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                            breakTiming.days?.includes(day)
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end pt-4 border-t border-gray-200">

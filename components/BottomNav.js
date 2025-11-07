@@ -18,31 +18,31 @@ export default function BottomNav() {
   const navItems = [
     {
       name: 'Home',
-      icon: '/assets/bottom bar/proicons_home.svg',
+      icon: '/assets/Bottom Bar/proicons_home.svg',
       path: '/dashboard',
       active: pathname === '/dashboard'
     },
     {
       name: 'Projects',
-      icon: '/assets/bottom bar/Frame 69.svg',
+      icon: '/assets/Bottom Bar/Frame 69.svg',
       path: '/dashboard/tasks/my-tasks',
       active: pathname.startsWith('/dashboard/tasks')
     },
     {
       name: 'Chat',
-      icon: '/assets/bottom bar/proicons_chat.svg',
+      icon: '/assets/Bottom Bar/proicons_chat.svg',
       path: '/dashboard/chat',
       active: pathname.startsWith('/dashboard/chat')
     },
     {
       name: 'Leave',
-      icon: '/assets/bottom bar/proicons_calendar.svg',
+      icon: '/assets/Bottom Bar/proicons_calendar.svg',
       path: '/dashboard/leave',
       active: pathname.startsWith('/dashboard/leave')
     },
     {
       name: 'Ideas',
-      icon: '/assets/bottom bar/proicons_lightbulb.svg',
+      icon: '/assets/Bottom Bar/proicons_lightbulb.svg',
       path: '/dashboard/sandbox',
       active: pathname.startsWith('/dashboard/sandbox')
     }

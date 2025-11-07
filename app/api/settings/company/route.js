@@ -84,11 +84,18 @@ export async function PUT(request) {
       // Update existing settings
       Object.keys(body).forEach(key => {
         if (key === 'geofence' && body.geofence) {
-          // Merge geofence settings
-          settings.geofence = {
-            ...settings.geofence,
-            ...body.geofence,
-          }
+          // Merge geofence settings, filtering out undefined and null values
+          const newGeofence = Object.fromEntries(
+            Object.entries(body.geofence).filter(([_, v]) => v !== undefined && v !== null)
+          )
+
+          // Update each field individually to avoid undefined values
+          Object.keys(newGeofence).forEach(geoKey => {
+            settings.geofence[geoKey] = newGeofence[geoKey]
+          })
+
+          // Don't set center or radius if they're not provided (we're using multiple locations now)
+          // This prevents validation errors for legacy fields
         } else if (key === 'attendance' && body.attendance) {
           settings.attendance = {
             ...settings.attendance,

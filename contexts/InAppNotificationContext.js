@@ -12,7 +12,7 @@ const InAppNotificationContext = createContext({
 
 export function InAppNotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
-  const { onNewMessage, onTaskUpdate, onAnnouncement } = useSocket()
+  const { onNewMessage, onTaskUpdate, onAnnouncement, onGeofenceApproval } = useSocket()
   const pathname = usePathname()
 
   const showNotification = useCallback((notification) => {
@@ -144,6 +144,27 @@ export function InAppNotificationProvider({ children }) {
 
     return unsubscribe
   }, [onAnnouncement, showNotification])
+
+  // Listen for geofence approval/rejection events via Socket.IO
+  useEffect(() => {
+    if (!onGeofenceApproval) return
+
+    const unsubscribe = onGeofenceApproval((data) => {
+      const { action, log, notification } = data
+
+      const isApproved = action === 'approved'
+      const icon = isApproved ? '✅' : '❌'
+
+      showNotification({
+        title: `${icon} ${notification.title}`,
+        message: notification.body,
+        url: notification.url || '/dashboard/geofence',
+        type: 'geofence_approval'
+      })
+    })
+
+    return unsubscribe
+  }, [onGeofenceApproval, showNotification])
 
   return (
     <InAppNotificationContext.Provider value={{ showNotification }}>

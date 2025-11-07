@@ -202,6 +202,14 @@ export function SocketProvider({ children }) {
     }
   }, [socket])
 
+  // Subscribe to geofence approval events
+  const onGeofenceApproval = useCallback((callback) => {
+    if (socket) {
+      socket.on('geofence-approval', callback)
+      return () => socket.off('geofence-approval', callback)
+    }
+  }, [socket])
+
   const value = {
     socket,
     isConnected,
@@ -221,7 +229,8 @@ export function SocketProvider({ children }) {
     onTaskUpdate,
     onAnnouncement,
     onMessageReaction,
-    onMessageDeleted
+    onMessageDeleted,
+    onGeofenceApproval
   }
 
   return (
