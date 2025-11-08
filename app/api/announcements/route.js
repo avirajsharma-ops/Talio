@@ -137,8 +137,20 @@ export async function POST(request) {
     try {
       let targetUsers = []
 
-      if (announcement.isDepartmentAnnouncement && announcement.departments.length > 0) {
-        // Send to department members only
+      // Check if this is a manager announcement (sent to direct reports only)
+      if (creatorRole === 'manager' && creatorEmployeeId) {
+        // Send to manager's direct reports only
+        const directReports = await Employee.find({
+          reportingManager: creatorEmployeeId,
+          status: 'active'
+        }).select('userId')
+
+        const userIds = directReports.map(emp => emp.userId).filter(Boolean)
+        targetUsers = await User.find({
+          _id: { $in: userIds }
+        }).select('_id')
+      } else if (announcement.isDepartmentAnnouncement && announcement.departments.length > 0) {
+        // Send to department members only (for department heads)
         const deptEmployees = await Employee.find({
           department: { $in: announcement.departments },
           status: 'active'
@@ -150,7 +162,7 @@ export async function POST(request) {
           role: { $in: ['employee', 'manager', 'hr', 'admin', 'department_head'] }
         }).select('_id')
       } else {
-        // Send to all users
+        // Send to all users (for admin/hr)
         targetUsers = await User.find({
           role: { $in: ['employee', 'manager', 'hr', 'admin', 'department_head'] }
         }).select('_id')
