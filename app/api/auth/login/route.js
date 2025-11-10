@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
-import Employee from '@/models/Employee'
 import { SignJWT } from 'jose'
 
 export async function POST(request) {
@@ -42,7 +41,6 @@ export async function POST(request) {
 
     // Check password using bcrypt comparison
     let isPasswordMatch = false
-console.log(user,456);
 
     try {
       isPasswordMatch = await user.comparePassword(password)
@@ -55,7 +53,7 @@ console.log(user,456);
       if (isPasswordMatch) {
         console.log('Legacy user detected, updating password hash')
         user.password = password // This will trigger the pre-save hook to hash it
-        await user.save()
+        await user.save({ validateBeforeSave: false })
       }
     }
 
@@ -69,12 +67,29 @@ console.log(user,456);
       )
     }
 
-    // Update last login
-    user.lastLogin = new Date()
-    await user.save()
+    // Update last login without triggering full validation (handles legacy data)
+    const lastLogin = new Date()
+    try {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { lastLogin } },
+        { timestamps: false }
+      )
+      user.lastLogin = lastLogin
+    } catch (error) {
+      console.error('Failed to update lastLogin:', error)
+    }
 
     // Create JWT token
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    const secretValue = process.env.JWT_SECRET
+    if (!secretValue) {
+      console.error('JWT_SECRET environment variable is missing')
+      return NextResponse.json(
+        { message: 'Server configuration error. Please contact support.' },
+        { status: 500 }
+      )
+    }
+    const secret = new TextEncoder().encode(secretValue)
     const token = await new SignJWT({
       userId: user._id.toString(),
       email: user.email,
