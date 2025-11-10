@@ -29,7 +29,15 @@ app.prepare().then(() => {
     path: '/api/socketio',
     addTrailingSlash: false,
     cors: {
-      origin: dev ? 'http://localhost:3000' : ['https://zenova.sbs', 'https://www.zenova.sbs'],
+      origin: dev
+        ? 'http://localhost:3000'
+        : [
+            'https://mwg.talio.in',
+            'http://mwg.talio.in',
+            // keep existing domains if used elsewhere
+            'https://zenova.sbs',
+            'https://www.zenova.sbs'
+          ],
       methods: ['GET', 'POST'],
       credentials: true
     },
