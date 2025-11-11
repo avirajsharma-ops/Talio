@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
+import Employee from '@/models/Employee'
 import { SignJWT } from 'jose'
 
 export async function POST(request) {
@@ -19,8 +20,8 @@ export async function POST(request) {
       )
     }
 
-    // Find user and include password field
-    const user = await User.findOne({ email }).select('+password').populate('employeeId')
+    // Find user and include password field (without populate to avoid schema error)
+    const user = await User.findOne({ email }).select('+password')
 
     console.log('User found:', user ? 'Yes' : 'No')
 
@@ -104,7 +105,6 @@ export async function POST(request) {
     let employeeData = null
     if (user.employeeId) {
       try {
-        const Employee = (await import('@/models/Employee')).default
         employeeData = await Employee.findById(user.employeeId)
           .populate('designation')
           .populate('department')
