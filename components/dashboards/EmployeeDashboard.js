@@ -93,7 +93,15 @@ export default function EmployeeDashboard({ user }) {
   }
 
   const handleClockIn = async () => {
-    if (!user?.employeeId?._id) return
+    console.log('🔵 Clock In button clicked')
+
+    if (!user?.employeeId?._id) {
+      console.error('❌ No user or employeeId found')
+      toast.error('User information not available')
+      return
+    }
+
+    console.log('✅ User ID:', user.employeeId._id)
     setAttendanceLoading(true)
 
     try {
@@ -101,6 +109,8 @@ export default function EmployeeDashboard({ user }) {
       let latitude = null
       let longitude = null
       let address = 'Location not available'
+
+      console.log('📍 Requesting location...')
 
       if (navigator.geolocation) {
         try {
@@ -114,6 +124,7 @@ export default function EmployeeDashboard({ user }) {
 
           latitude = position.coords.latitude
           longitude = position.coords.longitude
+          console.log('✅ Location obtained:', latitude, longitude)
 
           // Try to get address from coordinates
           try {
@@ -122,16 +133,20 @@ export default function EmployeeDashboard({ user }) {
             )
             const geocodeData = await geocodeResponse.json()
             address = geocodeData.display_name || 'Location detected'
+            console.log('✅ Address:', address)
           } catch (geocodeError) {
-            console.warn('Geocoding failed:', geocodeError)
+            console.warn('⚠️ Geocoding failed:', geocodeError)
             address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
           }
         } catch (geoError) {
-          console.warn('Geolocation error:', geoError)
-          toast.error('Location access denied. Please enable location services.')
+          console.error('❌ Geolocation error:', geoError)
+          toast.error('Location access denied. Continuing without location...')
         }
+      } else {
+        console.warn('⚠️ Geolocation not supported')
       }
 
+      console.log('📤 Sending clock-in request...')
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -148,7 +163,9 @@ export default function EmployeeDashboard({ user }) {
         }),
       })
 
+      console.log('📥 Response status:', response.status)
       const data = await response.json()
+      console.log('📥 Response data:', data)
 
       if (data.success) {
         toast.success('Clocked in successfully!')
@@ -157,15 +174,24 @@ export default function EmployeeDashboard({ user }) {
         toast.error(data.message || 'Failed to clock in')
       }
     } catch (error) {
-      console.error('Clock in error:', error)
+      console.error('❌ Clock in error:', error)
       toast.error('An error occurred while clocking in')
     } finally {
       setAttendanceLoading(false)
+      console.log('🔵 Clock in process completed')
     }
   }
 
   const handleClockOut = async () => {
-    if (!user?.employeeId?._id) return
+    console.log('🔴 Clock Out button clicked')
+
+    if (!user?.employeeId?._id) {
+      console.error('❌ No user or employeeId found')
+      toast.error('User information not available')
+      return
+    }
+
+    console.log('✅ User ID:', user.employeeId._id)
     setAttendanceLoading(true)
 
     try {
@@ -173,6 +199,8 @@ export default function EmployeeDashboard({ user }) {
       let latitude = null
       let longitude = null
       let address = 'Location not available'
+
+      console.log('📍 Requesting location...')
 
       if (navigator.geolocation) {
         try {
@@ -186,6 +214,7 @@ export default function EmployeeDashboard({ user }) {
 
           latitude = position.coords.latitude
           longitude = position.coords.longitude
+          console.log('✅ Location obtained:', latitude, longitude)
 
           // Try to get address from coordinates
           try {
@@ -194,15 +223,20 @@ export default function EmployeeDashboard({ user }) {
             )
             const geocodeData = await geocodeResponse.json()
             address = geocodeData.display_name || 'Location detected'
+            console.log('✅ Address:', address)
           } catch (geocodeError) {
-            console.warn('Geocoding failed:', geocodeError)
+            console.warn('⚠️ Geocoding failed:', geocodeError)
             address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
           }
         } catch (geoError) {
-          console.warn('Geolocation error:', geoError)
+          console.error('❌ Geolocation error:', geoError)
+          toast.error('Location access denied. Continuing without location...')
         }
+      } else {
+        console.warn('⚠️ Geolocation not supported')
       }
 
+      console.log('📤 Sending clock-out request...')
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -219,7 +253,9 @@ export default function EmployeeDashboard({ user }) {
         }),
       })
 
+      console.log('📥 Response status:', response.status)
       const data = await response.json()
+      console.log('📥 Response data:', data)
 
       if (data.success) {
         toast.success('Clocked out successfully! 👋')
@@ -228,10 +264,11 @@ export default function EmployeeDashboard({ user }) {
         toast.error(data.message || 'Failed to clock out')
       }
     } catch (error) {
-      console.error('Clock out error:', error)
+      console.error('❌ Clock out error:', error)
       toast.error('An error occurred while clocking out')
     } finally {
       setAttendanceLoading(false)
+      console.log('🔴 Clock out process completed')
     }
   }
 
@@ -433,7 +470,13 @@ export default function EmployeeDashboard({ user }) {
         {/* Action Buttons */}
         <div className="flex gap-2 sm:gap-3">
           <button
-            onClick={handleClockIn}
+            onClick={(e) => {
+              console.log('🔵 Check In button clicked (event)', e)
+              console.log('🔵 Button disabled?', attendanceLoading || (todayAttendance && todayAttendance.checkIn))
+              console.log('🔵 attendanceLoading:', attendanceLoading)
+              console.log('🔵 todayAttendance:', todayAttendance)
+              handleClockIn()
+            }}
             disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
             className="btn-theme-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
@@ -441,7 +484,13 @@ export default function EmployeeDashboard({ user }) {
           </button>
 
           <button
-            onClick={handleClockOut}
+            onClick={(e) => {
+              console.log('🔴 Check Out button clicked (event)', e)
+              console.log('🔴 Button disabled?', attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut)
+              console.log('🔴 attendanceLoading:', attendanceLoading)
+              console.log('🔴 todayAttendance:', todayAttendance)
+              handleClockOut()
+            }}
             disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
             className="btn-theme-secondary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
           >
