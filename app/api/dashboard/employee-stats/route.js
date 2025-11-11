@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
 import LeaveBalance from '@/models/LeaveBalance'
+import LeaveType from '@/models/LeaveType'
 import Payroll from '@/models/Payroll'
 import Employee from '@/models/Employee'
 import Designation from '@/models/Designation'
@@ -163,10 +164,10 @@ export async function GET(request) {
         trend: 'neutral'
       },
       thisMonthSalary: {
-        value: currentSalary ? currentSalary.netSalary : (employee.salary || 0),
-        change: currentSalary && lastMonthSalary ? 
+        value: currentSalary ? currentSalary.netSalary : (employee.salary?.ctc || employee.salary?.basic || 0),
+        change: currentSalary && lastMonthSalary ?
           currentSalary.netSalary - lastMonthSalary.netSalary : 0,
-        trend: currentSalary && lastMonthSalary ? 
+        trend: currentSalary && lastMonthSalary ?
           (currentSalary.netSalary >= lastMonthSalary.netSalary ? 'up' : 'down') : 'neutral'
       },
       pendingTasks: {

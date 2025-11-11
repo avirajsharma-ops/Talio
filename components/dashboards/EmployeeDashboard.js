@@ -13,7 +13,7 @@ import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip from '@/components/charts/CustomTooltip'
 
-export default function EmployeeDashboard({ user }) {
+export default function EmployeeDashboard({ user: userProp }) {
   const { theme } = useTheme()
 
   // Fallback theme colors if theme is not loaded yet
@@ -27,15 +27,50 @@ export default function EmployeeDashboard({ user }) {
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [todayTasks, setTodayTasks] = useState([])
   const [recentActivities, setRecentActivities] = useState([])
+  const [user, setUser] = useState(userProp)
+
+  // Load user from localStorage if not provided via props
+  useEffect(() => {
+    console.log('🔍 User prop received:', userProp)
+
+    if (!userProp || !userProp.employeeId) {
+      console.log('⚠️ User prop is missing or incomplete, loading from localStorage...')
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData)
+          console.log('✅ User loaded from localStorage:', parsedUser)
+          setUser(parsedUser)
+        } catch (error) {
+          console.error('❌ Error parsing user data:', error)
+        }
+      } else {
+        console.error('❌ No user data in localStorage')
+      }
+    } else {
+      console.log('✅ Using user from props')
+      setUser(userProp)
+    }
+  }, [userProp])
 
   useEffect(() => {
+    console.log('🔍 Current user state:', user)
     fetchDashboardData()
-    if (user?.employeeId?._id) {
+
+    // Handle both cases: employeeId as string or as object
+    const employeeId = typeof user?.employeeId === 'object'
+      ? user?.employeeId?._id
+      : user?.employeeId
+
+    if (employeeId) {
+      console.log('✅ Fetching attendance for employee:', employeeId)
       fetchTodayAttendance()
+    } else {
+      console.warn('⚠️ Cannot fetch attendance - no employeeId')
     }
     fetchTodayTasks()
     fetchRecentActivities()
-  }, [])
+  }, [user])
 
   const fetchDashboardData = async () => {
     try {
@@ -76,10 +111,20 @@ export default function EmployeeDashboard({ user }) {
 
   const fetchTodayAttendance = async () => {
     try {
+      // Handle both cases: employeeId as string or as object
+      const employeeId = typeof user?.employeeId === 'object'
+        ? user.employeeId._id
+        : user?.employeeId
+
+      if (!employeeId) {
+        console.warn('⚠️ Cannot fetch attendance - no employeeId')
+        return
+      }
+
       const token = localStorage.getItem('token')
       const today = new Date().toISOString().split('T')[0]
 
-      const response = await fetch(`/api/attendance?employeeId=${user.employeeId._id}&date=${today}`, {
+      const response = await fetch(`/api/attendance?employeeId=${employeeId}&date=${today}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -94,14 +139,25 @@ export default function EmployeeDashboard({ user }) {
 
   const handleClockIn = async () => {
     console.log('🔵 Clock In button clicked')
+    console.log('🔍 User object:', user)
+    console.log('🔍 User employeeId type:', typeof user?.employeeId)
+    console.log('🔍 User employeeId value:', user?.employeeId)
 
-    if (!user?.employeeId?._id) {
+    // Handle both cases: employeeId as string or as object
+    const employeeId = typeof user?.employeeId === 'object'
+      ? user.employeeId._id
+      : user?.employeeId
+
+    console.log('🔍 Resolved employeeId:', employeeId)
+
+    if (!employeeId) {
       console.error('❌ No user or employeeId found')
+      console.error('❌ User object:', user)
       toast.error('User information not available')
       return
     }
 
-    console.log('✅ User ID:', user.employeeId._id)
+    console.log('✅ User ID:', employeeId)
     setAttendanceLoading(true)
 
     try {
@@ -155,7 +211,7 @@ export default function EmployeeDashboard({ user }) {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId._id,
+          employeeId: employeeId,
           type: 'clock-in',
           latitude,
           longitude,
@@ -184,14 +240,25 @@ export default function EmployeeDashboard({ user }) {
 
   const handleClockOut = async () => {
     console.log('🔴 Clock Out button clicked')
+    console.log('🔍 User object:', user)
+    console.log('🔍 User employeeId type:', typeof user?.employeeId)
+    console.log('🔍 User employeeId value:', user?.employeeId)
 
-    if (!user?.employeeId?._id) {
+    // Handle both cases: employeeId as string or as object
+    const employeeId = typeof user?.employeeId === 'object'
+      ? user.employeeId._id
+      : user?.employeeId
+
+    console.log('🔍 Resolved employeeId:', employeeId)
+
+    if (!employeeId) {
       console.error('❌ No user or employeeId found')
+      console.error('❌ User object:', user)
       toast.error('User information not available')
       return
     }
 
-    console.log('✅ User ID:', user.employeeId._id)
+    console.log('✅ User ID:', employeeId)
     setAttendanceLoading(true)
 
     try {
@@ -245,7 +312,7 @@ export default function EmployeeDashboard({ user }) {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId._id,
+          employeeId: employeeId,
           type: 'clock-out',
           latitude,
           longitude,
@@ -475,6 +542,8 @@ export default function EmployeeDashboard({ user }) {
               console.log('🔵 Button disabled?', attendanceLoading || (todayAttendance && todayAttendance.checkIn))
               console.log('🔵 attendanceLoading:', attendanceLoading)
               console.log('🔵 todayAttendance:', todayAttendance)
+              console.log('🔵 Current user state:', user)
+              console.log('🔵 User employeeId:', user?.employeeId)
               handleClockIn()
             }}
             disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
@@ -489,6 +558,8 @@ export default function EmployeeDashboard({ user }) {
               console.log('🔴 Button disabled?', attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut)
               console.log('🔴 attendanceLoading:', attendanceLoading)
               console.log('🔴 todayAttendance:', todayAttendance)
+              console.log('🔴 Current user state:', user)
+              console.log('🔴 User employeeId:', user?.employeeId)
               handleClockOut()
             }}
             disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
