@@ -88,6 +88,41 @@ export default function HRDashboard({ user }) {
     setAttendanceLoading(true)
 
     try {
+      // Get user's location
+      let latitude = null
+      let longitude = null
+      let address = 'Location not available'
+
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            })
+          })
+
+          latitude = position.coords.latitude
+          longitude = position.coords.longitude
+
+          // Try to get address from coordinates
+          try {
+            const geocodeResponse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            )
+            const geocodeData = await geocodeResponse.json()
+            address = geocodeData.display_name || 'Location detected'
+          } catch (geocodeError) {
+            console.warn('Geocoding failed:', geocodeError)
+            address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+          }
+        } catch (geoError) {
+          console.warn('Geolocation error:', geoError)
+          toast.error('Location access denied. Please enable location services.')
+        }
+      }
+
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -98,6 +133,9 @@ export default function HRDashboard({ user }) {
         body: JSON.stringify({
           employeeId: user.employeeId._id,
           type: 'clock-in',
+          latitude,
+          longitude,
+          address,
         }),
       })
 
@@ -122,6 +160,40 @@ export default function HRDashboard({ user }) {
     setAttendanceLoading(true)
 
     try {
+      // Get user's location
+      let latitude = null
+      let longitude = null
+      let address = 'Location not available'
+
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            })
+          })
+
+          latitude = position.coords.latitude
+          longitude = position.coords.longitude
+
+          // Try to get address from coordinates
+          try {
+            const geocodeResponse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            )
+            const geocodeData = await geocodeResponse.json()
+            address = geocodeData.display_name || 'Location detected'
+          } catch (geocodeError) {
+            console.warn('Geocoding failed:', geocodeError)
+            address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+          }
+        } catch (geoError) {
+          console.warn('Geolocation error:', geoError)
+        }
+      }
+
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -132,6 +204,9 @@ export default function HRDashboard({ user }) {
         body: JSON.stringify({
           employeeId: user.employeeId._id,
           type: 'clock-out',
+          latitude,
+          longitude,
+          address,
         }),
       })
 
