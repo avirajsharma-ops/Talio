@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="sbs.zenova.twa"
-4    android:versionCode="1"
-5    android:versionName="1.0.0" >
+4    android:versionCode="2"
+5    android:versionName="1.0.1" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="24"
@@ -172,9 +172,9 @@
 91-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:68:27-75
 92
 93                <data
-93-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:69:17-71:49
-94                    android:host="zenova.sbs"
-94-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:71:21-46
+93-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:69:17-71:51
+94                    android:host="mwg.talio.in"
+94-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:71:21-48
 95                    android:scheme="https" />
 95-->/Users/avirajsharma/Desktop/Talio/android/app/src/main/AndroidManifest.xml:70:21-43
 96            </intent-filter>

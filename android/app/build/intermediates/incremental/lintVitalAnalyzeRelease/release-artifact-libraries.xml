@@ -757,13 +757,29 @@
       externalAnnotations="annotations.zip"
       proguardRules="proguard.txt"/>
   <library
-      name="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk8/1.8.22/b25c86d47d6b962b9cf0f8c3f320c8a10eea3dd1/kotlin-stdlib-jdk8-1.8.22.jar"
-      resolved="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"/>
+      name="io.socket:socket.io-client:2.1.0@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/io.socket/socket.io-client/2.1.0/d49d37d8c62bddec4d7d0a65add9859fab666d0e/socket.io-client-2.1.0.jar"
+      resolved="io.socket:socket.io-client:2.1.0"/>
   <library
-      name="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk7/1.8.22/4dabb8248310d833bb6a8b516024a91fd3d275c/kotlin-stdlib-jdk7-1.8.22.jar"
-      resolved="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"/>
+      name="io.socket:engine.io-client:2.1.0@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/io.socket/engine.io-client/2.1.0/fb421e5575e69e1181e5fed3eea351929017f08e/engine.io-client-2.1.0.jar"
+      resolved="io.socket:engine.io-client:2.1.0"/>
+  <library
+      name="com.squareup.okhttp3:okhttp:4.12.0@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/com.squareup.okhttp3/okhttp/4.12.0/2f4525d4a200e97e1b87449c2cd9bd2e25b7e8cd/okhttp-4.12.0.jar"
+      resolved="com.squareup.okhttp3:okhttp:4.12.0"/>
+  <library
+      name="com.squareup.okio:okio-jvm:3.6.0@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/com.squareup.okio/okio-jvm/3.6.0/5600569133b7bdefe1daf9ec7f4abeb6d13e1786/okio-jvm-3.6.0.jar"
+      resolved="com.squareup.okio:okio-jvm:3.6.0"/>
+  <library
+      name="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk8/1.9.10/c7510d64a83411a649c76f2778304ddf71d7437b/kotlin-stdlib-jdk8-1.9.10.jar"
+      resolved="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10"/>
+  <library
+      name="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10@jar"
+      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk7/1.9.10/bc5bfc2690338defd5195b05c57562f2194eeb10/kotlin-stdlib-jdk7-1.9.10.jar"
+      resolved="org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10"/>
   <library
       name="androidx.cursoradapter:cursoradapter:1.0.0@aar"
       jars="/Users/avirajsharma/.gradle/caches/transforms-3/0784272250aea289acf94572da80ae6b/transformed/cursoradapter-1.0.0/jars/classes.jar"
@@ -988,10 +1004,6 @@
       externalAnnotations="annotations.zip"
       proguardRules="proguard.txt"/>
   <library
-      name="io.socket:socket.io-client:2.1.0@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/io.socket/socket.io-client/2.1.0/d49d37d8c62bddec4d7d0a65add9859fab666d0e/socket.io-client-2.1.0.jar"
-      resolved="io.socket:socket.io-client:2.1.0"/>
-  <library
       name="org.jetbrains:annotations:23.0.0@jar"
       jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/23.0.0/8cc20c07506ec18e0834947b84a864bfc094484e/annotations-23.0.0.jar"
       resolved="org.jetbrains:annotations:23.0.0"/>
@@ -1048,18 +1060,6 @@
       name="javax.inject:javax.inject:1@jar"
       jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/javax.inject/javax.inject/1/6975da39a7040257bd51d21a231b76c915872d38/javax.inject-1.jar"
       resolved="javax.inject:javax.inject:1"/>
-  <library
-      name="io.socket:engine.io-client:2.1.0@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/io.socket/engine.io-client/2.1.0/fb421e5575e69e1181e5fed3eea351929017f08e/engine.io-client-2.1.0.jar"
-      resolved="io.socket:engine.io-client:2.1.0"/>
-  <library
-      name="com.squareup.okhttp3:okhttp:3.12.12@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/com.squareup.okhttp3/okhttp/3.12.12/d3e1ce1d2b3119adf270b2d00d947beb03fe3321/okhttp-3.12.12.jar"
-      resolved="com.squareup.okhttp3:okhttp:3.12.12"/>
-  <library
-      name="com.squareup.okio:okio:1.15.0@jar"
-      jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/com.squareup.okio/okio/1.15.0/bc28b5a964c8f5721eb58ee3f3c47a9bcbf4f4d8/okio-1.15.0.jar"
-      resolved="com.squareup.okio:okio:1.15.0"/>
   <library
       name="org.json:json:20090211@jar"
       jars="/Users/avirajsharma/.gradle/caches/modules-2/files-2.1/org.json/json/20090211/c183aa3a2a6250293808bba12262c8920ce5a51c/json-20090211.jar"

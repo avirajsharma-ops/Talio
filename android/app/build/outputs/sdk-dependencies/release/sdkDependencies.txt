@@ -52,20 +52,20 @@ library {
   maven_library {
     groupId: "org.jetbrains.kotlin"
     artifactId: "kotlin-stdlib-jdk8"
-    version: "1.8.22"
+    version: "1.9.10"
   }
   digests {
-    sha256: "A\230\260\352\360\220\244\362[o~ZYX\037C\024\272\214\237l\321\321>\351\323H\346^\330\367\a"
+    sha256: "\244\307M\224\326L\341\253\3457`\376\003\211\335\224\037o\305X\320\332\263^G\300\205\241\036\310\017("
   }
 }
 library {
   maven_library {
     groupId: "org.jetbrains.kotlin"
     artifactId: "kotlin-stdlib-jdk7"
-    version: "1.8.22"
+    version: "1.9.10"
   }
   digests {
-    sha256: "\005_\\\262B\207\372\020a\000\231Z{G\253\222\022k\201\3502\350u\365\372,\360\275Ui=\v"
+    sha256: "\254ca\277\232\321\3558,!\003\331q,G\315\354\026b2\264\220>\325\226\350\207k\006\201\311\267"
   }
 }
 library {
@@ -1087,20 +1087,27 @@ library {
   maven_library {
     groupId: "com.squareup.okhttp3"
     artifactId: "okhttp"
-    version: "3.12.12"
+    version: "4.12.0"
   }
   digests {
-    sha256: "6\361\315\a\230\373#\036[\341\211\320\277\342cMXy\3670\202\276W\030\3120\247=\036\341^K"
+    sha256: "\261\005\000\201\261K\267\243\247\345ZM>\360\033]\317\253\304S\264W:O\300\031vq\221\325\364\340"
   }
 }
 library {
   maven_library {
     groupId: "com.squareup.okio"
     artifactId: "okio"
-    version: "1.15.0"
+    version: "3.6.0"
+  }
+}
+library {
+  maven_library {
+    groupId: "com.squareup.okio"
+    artifactId: "okio-jvm"
+    version: "3.6.0"
   }
   digests {
-    sha256: "i?\243\031\247\350\2043\000`+ @#\267gO\020n\274\265w\362\335X\a!+f\021\213\322"
+    sha256: "gT?\a6\374B*\351\'\355\016PK\230\274^&\237\332\r5\000W\2237\313q=\242\204\022"
   }
 }
 library {
@@ -1886,16 +1893,26 @@ library_dependencies {
 library_dependencies {
   library_index: 108
   library_dep_index: 109
-  library_dep_index: 112
+  library_dep_index: 113
 }
 library_dependencies {
   library_index: 109
   library_dep_index: 110
-  library_dep_index: 112
+  library_dep_index: 113
 }
 library_dependencies {
   library_index: 110
   library_dep_index: 111
+  library_dep_index: 5
+}
+library_dependencies {
+  library_index: 111
+  library_dep_index: 112
+}
+library_dependencies {
+  library_index: 112
+  library_dep_index: 5
+  library_dep_index: 7
 }
 module_dependencies {
   module_name: "base"
@@ -1916,6 +1933,7 @@ module_dependencies {
   dependency_index: 32
   dependency_index: 19
   dependency_index: 23
+  dependency_index: 110
 }
 repositories {
   maven_repo {

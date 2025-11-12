@@ -848,7 +848,7 @@
 }
 
 # End of content from /Users/avirajsharma/.gradle/caches/transforms-3/b9ed68c64c48cc63087dc8b8ce4ad9cf/transformed/rules/lib/META-INF/proguard/androidx-annotations.pro
-# The proguard configuration file for the following section is /Users/avirajsharma/.gradle/caches/transforms-3/39f0aa52dfb60b4673c8153bf1f72457/transformed/rules/lib/META-INF/proguard/okhttp3.pro
+# The proguard configuration file for the following section is /Users/avirajsharma/.gradle/caches/transforms-3/6cd0cdfcc3f0ac8a3d0cdc2276931540/transformed/rules/lib/META-INF/proguard/okhttp3.pro
 # JSR 305 annotations are for embedding nullability information.
 -dontwarn javax.annotation.**
 
@@ -858,10 +858,13 @@
 # Animal Sniffer compileOnly dependency to ensure APIs are compatible with older versions of Java.
 -dontwarn org.codehaus.mojo.animal_sniffer.*
 
-# OkHttp platform used only on JVM and when Conscrypt dependency is available.
--dontwarn okhttp3.internal.platform.ConscryptPlatform
+# OkHttp platform used only on JVM and when Conscrypt and other security providers are available.
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
 
-# End of content from /Users/avirajsharma/.gradle/caches/transforms-3/39f0aa52dfb60b4673c8153bf1f72457/transformed/rules/lib/META-INF/proguard/okhttp3.pro
+# End of content from /Users/avirajsharma/.gradle/caches/transforms-3/6cd0cdfcc3f0ac8a3d0cdc2276931540/transformed/rules/lib/META-INF/proguard/okhttp3.pro
 # The proguard configuration file for the following section is <unknown>
 
 # End of content from <unknown>
