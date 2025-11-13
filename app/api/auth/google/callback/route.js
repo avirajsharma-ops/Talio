@@ -51,43 +51,39 @@ export async function GET(request) {
 
     await connectDB()
 
-    // Check if user exists
-    let user = await User.findOne({ email: googleUser.email }).populate('employeeId')
+    // Check if user exists in database
+    let user = await User.findOne({ email: googleUser.email })
 
+    // Only allow login if user exists in database
     if (!user) {
-      // Create new user using the create-user API logic
-      const createUserResponse = await fetch(`${request.nextUrl.origin}/api/create-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: googleUser.email,
-          firstName: googleUser.given_name || googleUser.name.split(' ')[0] || 'User',
-          lastName: googleUser.family_name || googleUser.name.split(' ').slice(1).join(' ') || '',
-          profilePicture: googleUser.picture || '',
-          role: 'employee',
-          googleId: googleUser.id,
-        }),
-      })
-
-      if (!createUserResponse.ok) {
-        const errorData = await createUserResponse.json()
-        console.error('Failed to create user:', errorData)
-        return NextResponse.redirect(new URL('/login?error=user_creation_failed', request.url))
-      }
-
-      const createUserData = await createUserResponse.json()
-      user = await User.findById(createUserData.user.id).populate('employeeId')
-    } else {
-      // Update last login
-      user.lastLogin = new Date()
-      await user.save()
+      console.log('Google login attempt for non-existent user:', googleUser.email)
+      return NextResponse.redirect(new URL('/login?error=user_not_found', request.url))
     }
 
     // Check if user is active
     if (!user.isActive) {
       return NextResponse.redirect(new URL('/login?error=account_deactivated', request.url))
+    }
+
+    // Fetch employee data separately to avoid populate issues
+    let employeeData = null
+    if (user.employeeId) {
+      try {
+        employeeData = await Employee.findById(user.employeeId)
+      } catch (error) {
+        console.error('Error fetching employee data:', error)
+      }
+    }
+
+    // Update last login
+    try {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { lastLogin: new Date() } },
+        { timestamps: false }
+      )
+    } catch (error) {
+      console.error('Failed to update lastLogin:', error)
     }
 
     // Create JWT token
@@ -102,12 +98,21 @@ export async function GET(request) {
       .setExpirationTime('7d')
       .sign(secret)
 
-    // Return user data
+    // Prepare user data for response (similar to login API)
     const userData = {
       id: user._id,
       email: user.email,
       role: user.role,
       employeeId: user.employeeId,
+      // Include employee data if available
+      ...(employeeData && {
+        firstName: employeeData.firstName,
+        lastName: employeeData.lastName,
+        profilePicture: employeeData.profilePicture,
+        designation: employeeData.designation,
+        department: employeeData.department,
+        employeeNumber: employeeData.employeeNumber,
+      })
     }
 
     // Create response with redirect

@@ -39,7 +39,8 @@ export default function LoginPage() {
             no_code: 'Google authentication failed. Please try again.',
             token_exchange_failed: 'Failed to authenticate with Google.',
             user_info_failed: 'Failed to get user information from Google.',
-            account_deactivated: 'Your account has been deactivated.',
+            user_not_found: 'No account found with this Google email. Please contact your administrator.',
+            account_deactivated: 'Your account has been deactivated. Please contact your administrator.',
             authentication_failed: 'Authentication failed. Please try again.',
           }
           toast.error(errorMessages[error] || 'An error occurred during login.')
