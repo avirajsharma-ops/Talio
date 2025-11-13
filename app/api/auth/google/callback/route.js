@@ -4,6 +4,9 @@ import User from '@/models/User'
 import Employee from '@/models/Employee'
 import { SignJWT } from 'jose'
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)

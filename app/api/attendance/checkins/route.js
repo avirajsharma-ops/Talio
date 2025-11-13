@@ -4,6 +4,9 @@ import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
 import { verifyToken } from '@/lib/auth'
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic'
+
 // GET - Get employee check-ins for a specific date (Admin only)
 export async function GET(request) {
   try {

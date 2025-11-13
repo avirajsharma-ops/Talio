@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const [status, setStatus] = useState('Processing...')
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     const processAuth = async () => {
@@ -128,6 +126,26 @@ export default function AuthCallbackPage() {
         <p className="text-gray-400 text-sm mt-2">{status}</p>
       </div>
     </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 flex items-center justify-center bg-white">
+        <style jsx global>{`
+          html, body {
+            background-color: #FFFFFF !important;
+          }
+        `}</style>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   )
 }
 
