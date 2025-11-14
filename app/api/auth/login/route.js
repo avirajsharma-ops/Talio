@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
+import CompanySettings from '@/models/CompanySettings'
 import { SignJWT } from 'jose'
 import { sendLoginAlertEmail } from '@/lib/mailer'
 
@@ -115,25 +116,35 @@ export async function POST(request) {
       }
     }
 
-    // Best-effort: send login alert email to the user
+    // Best-effort: send login alert email to the user (controlled by admin settings)
     try {
-      const userAgent = request.headers.get('user-agent') || undefined
-      const ipAddress =
-        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-        request.headers.get('x-real-ip') ||
-        undefined
+      const companySettings = await CompanySettings.findOne().lean().catch(() => null)
 
-      const name = employeeData
-        ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
-        : undefined
+      const emailNotificationsEnabled =
+        companySettings?.notifications?.emailNotifications !== false
 
-      await sendLoginAlertEmail({
-        to: user.email,
-        name,
-        loginTime: user.lastLogin || new Date(),
-        userAgent,
-        ipAddress,
-      })
+      const loginEmailEnabled =
+        companySettings?.notifications?.emailEvents?.login !== false
+
+      if (emailNotificationsEnabled && loginEmailEnabled) {
+        const userAgent = request.headers.get('user-agent') || undefined
+        const ipAddress =
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          undefined
+
+        const name = employeeData
+          ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
+          : undefined
+
+        await sendLoginAlertEmail({
+          to: user.email,
+          name,
+          loginTime: user.lastLogin || new Date(),
+          userAgent,
+          ipAddress,
+        })
+      }
     } catch (emailError) {
       console.error('Failed to send login alert email:', emailError)
     }

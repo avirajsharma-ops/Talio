@@ -161,6 +161,28 @@ const CompanySettingsSchema = new mongoose.Schema({
       type: Boolean,
       default: false,
     },
+    emailEvents: {
+      login: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceClockIn: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceStatusPresent: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceStatusHalfDay: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceStatusAbsent: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   
   // System Settings

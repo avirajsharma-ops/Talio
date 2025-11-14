@@ -38,6 +38,8 @@ export async function GET(request) {
       })
     }
 
+    console.log('GET company settings - notifications:', settings.notifications)
+
     return NextResponse.json({
       success: true,
       data: settings
@@ -107,10 +109,22 @@ export async function PUT(request) {
             ...body.leave,
           }
         } else if (key === 'notifications' && body.notifications) {
+          // Deep merge notifications to preserve nested emailEvents
+          console.log('Updating notifications:', {
+            current: settings.notifications,
+            incoming: body.notifications
+          })
+
           settings.notifications = {
             ...settings.notifications,
             ...body.notifications,
+            emailEvents: {
+              ...(settings.notifications?.emailEvents || {}),
+              ...(body.notifications?.emailEvents || {}),
+            },
           }
+
+          console.log('Updated notifications:', settings.notifications)
         } else if (key === 'companyAddress' && body.companyAddress) {
           settings.companyAddress = {
             ...settings.companyAddress,

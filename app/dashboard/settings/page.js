@@ -1898,11 +1898,424 @@ function PersonalizationTab() {
 
 // Notifications Tab (Admin/HR/Department Head only)
 function NotificationsTab() {
+  const [settings, setSettings] = useState(null)
+  const [originalSettings, setOriginalSettings] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+
   const NotificationManagement = dynamic(() => import('@/components/NotificationManagement'), { ssr: false })
 
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  useEffect(() => {
+    // Check if there are unsaved changes
+    if (settings && originalSettings) {
+      const currentEmailNotifications = settings.notifications?.emailNotifications
+      const originalEmailNotifications = originalSettings.notifications?.emailNotifications
+      const currentEmailEvents = JSON.stringify(settings.notifications?.emailEvents || {})
+      const originalEmailEvents = JSON.stringify(originalSettings.notifications?.emailEvents || {})
+
+      setHasChanges(
+        currentEmailNotifications !== originalEmailNotifications ||
+        currentEmailEvents !== originalEmailEvents
+      )
+    }
+  }, [settings, originalSettings])
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/settings/company', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSettings(data.data)
+        setOriginalSettings(JSON.parse(JSON.stringify(data.data))) // Deep clone
+      }
+    } catch (error) {
+      console.error('Error fetching notification settings:', error)
+      toast.error('Failed to load notification settings')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEmailToggleChange = (eventKey) => (e) => {
+    const checked = e.target.checked
+    setSettings((prev) => {
+      if (!prev) return prev
+
+      // Deep clone to avoid mutation
+      const newSettings = JSON.parse(JSON.stringify(prev))
+
+      if (!newSettings.notifications) {
+        newSettings.notifications = {}
+      }
+      if (!newSettings.notifications.emailEvents) {
+        newSettings.notifications.emailEvents = {}
+      }
+
+      newSettings.notifications.emailEvents[eventKey] = checked
+
+      return newSettings
+    })
+  }
+
+  const handleGlobalEmailToggleChange = (e) => {
+    const checked = e.target.checked
+    setSettings((prev) => {
+      if (!prev) return prev
+
+      // Deep clone to avoid mutation
+      const newSettings = JSON.parse(JSON.stringify(prev))
+
+      if (!newSettings.notifications) {
+        newSettings.notifications = {}
+      }
+
+      newSettings.notifications.emailNotifications = checked
+
+      return newSettings
+    })
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    if (!settings) return
+    setSaving(true)
+
+    try {
+      const token = localStorage.getItem('token')
+
+      // Get the current value - if undefined, treat as true (default), otherwise use the actual value
+      const emailNotifications = settings.notifications?.emailNotifications !== false
+      const emailEvents = settings.notifications?.emailEvents || {}
+
+      console.log('Saving email notification settings:', {
+        emailNotifications,
+        emailEvents
+      })
+
+      const response = await fetch('/api/settings/company', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notifications: {
+            emailNotifications: emailNotifications,
+            emailEvents: emailEvents,
+          },
+        }),
+      })
+
+      const data = await response.json()
+      console.log('Save response:', data)
+
+      if (data.success) {
+        // Update both settings and original settings with the response
+        const updatedSettings = JSON.parse(JSON.stringify(data.data))
+        setSettings(updatedSettings)
+        setOriginalSettings(updatedSettings)
+        setHasChanges(false)
+        toast.success('Email notification settings saved successfully!')
+      } else {
+        toast.error(data.message || 'Failed to save notification settings')
+      }
+    } catch (error) {
+      console.error('Error saving notification settings:', error)
+      toast.error('Failed to save notification settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReset = () => {
+    if (originalSettings) {
+      setSettings(JSON.parse(JSON.stringify(originalSettings)))
+      setHasChanges(false)
+      toast.success('Changes discarded')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading notification settings...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Master toggle: default is true (from schema), only false if explicitly set to false
+  const emailNotificationsEnabled = settings?.notifications?.emailNotifications !== false
+  const emailEvents = settings?.notifications?.emailEvents || {}
+
+  const attendanceStatusEvents = [
+    {
+      key: 'attendanceStatusPresent',
+      label: 'Present days',
+      description: 'Send an email summary when an employee is marked present.',
+    },
+    {
+      key: 'attendanceStatusHalfDay',
+      label: 'Half-day days',
+      description: 'Send an email summary when an employee is marked half-day.',
+    },
+    {
+      key: 'attendanceStatusAbsent',
+      label: 'Absent days',
+      description: 'Send an email summary when an employee is marked absent.',
+    },
+  ]
+
+  // Check if individual event is enabled
+  // Default to true if not explicitly set to false (for backward compatibility)
+  const isEventEnabled = (key) => {
+    const value = emailEvents[key]
+    // If undefined or true, return true. If false, return false.
+    return value !== false
+  }
+
   return (
-    <div>
-      <NotificationManagement />
+    <div className="space-y-6">
+      {/* Unsaved changes banner */}
+      {hasChanges && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-amber-800">
+                You have unsaved changes
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+            >
+              Discard changes
+            </button>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSave} className="space-y-4">
+        <div className="bg-white rounded-lg p-4 sm:p-6 border border-gray-200 shadow-sm">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Email Notifications</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Choose which activities should send emails to employees.
+          </p>
+
+          <div className="space-y-5">
+            {/* Master toggle */}
+            <div className="flex items-start justify-between p-4 bg-gradient-to-r from-blue-50 to-primary-50 rounded-lg border border-primary-100">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-gray-900">Enable email notifications</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Master switch to enable or disable all email notifications system-wide.
+                </p>
+              </div>
+              <label className="inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={emailNotificationsEnabled}
+                  onChange={handleGlobalEmailToggleChange}
+                />
+                <div className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
+                  emailNotificationsEnabled
+                    ? 'bg-primary-500'
+                    : 'bg-gray-300'
+                }`}>
+                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${
+                    emailNotificationsEnabled
+                      ? 'left-7'
+                      : 'left-0.5'
+                  }`} />
+                </div>
+              </label>
+            </div>
+
+            {/* Per-event toggles */}
+            <div className="border-t border-gray-200 pt-4 space-y-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Authentication Events</p>
+              {[
+                {
+                  key: 'login',
+                  label: 'Login',
+                  description: 'Send an email to employees when they log in.',
+                },
+              ].map((event) => {
+                const isEnabled = isEventEnabled(event.key)
+                const canToggle = emailNotificationsEnabled
+
+                return (
+                  <div key={event.key} className="flex items-start justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{event.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{event.description}</p>
+                    </div>
+                    <label className={`inline-flex items-center ml-4 flex-shrink-0 ${canToggle ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={isEnabled}
+                        onChange={handleEmailToggleChange(event.key)}
+                        disabled={!canToggle}
+                      />
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                        !canToggle
+                          ? 'bg-gray-200 opacity-50'
+                          : isEnabled
+                            ? 'bg-primary-500'
+                            : 'bg-gray-300'
+                      }`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                          isEnabled
+                            ? 'left-5'
+                            : 'left-0.5'
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 space-y-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Attendance Events</p>
+              {[
+                {
+                  key: 'attendanceClockIn',
+                  label: 'Clock in',
+                  description: 'Send an email when an employee clocks in.',
+                },
+              ].map((event) => {
+                const isEnabled = isEventEnabled(event.key)
+                const canToggle = emailNotificationsEnabled
+
+                return (
+                  <div key={event.key} className="flex items-start justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{event.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{event.description}</p>
+                    </div>
+                    <label className={`inline-flex items-center ml-4 flex-shrink-0 ${canToggle ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={isEnabled}
+                        onChange={handleEmailToggleChange(event.key)}
+                        disabled={!canToggle}
+                      />
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                        !canToggle
+                          ? 'bg-gray-200 opacity-50'
+                          : isEnabled
+                            ? 'bg-primary-500'
+                            : 'bg-gray-300'
+                      }`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                          isEnabled
+                            ? 'left-5'
+                            : 'left-0.5'
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="border-t border-gray-200 pt-4 space-y-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Daily Attendance Status (on clock-out)</p>
+              {attendanceStatusEvents.map((event) => {
+                const isEnabled = isEventEnabled(event.key)
+                const canToggle = emailNotificationsEnabled
+
+                return (
+                  <div key={event.key} className="flex items-start justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{event.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{event.description}</p>
+                    </div>
+                    <label className={`inline-flex items-center ml-4 flex-shrink-0 ${canToggle ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={isEnabled}
+                        onChange={handleEmailToggleChange(event.key)}
+                        disabled={!canToggle}
+                      />
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                        !canToggle
+                          ? 'bg-gray-200 opacity-50'
+                          : isEnabled
+                            ? 'bg-primary-500'
+                            : 'bg-gray-300'
+                      }`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                          isEnabled
+                            ? 'left-5'
+                            : 'left-0.5'
+                        }`} />
+                      </div>
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={!hasChanges || saving}
+            className="px-4 py-2.5 rounded-lg text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            type="submit"
+            disabled={!hasChanges || saving}
+            className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Saving...
+              </span>
+            ) : (
+              'Save Changes'
+            )}
+          </button>
+        </div>
+      </form>
+
+      <div className="bg-white rounded-lg p-4 sm:p-6 border border-gray-200 shadow-sm">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Push Notifications</h2>
+        <NotificationManagement />
+      </div>
     </div>
   )
 }

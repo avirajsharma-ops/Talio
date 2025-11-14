@@ -6,6 +6,7 @@ import Leave from '@/models/Leave'
 import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
 import { logActivity } from '@/lib/activityLogger'
+import { sendEmail } from '@/lib/mailer'
 
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -249,6 +250,43 @@ export async function POST(request) {
         relatedId: attendance._id
       })
 
+      // Best-effort: send clock-in email if enabled in settings
+      try {
+        const emailNotificationsEnabled =
+          settings?.notifications?.emailNotifications !== false
+
+        const emailEvents = settings?.notifications?.emailEvents || {}
+        const clockInEmailEnabled = emailEvents.attendanceClockIn !== false
+
+        if (emailNotificationsEnabled && clockInEmailEnabled && employee?.email) {
+          const employeeName = [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+          const greetingName = employeeName ? ` ${employeeName}` : ''
+          const timeString = checkInTime.toLocaleString('en-IN', {
+            timeZone: settings?.timezone || 'Asia/Kolkata',
+          })
+
+          const textLines = [
+            `Hi${greetingName},`,
+            '',
+            `Your clock-in has been recorded on ${timeString}.`,
+            `Status: ${checkInStatus}.`,
+            '',
+            'If this was not you, please contact your HR/administrator.',
+            '',
+            'Thanks,',
+            'Talio HRMS',
+          ]
+
+          await sendEmail({
+            to: employee.email,
+            subject: 'Clock-in recorded',
+            text: textLines.join('\n'),
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send clock-in email:', emailError)
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Clocked in successfully',
@@ -345,6 +383,56 @@ export async function POST(request) {
         relatedModel: 'Attendance',
         relatedId: attendance._id
       })
+
+      // Best-effort: send clock-out email if enabled in settings
+      try {
+        const emailNotificationsEnabled =
+          settings?.notifications?.emailNotifications !== false
+
+        const emailEvents = settings?.notifications?.emailEvents || {}
+
+        let statusToggleKey = null
+        if (attendance.status === 'present') statusToggleKey = 'attendanceStatusPresent'
+        else if (attendance.status === 'half-day') statusToggleKey = 'attendanceStatusHalfDay'
+        else if (attendance.status === 'absent') statusToggleKey = 'attendanceStatusAbsent'
+
+        const statusEmailEnabled =
+          statusToggleKey && emailEvents[statusToggleKey] !== false
+
+        if (emailNotificationsEnabled && statusEmailEnabled && employee?.email) {
+          const employeeName = [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+          const greetingName = employeeName ? ` ${employeeName}` : ''
+          const timeString = checkOutTime.toLocaleString('en-IN', {
+            timeZone: settings?.timezone || 'Asia/Kolkata',
+          })
+
+          let statusLabel = attendance.status
+          if (attendance.status === 'present') statusLabel = 'Present'
+          else if (attendance.status === 'half-day') statusLabel = 'Half day'
+          else if (attendance.status === 'absent') statusLabel = 'Absent'
+
+          const textLines = [
+            `Hi${greetingName},`,
+            '',
+            `Your clock-out has been recorded on ${timeString}.`,
+            `Todays attendance status: ${statusLabel}.`,
+            `Total hours worked: ${attendance.workHours} hours.`,
+            '',
+            'If this was not you, please contact your HR/administrator.',
+            '',
+            'Thanks,',
+            'Talio HRMS',
+          ]
+
+          await sendEmail({
+            to: employee.email,
+            subject: 'Clock-out recorded',
+            text: textLines.join('\n'),
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send clock-out email:', emailError)
+      }
 
       return NextResponse.json({
         success: true,
