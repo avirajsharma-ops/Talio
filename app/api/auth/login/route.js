@@ -154,23 +154,27 @@ export async function POST(request) {
     try {
       const name = employeeData
         ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
-        : user.email
+        : user.email.split('@')[0]
 
       const currentHour = new Date().getHours()
       let greeting = 'Hello'
+      let emoji = '👋'
       if (currentHour < 12) {
         greeting = 'Good Morning'
+        emoji = '🌅'
       } else if (currentHour < 17) {
         greeting = 'Good Afternoon'
+        emoji = '☀️'
       } else {
         greeting = 'Good Evening'
+        emoji = '🌙'
       }
 
       await sendPushToUser(
         user._id,
         {
-          title: `👋 Welcome to Talio HRMS!`,
-          body: `${greeting} ${name}! You've successfully logged in.`,
+          title: `${emoji} ${greeting}, ${name}!`,
+          body: `Welcome back to Talio! You've successfully logged in.`,
         },
         {
           eventType: 'login',
@@ -178,6 +182,7 @@ export async function POST(request) {
           icon: '/icon-192x192.png',
           data: {
             loginTime: new Date().toISOString(),
+            type: 'login',
           },
         }
       )

@@ -6,7 +6,7 @@
   "display": "standalone",
   "display_override": ["standalone", "fullscreen"],
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#192A5A",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
@@ -135,8 +135,8 @@
   "related_applications": [
     {
       "platform": "play",
-      "id": "sbs.zenova.twa",
-      "url": "https://play.google.com/store/apps/details?id=sbs.zenova.twa"
+      "id": "in.talio.app",
+      "url": "https://play.google.com/store/apps/details?id=in.talio.app"
     }
   ],
   "edge_side_panel": {
