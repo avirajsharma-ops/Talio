@@ -4,7 +4,7 @@ import Leave from '@/models/Leave'
 import LeaveBalance from '@/models/LeaveBalance'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import { sendLeaveStatusNotification } from '@/lib/pushNotifications'
+import { sendPushToUser } from '@/lib/pushNotification'
 
 // PUT - Approve or reject leave request
 export async function PUT(request, { params }) {
@@ -92,19 +92,26 @@ export async function PUT(request, { params }) {
       if (employeeUser && approver) {
         const approverName = `${approver.firstName} ${approver.lastName}`
         const status = action === 'approve' ? 'approved' : 'rejected'
+        const leaveTypeName = updatedLeave.leaveType?.name || 'Leave'
 
-        await sendLeaveStatusNotification(
+        await sendPushToUser(
+          employeeUser._id.toString(),
           {
-            _id: updatedLeave._id,
-            leaveType: updatedLeave.leaveType?.name || 'Leave',
-            startDate: leaveRequest.startDate,
-            endDate: leaveRequest.endDate,
-            numberOfDays: leaveRequest.numberOfDays,
-            status
+            title: `Leave Request ${status === 'approved' ? 'Approved ✅' : 'Rejected ❌'}`,
+            body: `${approverName} has ${status} your ${leaveTypeName} request for ${leaveRequest.numberOfDays} day(s)`,
           },
-          [employeeUser._id.toString()],
-          approverName,
-          null // No token needed for system notifications
+          {
+            eventType: status === 'approved' ? 'leaveApproved' : 'leaveRejected',
+            clickAction: `/dashboard/leave`,
+            icon: '/icon-192x192.png',
+            data: {
+              leaveId: updatedLeave._id.toString(),
+              leaveType: leaveTypeName,
+              status,
+              approverName,
+              numberOfDays: leaveRequest.numberOfDays,
+            },
+          }
         )
 
         console.log(`Leave ${status} notification sent to employee`)

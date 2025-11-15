@@ -5,7 +5,7 @@ import Task from '@/models/Task'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { logActivity } from '@/lib/activityLogger'
-import { sendTaskStatusNotification } from '@/lib/pushNotifications'
+import { sendPushToUser } from '@/lib/pushNotification'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
 
@@ -144,17 +144,31 @@ export async function POST(request, { params }) {
         const approverName = approver ? `${approver.firstName} ${approver.lastName}` : 'Manager'
         const status = action === 'approve' ? 'approved' : 'rejected'
 
-        await sendTaskStatusNotification(
-          {
-            _id: task._id,
-            title: task.title,
-            status,
-            reason: action === 'reject' ? reason : null
-          },
-          assignedUserIds,
-          approverName,
-          null // No token needed for system notifications
-        )
+        // Send push notification to each assigned user
+        for (const userId of assignedUserIds) {
+          try {
+            await sendPushToUser(
+              userId,
+              {
+                title: `Task ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+                body: `${approverName} has ${status} your task: ${task.title}${action === 'reject' && reason ? ` - Reason: ${reason}` : ''}`,
+              },
+              {
+                eventType: status === 'approved' ? 'taskApproved' : 'taskRejected',
+                clickAction: `/dashboard/tasks/${task._id}`,
+                icon: '/icon-192x192.png',
+                data: {
+                  taskId: task._id.toString(),
+                  status,
+                  approverName,
+                  reason: action === 'reject' ? reason : null,
+                },
+              }
+            )
+          } catch (pushError) {
+            console.error(`Failed to send push notification to user ${userId}:`, pushError)
+          }
+        }
 
         // Emit Socket.IO event for real-time notification
         try {

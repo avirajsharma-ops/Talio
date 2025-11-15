@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb'
 import Performance from '@/models/Performance'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
-import { sendPerformanceReviewNotification } from '@/lib/pushNotifications'
+import { sendPushToUser } from '@/lib/pushNotification'
 
 // GET - Fetch performance reviews
 export async function GET(request) {
@@ -178,20 +178,25 @@ export async function POST(request) {
 
       if (employeeUser && reviewer) {
         const reviewerName = `${reviewer.firstName} ${reviewer.lastName}`
+        const rating = parseFloat(overallRating) || 0
 
-        await sendPerformanceReviewNotification(
+        await sendPushToUser(
+          employeeUser._id.toString(),
           {
-            _id: newReview._id,
-            reviewType,
-            overallRating: parseFloat(overallRating) || 0,
-            reviewPeriod: {
-              startDate: new Date(reviewPeriodStart),
-              endDate: new Date(reviewPeriodEnd)
-            }
+            title: `New Performance Review`,
+            body: `${reviewerName} has submitted a ${reviewType} review for you. Overall Rating: ${rating}/5`,
           },
-          [employeeUser._id.toString()],
-          reviewerName,
-          null // No token needed for system notifications
+          {
+            eventType: 'performanceReview',
+            clickAction: `/dashboard/performance/reviews/${newReview._id}`,
+            icon: '/icon-192x192.png',
+            data: {
+              reviewId: newReview._id.toString(),
+              reviewType,
+              overallRating: rating,
+              reviewerName,
+            },
+          }
         )
 
         console.log('Performance review notification sent to employee')

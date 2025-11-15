@@ -4,7 +4,7 @@ import GeofenceLog from '@/models/GeofenceLog'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
-import { sendPushNotification } from '@/lib/pushNotifications'
+import { sendPushToUser } from '@/lib/pushNotification'
 import { getIO } from '@/lib/socket'
 
 // POST - Approve or reject out-of-premises request
@@ -87,23 +87,24 @@ export async function POST(request) {
     try {
       const employeeUser = log.user
       if (employeeUser) {
-        const notificationData = {
-          title: `Out-of-Premises Request ${action === 'approved' ? 'Approved ✅' : 'Rejected ❌'}`,
-          body: `Your request to be outside office premises has been ${action} by ${reviewer.firstName} ${reviewer.lastName}`,
-          url: '/dashboard/geofence',
-          data: {
-            type: 'geofence_approval',
-            logId: log._id.toString(),
-            action,
-          }
-        }
-
         // Send push notification
-        await sendPushNotification({
-          userIds: [employeeUser._id.toString()],
-          ...notificationData,
-          adminToken: token,
-        })
+        await sendPushToUser(
+          employeeUser._id.toString(),
+          {
+            title: `Out-of-Premises Request ${action === 'approved' ? 'Approved ✅' : 'Rejected ❌'}`,
+            body: `Your request to be outside office premises has been ${action} by ${reviewer.firstName} ${reviewer.lastName}`,
+          },
+          {
+            eventType: 'geofenceApproval',
+            clickAction: '/dashboard/geofence',
+            icon: '/icon-192x192.png',
+            data: {
+              type: 'geofence_approval',
+              logId: log._id.toString(),
+              action,
+            },
+          }
+        )
 
         // Send Socket.IO event for real-time notification
         try {
