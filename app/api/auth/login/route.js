@@ -5,6 +5,7 @@ import Employee from '@/models/Employee'
 import CompanySettings from '@/models/CompanySettings'
 import { SignJWT } from 'jose'
 import { sendLoginAlertEmail } from '@/lib/mailer'
+import { sendPushToUser } from '@/lib/pushNotification'
 
 export async function POST(request) {
   try {
@@ -147,6 +148,41 @@ export async function POST(request) {
       }
     } catch (emailError) {
       console.error('Failed to send login alert email:', emailError)
+    }
+
+    // Best-effort: send push notification for login
+    try {
+      const name = employeeData
+        ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
+        : user.email
+
+      const currentHour = new Date().getHours()
+      let greeting = 'Hello'
+      if (currentHour < 12) {
+        greeting = 'Good Morning'
+      } else if (currentHour < 17) {
+        greeting = 'Good Afternoon'
+      } else {
+        greeting = 'Good Evening'
+      }
+
+      await sendPushToUser(
+        user._id,
+        {
+          title: `👋 Welcome to Talio HRMS!`,
+          body: `${greeting} ${name}! You've successfully logged in.`,
+        },
+        {
+          eventType: 'login',
+          clickAction: '/dashboard',
+          icon: '/icon-192x192.png',
+          data: {
+            loginTime: new Date().toISOString(),
+          },
+        }
+      )
+    } catch (pushError) {
+      console.error('Failed to send login push notification:', pushError)
     }
 
     // Return user data without password, including employee details

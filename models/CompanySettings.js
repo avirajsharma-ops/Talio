@@ -183,6 +183,44 @@ const CompanySettingsSchema = new mongoose.Schema({
         default: true,
       },
     },
+    pushEvents: {
+      login: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceClockIn: {
+        type: Boolean,
+        default: true,
+      },
+      attendanceClockOut: {
+        type: Boolean,
+        default: true,
+      },
+      taskAssigned: {
+        type: Boolean,
+        default: true,
+      },
+      taskCompleted: {
+        type: Boolean,
+        default: true,
+      },
+      leaveApplied: {
+        type: Boolean,
+        default: true,
+      },
+      leaveApproved: {
+        type: Boolean,
+        default: true,
+      },
+      leaveRejected: {
+        type: Boolean,
+        default: true,
+      },
+      announcement: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   
   // System Settings
