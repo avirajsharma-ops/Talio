@@ -66,7 +66,11 @@ export const registerServiceWorker = async () => {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js')
+    // Use Firebase Messaging service worker instead of sw.js
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/',
+      updateViaCache: 'none'
+    })
     console.log('Service Worker registered:', registration)
     return registration
   } catch (error) {
