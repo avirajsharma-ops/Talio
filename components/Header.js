@@ -313,7 +313,7 @@ export default function Header({ toggleSidebar }) {
   // Don't render user-specific content until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200">
+      <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200 ">
         <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] py-3 sm:py-4">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button

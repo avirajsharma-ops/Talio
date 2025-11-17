@@ -49,6 +49,9 @@ module.exports = {
         'theme-sidebar': 'var(--color-bg-sidebar, #FFFFFF)',
         'theme-hover': 'var(--color-bg-hover, #EFF6FF)',
       },
+      zIndex: {
+        'maya': '2147483647', // Maximum z-index for MAYA to appear above everything
+      },
     },
   },
   plugins: [],

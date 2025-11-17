@@ -1,5 +1,6 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
+import './maya-styles.css'
 import '../styles/mobile-responsive.css'
 import '../styles/mobile-fix.css'
 import '../styles/card-redesign.css'
@@ -8,6 +9,10 @@ import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import FirebaseInit from '@/components/FirebaseInit'
 import ErrorPageCache from '@/components/ErrorPageCache'
+import { MayaShell } from '@/components/maya/MayaShell'
+import { MayaAiDots } from '@/components/maya/MayaAiDots'
+import { MayaPipWindow } from '@/components/maya/MayaPipWindow'
+import { MayaRuntimeLoader } from '@/components/maya/MayaRuntimeLoader'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -53,6 +58,27 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        {/* MAYA Fonts and Icons */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css"
+        />
+      </head>
 
       <body className={inter.className}>
         <ThemeProvider>
@@ -67,6 +93,11 @@ export default function RootLayout({ children }) {
               },
             }}
           />
+          {/* MAYA AI Assistant */}
+          <MayaRuntimeLoader />
+          <MayaShell />
+          <MayaAiDots />
+          <MayaPipWindow />
         </ThemeProvider>
       </body>
     </html>
