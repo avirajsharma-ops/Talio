@@ -1,7 +1,9 @@
-// Firebase Cloud Messaging Service Worker
-// This file handles background notifications
+// Combined Service Worker: PWA + Firebase Cloud Messaging
+// This file handles both PWA caching (Workbox) and FCM push notifications
 
-// Import Firebase scripts
+console.log('[SW] Combined Service Worker starting...')
+
+// Import Firebase scripts for Cloud Messaging
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js')
 
@@ -16,46 +18,52 @@ const firebaseConfig = {
 }
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig)
-
-// Get messaging instance
-const messaging = firebase.messaging()
+let messaging = null
+try {
+  firebase.initializeApp(firebaseConfig)
+  messaging = firebase.messaging()
+  console.log('[SW] Firebase Messaging initialized successfully')
+} catch (error) {
+  console.error('[SW] Firebase initialization error:', error)
+}
 
 // Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[Firebase SW] Background message received:', payload)
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    console.log('[SW] Background FCM message received:', payload)
 
-  const notificationTitle = payload.notification?.title || 'Talio HRMS'
-  const notificationOptions = {
-    body: payload.notification?.body || 'You have a new notification',
-    icon: payload.notification?.icon || '/icons/icon-192x192.png',
-    badge: '/icons/icon-96x96.png',
-    tag: payload.data?.tag || 'talio-notification',
-    data: {
-      url: payload.data?.click_action || payload.fcmOptions?.link || '/dashboard',
-      ...payload.data
-    },
-    vibrate: [200, 100, 200],
-    requireInteraction: false,
-    actions: [
-      {
-        action: 'open',
-        title: 'Open'
+    const notificationTitle = payload.notification?.title || 'Talio HRMS'
+    const notificationOptions = {
+      body: payload.notification?.body || 'You have a new notification',
+      icon: payload.notification?.icon || '/icons/icon-192x192.png',
+      badge: '/icons/icon-96x96.png',
+      tag: payload.data?.tag || 'talio-notification',
+      data: {
+        url: payload.data?.click_action || payload.fcmOptions?.link || '/dashboard',
+        ...payload.data
       },
-      {
-        action: 'close',
-        title: 'Close'
-      }
-    ]
-  }
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
+      actions: [
+        {
+          action: 'open',
+          title: 'Open'
+        },
+        {
+          action: 'close',
+          title: 'Close'
+        }
+      ]
+    }
 
-  // Add image if available
-  if (payload.notification?.image) {
-    notificationOptions.image = payload.notification.image
-  }
+    // Add image if available
+    if (payload.notification?.image) {
+      notificationOptions.image = payload.notification.image
+    }
 
-  return self.registration.showNotification(notificationTitle, notificationOptions)
-})
+    return self.registration.showNotification(notificationTitle, notificationOptions)
+  })
+}
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
@@ -100,8 +108,8 @@ self.addEventListener('activate', (event) => {
 })
 
 // Service worker installation
-self.addEventListener('install', (event) => {
-  console.log('[Firebase SW] Service worker installed')
+self.addEventListener('install', () => {
+  console.log('[SW] Service worker installed')
   self.skipWaiting()
 })
 

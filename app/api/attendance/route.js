@@ -7,6 +7,7 @@ import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
 import { logActivity } from '@/lib/activityLogger'
 import { sendEmail } from '@/lib/mailer'
+import { sendPushToUser } from '@/lib/pushNotification'
 
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -287,6 +288,58 @@ export async function POST(request) {
         console.error('Failed to send clock-in email:', emailError)
       }
 
+      // Best-effort: send clock-in push notification if enabled in settings
+      try {
+        const pushNotificationsEnabled =
+          settings?.notifications?.pushNotifications !== false
+
+        const pushEvents = settings?.notifications?.pushEvents || {}
+        const clockInPushEnabled = pushEvents.attendanceClockIn !== false
+
+        if (pushNotificationsEnabled && clockInPushEnabled && employee?.user) {
+          const employeeName = [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+          const timeString = checkInTime.toLocaleTimeString('en-IN', {
+            timeZone: settings?.timezone || 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+
+          let statusEmoji = '✅'
+          let statusText = checkInStatus
+          if (checkInStatus === 'on-time') {
+            statusEmoji = '✅'
+            statusText = 'On Time'
+          } else if (checkInStatus === 'late') {
+            statusEmoji = '⏰'
+            statusText = 'Late'
+          } else if (checkInStatus === 'early') {
+            statusEmoji = '🌅'
+            statusText = 'Early'
+          }
+
+          await sendPushToUser(
+            employee.user,
+            {
+              title: `${statusEmoji} Clock-In Recorded`,
+              body: `Hi ${employeeName}! You clocked in at ${timeString}. Status: ${statusText}`,
+            },
+            {
+              eventType: 'attendanceClockIn',
+              clickAction: '/dashboard/attendance',
+              icon: '/icons/icon-192x192.png',
+              data: {
+                attendanceId: attendance._id.toString(),
+                checkInTime: checkInTime.toISOString(),
+                status: checkInStatus,
+                type: 'clock-in',
+              },
+            }
+          )
+        }
+      } catch (pushError) {
+        console.error('Failed to send clock-in push notification:', pushError)
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Clocked in successfully',
@@ -432,6 +485,59 @@ export async function POST(request) {
         }
       } catch (emailError) {
         console.error('Failed to send clock-out email:', emailError)
+      }
+
+      // Best-effort: send clock-out push notification if enabled in settings
+      try {
+        const pushNotificationsEnabled =
+          settings?.notifications?.pushNotifications !== false
+
+        const pushEvents = settings?.notifications?.pushEvents || {}
+        const clockOutPushEnabled = pushEvents.attendanceClockOut !== false
+
+        if (pushNotificationsEnabled && clockOutPushEnabled && employee?.user) {
+          const employeeName = [employee.firstName, employee.lastName].filter(Boolean).join(' ')
+          const timeString = checkOutTime.toLocaleTimeString('en-IN', {
+            timeZone: settings?.timezone || 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+
+          let statusLabel = attendance.status
+          let statusEmoji = '✅'
+          if (attendance.status === 'present') {
+            statusLabel = 'Present'
+            statusEmoji = '✅'
+          } else if (attendance.status === 'half-day') {
+            statusLabel = 'Half Day'
+            statusEmoji = '⏱️'
+          } else if (attendance.status === 'absent') {
+            statusLabel = 'Absent'
+            statusEmoji = '❌'
+          }
+
+          await sendPushToUser(
+            employee.user,
+            {
+              title: `${statusEmoji} Clock-Out Recorded`,
+              body: `Hi ${employeeName}! You clocked out at ${timeString}. Status: ${statusLabel}. Hours worked: ${attendance.workHours}h`,
+            },
+            {
+              eventType: 'attendanceClockOut',
+              clickAction: '/dashboard/attendance',
+              icon: '/icons/icon-192x192.png',
+              data: {
+                attendanceId: attendance._id.toString(),
+                checkOutTime: checkOutTime.toISOString(),
+                status: attendance.status,
+                workHours: attendance.workHours,
+                type: 'clock-out',
+              },
+            }
+          )
+        }
+      } catch (pushError) {
+        console.error('Failed to send clock-out push notification:', pushError)
       }
 
       return NextResponse.json({

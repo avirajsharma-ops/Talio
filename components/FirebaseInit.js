@@ -36,10 +36,39 @@ export default function FirebaseInit() {
 
     const initFirebase = async () => {
       try {
+        // Register service worker first
+        if ('serviceWorker' in navigator) {
+          try {
+            console.log('[FirebaseInit] Registering service worker...')
+
+            // Check if already registered
+            const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')
+
+            if (!existingRegistration) {
+              // Register the Firebase messaging service worker
+              const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                scope: '/',
+                updateViaCache: 'none'
+              })
+
+              console.log('[FirebaseInit] ✅ Service worker registered:', registration.scope)
+            } else {
+              console.log('[FirebaseInit] ✅ Service worker already registered')
+            }
+
+            // Wait for service worker to be ready
+            await navigator.serviceWorker.ready
+            console.log('[FirebaseInit] ✅ Service worker ready')
+          } catch (swError) {
+            console.error('[FirebaseInit] Service worker registration failed:', swError)
+            // Continue anyway - Firebase will try to register its own SW
+          }
+        }
+
         // Check if user is logged in
         const token = localStorage.getItem('token')
         const userStr = localStorage.getItem('user')
-        
+
         if (!token || !userStr) {
           console.log('[FirebaseInit] User not logged in, skipping FCM initialization')
           return
