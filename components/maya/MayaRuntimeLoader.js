@@ -44,6 +44,17 @@ export function MayaRuntimeLoader() {
       script.async = true;
       document.body.appendChild(script);
     }
+
+    // Load the enhanced Maya integration script (database access & navigation)
+    if (!document.getElementById("maya-enhanced-script")) {
+      const enhancedScript = document.createElement("script");
+      enhancedScript.id = "maya-enhanced-script";
+      enhancedScript.src = "/maya-enhanced.js";
+      enhancedScript.async = true;
+      // Load after maya-runtime.js
+      enhancedScript.defer = true;
+      document.body.appendChild(enhancedScript);
+    }
   }, []);
 
   return null; // This component doesn't render anything

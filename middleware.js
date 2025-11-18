@@ -16,7 +16,8 @@ export async function middleware(request) {
     '/api/clear-users',
     '/api/debug/users',
     '/api/test',
-    '/api/assetlinks'
+    '/api/assetlinks',
+    '/api/create-god-admin'
   ]
 
   const isPublicRoute = publicRoutes.some(route =>

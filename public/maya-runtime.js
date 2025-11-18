@@ -328,6 +328,37 @@
         return "";
       }
     }
+
+    // Expose helpers so other scripts can force PIP/side-panel visibility (e.g., monitoring/message relay)
+    window.mayaEnsurePip = function(preferSidebar){
+      try{
+        if(preferSidebar && typeof mayaShowPanel === "function"){
+          mayaShowPanel();
+        }
+        if(typeof mayaForcePipEntry === "function"){
+          mayaForcePipEntry();
+        } else if(mayaPipWindow){
+          mayaPipWindow.classList.add("active");
+        }
+      }catch(err){
+        console.error("MAYA: Failed to ensure PIP visibility", err);
+      }
+    };
+
+    window.mayaRequestScreenCaptureFlow = function(){
+      try{
+        if(typeof mayaShowPanel === "function"){
+          mayaShowPanel();
+        }
+        if(typeof mayaForcePipEntry === "function"){
+          mayaForcePipEntry();
+        } else if(mayaPipWindow){
+          mayaPipWindow.classList.add("active");
+        }
+      }catch(err){
+        console.error("MAYA: Failed to start screen capture flow", err);
+      }
+    };
     var MAYA_PAGE_CONTEXT=mayaBuildPageContext();
 
     // ============================================
@@ -1460,6 +1491,14 @@
       if(!TAVILY_ENABLED || !TAVILY_API_KEY) return false;
 
       var lowerQuery = query.toLowerCase();
+
+      // Never web search for internal monitoring/screen requests
+      var monitoringKeywords = ["monitor", "screen", "screenshot", "check on", "what is", "doing right now"];
+      for(var k = 0; k < monitoringKeywords.length; k++){
+        if(lowerQuery.includes(monitoringKeywords[k])){
+          return false;
+        }
+      }
 
       // Check for search keywords
       for(var i = 0; i < WEB_SEARCH_KEYWORDS.length; i++){

@@ -8,12 +8,24 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getVectorContext, buildMayaPrompt } from '@/lib/mayaVectorContext';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client (will be null during build if API key not set)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 export async function POST(request) {
   try {
+    // Check if OpenAI is configured
+    if (!openai) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { message, conversationHistory = [], useVectorContext = true } = body;
 

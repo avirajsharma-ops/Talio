@@ -1190,26 +1190,29 @@
     }
 
     /* Picture-in-Picture Mode Styles */
-    .maya-pip-window{
-      position: fixed !important;
-      bottom: 0px !important;
-      right: 0px !important;
-      width: 100% !important;
-      height: 100% !important;
-      background: linear-gradient(135deg, rgba(4,12,32,0.98), rgba(2,6,18,0.98)) !important;
-      backdrop-filter: blur(40px) saturate(1.6) brightness(1.05) !important;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 100px rgba(255,255,255,0.02) !important;
-      z-index: 2147483647 !important; /* Maximum z-index for PIP */
-      display: none !important;
-      flex-direction: column !important;
-      overflow: hidden !important;
-      pointer-events: auto !important;
-      transition: all 0.3s ease !important;
-      font-family: "Raleway", ui-sans-serif, system-ui, -apple-system, sans-serif !important;
-      margin: 0px !important;
-      padding: 0px !important;
-      box-sizing: border-box !important;
-    }
+.maya-pip-window{
+  position: fixed !important;
+  bottom: 16px !important;
+  right: 16px !important;
+  width: 360px !important;
+  height: 520px !important;
+  max-width: 90vw !important;
+  max-height: 80vh !important;
+  background: linear-gradient(135deg, rgba(4,12,32,0.98), rgba(2,6,18,0.98)) !important;
+  backdrop-filter: blur(40px) saturate(1.6) brightness(1.05) !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 100px rgba(255,255,255,0.02) !important;
+  z-index: 2147483647 !important; /* Maximum z-index for PIP */
+  display: none !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+  transition: all 0.3s ease !important;
+  font-family: "Raleway", ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+  margin: 0px !important;
+  padding: 0px !important;
+  box-sizing: border-box !important;
+  border-radius: 16px !important;
+}
     .maya-pip-window.active{
       display: flex !important;
     }
