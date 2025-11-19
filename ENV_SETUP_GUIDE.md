@@ -69,7 +69,7 @@ MONGODB_URI=mongodb://username:password@192.168.1.100:27017/hrms_db
 
 ### MongoDB Atlas (Cloud)
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/hrms_db?
 ```
 
 ### Docker MongoDB (if running MongoDB in Docker)

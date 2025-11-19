@@ -56,7 +56,7 @@ fi
 print_status "🔄 Updating MongoDB URI to use 'hrms_db' database..."
 
 cat > .env << 'EOF'
-MONGODB_URI=mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?
 JWT_SECRET=1mMMQ9J5DghFUW2e5YKA+/eD0jxmlHSI9GJiVRAUUZw=
 NEXTAUTH_SECRET=wg5Q+WLKYbxH3IXjom+F4SnhUacmsJSdCxf4rsQsuNI=
 NEXTAUTH_URL=http://139.59.27.50

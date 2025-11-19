@@ -4,7 +4,7 @@ const { MongoClient } = require('mongodb');
 const LOCAL_URI = 'mongodb://localhost:27017/hrms_db';
 
 // Atlas MongoDB connection
-const ATLAS_URI = 'mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?retryWrites=true&w=majority';
+const ATLAS_URI = 'mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?';
 
 // Collections to migrate
 const COLLECTIONS = [

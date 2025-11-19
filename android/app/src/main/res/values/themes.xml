@@ -12,8 +12,8 @@
         <!-- Status bar: White background with dark icons -->
         <item name="android:statusBarColor">@color/white</item>
         <item name="android:windowLightStatusBar">true</item>
-        <!-- Navigation bar: Transparent -->
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Navigation bar: White background with dark icons -->
+        <item name="android:navigationBarColor">@color/white</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:enforceNavigationBarContrast">false</item>
         <!-- Customize your theme here. -->
@@ -30,8 +30,9 @@
         <!-- White status bar for splash too -->
         <item name="android:statusBarColor">@color/white</item>
         <item name="android:windowLightStatusBar">true</item>
-        <!-- Transparent navigation bar -->
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- White navigation bar -->
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
 

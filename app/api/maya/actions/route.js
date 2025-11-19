@@ -158,21 +158,21 @@ export async function POST(request) {
     let result;
     switch (action) {
       case 'read':
-        result = await executeRead(Model, finalQuery, options, user.role, collection);
+        result = await executeRead(Model, finalQuery, options, user.role, collection, employeeId, departmentId);
         break;
-      
+
       case 'create':
         result = await executeCreate(Model, data, user, employeeId);
         break;
-      
+
       case 'update':
         result = await executeUpdate(Model, finalQuery, data, user, employeeId);
         break;
-      
+
       case 'delete':
         result = await executeDelete(Model, finalQuery, user);
         break;
-      
+
       default:
         return NextResponse.json(
           { success: false, error: `Unknown action: ${action}` },
@@ -202,7 +202,7 @@ export async function POST(request) {
 
 // Helper functions for executing actions
 
-async function executeRead(Model, query, options, userRole, collection) {
+async function executeRead(Model, query, options, userRole, collection, employeeId = null, departmentId = null) {
   const { limit = 50, skip = 0, sort = {}, populate = [] } = options;
 
   // Get allowed fields
@@ -214,6 +214,37 @@ async function executeRead(Model, query, options, userRole, collection) {
     restricted.forEach(field => {
       projection[field] = 0;
     });
+  }
+
+  // For department heads, filter employee-specific collections by department employees
+  const employeeCollections = [
+    'attendance', 'leave', 'expenses', 'travel', 'payroll', 'performance',
+    'timesheets', 'benefits', 'insurance', 'loans', 'advances', 'deductions',
+    'bonuses', 'increments', 'feedback', 'warnings', 'appreciations'
+  ];
+
+  if (userRole === 'department_head' && departmentId && employeeCollections.includes(collection)) {
+    // Get all employees in the department
+    const departmentEmployees = await Employee.find({ department: departmentId }).select('_id').lean();
+    const departmentEmployeeIds = departmentEmployees.map(emp => emp._id);
+
+    // Add filter to only show data for department employees
+    if (query.employee) {
+      // If query already has employee filter, ensure it's in the department
+      if (!departmentEmployeeIds.some(id => id.toString() === query.employee.toString())) {
+        // Employee not in department, return empty result
+        return {
+          data: [],
+          count: 0,
+          limit,
+          skip,
+          hasMore: false,
+        };
+      }
+    } else {
+      // Add department employee filter
+      query.employee = { $in: departmentEmployeeIds };
+    }
   }
 
   // Execute query

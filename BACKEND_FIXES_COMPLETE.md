@@ -18,7 +18,7 @@ All backend issues have been identified and fixed. The HRMS system is now fully 
 
 **MongoDB URI:**
 ```
-mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?retryWrites=true&w=majority
+mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?
 ```
 
 ### 2. Database Connection Issues ✅

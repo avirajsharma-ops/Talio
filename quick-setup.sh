@@ -48,7 +48,7 @@ cd hrms
 echo -e "${YELLOW}[SETUP]${NC} Creating environment configuration..."
 cat > .env << 'EOF'
 # MongoDB Configuration - UPDATE WITH YOUR ACTUAL MONGODB URI
-MONGODB_URI=mongodb+srv://hrms:your-password@your-cluster.mongodb.net/hrms?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://hrms:your-password@your-cluster.mongodb.net/hrms?
 
 # JWT Configuration - UPDATE WITH SECURE RANDOM STRING
 JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random-at-least-32-characters

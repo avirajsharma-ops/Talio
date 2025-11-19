@@ -27,7 +27,7 @@ Value: [Get from .vercel/project.json after running 'vercel link']
 ### **4. MongoDB URI**
 ```
 Name: MONGODB_URI
-Value: mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?retryWrites=true&w=majority
+Value: mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?
 ```
 
 ### **5. NextAuth Secret**

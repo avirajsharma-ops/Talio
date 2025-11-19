@@ -12,7 +12,7 @@ const requiredEnvVars = [
 ];
 
 const expectedValues = {
-  'MONGODB_URI': 'mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?retryWrites=true&w=majority',
+  'MONGODB_URI': 'mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?',
   'NEXTAUTH_SECRET': 'wg5Q+WLKYbxH3IXjom+F4SnhUacmsJSdCxf4rsQsuNI=',
   'JWT_SECRET': '1mMMQ9J5DghFUW2e5YKA+/eD0jxmlHSI9GJiVRAUUZw=',
   'NEXT_PUBLIC_APP_NAME': 'HRMS System',

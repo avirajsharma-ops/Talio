@@ -362,6 +362,126 @@ export const roleBasedMenus = {
       ]
     },
   ],
+
+  // GOD ADMIN - Supreme access with MAYA customization
+  god_admin: [
+    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    {
+      name: 'Employees',
+      icon: FaUsers,
+      path: '/dashboard/employees',
+      submenu: [
+        { name: 'All Employees', path: '/dashboard/employees' },
+        { name: 'Add Employee', path: '/dashboard/employees/add' },
+        { name: 'Departments', path: '/dashboard/departments' },
+        { name: 'Designations', path: '/dashboard/designations' },
+      ]
+    },
+    {
+      name: 'Attendance',
+      icon: FaClock,
+      path: '/dashboard/attendance',
+      submenu: [
+        { name: 'Attendance Report', path: '/dashboard/attendance/report' },
+        { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
+      ]
+    },
+    {
+      name: 'Leave',
+      icon: FaCalendarAlt,
+      path: '/dashboard/leave',
+      submenu: [
+        { name: 'Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
+        { name: 'Leave Types', path: '/dashboard/leave-types' },
+        { name: 'Leave Allocations', path: '/dashboard/leave/allocations' },
+      ]
+    },
+    {
+      name: 'Payroll',
+      icon: FaMoneyBillWave,
+      path: '/dashboard/payroll',
+      submenu: [
+        { name: 'Process Payroll', path: '/dashboard/payroll' },
+        { name: 'Generate Payroll', path: '/dashboard/payroll/generate' },
+        { name: 'Payslips', path: '/dashboard/payroll/payslips' },
+        { name: 'Salary Structure', path: '/dashboard/payroll/structure' },
+      ]
+    },
+    {
+      name: 'Performance',
+      icon: FaTrophy,
+      path: '/dashboard/performance',
+      submenu: [
+        { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
+        { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
+        { name: 'Performance Reports', path: '/dashboard/performance/reports' },
+        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
+      ]
+    },
+    {
+      name: 'Project Management',
+      icon: FaTasks,
+      path: '/dashboard/tasks',
+      submenu: [
+        { name: 'Project Dashboard', path: '/dashboard/tasks' },
+        { name: 'All Projects', path: '/dashboard/tasks/all' },
+        { name: 'Create Project', path: '/dashboard/tasks/create' },
+        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Project Analytics', path: '/dashboard/tasks/analytics' },
+      ]
+    },
+    {
+      name: 'Recruitment',
+      icon: FaBriefcase,
+      path: '/dashboard/recruitment',
+      submenu: [
+        { name: 'Job Openings', path: '/dashboard/recruitment/jobs' },
+        { name: 'Candidates', path: '/dashboard/recruitment/candidates' },
+        { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
+      ]
+    },
+    { name: 'Onboarding', icon: FaUserPlus, path: '/dashboard/onboarding' },
+    { name: 'Offboarding', icon: FaSignOutAlt, path: '/dashboard/offboarding' },
+    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
+    { name: 'Assets', icon: FaBox, path: '/dashboard/assets' },
+    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
+    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
+    { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
+    {
+      name: 'Learning (LMS)',
+      icon: FaGraduationCap,
+      path: '/dashboard/learning',
+      submenu: [
+        { name: 'Courses', path: '/dashboard/learning/courses' },
+        { name: 'My Trainings', path: '/dashboard/learning/trainings' },
+        { name: 'Certificates', path: '/dashboard/learning/certificates' },
+      ]
+    },
+    {
+      name: 'Announcements',
+      icon: FaBullhorn,
+      path: '/dashboard/announcements',
+      submenu: [
+        { name: 'All Announcements', path: '/dashboard/announcements' },
+        { name: 'Create Announcement', path: '/dashboard/announcements/create' },
+      ]
+    },
+    { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
+    {
+      name: 'MAYA',
+      icon: FaRobot,
+      path: '/dashboard/maya',
+      submenu: [
+        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Custom Context', path: '/dashboard/maya/context' },
+      ]
+    },
+  ],
 }
 
 // Helper function to get menu items based on user role

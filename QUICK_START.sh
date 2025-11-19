@@ -40,7 +40,7 @@ cat > .env <<EOF
 NODE_ENV=production
 PORT=3000
 
-MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?
 
 NEXTAUTH_URL=https://zenova.sbs
 NEXTAUTH_SECRET=$NEXTAUTH_SECRET

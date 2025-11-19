@@ -2395,9 +2395,8 @@
           console.log("MAYA: ✅ DOM analysis successful - skipping screenshot capture");
         }
 
-        if (typeof mayaStopAiDots === 'function') {
-          mayaStopAiDots();
-        }
+        // DON'T stop AI dots here - keep them visible during API call
+        // They will be stopped when the response is received
       }
 
       mayaShowThinkingBubble();

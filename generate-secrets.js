@@ -36,7 +36,7 @@ console.log('📝 Additional Environment Variables Template:');
 console.log('==========================================');
 console.log('');
 console.log('# Database (Replace with your MongoDB Atlas connection string)');
-console.log('MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hrms_db?retryWrites=true&w=majority');
+console.log('MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hrms_db?');
 console.log('');
 console.log('# Authentication & Security');
 console.log(`NEXTAUTH_SECRET=${nextAuthSecret}`);

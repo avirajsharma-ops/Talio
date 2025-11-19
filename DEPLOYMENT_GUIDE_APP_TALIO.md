@@ -68,7 +68,7 @@ nano .env
 
 Make sure `.env` contains:
 ```env
-MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?
 NEXTAUTH_URL=https://app.talio.in
 NEXTAUTH_SECRET=your-secret-key-here
 JWT_SECRET=your-jwt-secret-key-here

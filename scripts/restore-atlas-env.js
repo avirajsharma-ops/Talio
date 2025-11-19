@@ -15,7 +15,7 @@ if (fs.existsSync(backupPath)) {
 } else {
   // Create Atlas configuration
   const atlasEnvContent = `# MongoDB Atlas Connection
-MONGODB_URI=mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db?
 
 # NextAuth Configuration
 NEXTAUTH_URL=http://localhost:3000

@@ -93,7 +93,7 @@ nano .env
 Add your configuration:
 ```env
 # MongoDB Configuration
-MONGODB_URI=mongodb+srv://hrms:your-password@your-cluster.mongodb.net/hrms?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://hrms:your-password@your-cluster.mongodb.net/hrms?
 
 # JWT Configuration  
 JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random-at-least-32-characters

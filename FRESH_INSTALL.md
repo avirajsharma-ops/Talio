@@ -87,7 +87,7 @@ NODE_ENV=production
 PORT=3000
 
 # MongoDB Atlas connection
-MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?
 
 # Authentication secrets
 NEXTAUTH_URL=https://zenova.sbs

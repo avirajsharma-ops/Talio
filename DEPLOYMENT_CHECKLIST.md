@@ -32,7 +32,7 @@ Copy these to your Vercel project settings → Environment Variables:
 
 ```bash
 # Database - Replace with your MongoDB Atlas connection string
-MONGODB_URI=mongodb+srv://hrms_admin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/hrms_db?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://hrms_admin:YOUR_PASSWORD@cluster0.xxxxx.mongodb.net/hrms_db?
 
 # Security - Use generated secrets from generate-secrets.js
 NEXTAUTH_SECRET=your-generated-nextauth-secret

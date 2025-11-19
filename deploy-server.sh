@@ -5,7 +5,7 @@ echo "=========================================="
 echo ""
 
 # Configuration
-MONGODB_URI="mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?retryWrites=true&w=majority"
+MONGODB_URI="mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongodb.net/hrms_db?"
 NEXTAUTH_URL="https://zenova.sbs"
 NEXT_PUBLIC_APP_URL="https://zenova.sbs"
 NEXT_PUBLIC_APP_NAME="Talio HRMS"
