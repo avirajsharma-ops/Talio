@@ -60,34 +60,27 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No valid recipients found' }, { status: 400 });
     }
 
-    // Check authorization for each recipient
+    // MAYA messaging has NO hierarchy restrictions - anyone can message anyone
+    // Build authorized recipients list (all recipients are authorized)
     const authorizedRecipients = [];
-    const unauthorizedRecipients = [];
 
     for (const recipient of recipients) {
-      const canAccess = canUserAccessTarget(sender.role, recipient.role, sender._id.toString(), recipient._id.toString());
+      // Get recipient name from employeeId
+      const recipientName = recipient.employeeId
+        ? `${recipient.employeeId.firstName} ${recipient.employeeId.lastName}`.trim()
+        : recipient.email;
 
-      if (canAccess || sender.role === 'god_admin') {
-        // Get recipient name from employeeId
-        const recipientName = recipient.employeeId
-          ? `${recipient.employeeId.firstName} ${recipient.employeeId.lastName}`.trim()
-          : recipient.email;
-
-        authorizedRecipients.push({
-          user: recipient._id,
-          userName: recipientName,
-          status: 'pending',
-        });
-      } else {
-        unauthorizedRecipients.push(recipient.email);
-      }
+      authorizedRecipients.push({
+        user: recipient._id,
+        userName: recipientName,
+        status: 'pending',
+      });
     }
 
     if (authorizedRecipients.length === 0) {
       return NextResponse.json({
-        error: 'You are not authorized to send messages to any of the specified recipients',
-        unauthorizedRecipients,
-      }, { status: 403 });
+        error: 'No valid recipients found',
+      }, { status: 400 });
     }
 
     // Get sender name from employeeId
@@ -239,7 +232,6 @@ export async function POST(request) {
       message: 'Message sent successfully via MAYA and Chat system',
       messageId: mayaMessage._id,
       deliveredTo: authorizedRecipients.length,
-      unauthorizedRecipients: unauthorizedRecipients.length > 0 ? unauthorizedRecipients : undefined,
     });
 
   } catch (error) {

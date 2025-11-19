@@ -28,6 +28,8 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
     checkDepartmentHead()
   }, [])
 
+  
+
   useEffect(() => {
     filterEmployees()
   }, [searchTerm, employees, user, currentEmp, activeTab])
@@ -53,6 +55,8 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
 
       const data = await response.json()
       if (data.success && data.isDepartmentHead) {
+      
+        
         setIsDepartmentHead(true)
       }
     } catch (error) {
@@ -255,6 +259,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
 
     // Check if department head
     if (isDepartmentHead) {
+     
       const empDeptId = employee.department?._id || employee.department
       const myDeptId = currentEmp.department?._id || currentEmp.department
       if (empDeptId && myDeptId && empDeptId.toString() === myDeptId.toString()) {
@@ -294,8 +299,9 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
             Assigned To ({selectedEmployees.length})
           </label>
           <div className="space-y-2">
-            {selectedEmployees.map((assignee) => (
-              <div key={assignee.employee} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            {selectedEmployees.map((assignee,index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                {console.log(assignee)}
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
@@ -470,7 +476,8 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                         </div>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${getAssignmentTypeColor(employee)}`}>
-                        {getAssignmentTypeLabel(employee)}
+                        {/* {getAssignmentTypeLabel(employee)} */}
+                        {employee?.designation?.title}
                       </span>
                     </div>
                   ))}

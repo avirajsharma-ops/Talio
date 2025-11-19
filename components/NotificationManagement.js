@@ -1010,7 +1010,7 @@ function CreateRecurringForm({ formData, setFormData, handleSubmit, creating, de
                         <span className="text-sm font-medium text-gray-800">{emp.name}</span>
                         <span className="text-xs text-gray-500 ml-2">({emp.designation})</span>
                         {emp.isDepartmentHead && (
-                          <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Dept Head</span>
+                          <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Dept Test</span>
                         )}
                       </div>
                     </label>

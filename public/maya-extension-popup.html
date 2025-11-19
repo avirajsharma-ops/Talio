@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAYA Screen Capture</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .status-label {
+      opacity: 0.9;
+    }
+    
+    .status-value {
+      font-weight: 600;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    
+    .status-indicator.active {
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+    }
+    
+    .status-indicator.inactive {
+      background: #ef4444;
+    }
+    
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    button {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+      color: #667eea;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🤖</div>
+    <h1>MAYA Screen Capture</h1>
+    <div class="subtitle">Talio HRMS Extension</div>
+  </div>
+  
+  <div class="status">
+    <div class="status-item">
+      <span class="status-label">Status</span>
+      <span class="status-value">
+        <span class="status-indicator active"></span>
+        Active
+      </span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Version</span>
+      <span class="status-value">1.0.0</span>
+    </div>
+  </div>
+  
+  <div class="actions">
+    <button id="captureBtn">📸 Capture Screen</button>
+    <button id="openDashboard">🏠 Open Dashboard</button>
+  </div>
+  
+  <div class="footer">
+    MAYA AI Assistant © 2024
+  </div>
+  
+  <script src="maya-extension-popup.js"></script>
+</body>
+</html>
+

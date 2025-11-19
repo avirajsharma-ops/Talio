@@ -21,6 +21,7 @@ export async function GET(request) {
 
     // Get user's employee ID
     const user = await User.findById(decoded.userId).select('employeeId')
+
     if (!user || !user.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }

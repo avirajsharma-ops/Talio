@@ -7,10 +7,24 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import ScreenMonitor from '@/models/ScreenMonitor';
+import MayaScreenSummary from '@/models/MayaScreenSummary';
+import User from '@/models/User';
+import Employee from '@/models/Employee';
 import OpenAI from 'openai';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
-const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
+
+// Initialize OpenAI client lazily to avoid build-time errors
+let openai = null;
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      openai = new OpenAI({ apiKey });
+    }
+  }
+  return openai;
+}
 
 /**
  * POST /api/maya/submit-screenshot
@@ -57,7 +71,11 @@ export async function POST(request) {
 
     // Analyze the screenshot using OpenAI Vision
     try {
-      const analysisResponse = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      if (!client) {
+        throw new Error('OpenAI client not configured');
+      }
+      const analysisResponse = await client.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
@@ -95,6 +113,39 @@ Keep the summary concise (2-3 sentences) and professional. Do not include sensit
       monitorRequest.summary = summary;
       monitorRequest.status = 'analyzed';
       await monitorRequest.save();
+
+      // Store in MAYA's dedicated screen summary collection
+      try {
+        const targetUser = await User.findById(monitorRequest.targetUser).populate('employeeId');
+        const requesterUser = await User.findById(monitorRequest.requestedBy).populate('employeeId');
+
+        const mayaScreenSummary = await MayaScreenSummary.create({
+          monitoredUserId: monitorRequest.targetUser,
+          monitoredEmployeeId: targetUser?.employeeId?._id || targetUser?.employeeId,
+          requestedByUserId: monitorRequest.requestedBy,
+          requestedByEmployeeId: requesterUser?.employeeId?._id || requesterUser?.employeeId,
+          captureType: 'screenshot',
+          summary,
+          detailedAnalysis: summary,
+          currentPage: currentPage ? {
+            url: currentPage.url,
+            title: currentPage.title,
+            path: currentPage.path,
+          } : undefined,
+          activities: activeApplications || [],
+          screenshotUrl: screenshot.substring(0, 100) + '...', // Store reference, not full base64
+          status: 'analyzed',
+          consentGiven: true, // User gave consent when allowing the capture
+          consentTimestamp: new Date(),
+          deliveredAt: new Date(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        });
+
+        console.log('✅ Screen summary stored in MAYA DB:', mayaScreenSummary._id);
+      } catch (mayaDbError) {
+        console.error('❌ Failed to store in MAYA DB:', mayaDbError);
+        // Don't fail the request if MAYA DB storage fails
+      }
 
       // Notify the requester via Socket.IO
       global.io?.emit('maya:screen-analysis-complete', {

@@ -145,12 +145,13 @@ export async function POST(request) {
       );
     }
 
-    // Get employee ID for the user
-    const userEmployee = await Employee.findOne({ email: user.email });
+    // Get employee ID and department for the user
+    const userEmployee = await Employee.findOne({ email: user.email }).populate('department');
     const employeeId = userEmployee?._id;
+    const departmentId = userEmployee?.department?._id;
 
-    // Build role-based filter
-    const roleFilter = buildRoleBasedFilter(user.role, collection, user.userId, employeeId);
+    // Build role-based filter with department context
+    const roleFilter = buildRoleBasedFilter(user.role, collection, user.userId, employeeId, departmentId);
     const finalQuery = { ...query, ...roleFilter };
 
     // Execute action

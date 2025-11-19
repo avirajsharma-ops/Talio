@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "MAYA Screen Capture",
+  "version": "1.0.0",
+  "description": "MAYA AI Assistant Screen Monitoring Extension for Talio HRMS",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "notifications",
+    "desktopCapture"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.talio.in/*",
+    "https://zenova.sbs/*"
+  ],
+  "background": {
+    "service_worker": "maya-screen-capture-sw.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "maya-extension-popup.html",
+    "default_icon": {
+      "16": "icons/icon-16x16.png",
+      "32": "icons/icon-32x32.png",
+      "48": "icons/icon-48x48.png",
+      "128": "icons/icon-128x128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16x16.png",
+    "32": "icons/icon-32x32.png",
+    "48": "icons/icon-48x48.png",
+    "128": "icons/icon-128x128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "https://*.talio.in/*",
+        "https://zenova.sbs/*"
+      ],
+      "js": ["maya-extension-content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "maya-runtime.js",
+        "maya-enhanced.js",
+        "icons/*"
+      ],
+      "matches": [
+        "http://localhost:3000/*",
+        "https://*.tailo.in/*",
+        "https://zenova.sbs/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
+

@@ -3,7 +3,8 @@ import {
   FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
   FaBox, FaReceipt, FaPlane, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
-  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends
+  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
+  FaRobot
 } from 'react-icons/fa'
 
 // Define menu items for each role
@@ -115,6 +116,16 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
+    {
+      name: 'MAYA',
+      icon: FaRobot,
+      path: '/dashboard/maya',
+      submenu: [
+        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+      ]
+    },
   ],
 
   // HR - HR management focused
@@ -199,7 +210,17 @@ export const roleBasedMenus = {
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-   
+    {
+      name: 'MAYA',
+      icon: FaRobot,
+      path: '/dashboard/maya',
+      submenu: [
+        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+      ]
+    },
+
   ],
 
   // MANAGER - Team management focused
@@ -262,7 +283,16 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    
+    {
+      name: 'MAYA',
+      icon: FaRobot,
+      path: '/dashboard/maya',
+      submenu: [
+        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+      ]
+    },
+
   ],
 
   // EMPLOYEE - Personal focused
@@ -311,9 +341,9 @@ export const roleBasedMenus = {
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
     { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
-    { 
-      name: 'Learning', 
-      icon: FaGraduationCap, 
+    {
+      name: 'Learning',
+      icon: FaGraduationCap,
       path: '/dashboard/learning',
       submenu: [
         { name: 'My Trainings', path: '/dashboard/learning/trainings' },
@@ -322,6 +352,15 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
+    {
+      name: 'MAYA',
+      icon: FaRobot,
+      path: '/dashboard/maya',
+      submenu: [
+        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+      ]
+    },
   ],
 }
 

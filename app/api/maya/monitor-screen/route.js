@@ -9,26 +9,9 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import ScreenMonitor from '@/models/ScreenMonitor';
-import { canUserAccessTarget, ROLE_HIERARCHY } from '@/lib/mayaPermissions';
+import { canMonitorScreen } from '@/lib/mayaPermissions';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
-
-/**
- * Check if user can monitor target based on hierarchy
- */
-function canMonitorUser(requesterRole, targetRole) {
-  // GOD admin can monitor anyone
-  if (requesterRole === 'god_admin') {
-    return true;
-  }
-
-  // Get hierarchy levels
-  const requesterLevel = ROLE_HIERARCHY[requesterRole] || 0;
-  const targetLevel = ROLE_HIERARCHY[targetRole] || 0;
-
-  // Can only monitor users at lower hierarchy level
-  return requesterLevel > targetLevel;
-}
 
 /**
  * POST /api/maya/monitor-screen
@@ -47,8 +30,8 @@ export async function POST(request) {
 
     await connectDB();
 
-    // Get requester user
-    const requester = await User.findById(userId).populate('employee');
+    // Get requester user with employeeId populated
+    const requester = await User.findById(userId).populate('employeeId');
     if (!requester) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -56,54 +39,62 @@ export async function POST(request) {
     const body = await request.json();
     const { targetUserId, targetUserEmail, reason } = body;
 
-    // Find target user
+    // Find target user with employeeId populated
     let targetUser;
     if (targetUserId) {
-      targetUser = await User.findById(targetUserId).populate('employee');
+      targetUser = await User.findById(targetUserId).populate('employeeId');
     } else if (targetUserEmail) {
-      targetUser = await User.findOne({ email: targetUserEmail }).populate('employee');
+      targetUser = await User.findOne({ email: targetUserEmail }).populate('employeeId');
     }
 
     if (!targetUser) {
       return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
     }
 
-    // Check authorization
-    const isAuthorized = canMonitorUser(requester.role, targetUser.role);
+    // Get employee records to check departments
+    const requesterEmployee = requester.employeeId ? await Employee.findById(requester.employeeId).select('department firstName lastName') : null;
+    const targetEmployee = targetUser.employeeId ? await Employee.findById(targetUser.employeeId).select('department firstName lastName') : null;
 
-    if (!isAuthorized) {
+    // Check authorization using canMonitorScreen from mayaPermissions
+    const authCheck = canMonitorScreen(
+      requester.role,
+      requesterEmployee?.department,
+      targetEmployee?.department
+    );
+
+    if (!authCheck.allowed) {
       // Log unauthorized attempt
       await ScreenMonitor.create({
         requestedBy: requester._id,
-        requestedByName: requester.employee?.name || requester.email,
+        requestedByName: requesterEmployee ? `${requesterEmployee.firstName} ${requesterEmployee.lastName}` : requester.email,
         requestedByRole: requester.role,
         targetUser: targetUser._id,
-        targetUserName: targetUser.employee?.name || targetUser.email,
+        targetUserName: targetEmployee ? `${targetEmployee.firstName} ${targetEmployee.lastName}` : targetUser.email,
         targetUserRole: targetUser.role,
         reason,
         isAuthorized: false,
-        authorizationReason: `Insufficient permissions: ${requester.role} cannot monitor ${targetUser.role}`,
+        authorizationReason: authCheck.reason,
         status: 'failed',
-        error: 'Unauthorized: Insufficient hierarchy level',
+        error: 'Unauthorized: ' + authCheck.reason,
       });
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'You are not authorized to monitor this user',
-        reason: `Your role (${requester.role}) does not have permission to monitor ${targetUser.role}`,
+        reason: authCheck.reason,
       }, { status: 403 });
     }
 
     // Create monitoring request
     const monitorRequest = await ScreenMonitor.create({
       requestedBy: requester._id,
-      requestedByName: requester.employee?.name || requester.email,
+      requestedByName: requesterEmployee ? `${requesterEmployee.firstName} ${requesterEmployee.lastName}` : requester.email,
       requestedByRole: requester.role,
       targetUser: targetUser._id,
-      targetUserName: targetUser.employee?.name || targetUser.email,
+      targetUserName: targetEmployee ? `${targetEmployee.firstName} ${targetEmployee.lastName}` : targetUser.email,
       targetUserRole: targetUser.role,
       reason,
       isAuthorized: true,
-      authorizationReason: `Authorized: ${requester.role} can monitor ${targetUser.role}`,
+      authorizationReason: authCheck.reason,
       status: 'pending',
     });
 
@@ -111,14 +102,14 @@ export async function POST(request) {
     global.io?.emit('maya:screen-capture-request', {
       requestId: monitorRequest._id,
       targetUserId: targetUser._id.toString(),
-      requestedBy: requester.employee?.name || requester.email,
+      requestedBy: requesterEmployee ? `${requesterEmployee.firstName} ${requesterEmployee.lastName}` : requester.email,
     });
 
     return NextResponse.json({
       success: true,
       message: 'Screen monitoring request sent',
       requestId: monitorRequest._id,
-      targetUser: targetUser.employee?.name || targetUser.email,
+      targetUser: targetEmployee ? `${targetEmployee.firstName} ${targetEmployee.lastName}` : targetUser.email,
       status: 'pending',
     });
 

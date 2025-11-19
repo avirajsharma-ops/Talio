@@ -13,9 +13,18 @@ import { buildEnhancedPrompt, getActionContext } from '@/lib/mayaContext';
 import connectDB from '@/lib/mongodb';
 import Employee from '@/models/Employee';
 
-const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client lazily to avoid build-time errors
+let openai = null;
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+    openai = new OpenAI({ apiKey });
+  }
+  return openai;
+}
 
 const JWT_SECRET_VALUE = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_VALUE);
@@ -326,22 +335,29 @@ export async function POST(request) {
       .lean();
 
     const userName = employee ? `${employee.firstName} ${employee.lastName}` : user.email;
+    const departmentName = employee?.department?.name || 'Unknown';
+    const departmentId = employee?.department?._id;
 
-    // Build enhanced prompt with context
+    // Build enhanced prompt with context - add department info for department heads
+    let enhancedMessage = message;
+    if (user.role === 'department_head' && departmentName) {
+      enhancedMessage = `[CONTEXT: You are a Department Head of ${departmentName} department. You have FULL access to all employees in your department including their names, personal data, attendance, leave, and performance information. When asked about employees in your department, you MUST provide their information.]\n\n${message}`;
+    }
+
     const { systemPrompt, messages } = buildEnhancedPrompt(
-      message,
+      enhancedMessage,
       user.role,
       userName,
       conversationHistory
     );
 
     console.log('🤖 MAYA Chat API - User Message:', message);
-    console.log('👤 User:', userName, '| Role:', user.role);
+    console.log('👤 User:', userName, '| Role:', user.role, '| Department:', departmentName);
     console.log('📝 System Prompt Length:', systemPrompt.length, 'chars');
     console.log('💬 Total Messages:', messages.length);
 
     // Call OpenAI with function calling
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o',
       messages: messages,
       functions: MAYA_FUNCTIONS,
@@ -435,7 +451,7 @@ export async function POST(request) {
       }
 
       // Get Maya's response after function execution
-      const secondCompletion = await openai.chat.completions.create({
+      const secondCompletion = await getOpenAIClient().chat.completions.create({
         model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o',
         messages: [
           ...messages,
