@@ -63,7 +63,7 @@ export async function PUT(request, { params }) {
     }
 
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
-    
+
     // Get current user
     const user = await User.findById(decoded.userId).select('employeeId role')
     if (!user || !user.employeeId) {
@@ -109,6 +109,39 @@ export async function PUT(request, { params }) {
       .populate('crossDepartmentCollaboration.collaborators.employee', 'firstName lastName employeeCode')
       .populate('crossDepartmentCollaboration.collaborators.department', 'name')
 
+    // Emit Socket.IO events if team members were added/updated
+    try {
+      const io = global.io
+      if (io && data.team) {
+        // Get previous team members
+        const previousTeamIds = existingProject.team.map(t => t.member.toString())
+        const newTeamIds = data.team.map(t => (typeof t.member === 'object' ? t.member._id : t.member).toString())
+
+        // Find newly added team members
+        const addedMembers = newTeamIds.filter(id => !previousTeamIds.includes(id))
+
+        // Notify newly added team members
+        for (const memberId of addedMembers) {
+          const Employee = require('@/models/Employee').default
+          const employeeDoc = await Employee.findById(memberId).populate('userId')
+          const employeeUserId = employeeDoc?.userId?._id || employeeDoc?.userId
+
+          if (employeeUserId) {
+            io.to(`user:${employeeUserId}`).emit('project-assignment', {
+              project,
+              action: 'assigned',
+              assignedBy: user.employeeId,
+              message: `You have been assigned to project: ${project.name}`,
+              timestamp: new Date()
+            })
+            console.log(`✅ [Socket.IO] Project assignment sent to user:${employeeUserId}`)
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send project assignment socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Project updated successfully',
@@ -135,7 +168,7 @@ export async function DELETE(request, { params }) {
     }
 
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
-    
+
     // Get current user
     const user = await User.findById(decoded.userId).select('employeeId role')
     if (!user || !user.employeeId) {

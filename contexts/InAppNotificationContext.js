@@ -7,12 +7,28 @@ import { useSocket } from './SocketContext'
 import { playNotificationSound } from '@/utils/audio'
 
 const InAppNotificationContext = createContext({
-  showNotification: () => {}
+  showNotification: () => { }
 })
 
 export function InAppNotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([])
-  const { onNewMessage, onTaskUpdate, onAnnouncement, onGeofenceApproval } = useSocket()
+  const {
+    onNewMessage,
+    onTaskUpdate,
+    onAnnouncement,
+    onGeofenceApproval,
+    onLeaveStatusUpdate,
+    onExpenseStatusUpdate,
+    onTravelStatusUpdate,
+    onProjectAssignment,
+    onPerformanceReview,
+    onHelpdeskTicket,
+    onDocumentUpdate,
+    onAssetUpdate,
+    onPayrollUpdate,
+    onOnboardingUpdate,
+    onOffboardingUpdate
+  } = useSocket()
   const pathname = usePathname()
 
   const showNotification = useCallback((notification) => {
@@ -165,6 +181,239 @@ export function InAppNotificationProvider({ children }) {
 
     return unsubscribe
   }, [onGeofenceApproval, showNotification])
+
+  // Listen for leave status updates via Socket.IO
+  useEffect(() => {
+    if (!onLeaveStatusUpdate) return
+
+    const unsubscribe = onLeaveStatusUpdate((data) => {
+      const { leave, action } = data
+
+      const icon = action === 'approved' ? '✅' : action === 'rejected' ? '❌' : '📋'
+      const actionText = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Rejected' : 'Updated'
+
+      showNotification({
+        title: `${icon} Leave ${actionText}`,
+        message: `Your leave request has been ${action}`,
+        url: '/dashboard/leave',
+        type: 'leave_status_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onLeaveStatusUpdate, showNotification])
+
+  // Listen for expense status updates via Socket.IO
+  useEffect(() => {
+    if (!onExpenseStatusUpdate) return
+
+    const unsubscribe = onExpenseStatusUpdate((data) => {
+      const { expense, action } = data
+
+      const icon = action === 'approved' ? '✅' : action === 'rejected' ? '❌' : '💰'
+      const actionText = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Rejected' : 'Updated'
+
+      showNotification({
+        title: `${icon} Expense ${actionText}`,
+        message: `Your expense claim has been ${action}`,
+        url: '/dashboard/expenses',
+        type: 'expense_status_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onExpenseStatusUpdate, showNotification])
+
+  // Listen for travel status updates via Socket.IO
+  useEffect(() => {
+    if (!onTravelStatusUpdate) return
+
+    const unsubscribe = onTravelStatusUpdate((data) => {
+      const { travel, action } = data
+
+      const icon = action === 'approved' ? '✅' : action === 'rejected' ? '❌' : '✈️'
+      const actionText = action === 'approved' ? 'Approved' : action === 'rejected' ? 'Rejected' : 'Updated'
+
+      showNotification({
+        title: `${icon} Travel ${actionText}`,
+        message: `Your travel request has been ${action}`,
+        url: '/dashboard/travel',
+        type: 'travel_status_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onTravelStatusUpdate, showNotification])
+
+  // Listen for project assignments via Socket.IO
+  useEffect(() => {
+    if (!onProjectAssignment) return
+
+    const unsubscribe = onProjectAssignment((data) => {
+      const { project, action, assignedBy } = data
+
+      const title = action === 'assigned' ? '📊 New Project Assigned' : '📊 Project Updated'
+      const message = action === 'assigned'
+        ? `You have been assigned to project: ${project.name || 'Untitled'}`
+        : `Project updated: ${project.name || 'Untitled'}`
+
+      showNotification({
+        title,
+        message,
+        url: '/dashboard/projects',
+        type: 'project_assignment'
+      })
+    })
+
+    return unsubscribe
+  }, [onProjectAssignment, showNotification])
+
+  // Listen for performance review events via Socket.IO
+  useEffect(() => {
+    if (!onPerformanceReview) return
+
+    const unsubscribe = onPerformanceReview((data) => {
+      const { review, action } = data
+
+      const icon = action === 'approved' ? '✅' : action === 'rejected' ? '❌' : '📈'
+      const actionText = action === 'new' ? 'New Review Created' : action === 'approved' ? 'Review Approved' : action === 'rejected' ? 'Review Rejected' : 'Review Updated'
+
+      showNotification({
+        title: `${icon} Performance ${actionText}`,
+        message: data.message || 'Your performance review has been updated',
+        url: '/dashboard/performance',
+        type: 'performance_review'
+      })
+    })
+
+    return unsubscribe
+  }, [onPerformanceReview, showNotification])
+
+  // Listen for helpdesk ticket events via Socket.IO
+  useEffect(() => {
+    if (!onHelpdeskTicket) return
+
+    const unsubscribe = onHelpdeskTicket((data) => {
+      const { ticket, action } = data
+
+      const icon = action === 'assigned' ? '🎫' : action === 'resolved' ? '✅' : action === 'closed' ? '🔒' : '📝'
+      const actionText = action === 'assigned' ? 'Ticket Assigned' : action === 'resolved' ? 'Ticket Resolved' : action === 'closed' ? 'Ticket Closed' : 'Ticket Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: `Ticket #${ticket.ticketNumber || ticket._id}: ${ticket.subject || 'No subject'}`,
+        url: '/dashboard/helpdesk',
+        type: 'helpdesk_ticket'
+      })
+    })
+
+    return unsubscribe
+  }, [onHelpdeskTicket, showNotification])
+
+  // Listen for document updates via Socket.IO
+  useEffect(() => {
+    if (!onDocumentUpdate) return
+
+    const unsubscribe = onDocumentUpdate((data) => {
+      const { document, action } = data
+
+      const icon = action === 'approved' ? '✅' : action === 'rejected' ? '❌' : '📄'
+      const actionText = action === 'approved' ? 'Document Approved' : action === 'rejected' ? 'Document Rejected' : action === 'uploaded' ? 'New Document' : 'Document Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: document.name || 'Document has been updated',
+        url: '/dashboard/documents',
+        type: 'document_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onDocumentUpdate, showNotification])
+
+  // Listen for asset updates via Socket.IO
+  useEffect(() => {
+    if (!onAssetUpdate) return
+
+    const unsubscribe = onAssetUpdate((data) => {
+      const { asset, action } = data
+
+      const icon = action === 'assigned' ? '🔧' : action === 'returned' ? '↩️' : '📦'
+      const actionText = action === 'assigned' ? 'Asset Assigned' : action === 'returned' ? 'Asset Returned' : 'Asset Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: `${asset.name || 'Asset'} - ${asset.assetCode || ''}`,
+        url: '/dashboard/assets',
+        type: 'asset_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onAssetUpdate, showNotification])
+
+  // Listen for payroll updates via Socket.IO
+  useEffect(() => {
+    if (!onPayrollUpdate) return
+
+    const unsubscribe = onPayrollUpdate((data) => {
+      const { payroll, action } = data
+
+      const icon = action === 'generated' ? '💰' : action === 'processed' ? '✅' : '💵'
+      const actionText = action === 'generated' ? 'Payroll Generated' : action === 'processed' ? 'Payroll Processed' : 'Payroll Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: data.message || 'Your payroll has been updated',
+        url: '/dashboard/payroll',
+        type: 'payroll_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onPayrollUpdate, showNotification])
+
+  // Listen for onboarding updates via Socket.IO
+  useEffect(() => {
+    if (!onOnboardingUpdate) return
+
+    const unsubscribe = onOnboardingUpdate((data) => {
+      const { onboarding, action } = data
+
+      const icon = action === 'started' ? '🎉' : action === 'task_assigned' ? '📋' : '👋'
+      const actionText = action === 'started' ? 'Onboarding Started' : action === 'task_assigned' ? 'New Onboarding Task' : 'Onboarding Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: data.message || 'Your onboarding has been updated',
+        url: '/dashboard/onboarding',
+        type: 'onboarding_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onOnboardingUpdate, showNotification])
+
+  // Listen for offboarding updates via Socket.IO
+  useEffect(() => {
+    if (!onOffboardingUpdate) return
+
+    const unsubscribe = onOffboardingUpdate((data) => {
+      const { offboarding, action } = data
+
+      const icon = action === 'started' ? '👋' : action === 'approved' ? '✅' : '📝'
+      const actionText = action === 'started' ? 'Exit Process Started' : action === 'approved' ? 'Exit Approved' : 'Exit Process Updated'
+
+      showNotification({
+        title: `${icon} ${actionText}`,
+        message: data.message || 'Your exit process has been updated',
+        url: '/dashboard/offboarding',
+        type: 'offboarding_update'
+      })
+    })
+
+    return unsubscribe
+  }, [onOffboardingUpdate, showNotification])
 
   return (
     <InAppNotificationContext.Provider value={{ showNotification }}>

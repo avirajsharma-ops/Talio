@@ -88,6 +88,20 @@ export async function PUT(request, { params }) {
             reason: rejectionReason
           })
         }
+
+        // Emit Socket.IO event for realtime notification with sound
+        const io = global.io
+        if (io) {
+          io.to(`user:${employeeUserId}`).emit('leave-status-update', {
+            leave: populatedLeave,
+            action: status,
+            message: status === 'approved'
+              ? `Your ${leaveTypeName} has been approved (${startDate} - ${endDate})`
+              : `Your ${leaveTypeName} has been rejected`,
+            timestamp: new Date()
+          })
+          console.log(`✅ [Socket.IO] Leave status update sent to user:${employeeUserId}`)
+        }
       }
     } catch (notifError) {
       console.error('Failed to send leave status notification:', notifError)

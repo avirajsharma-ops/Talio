@@ -24,6 +24,30 @@ export async function PUT(request, { params }) {
       )
     }
 
+    // Emit Socket.IO event for realtime notification with sound
+    try {
+      if (data.status && (data.status === 'approved' || data.status === 'rejected')) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(expense.employee._id || expense.employee).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          const io = global.io
+          if (io) {
+            io.to(`user:${employeeUserId}`).emit('expense-status-update', {
+              expense,
+              action: data.status,
+              message: `Your expense claim of ${expense.amount} has been ${data.status}`,
+              timestamp: new Date()
+            })
+            console.log(`✅ [Socket.IO] Expense status update sent to user:${employeeUserId}`)
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send expense socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Expense updated successfully',

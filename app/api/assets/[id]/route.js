@@ -22,6 +22,29 @@ export async function PUT(request, { params }) {
       )
     }
 
+    // Emit Socket.IO event for asset assignments/updates
+    try {
+      const io = global.io
+      if (io && data.assignedTo) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(data.assignedTo).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          const action = data.status === 'returned' ? 'returned' : 'assigned'
+          io.to(`user:${employeeUserId}`).emit('asset-update', {
+            asset,
+            action,
+            message: `Asset "${asset.name}" (${asset.assetCode}) has been ${action}`,
+            timestamp: new Date()
+          })
+          console.log(`✅ [Socket.IO] Asset update sent to user:${employeeUserId}`)
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send asset socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Asset updated successfully',

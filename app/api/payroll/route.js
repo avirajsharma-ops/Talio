@@ -80,6 +80,31 @@ export async function POST(request) {
     const populatedPayroll = await Payroll.findById(payroll._id)
       .populate('employee', 'firstName lastName employeeCode')
 
+    // Emit Socket.IO event for payroll generation
+    try {
+      const io = global.io
+      if (io) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(data.employee).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          const monthName = monthNames[data.month - 1]
+
+          io.to(`user:${employeeUserId}`).emit('payroll-update', {
+            payroll: populatedPayroll,
+            action: 'generated',
+            message: `Your payroll for ${monthName} ${data.year} has been generated`,
+            timestamp: new Date()
+          })
+          console.log(`✅ [Socket.IO] Payroll generation sent to user:${employeeUserId}`)
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send payroll socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Payroll generated successfully',

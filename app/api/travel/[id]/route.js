@@ -24,6 +24,30 @@ export async function PUT(request, { params }) {
       )
     }
 
+    // Emit Socket.IO event for realtime notification with sound
+    try {
+      if (data.status && (data.status === 'approved' || data.status === 'rejected')) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(travel.employee._id || travel.employee).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          const io = global.io
+          if (io) {
+            io.to(`user:${employeeUserId}`).emit('travel-status-update', {
+              travel,
+              action: data.status,
+              message: `Your travel request to ${travel.destination} has been ${data.status}`,
+              timestamp: new Date()
+            })
+            console.log(`✅ [Socket.IO] Travel status update sent to user:${employeeUserId}`)
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send travel socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Travel request updated successfully',
