@@ -3,6 +3,7 @@ Marking id:snackbar_text:2131231130 reachable: referenced from /Users/apple/Desk
 Marking id:snackbar_action:2131231129 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking dimen:design_snackbar_padding_vertical_2lines:2131099785 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking dimen:design_snackbar_padding_vertical:2131099784 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
+Marking style:Theme_Talio:2131821169 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking dimen:m3_carousel_small_item_size_min:2131099892 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking dimen:m3_carousel_small_item_size_max:2131099891 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking dimen:m3_carousel_gone_size:2131099889 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
@@ -22,6 +23,7 @@ Marking attr:theme:2130904177 reachable: referenced from /Users/apple/Desktop/Ta
 Marking attr:materialThemeOverlay:2130903809 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking string:mtrl_picker_toggle_to_year_selection:2131755180 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking string:mtrl_picker_toggle_to_day_selection:2131755178 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
+Marking style:Theme_Talio_Splash:2131821170 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking layout:activity_main:2131427356 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking id:webView:2131231217 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 Marking attr:materialButtonToggleGroupStyle:2130903774 reachable: referenced from /Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
@@ -1263,6 +1265,7 @@ sCache
 kotlin/coroutines/intrinsics/Intrinsi...
 TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
 internal.remoteConfig
+$onSkip
 mask
 UidVerifier
 setFillInIntent
@@ -1637,8 +1640,8 @@ kotlin.Long
 BITWISE_RIGHT_SHIFT
 ActivityTransitionResultCreator
 err
-split$StringsKt__StringsKt
 locationResult
+split$StringsKt__StringsKt
 getMaxItems$activity_release
 logSourceMetrics
 triggerCollisionView
@@ -2172,6 +2175,7 @@ font
 encode
 iterator2
 dispatch$lifecycle_runtime_release
+$onRetry
 shouldRecordObservation
 ThreadsKt
 resetAt
@@ -3169,6 +3173,7 @@ tokenId
 measurement.redaction.device_info
 tlsVersion
 bundleOf
+google.com/o/oauth2
 reportFragment
 robolectric
 $this$maxOrNull
@@ -4122,6 +4127,7 @@ unit
 FirebaseHeartBeat
 java.util.List
 checkContainsAt
+Skip
 kotlin/collections/SetsKt__SetsKt
 sensor
 getSIZE_BYTES$annotations
@@ -5122,6 +5128,7 @@ measurement.event_sampling_enabled
 add_to_cart
 android:layout_constrainedWidth
 okhttp3.mockwebserver.MockWebServer
+google.com/signin
 adSelectionConfig
 $this$scanIndexed
 TLS_KRB5_WITH_DES_CBC_SHA
@@ -5723,6 +5730,7 @@ setHomeAsUpIndicator
 map
 allowFreeFormInput
 indexOfFirst
+accounts.google.com
 android.intent.extra.MIME_TYPES
 listeners
 SSL_RSA_WITH_NULL_SHA
@@ -6814,7 +6822,6 @@ Map
 androidx.lifecycle.BlockRunner$maybeR...
 set_mock_location_with_callback
 createIntent$activity_release
-Cancel
 $this$reportWhenComplete
 this.inWholeNanoseconds
 fractionalSize
@@ -8523,8 +8530,8 @@ android.support.customtabs.extra.SECO...
 indices
 abs
 DEVELOPER_ERROR
-_epc
 package:
+_epc
 compareValuesByImpl
 readBytes
 getInSeconds$annotations
@@ -8616,7 +8623,6 @@ creative_format
 androidx.view.accessibility.Accessibi...
 GRANTED
 createSegment
-Settings
 algorithm
 $this$toTypedArray
 UINT64_LIST_PACKED
@@ -9563,6 +9569,7 @@ baseline
 mCheckMarkDrawable
 android.support.text.emoji.emojiCompa...
 logEvent
+BatteryOptimization
 sumOfBigDecimal
 app:layout_goneMarginTop
 removeEntry
@@ -9598,6 +9605,7 @@ SynchronousResult
 A11yActionCompat
 replaceIndentByMargin
 elements
+android.settings.REQUEST_IGNORE_BATTE...
 GoogleSignInAccountCreator
 URI_MASKABLE
 measurement.collection.enable_session...
@@ -9636,7 +9644,6 @@ app:layout_constraintLeft_toLeftOf
 fileSize
 marginBottom
 kotlin.collections.MutableSet
-Notifications
 INT_TYPE
 cn.google.services
 LayoutDescription
@@ -17314,6 +17321,7 @@ Marking id:fragment_container_view_tag:2131230924 used because it matches string
     @dimen/tooltip_margin
     @dimen/tooltip_vertical_padding
 @layout/activity_main : reachable=true
+    @color/white
 @layout/browser_actions_context_menu_page : reachable=true
     @color/browser_actions_bg_grey
     @color/browser_actions_title_color

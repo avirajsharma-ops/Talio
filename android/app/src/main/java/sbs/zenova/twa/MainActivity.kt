@@ -10,6 +10,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.WindowInsetsController
@@ -18,6 +20,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -60,31 +63,103 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) {
-            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
-        } else {
-            showPermissionDeniedDialog("Notifications")
-        }
+        handleNotificationPermissionResult(isGranted)
     }
 
     // Location permission launcher
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
+        handleLocationPermissionResult(permissions)
+    }
+
+    // Background location permission launcher (Android 10+)
+    private val backgroundLocationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        handleBackgroundLocationPermissionResult(isGranted)
+    }
+
+    // Handler functions to avoid recursive type inference
+    private fun handleNotificationPermissionResult(isGranted: Boolean) {
+        if (isGranted) {
+            Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+            requestLocationPermissionSequence()
+        } else {
+            showPermissionRequiredDialog(
+                title = "Notification Permission Required",
+                message = "Notifications are required to receive important updates about attendance, tasks, and announcements. Please grant this permission.",
+                onRetry = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+                onSkip = {
+                    requestLocationPermissionSequence()
+                }
+            )
+        }
+    }
+
+    private fun handleLocationPermissionResult(permissions: Map<String, Boolean>) {
         val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
 
         if (fineLocationGranted || coarseLocationGranted) {
             startLocationUpdates()
             geolocationCallback?.invoke(geolocationOrigin, true, false)
+            Toast.makeText(this, "Location permission granted", Toast.LENGTH_SHORT).show()
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                requestBackgroundLocationPermission()
+            } else {
+                requestBatteryOptimizationExemption()
+            }
         } else {
             geolocationCallback?.invoke(geolocationOrigin, false, false)
-            showPermissionDeniedDialog("Location")
+            showPermissionRequiredDialog(
+                title = "Location Permission Required",
+                message = "Location access is required for attendance tracking and geofencing. This is essential for the app to function properly.",
+                onRetry = {
+                    requestLocationPermission()
+                },
+                onSkip = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        requestBackgroundLocationPermission()
+                    } else {
+                        requestBatteryOptimizationExemption()
+                    }
+                }
+            )
+        }
+    }
+
+    private fun handleBackgroundLocationPermissionResult(isGranted: Boolean) {
+        if (isGranted) {
+            Toast.makeText(this, "Background location permission granted", Toast.LENGTH_SHORT).show()
+            requestBatteryOptimizationExemption()
+        } else {
+            showPermissionRequiredDialog(
+                title = "Background Location Required",
+                message = "Background location access is required for geofencing and automatic attendance tracking even when the app is closed. This is essential for the app to function properly.",
+                onRetry = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        backgroundLocationPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
+                },
+                onSkip = {
+                    requestBatteryOptimizationExemption()
+                }
+            )
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Keep splash screen theme until WebView is ready
+        setTheme(R.style.Theme_Talio_Splash)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -167,6 +242,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.webView.apply {
+            // Set WebView background to white to prevent black flash
+            setBackgroundColor(Color.WHITE)
+
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -202,12 +280,25 @@ class MainActivity : AppCompatActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val url = request?.url.toString()
-                    return if (url.startsWith(URL)) {
-                        false
-                    } else {
-                        // Open external links in browser
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        true
+
+                    // Handle different URL types
+                    return when {
+                        // App's own URLs - keep in WebView
+                        url.startsWith(URL) -> false
+
+                        // Google OAuth URLs - open in Chrome Custom Tabs to avoid 403 error
+                        url.contains("accounts.google.com") ||
+                        url.contains("google.com/o/oauth2") ||
+                        url.contains("google.com/signin") -> {
+                            openInCustomTab(url)
+                            true
+                        }
+
+                        // All other external links - open in external browser
+                        else -> {
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            true
+                        }
                     }
                 }
 
@@ -245,6 +336,9 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+
+                    // Switch from splash theme to normal theme after first page load
+                    setTheme(R.style.Theme_Talio)
 
                     // Inject standalone mode detection and navigation bar color adapter
                     view?.evaluateJavascript("""
@@ -386,20 +480,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestPermissions() {
-        // Request notification permission (Android 13+)
+        // Request notification permission first (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED
             ) {
+                // This will trigger the chain: notification -> location -> background location
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
             }
         }
 
-        // Request location permission
+        // If notification permission not needed or already granted, go straight to location
+        requestLocationPermissionSequence()
+    }
+
+    private fun requestLocationPermissionSequence() {
         if (!hasLocationPermission()) {
             requestLocationPermission()
         } else {
             startLocationUpdates()
+            // If location already granted, check background location
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                requestBackgroundLocationPermission()
+            }
         }
     }
 
@@ -409,17 +513,76 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestLocationPermission() {
-        val permissions = mutableListOf(
+        // Request foreground location permissions only
+        val permissions = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
-        // Add background location for Android 10+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
+        locationPermissionLauncher.launch(permissions)
+    }
 
-        locationPermissionLauncher.launch(permissions.toTypedArray())
+    private fun requestBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                backgroundLocationPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            } else {
+                // Already granted, request battery optimization
+                requestBatteryOptimizationExemption()
+            }
+        }
+    }
+
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            val packageName = packageName
+
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                // Show dialog explaining why this is needed
+                showPermissionRequiredDialog(
+                    title = "Background Running Required",
+                    message = "To ensure the app works properly for attendance tracking and geofencing even when closed, please allow the app to run in the background without battery restrictions.",
+                    onRetry = {
+                        try {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            Log.e("BatteryOptimization", "Failed to request battery optimization exemption", e)
+                            Toast.makeText(this, "Please disable battery optimization manually in Settings", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    onSkip = {
+                        Toast.makeText(this, "App may not work properly in background without this permission", Toast.LENGTH_LONG).show()
+                    }
+                )
+            }
+        }
+    }
+
+    private fun showPermissionRequiredDialog(
+        title: String,
+        message: String,
+        onRetry: () -> Unit,
+        onSkip: () -> Unit
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("Grant Permission") { dialog, _ ->
+                dialog.dismiss()
+                onRetry()
+            }
+            .setNegativeButton("Skip") { dialog, _ ->
+                dialog.dismiss()
+                onSkip()
+            }
+            .show()
     }
 
     @SuppressLint("MissingPermission")
@@ -481,17 +644,22 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    private fun showPermissionDeniedDialog(permissionName: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Permission Required")
-            .setMessage("$permissionName permission is required for this app to function properly. Please enable it in Settings.")
-            .setPositiveButton("Settings") { _, _ ->
-                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                intent.data = Uri.parse("package:$packageName")
-                startActivity(intent)
+    private fun openInCustomTab(url: String) {
+        try {
+            val customTabsIntent = CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .setUrlBarHidingEnabled(false)
+                .build()
+
+            customTabsIntent.launchUrl(this, Uri.parse(url))
+        } catch (e: Exception) {
+            // Fallback to regular browser if Custom Tabs not available
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Cannot open browser", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     // JavaScript interface for location
@@ -510,6 +678,16 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun hasPermission(): Boolean {
             return hasLocationPermission()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.data?.let { uri ->
+            // Handle OAuth callback from Chrome Custom Tabs
+            if (uri.toString().startsWith(URL)) {
+                binding.webView.loadUrl(uri.toString())
+            }
         }
     }
 

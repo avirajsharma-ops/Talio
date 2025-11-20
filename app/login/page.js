@@ -109,24 +109,26 @@ export default function LoginPage() {
                       window.navigator.standalone ||
                       document.referrer.includes('android-app://')
 
+      // Determine the correct origin based on environment
+      // If in Android app, use the production URL, otherwise use current origin
+      const appOrigin = isInApp ? 'https://app.talio.in' : window.location.origin
+      const redirectUri = `${appOrigin}/api/auth/google/callback`
+
+      console.log('[Google OAuth] Is in app:', isInApp)
+      console.log('[Google OAuth] Redirect URI:', redirectUri)
+
       // Redirect to Google OAuth
       const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&` +
-        `redirect_uri=${encodeURIComponent(window.location.origin + '/api/auth/google/callback')}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `scope=openid%20email%20profile&` +
         `access_type=offline&` +
         `prompt=consent`
 
-      // If in app, try to open in the same window to avoid Chrome Custom Tabs
-      if (isInApp) {
-        // For TWA, this will open in Chrome Custom Tabs but will redirect back to app
-        window.location.href = googleAuthUrl
-      } else {
-        // For web browser, normal redirect
-        window.location.href = googleAuthUrl
-      }
+      window.location.href = googleAuthUrl
     } catch (error) {
+      console.error('[Google OAuth] Error:', error)
       toast.error('Failed to initiate Google Sign-In')
       setLoading(false)
     }

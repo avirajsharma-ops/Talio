@@ -59,7 +59,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* MAYA Fonts and Icons */}
+        {/* MAYA Fonts and Icons - Desktop Only */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -78,6 +78,22 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://cdn-uicons.flaticon.com/uicons-solid-rounded/css/uicons-solid-rounded.css"
         />
+        {/* Detect mobile and hide MAYA */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                               window.matchMedia('(display-mode: standalone)').matches ||
+                               window.navigator.standalone ||
+                               document.referrer.includes('android-app://');
+                if (isMobile) {
+                  window.__MAYA_DISABLED__ = true;
+                }
+              })();
+            `,
+          }}
+        />
       </head>
 
       <body className={inter.className}>
@@ -93,7 +109,7 @@ export default function RootLayout({ children }) {
               },
             }}
           />
-          {/* MAYA AI Assistant */}
+          {/* MAYA AI Assistant - Desktop Only */}
           <MayaRuntimeLoader />
           <MayaShell />
           <MayaAiDots />

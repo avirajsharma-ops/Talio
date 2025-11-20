@@ -16762,7 +16762,8 @@ sbs.zenova.twa.R$mipmap:
     public static int ic_launcher_round
     private void <init>()
 sbs.zenova.twa.R$string
-sbs.zenova.twa.R$style
+sbs.zenova.twa.R$style:
+    private void <init>()
 sbs.zenova.twa.R$xml
 sbs.zenova.twa.R
 sbs.zenova.twa.TalioApplication:
@@ -23516,6 +23517,8 @@ org.json.JSONTokener:
     public static java.lang.String nextString()
 sbs.zenova.twa.MainActivity$$InternalSyntheticLambda$1$3dcbbd987fb48e956022b8767dc16a5b1821072ded352119c90674ce930ec5c4$1
 sbs.zenova.twa.MainActivity$$InternalSyntheticLambda$1$3dcbbd987fb48e956022b8767dc16a5b1821072ded352119c90674ce930ec5c4$2
+sbs.zenova.twa.MainActivity$$InternalSyntheticLambda$1$3dcbbd987fb48e956022b8767dc16a5b1821072ded352119c90674ce930ec5c4$3
+sbs.zenova.twa.MainActivity$$InternalSyntheticLambda$2$38f9add177b75f40d1110872bccd9e31b7c9e4a7bd2f35ecb6353f46b5d83c87$1
 sbs.zenova.twa.MainActivity$$InternalSyntheticLambda$2$d46988f85b6fd06efa848b9cdfd91c5ee2b2695ebc8d4c9c07aada8b1641bfe7$0
 sbs.zenova.twa.MainActivity$Companion
 sbs.zenova.twa.MainActivity$FirebaseInterface$$InternalSyntheticLambda$2$d69870cdf2843f2411d9e7f8d44ea6c3c42bec9eb5c6828eec4b0eb05c846bf7$0
@@ -23526,11 +23529,23 @@ sbs.zenova.twa.MainActivity$LocationInterface$$InternalSyntheticLambda$2$1e8da30
 sbs.zenova.twa.MainActivity$NavigationBarInterface$$InternalSyntheticLambda$2$614370f45295b8fe6e40b01ccb720e362a8cee6dc486f434961fbc8bf3086be9$0
 sbs.zenova.twa.MainActivity$NotificationInterface$$InternalSyntheticLambda$2$63e567e330f6d9241bebcce4ea517604f7d8bf1aefbdc980337771535b8eef4c$0
 sbs.zenova.twa.MainActivity$NotificationInterface$$InternalSyntheticLambda$2$f53f91ea198280210c59ef7fb030f2405f51f1d350c5b546dd3c99faedf9b7fa$0
+sbs.zenova.twa.MainActivity$handleBackgroundLocationPermissionResult$2
+sbs.zenova.twa.MainActivity$handleLocationPermissionResult$1
+sbs.zenova.twa.MainActivity$handleLocationPermissionResult$2
+sbs.zenova.twa.MainActivity$handleNotificationPermissionResult$1
+sbs.zenova.twa.MainActivity$handleNotificationPermissionResult$2
+sbs.zenova.twa.MainActivity$requestBatteryOptimizationExemption$1:
+    public final void invoke()
+sbs.zenova.twa.MainActivity$requestBatteryOptimizationExemption$2
 sbs.zenova.twa.MainActivity$startLocationUpdates$1
 sbs.zenova.twa.MainActivity:
     public static final okhttp3.internal.platform.android.CloseGuard$Companion Companion
     static void <clinit>()
     public static void checkDashboardAndRequestPermissions()
+    public static void handleBackgroundLocationPermissionResult()
+    public static void handleLocationPermissionResult()
+    public static void handleNotificationPermissionResult()
+    public static void openInCustomTab()
     public static void requestPermissions()
     public static void sendLocationToWebView()
     public static void setupWebView()
@@ -23539,6 +23554,7 @@ sbs.zenova.twa.R$drawable
 sbs.zenova.twa.R$id
 sbs.zenova.twa.R$layout
 sbs.zenova.twa.R$mipmap
+sbs.zenova.twa.R$style
 sbs.zenova.twa.TalioApplication$$InternalSyntheticLambda$1$fa2c859e16beb7dec6ed70af6ba71b10e52ba97da0d9c1c4703d627d990b37fe$0
 sbs.zenova.twa.TalioApplication$Companion
 sbs.zenova.twa.TalioApplication:

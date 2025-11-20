@@ -1,6 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export function MayaPipWindow() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.matchMedia('(display-mode: standalone)').matches ||
+                     window.navigator.standalone ||
+                     document.referrer.includes('android-app://');
+      setIsMobile(mobile);
+    };
+
+    checkMobile();
+  }, []);
+
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <div className="maya-pip-window" id="maya-pip-window" style={{ zIndex: 2147483647 }}>
       <div className="maya-pip-header" id="maya-pip-header">

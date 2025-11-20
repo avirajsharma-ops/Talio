@@ -1,9 +1,30 @@
 "use client";
 
 import { useMayaBlob } from "../../hooks/useMayaBlob";
+import { useEffect, useState } from "react";
 
 export function MayaShell() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if running on mobile
+    const checkMobile = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     window.matchMedia('(display-mode: standalone)').matches ||
+                     window.navigator.standalone ||
+                     document.referrer.includes('android-app://');
+      setIsMobile(mobile);
+    };
+
+    checkMobile();
+  }, []);
+
   useMayaBlob();
+
+  // Don't render on mobile
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <div

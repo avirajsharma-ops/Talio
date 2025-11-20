@@ -23,6 +23,12 @@ export function MayaRuntimeLoader() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Check if MAYA is disabled (mobile devices)
+    if (window.__MAYA_DISABLED__) {
+      console.log('[MAYA] Disabled on mobile devices');
+      return;
+    }
+
     // Check if service worker is installed
     const checkServiceWorker = async () => {
       if ('serviceWorker' in navigator) {

@@ -16,9 +16,16 @@ export async function GET(request) {
     console.log('🔵 Google OAuth Callback - Start')
     console.log('Code received:', code ? 'Yes' : 'No')
     console.log('Error from Google:', error)
+    console.log('Request origin:', request.nextUrl.origin)
+    console.log('Request URL:', request.url)
 
-    // Use NEXT_PUBLIC_APP_URL for all redirects to ensure correct domain
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    // Use production URL for Android app, otherwise use current origin
+    // Check if request is from app.talio.in (production/Android app)
+    const isProduction = request.nextUrl.origin.includes('app.talio.in')
+    const baseUrl = isProduction ? 'https://app.talio.in' : (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin)
+
+    console.log('Base URL:', baseUrl)
+    console.log('Is Production:', isProduction)
 
     if (error) {
       console.error('Google OAuth error:', error)
