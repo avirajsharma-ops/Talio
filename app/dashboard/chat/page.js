@@ -76,25 +76,41 @@ export default function ChatPage() {
   useEffect(() => {
     if (!selectedChat) return
 
+    console.log('[Chat Page] Setting up message listener for chat:', selectedChat._id)
+
     const unsubscribe = onNewMessage((data) => {
+      console.log('[Chat Page] Raw message data received:', data)
+
       const { chatId, message: newMessage } = data
+
+      if (!newMessage) {
+        console.warn('[Chat Page] No message in data')
+        return
+      }
 
       // Only update if it's for the current chat
       if (chatId === selectedChat._id) {
-        console.log('📨 [WebSocket] Received new message:', newMessage)
+        console.log('📨 [Chat Page] Received new message for current chat:', newMessage)
 
         // Add message to the list if it's not already there
         setMessages(prev => {
           const exists = prev.some(msg => msg._id === newMessage._id)
-          if (exists) return prev
+          if (exists) {
+            console.log('[Chat Page] Message already exists, skipping')
+            return prev
+          }
 
           // Play notification sound if message is from someone else
           if (newMessage.sender._id !== currentUserId) {
+            console.log('[Chat Page] Playing notification sound')
             playNotificationSound()
           }
 
+          console.log('[Chat Page] Adding message to list')
           return [...prev, newMessage]
         })
+      } else {
+        console.log('[Chat Page] Message is for different chat:', chatId, 'current:', selectedChat._id)
       }
 
       // Update chat list to show latest message and reorder

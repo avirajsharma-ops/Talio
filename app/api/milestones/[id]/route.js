@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Milestone from '@/models/Milestone'
 import Task from '@/models/Task'
+import Project from '@/models/Project'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 import { logActivity } from '@/lib/activityLogger'
@@ -27,7 +27,7 @@ export async function PUT(request, { params }) {
     const milestoneId = params.id
     const body = await request.json()
 
-    const milestone = await Milestone.findById(milestoneId)
+    const milestone = await Task.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
@@ -108,7 +108,7 @@ export async function PUT(request, { params }) {
     // Update task progress based on all milestones
     await updateTaskProgress(milestone.task)
 
-    const updatedMilestone = await Milestone.findById(milestoneId)
+    const updatedMilestone = await Task.findById(milestoneId)
       .populate('createdBy', 'firstName lastName employeeCode')
       .populate('progressHistory.updatedBy', 'firstName lastName employeeCode')
 
@@ -146,7 +146,7 @@ export async function DELETE(request, { params }) {
 
     const milestoneId = params.id
 
-    const milestone = await Milestone.findById(milestoneId)
+    const milestone = await Task.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
@@ -188,7 +188,7 @@ export async function DELETE(request, { params }) {
 // Helper function to update task progress based on milestones
 async function updateTaskProgress(taskId) {
   try {
-    const milestones = await Milestone.find({ task: taskId, isDeleted: false })
+    const milestones = await Task.find({ task: taskId, isDeleted: false })
 
     if (milestones.length === 0) {
       // No milestones, keep task progress as is

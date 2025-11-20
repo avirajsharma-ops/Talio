@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Designation from '@/models/Designation'
-import Project from '@/models/Project'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Fetch team tasks for department members
@@ -93,7 +92,7 @@ export async function GET(request) {
     }
 
     // Fetch tasks
-    const tasks = await Task.find(query)
+    const tasks = await Project.find(query)
       .populate({
         path: 'assignedBy',
         select: 'firstName lastName employeeCode email',
@@ -350,7 +349,7 @@ export async function POST(request) {
     }
 
     // Get task
-    const task = await Task.findById(taskId)
+    const task = await Project.findById(taskId)
 
     if (!task) {
       return NextResponse.json(

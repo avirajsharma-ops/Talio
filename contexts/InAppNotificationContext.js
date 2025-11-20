@@ -31,21 +31,36 @@ export function InAppNotificationProvider({ children }) {
 
   // Listen for new messages via Socket.IO
   useEffect(() => {
-    if (!onNewMessage) return
+    if (!onNewMessage) {
+      console.log('[InAppNotification] onNewMessage not available yet')
+      return
+    }
+
+    console.log('[InAppNotification] Setting up message listener')
 
     const unsubscribe = onNewMessage((data) => {
-      const { chatId, message } = data
+      console.log('[InAppNotification] Raw message data received:', data)
+
+      const { chatId, message, senderId } = data
+
+      if (!message) {
+        console.warn('[InAppNotification] No message in data')
+        return
+      }
 
       // Get current user ID
       const userStr = localStorage.getItem('user')
-      if (!userStr) return
+      if (!userStr) {
+        console.warn('[InAppNotification] No user in localStorage')
+        return
+      }
 
       const user = JSON.parse(userStr)
       const currentUserId = user.employeeId || user._id
 
       // Normalize IDs to strings for comparison
       const currentUserIdStr = typeof currentUserId === 'object' ? currentUserId._id || currentUserId.toString() : currentUserId.toString()
-      const messageSenderId = message?.sender?._id || message?.sender
+      const messageSenderId = senderId || message?.sender?._id || message?.sender
       const messageSenderIdStr = typeof messageSenderId === 'object' ? messageSenderId._id || messageSenderId.toString() : messageSenderId?.toString()
 
       // Only show notification if:
@@ -57,9 +72,12 @@ export function InAppNotificationProvider({ children }) {
 
       console.log('[InAppNotification] Message received:', {
         chatId,
+        currentUserId: currentUserIdStr,
+        messageSenderId: messageSenderIdStr,
         isFromCurrentUser,
         isOnChatPage,
-        shouldShowNotification
+        shouldShowNotification,
+        pathname
       })
 
       if (shouldShowNotification) {
@@ -69,13 +87,15 @@ export function InAppNotificationProvider({ children }) {
 
         const notificationData = {
           title: `New message from ${senderName}`,
-          message: message.content || message.fileName || 'Sent a file',
+          message: message.content || message.text || message.fileName || 'Sent a file',
           url: `/dashboard/chat?chatId=${chatId}`,
           type: 'message'
         }
 
         console.log('[InAppNotification] Showing notification:', notificationData)
         showNotification(notificationData)
+      } else {
+        console.log('[InAppNotification] Not showing notification - conditions not met')
       }
     })
 

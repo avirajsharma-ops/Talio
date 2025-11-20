@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
-import Employee from '@/models/Employee'
 import Project from '@/models/Project'
+import Employee from '@/models/Employee'
+import Task from '@/models/Task'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 import { logActivity } from '@/lib/activityLogger'
@@ -69,7 +69,7 @@ export async function GET(request) {
       const empDoc = await Employee.findById(currentEmployeeId)
 
       // Find tasks created by this manager
-      const managerTasks = await Task.find({
+      const managerTasks = await Project.find({
         assignedBy: currentEmployeeId
       }).populate('assignedTo.employee', 'department')
 
@@ -190,7 +190,7 @@ export async function GET(request) {
     const sort = { [sortBy]: sortOrder }
 
     // Execute query
-    const tasks = await Task.find(query)
+    const tasks = await Project.find(query)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
       .populate('project', 'name projectCode')
@@ -199,10 +199,10 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit)
 
-    const totalTasks = await Task.countDocuments(query)
+    const totalTasks = await Project.countDocuments(query)
 
     // Calculate summary statistics
-    const summaryStats = await Task.aggregate([
+    const summaryStats = await Project.aggregate([
       { $match: query },
       {
         $group: {
@@ -365,7 +365,7 @@ export async function POST(request) {
 
     // If this is a subtask, link it to the parent
     if (task.parentTask) {
-      await Task.findByIdAndUpdate(task.parentTask, { $addToSet: { subtasks: task._id } })
+      await Project.findByIdAndUpdate(task.parentTask, { $addToSet: { subtasks: task._id } })
     }
 
     // Populate the created task

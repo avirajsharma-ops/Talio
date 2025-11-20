@@ -4,7 +4,7 @@ import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Designation from '@/models/Designation'
 import User from '@/models/User'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Get individual team member details
@@ -77,7 +77,7 @@ export async function GET(request, { params }) {
     }
 
     // Get task statistics
-    const taskStats = await Task.aggregate([
+    const taskStats = await Project.aggregate([
       {
         $match: {
           'assignedTo.employee': teamMember._id
@@ -107,7 +107,7 @@ export async function GET(request, { params }) {
     })
 
     // Get recent tasks
-    const recentTasks = await Task.find({
+    const recentTasks = await Project.find({
       'assignedTo.employee': teamMember._id
     })
       .populate('assignedBy', 'firstName lastName')

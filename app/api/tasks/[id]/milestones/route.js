@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Milestone from '@/models/Milestone'
 import Task from '@/models/Task'
+import Project from '@/models/Project'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
     }
 
     // Fetch milestones
-    const milestones = await Milestone.find({ 
+    const milestones = await Task.find({ 
       task: taskId, 
       isDeleted: false 
     })
@@ -79,12 +79,12 @@ export async function POST(request, { params }) {
     }
 
     // Get the highest order number
-    const lastMilestone = await Milestone.findOne({ task: taskId, isDeleted: false })
+    const lastMilestone = await Task.findOne({ task: taskId, isDeleted: false })
       .sort({ order: -1 })
     const nextOrder = lastMilestone ? lastMilestone.order + 1 : 0
 
     // Create milestone
-    const milestone = await Milestone.create({
+    const milestone = await Task.create({
       task: taskId,
       title: body.title,
       description: body.description,
@@ -106,7 +106,7 @@ export async function POST(request, { params }) {
     // Update task progress based on all milestones
     await updateTaskProgress(taskId)
 
-    const populatedMilestone = await Milestone.findById(milestone._id)
+    const populatedMilestone = await Task.findById(milestone._id)
       .populate('createdBy', 'firstName lastName employeeCode')
 
     return NextResponse.json({
@@ -126,7 +126,7 @@ export async function POST(request, { params }) {
 // Helper function to update task progress based on milestones
 async function updateTaskProgress(taskId) {
   try {
-    const milestones = await Milestone.find({ task: taskId, isDeleted: false })
+    const milestones = await Task.find({ task: taskId, isDeleted: false })
     
     if (milestones.length === 0) {
       // No milestones, keep task progress as is

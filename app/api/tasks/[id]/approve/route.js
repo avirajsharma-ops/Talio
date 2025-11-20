@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { logActivity } from '@/lib/activityLogger'
@@ -39,7 +39,7 @@ export async function POST(request, { params }) {
     }
 
     // Find the task
-    const task = await Task.findById(params.id)
+    const task = await Project.findById(params.id)
       .populate('assignedBy', 'firstName lastName')
       .populate('assignedTo.employee', 'firstName lastName department reportingManager')
 
@@ -239,7 +239,7 @@ export async function PUT(request, { params }) {
     }
 
     // Find the task
-    const task = await Task.findById(params.id)
+    const task = await Project.findById(params.id)
 
     if (!task) {
       return NextResponse.json(

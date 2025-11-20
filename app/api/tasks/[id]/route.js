@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
     const taskId = params.id
 
     // Find the task (exclude deleted tasks by default)
-    const task = await Task.findOne({ _id: taskId, isDeleted: { $ne: true } })
+    const task = await Project.findOne({ _id: taskId, isDeleted: { $ne: true } })
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
       .populate('project', 'name projectCode')
@@ -94,7 +94,7 @@ export async function PUT(request, { params }) {
     const taskId = params.id
     const updateData = await request.json()
 
-    const task = await Task.findById(taskId)
+    const task = await Project.findById(taskId)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -112,7 +112,7 @@ export async function PUT(request, { params }) {
     }
 
     // Update the task
-    const updatedTask = await Task.findByIdAndUpdate(
+    const updatedTask = await Project.findByIdAndUpdate(
       taskId,
       {
         ...updateData,
@@ -171,7 +171,7 @@ export async function DELETE(request, { params }) {
     const body = await request.json()
     const deletionReason = body?.reason || 'No reason provided'
 
-    const task = await Task.findById(taskId)
+    const task = await Project.findById(taskId)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -189,7 +189,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Soft delete - mark as deleted instead of removing
-    await Task.findByIdAndUpdate(taskId, {
+    await Project.findByIdAndUpdate(taskId, {
       isDeleted: true,
       deletedAt: new Date(),
       deletedBy: employeeId,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
@@ -26,7 +26,7 @@ export async function PUT(request, { params }) {
     const { id } = params
     const { progress, status, notes, timeSpent, completionNotes, deliverables } = await request.json()
 
-    const task = await Task.findById(id)
+    const task = await Project.findById(id)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -154,7 +154,7 @@ export async function POST(request, { params }) {
     const { id } = params
     const { startTime, endTime, duration, description, billable } = await request.json()
 
-    const task = await Task.findById(id)
+    const task = await Project.findById(id)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -317,11 +317,11 @@ async function checkTimeLogPermission(userId, task) {
 
 async function updateParentTaskProgress(parentTaskId) {
   try {
-    const parentTask = await Task.findById(parentTaskId)
+    const parentTask = await Project.findById(parentTaskId)
     if (!parentTask) return
 
     // Get all subtasks
-    const subtasks = await Task.find({ parentTask: parentTaskId })
+    const subtasks = await Project.find({ parentTask: parentTaskId })
     
     if (subtasks.length > 0) {
       // Calculate average progress of subtasks
@@ -355,7 +355,7 @@ async function updateProjectProgress(projectId) {
     if (!project) return
 
     // Get all tasks for this project
-    const projectTasks = await Task.find({ project: projectId })
+    const projectTasks = await Project.find({ project: projectId })
     
     if (projectTasks.length > 0) {
       // Calculate project progress based on task completion

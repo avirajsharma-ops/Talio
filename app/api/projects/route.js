@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import ProjectOld from '@/models/ProjectOld'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
 import Department from '@/models/Department'
@@ -67,7 +67,7 @@ export async function GET(request) {
       }
     }
 
-    const projects = await Project.find(query)
+    const projects = await ProjectOld.find(query)
       .populate('projectManager', 'firstName lastName employeeCode email')
       .populate('projectOwner', 'firstName lastName employeeCode')
       .populate('department', 'name code')
@@ -122,13 +122,13 @@ export async function POST(request) {
     }
 
     // Create project
-    const project = await Project.create({
+    const project = await ProjectOld.create({
       ...data,
       // Ensure project manager is set
       projectManager: data.projectManager || user.employeeId,
     })
 
-    const populatedProject = await Project.findById(project._id)
+    const populatedProject = await ProjectOld.findById(project._id)
       .populate('projectManager', 'firstName lastName employeeCode email')
       .populate('projectOwner', 'firstName lastName employeeCode')
       .populate('department', 'name code')

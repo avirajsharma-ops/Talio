@@ -68,10 +68,17 @@ export function SocketProvider({ children }) {
 
     setSocket(socketInstance)
 
+    // Expose socket globally for MAYA to use
+    window.__MAYA_SOCKET__ = socketInstance
+
     // Cleanup on unmount
     return () => {
       if (socketInstance) {
         socketInstance.disconnect()
+      }
+      // Clean up global reference
+      if (window.__MAYA_SOCKET__ === socketInstance) {
+        delete window.__MAYA_SOCKET__
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,8 +132,18 @@ export function SocketProvider({ children }) {
   // Subscribe to new messages
   const onNewMessage = useCallback((callback) => {
     if (socket) {
-      socket.on('new-message', callback)
-      return () => socket.off('new-message', callback)
+      console.log('[SocketContext] Registering new-message listener')
+      const wrappedCallback = (data) => {
+        console.log('[SocketContext] new-message event received:', data)
+        callback(data)
+      }
+      socket.on('new-message', wrappedCallback)
+      return () => {
+        console.log('[SocketContext] Unregistering new-message listener')
+        socket.off('new-message', wrappedCallback)
+      }
+    } else {
+      console.warn('[SocketContext] Socket not available for onNewMessage')
     }
   }, [socket])
 

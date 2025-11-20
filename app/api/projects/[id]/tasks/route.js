@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import Task from '@/models/Task'
-import Project from '@/models/Project'
+import ProjectOld from '@/models/ProjectOld'
 import User from '@/models/User'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
 
     // Verify project exists
-    const project = await Project.findById(params.id)
+    const project = await ProjectOld.findById(params.id)
     if (!project) {
       return NextResponse.json(
         { success: false, message: 'Project not found' },
@@ -96,7 +96,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify project exists
-    const project = await Project.findById(params.id)
+    const project = await ProjectOld.findById(params.id)
     if (!project) {
       return NextResponse.json(
         { success: false, message: 'Project not found' },

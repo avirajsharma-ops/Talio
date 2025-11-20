@@ -48,8 +48,9 @@ import Announcement from '@/models/Announcement';
 import Holiday from '@/models/Holiday';
 import Onboarding from '@/models/Onboarding';
 import Offboarding from '@/models/Offboarding';
-import Task from '@/models/Task';
 import Project from '@/models/Project';
+import ProjectOld from '@/models/ProjectOld';
+import Task from '@/models/Task';
 import DailyGoal from '@/models/DailyGoal';
 import Activity from '@/models/Activity';
 import Notification from '@/models/Notification';
@@ -78,8 +79,9 @@ const MODELS = {
   holidays: Holiday,
   onboarding: Onboarding,
   offboarding: Offboarding,
-  tasks: Task,
-  projects: Project,
+  tasks: Project,
+  projects: ProjectOld,
+  milestones: Task,
   dailygoals: DailyGoal,
   activities: Activity,
   notifications: Notification,

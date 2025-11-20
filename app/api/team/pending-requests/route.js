@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import Employee from '@/models/Employee'
 import Leave from '@/models/Leave'
-import Task from '@/models/Task'
+import Project from '@/models/Project'
 import User from '@/models/User'
 
 // GET - Fetch all pending requests for department head
@@ -60,7 +60,7 @@ export async function GET(request) {
       .limit(10)
 
     // Get pending task approvals (tasks that are completed but need approval)
-    const pendingTasks = await Task.find({
+    const pendingTasks = await Project.find({
       'assignedTo.employee': { $in: teamMemberIds },
       status: 'completed',
       requiresApproval: true,

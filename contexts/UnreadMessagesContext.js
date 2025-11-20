@@ -63,21 +63,36 @@ export function UnreadMessagesProvider({ children }) {
 
   // Listen for new messages via WebSocket
   useEffect(() => {
-    if (!onNewMessage) return
+    if (!onNewMessage) {
+      console.log('[UnreadMessages] onNewMessage not available yet')
+      return
+    }
+
+    console.log('[UnreadMessages] Setting up message listener')
 
     const unsubscribe = onNewMessage((data) => {
-      const { chatId, message } = data
+      console.log('[UnreadMessages] Raw message data received:', data)
+
+      const { chatId, message, senderId } = data
+
+      if (!message) {
+        console.warn('[UnreadMessages] No message in data')
+        return
+      }
 
       // Get current user ID
       const userStr = localStorage.getItem('user')
-      if (!userStr) return
+      if (!userStr) {
+        console.warn('[UnreadMessages] No user in localStorage')
+        return
+      }
 
       const user = JSON.parse(userStr)
       const currentUserId = user.employeeId || user._id
 
       // Normalize IDs to strings for comparison
       const currentUserIdStr = typeof currentUserId === 'object' ? currentUserId._id || currentUserId.toString() : currentUserId.toString()
-      const messageSenderId = message?.sender?._id || message?.sender
+      const messageSenderId = senderId || message?.sender?._id || message?.sender
       const messageSenderIdStr = typeof messageSenderId === 'object' ? messageSenderId._id || messageSenderId.toString() : messageSenderId?.toString()
 
       console.log('[UnreadMessages] New message received:', {

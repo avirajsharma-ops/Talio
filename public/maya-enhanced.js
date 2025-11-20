@@ -668,32 +668,18 @@
    * Initialize Socket.IO listeners for MAYA message relay and screen monitoring
    */
   function initMayaSocketListeners() {
-    // Wait for Socket.IO to be available
-    if (typeof io === 'undefined') {
-      console.log('⏳ MAYA: Waiting for Socket.IO to load...');
+    // Wait for Socket.IO instance from SocketContext
+    if (!window.__MAYA_SOCKET__) {
+      console.log('⏳ MAYA: Waiting for Socket.IO connection from SocketContext...');
       setTimeout(initMayaSocketListeners, 1000);
       return;
     }
 
     console.log('🔌 MAYA: Initializing Socket.IO listeners for message relay and screen monitoring...');
 
-    // Get Socket.IO instance from SocketContext or create new connection
-    let socket;
-
-    // Try to get existing socket from React context
-    if (window.__MAYA_SOCKET__) {
-      socket = window.__MAYA_SOCKET__;
-      console.log('✅ MAYA: Using existing Socket.IO connection');
-    } else {
-      // Create new socket connection
-      socket = io(window.location.origin, {
-        path: '/api/socketio',
-        transports: ['polling', 'websocket'],
-        reconnection: true,
-      });
-      window.__MAYA_SOCKET__ = socket;
-      console.log('✅ MAYA: Created new Socket.IO connection');
-    }
+    // Use the existing socket from SocketContext
+    const socket = window.__MAYA_SOCKET__;
+    console.log('✅ MAYA: Using existing Socket.IO connection from SocketContext');
 
     // ==================== MESSAGE RELAY EVENTS ====================
 
