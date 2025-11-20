@@ -44,6 +44,7 @@ if (messaging) {
       },
       vibrate: [200, 100, 200],
       requireInteraction: false,
+      silent: false, // Make sure sound plays
       actions: [
         {
           action: 'open',
@@ -61,7 +62,35 @@ if (messaging) {
       notificationOptions.image = payload.notification.image
     }
 
-    return self.registration.showNotification(notificationTitle, notificationOptions)
+    // Show notification and play custom sound
+    return self.registration.showNotification(notificationTitle, notificationOptions).then(() => {
+      // Play custom notification sound from /public/sounds/notification.mp3
+      try {
+        // Fetch and play the custom notification sound
+        fetch('/sounds/notification.mp3')
+          .then(response => {
+            if (!response.ok) throw new Error('Sound file not found')
+            return response.arrayBuffer()
+          })
+          .then(arrayBuffer => {
+            const audioContext = new (self.AudioContext || self.webkitAudioContext)()
+            return audioContext.decodeAudioData(arrayBuffer)
+          })
+          .then(audioBuffer => {
+            const audioContext = new (self.AudioContext || self.webkitAudioContext)()
+            const source = audioContext.createBufferSource()
+            source.buffer = audioBuffer
+            source.connect(audioContext.destination)
+            source.start(0)
+            console.log('[SW] Custom notification sound played from /sounds/notification.mp3')
+          })
+          .catch(error => {
+            console.error('[SW] Error playing custom notification sound:', error)
+          })
+      } catch (error) {
+        console.error('[SW] AudioContext error:', error)
+      }
+    })
   })
 }
 

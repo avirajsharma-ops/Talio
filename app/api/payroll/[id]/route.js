@@ -61,7 +61,9 @@ export async function PUT(request, { params }) {
         if (employeeUserId) {
           const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
           const monthName = monthNames[payroll.month - 1]
+          const icon = data.status === 'processed' ? '✅' : '💵'
 
+          // Socket.IO event
           io.to(`user:${employeeUserId}`).emit('payroll-update', {
             payroll,
             action: data.status === 'processed' ? 'processed' : 'updated',
@@ -69,6 +71,30 @@ export async function PUT(request, { params }) {
             timestamp: new Date()
           })
           console.log(`✅ [Socket.IO] Payroll update sent to user:${employeeUserId}`)
+
+          // FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: `${icon} Payroll ${data.status === 'processed' ? 'Processed' : 'Updated'}`,
+                body: `Your payroll for ${monthName} ${payroll.year} has been ${data.status}`,
+              },
+              {
+                clickAction: '/dashboard/payroll',
+                eventType: 'payroll_update',
+                data: {
+                  payrollId: payroll._id.toString(),
+                  status: data.status,
+                  type: 'payroll_status_update'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Payroll notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send payroll FCM notification:', fcmError)
+          }
         }
       }
     } catch (socketError) {

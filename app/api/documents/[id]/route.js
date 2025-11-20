@@ -62,6 +62,9 @@ export async function PUT(request, { params }) {
         const employeeUserId = employeeDoc?.userId
 
         if (employeeUserId) {
+          const icon = data.status === 'approved' ? '✅' : '❌'
+
+          // Socket.IO event
           io.to(`user:${employeeUserId}`).emit('document-update', {
             document,
             action: data.status,
@@ -69,6 +72,30 @@ export async function PUT(request, { params }) {
             timestamp: new Date()
           })
           console.log(`✅ [Socket.IO] Document update sent to user:${employeeUserId}`)
+
+          // FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: `${icon} Document ${data.status === 'approved' ? 'Approved' : 'Rejected'}`,
+                body: `Document "${document.name}" has been ${data.status}`,
+              },
+              {
+                clickAction: '/dashboard/documents',
+                eventType: 'document_update',
+                data: {
+                  documentId: document._id.toString(),
+                  status: data.status,
+                  type: 'document_update'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Document notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send document FCM notification:', fcmError)
+          }
         }
       }
     } catch (socketError) {
