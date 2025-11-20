@@ -1,51 +1,182 @@
-## Quick orientation for AI coding agents
+# Talio HRMS - AI Coding Agent Instructions
 
-This repository is a Next.js 14 (App Router) HRMS web app with a custom Node server that runs Next and Socket.IO. Key runtime pieces you should be aware of:
+## Project Overview
+Talio is a comprehensive Next.js 14 (App Router) HRMS with a custom Node server integrating Socket.IO for realtime features and MAYA, an AI assistant with full HRMS action capabilities (60+ operations across all modules).
 
-- App code: `app/` (Next.js App Router)
-- Custom server + Socket.IO bootstrap: `server.js` — this file starts the HTTP server, mounts Next, and creates a Socket.IO instance stored on `global.io` so API routes can broadcast messages.
-- DB layer: `lib/mongodb.js` + `models/` (Mongoose schemas)
-- Dev/build scripts: `package.json` scripts and many helper scripts under `scripts/` (see `scripts/seed.js`, `scripts/setup-vector-db.js`, `scripts/generate-embeddings-*.js`).
-- Container & infra: `Dockerfile`, `docker-compose.yml`, and `Dockerfile.optimized` for production images.
+## Architecture & Key Components
 
-## Primary workflows (concrete commands)
-- Local dev with sockets (recommended for end-to-end):
-  - `npm run dev`  -> runs `node server.js` (starts Next + Socket.IO). Use this when working on APIs that depend on `global.io` or realtime features.
-- Next.js-only development (fast frontend iteration):
-  - `npm run dev:next` -> runs `next dev`. Note: `next dev` alone will not initialize the custom Socket.IO instance in `server.js`.
-- Build for production:
-  - `npm run build`  (this uses `SKIP_ENV_VALIDATION=true next build` in package.json)
-  - `npm run start`  -> `NODE_ENV=production node server.js` (starts production server + sockets)
-- Helpful scripts:
-  - `npm run seed` — seed DB (`scripts/seed.js`)
-  - `npm run migrate` — migration helpers (`scripts/migrate-to-atlas.js`)
-  - `npm run setup-local` / `npm run check-env` — environment helpers for local/Vercel
+### Server Runtime
+- **Custom server**: `server.js` creates HTTP server + Next.js handler + Socket.IO instance
+- **Critical pattern**: Socket.IO instance stored at `global.io` for API route access
+- **Socket path**: `/api/socketio` with room-based messaging (`chat:${chatId}`, `user:${userId}`)
+- **MAYA realtime**: Special socket events (`maya:*`) for AI assistant communications and screen monitoring
 
-## Project-specific conventions and patterns
-- Socket.IO is created in `server.js` and attached to `global.io`. Any API route or module that needs to push realtime events should reference `global.io` (e.g. `global.io.emit(...)` or `global.io.to(...).emit(...)`). When changing socket events, update both the server event names and any client listeners under `app/*`.
-- The repo uses the Next.js App Router. Pages and server actions live under `app/`. Prefer App Router patterns (server components, route handlers) when adding new UI or API features.
-- Many operational tasks are expressed as Node scripts in `scripts/`. Look there for vector/embedding setup (`setup-vector-db.js`, `generate-embeddings-openai.js`, `test-vector-search.js`) and for env fixes (`fix-vercel-env.js`).
-- Environment variables: `.env.local` (root). Several scripts expect specific env vars — run `npm run check-env` or inspect `scripts/fix-vercel-env.js` before building.
+### Database Layer
+- **Connection**: `lib/mongodb.js` - cached Mongoose connection (checks `MONGODB_URI` from `.env.local`)
+- **Models**: 50+ Mongoose schemas in `models/` including MAYA-specific models (`MayaMessage`, `MayaActionLog`, `MayaFormattedData`, etc.)
+- **Data access**: `lib/mayaDataAccess.js` provides role-based filtered queries for MAYA
+- **Auth helpers**: `lib/mayaPermissions.js` - check if user can access target data based on role/hierarchy
 
-## Integrations & external dependencies to note
-- Database: MongoDB (Mongoose). Connection helper: `lib/mongodb.js`.
-- Auth: NextAuth / JWT usage across API routes and models.
-- Realtime: `socket.io` server + `socket.io-client` on front-end. Socket path is `/api/socketio`.
-- Push/notifications: `firebase` / `firebase-admin`, `react-onesignal`, and `web-push` are present — watch `public/` for service worker and `app/api/*` for notification endpoints.
-- Vector/AI: `openai` and `@xenova/transformers` are used. Embedding-related scripts live in `scripts/` and vector DB setup is explicit (see `scripts/setup-vector-db.js`).
+### Frontend Structure
+- **App Router**: All pages/routes under `app/` - NO pages/ directory
+- **Module organization**: `app/dashboard/<module>/` for UI, `app/api/<module>/` for endpoints
+- **Major modules**: employees, attendance, leave, payroll, performance, recruitment, tasks, expenses, travel, helpdesk, assets, documents, policies, announcements, chat, maya
 
-## Quick examples (do this when editing code)
-- To emit an event from an API route after saving a message:
-  - ensure server running with `npm run dev`
-  - inside the route handler: `if (global.io) global.io.to(`chat:${chatId}`).emit('new-message', payload)`
-- When adding a page/API, place UI under `app/<module>/` and server routes under `app/api/<module>/` to keep the App Router layout consistent.
+### MAYA AI Assistant (Critical System Component)
+- **Capabilities**: 60+ actions across ALL HRMS modules - can perform any user action
+- **Context system**: `lib/mayaContext.js` + `lib/mayaVectorContext.js` for vector search over HRMS data
+- **Message relay**: `app/api/maya/relay-message/route.js` - MAYA sends messages between users via Socket.IO
+- **Screen monitoring**: `app/api/maya/monitor-screen/route.js` + `submit-screenshot/route.js` for realtime screen capture
+- **Action logging**: All MAYA actions logged to `MayaActionLog` model
 
-## Files to read first (high signal)
-- `server.js`  — how sockets and the HTTP server are wired
-- `package.json` — scripts you should run and deps
-- `app/` — where UI and API route code lives (App Router)
-- `lib/mongodb.js` and `models/` — database connection and schemas
-- `scripts/` — operational tooling (seeding, embedding generation, migrations)
-- `Dockerfile` / `docker-compose.yml` — containerization and prod config
+## Development Workflows
 
-If anything here looks incorrect or you want more detail (examples of API routes that call `global.io`, or the most important scripts under `scripts/`), tell me which area to expand and I will iterate. 
+### Local Development
+```bash
+npm run dev              # Recommended: runs node server.js (Next + Socket.IO)
+npm run dev:next         # Frontend-only: next dev (NO Socket.IO initialization)
+```
+**Use `npm run dev` when working on chat, realtime features, or MAYA integrations.**
+
+### Building & Production
+```bash
+npm run build            # Uses SKIP_ENV_VALIDATION=true next build
+npm run start            # NODE_ENV=production node server.js
+```
+
+### Database & Environment Setup
+```bash
+npm run seed                    # Seed database (scripts/seed.js)
+npm run check-env              # Verify environment variables
+npm run setup-local            # Setup local .env.local
+npm run migrate                # MongoDB Atlas migration helpers
+npm run migrate:levelnames     # Migrate designation level names
+```
+
+### Vector Search Setup (MAYA Feature)
+```bash
+# Interactive wizard for MongoDB Atlas vector search indexes
+node scripts/setup-vector-db.js
+
+# Generate embeddings (choose one)
+node scripts/generate-embeddings-openai.js    # Requires OPENAI_API_KEY
+node scripts/generate-embeddings-free.js      # Uses @xenova/transformers (no cost)
+
+# Test vector search
+node scripts/test-vector-search.js
+```
+
+## Code Patterns & Conventions
+
+### Socket.IO Realtime Events
+**Pattern**: API routes emit events after DB writes
+```javascript
+// Example from app/api/chat/[chatId]/messages/route.js
+const io = global.io;
+if (io) {
+  io.to(`chat:${chatId}`).emit('new-message', messagePayload);
+  io.to(`user:${recipientId}`).emit('new-message', messagePayload);
+}
+```
+**Client-side**: Connect via `socket.io-client` and join rooms (`socket.emit('join-chat', chatId)`)
+
+### API Route Structure
+- **Auth**: JWT verification via `jose` library (`jwtVerify(token, JWT_SECRET)`)
+- **Response**: Use `NextResponse.json()` for all responses
+- **DB connection**: Call `await connectDB()` before any DB operations
+- **Role checks**: Use `lib/mayaPermissions.js` functions or check `user.role` against hierarchy
+
+### Role Hierarchy
+`god_admin` > `admin` > `hr` > `department_head` > `manager` > `employee` > `user`
+
+### MAYA Integration Points
+When adding features that MAYA should control:
+1. Create action in relevant API route (e.g., `app/api/leave/route.js`)
+2. Add action definition to `lib/mayaDataAccess.js` if data access needed
+3. Update MAYA context in `lib/mayaContext.js` with new capability
+4. Log action in `MayaActionLog` model for audit trail
+
+## Critical Dependencies
+
+### Realtime & Notifications
+- `socket.io` / `socket.io-client` - realtime communication
+- `firebase` / `firebase-admin` - push notifications (FCM)
+- Service worker at `public/firebase-messaging-sw.js`
+
+### AI & Vector Search
+- `openai` - embeddings and MAYA chat completions
+- `@xenova/transformers` - free local embeddings alternative
+- MongoDB Atlas vector search indexes required (see `scripts/setup-vector-db.js`)
+
+### Auth & Security
+- `next-auth` - authentication framework
+- `jose` - JWT verification (used instead of jsonwebtoken in API routes)
+- `bcryptjs` - password hashing
+
+### Data Processing
+- `mongoose` - MongoDB ODM with global connection caching
+- `sharp` - image processing
+- `multer` - file uploads
+- `jspdf` / `jspdf-autotable` - PDF generation
+- `xlsx` - Excel export
+
+## Environment Variables (`.env.local`)
+
+**Required for core functionality:**
+- `MONGODB_URI` - MongoDB connection string
+- `JWT_SECRET` - JWT signing secret
+- `NEXTAUTH_SECRET` - NextAuth session secret
+- `NEXTAUTH_URL` - App URL for NextAuth
+
+**Required for MAYA:**
+- `OPENAI_API_KEY` - OpenAI API key (or use free embeddings)
+- `MONGODB_DB_NAME` - Database name for vector search
+
+**Required for notifications:**
+- `NEXT_PUBLIC_FIREBASE_*` - Firebase client config (8 vars)
+- `FIREBASE_*` - Firebase Admin SDK credentials
+
+## Docker Deployment
+- **Dockerfile**: Multi-stage build with Node 20 Alpine
+- **docker-compose.yml**: Includes nginx reverse proxy + certbot for SSL
+- **Build args**: `NEXT_PUBLIC_*` vars must be passed as build args (embedded in client bundle)
+- **Runtime env**: Other vars passed via `environment` section in docker-compose
+
+## Common Tasks
+
+### Adding a New Module
+1. Create `app/dashboard/<module>/page.js` for UI
+2. Create `app/api/<module>/route.js` for CRUD endpoints
+3. Create `models/<Module>.js` for Mongoose schema
+4. Add navigation link to `components/Sidebar.js`
+5. Consider MAYA integration if actions are needed
+
+### Emitting Realtime Events
+```javascript
+// Always check if global.io exists
+if (global.io) {
+  global.io.to(`room:${id}`).emit('event-name', data);
+}
+```
+
+### Debugging Socket.IO
+- Check `server.js` for socket event handlers
+- Socket logs use prefixes: `✅`, `🔐`, `👤`, `📨`, `📸`, `❌`
+- Use `npm run dev` (NOT `npm run dev:next`) to initialize sockets
+
+### Testing Vector Search
+1. Ensure MongoDB Atlas vector search indexes created (see `HOW_TO_CREATE_VECTOR_INDEX.md`)
+2. Run `node scripts/generate-embeddings-*.js` to populate embeddings
+3. Test with `node scripts/test-vector-search.js`
+
+## High-Value Files to Reference
+
+**Server & Sockets**: `server.js`, `lib/socket.js`
+**Database**: `lib/mongodb.js`, `models/` (50+ schemas)
+**MAYA Core**: `lib/mayaContext.js`, `lib/mayaDataAccess.js`, `lib/mayaPermissions.js`, `lib/mayaVectorContext.js`
+**API Examples**: `app/api/maya/relay-message/route.js`, `app/api/chat/[chatId]/messages/route.js`
+**Scripts**: `scripts/setup-vector-db.js`, `scripts/seed.js`, `scripts/generate-embeddings-*.js`
+**Config**: `package.json`, `Dockerfile`, `docker-compose.yml`
+
+---
+*For specific MAYA capabilities or module details, check the extensive `.md` documentation files in root.* 

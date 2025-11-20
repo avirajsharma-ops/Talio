@@ -53,6 +53,28 @@ export async function PUT(request, { params }) {
       )
     }
 
+    // Emit Socket.IO event for document updates
+    try {
+      const io = global.io
+      if (io && (data.status === 'approved' || data.status === 'rejected')) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(document.employee._id || document.employee).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          io.to(`user:${employeeUserId}`).emit('document-update', {
+            document,
+            action: data.status,
+            message: `Document "${document.name}" has been ${data.status}`,
+            timestamp: new Date()
+          })
+          console.log(`✅ [Socket.IO] Document update sent to user:${employeeUserId}`)
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send document socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Document updated successfully',
