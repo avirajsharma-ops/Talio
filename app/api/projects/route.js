@@ -141,12 +141,15 @@ export async function POST(request) {
     try {
       const io = global.io
       if (io && data.team && Array.isArray(data.team)) {
+        const { sendPushToUser } = require('@/lib/pushNotification')
+
         for (const teamMember of data.team) {
           const Employee = require('@/models/Employee').default
           const employeeDoc = await Employee.findById(teamMember.member).populate('userId')
           const employeeUserId = employeeDoc?.userId?._id || employeeDoc?.userId
 
           if (employeeUserId) {
+            // Socket.IO event
             io.to(`user:${employeeUserId}`).emit('project-assignment', {
               project: populatedProject,
               action: 'assigned',
@@ -155,6 +158,28 @@ export async function POST(request) {
               timestamp: new Date()
             })
             console.log(`✅ [Socket.IO] Project assignment sent to user:${employeeUserId}`)
+
+            // FCM push notification
+            try {
+              await sendPushToUser(
+                employeeUserId,
+                {
+                  title: '📊Prior Project Assigned',
+                  body: `You have been assigned to project: ${project.name}`,
+                },
+                {
+                  clickAction: '/dashboard/projects',
+                  eventType: 'project_assignment',
+                  data: {
+                    projectId: project._id.toString(),
+                    type: 'project_assignment'
+                  }
+                }
+              )
+              console.log(`📲 [FCM] Project assignment notification sent to user:${employeeUserId}`)
+            } catch (fcmError) {
+              console.error('Failed to send project FCM notification:', fcmError)
+            }
           }
         }
       }

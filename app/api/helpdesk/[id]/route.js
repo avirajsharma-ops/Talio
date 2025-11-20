@@ -27,6 +27,8 @@ export async function PUT(request, { params }) {
     // Emit Socket.IO event for ticket updates
     try {
       const io = global.io
+      const { sendPushToUser } = require('@/lib/pushNotification')
+
       if (io) {
         // Notify employee who created the ticket
         if (data.status || data.assignedTo) {
@@ -36,10 +38,19 @@ export async function PUT(request, { params }) {
 
           if (employeeUserId) {
             let action = 'updated'
-            if (data.status === 'resolved') action = 'resolved'
-            else if (data.status === 'closed') action = 'closed'
-            else if (data.assignedTo) action = 'assigned'
+            let icon = '📝'
+            if (data.status === 'resolved') {
+              action = 'resolved'
+              icon = '✅'
+            } else if (data.status === 'closed') {
+              action = 'closed'
+              icon = '🔒'
+            } else if (data.assignedTo) {
+              action = 'assigned'
+              icon = '🎫'
+            }
 
+            // Socket.IO event
             io.to(`user:${employeeUserId}`).emit('helpdesk-ticket', {
               ticket,
               action,
@@ -47,6 +58,29 @@ export async function PUT(request, { params }) {
               timestamp: new Date()
             })
             console.log(`✅ [Socket.IO] Helpdesk ticket update sent to user:${employeeUserId}`)
+
+            // FCM push notification
+            try {
+              await sendPushToUser(
+                employeeUserId,
+                {
+                  title: `${icon} Ticket ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                  body: `Ticket #${ticket.ticketNumber} has been ${action}`,
+                },
+                {
+                  clickAction: '/dashboard/helpdesk',
+                  eventType: 'helpdesk_ticket',
+                  data: {
+                    ticketId: ticket._id.toString(),
+                    action,
+                    type: 'helpdesk_ticket'
+                  }
+                }
+              )
+              console.log(`📲 [FCM] Helpdesk notification sent to user:${employeeUserId}`)
+            } catch (fcmError) {
+              console.error('Failed to send helpdesk FCM notification:', fcmError)
+            }
           }
         }
 
@@ -57,6 +91,7 @@ export async function PUT(request, { params }) {
           const assignedUserId = assignedDoc?.userId
 
           if (assignedUserId) {
+            // Socket.IO event
             io.to(`user:${assignedUserId}`).emit('helpdesk-ticket', {
               ticket,
               action: 'assigned',
@@ -64,6 +99,29 @@ export async function PUT(request, { params }) {
               timestamp: new Date()
             })
             console.log(`✅ [Socket.IO] Helpdesk ticket assignment sent to user:${assignedUserId}`)
+
+            // FCM push notification
+            try {
+              await sendPushToUser(
+                assignedUserId,
+                {
+                  title: '🎫 Ticket Assigned',
+                  body: `You have been assigned ticket #${ticket.ticketNumber}`,
+                },
+                {
+                  clickAction: '/dashboard/helpdesk',
+                  eventType: 'helpdesk_ticket',
+                  data: {
+                    ticketId: ticket._id.toString(),
+                    action: 'assigned',
+                    type: 'helpdesk_ticket'
+                  }
+                }
+              )
+              console.log(`📲 [FCM] Helpdesk assignment notification sent to user:${assignedUserId}`)
+            } catch (fcmError) {
+              console.error('Failed to send helpdesk assignment FCM notification:', fcmError)
+            }
           }
         }
       }

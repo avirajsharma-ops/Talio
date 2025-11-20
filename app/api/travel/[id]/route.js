@@ -42,6 +42,31 @@ export async function PUT(request, { params }) {
             })
             console.log(`✅ [Socket.IO] Travel status update sent to user:${employeeUserId}`)
           }
+
+          // Send FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            const icon = data.status === 'approved' ? '✅' : '❌'
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: `${icon} Travel ${data.status === 'approved' ? 'Approved' : 'Rejected'}`,
+                body: `Your travel request to ${travel.destination} has been ${data.status}`,
+              },
+              {
+                clickAction: '/dashboard/travel',
+                eventType: 'travel_status',
+                data: {
+                  travelId: travel._id.toString(),
+                  status: data.status,
+                  type: 'travel_status_update'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Travel notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send travel FCM notification:', fcmError)
+          }
         }
       }
     } catch (socketError) {

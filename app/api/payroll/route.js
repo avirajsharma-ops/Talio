@@ -92,6 +92,7 @@ export async function POST(request) {
           const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
           const monthName = monthNames[data.month - 1]
 
+          // Socket.IO event
           io.to(`user:${employeeUserId}`).emit('payroll-update', {
             payroll: populatedPayroll,
             action: 'generated',
@@ -99,6 +100,31 @@ export async function POST(request) {
             timestamp: new Date()
           })
           console.log(`✅ [Socket.IO] Payroll generation sent to user:${employeeUserId}`)
+
+          // FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: '💰 Payroll Generated',
+                body: `Your payroll for ${monthName} ${data.year} has been generated`,
+              },
+              {
+                clickAction: '/dashboard/payroll',
+                eventType: 'payroll_update',
+                data: {
+                  payrollId: payroll._id.toString(),
+                  month: data.month,
+                  year: data.year,
+                  type: 'payroll_generation'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Payroll notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send payroll FCM notification:', fcmError)
+          }
         }
       }
     } catch (socketError) {

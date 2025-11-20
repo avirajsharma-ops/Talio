@@ -32,6 +32,9 @@ export async function PUT(request, { params }) {
 
         if (employeeUserId) {
           const action = data.status === 'returned' ? 'returned' : 'assigned'
+          const icon = action === 'returned' ? '↩️' : '🔧'
+
+          // Socket.IO event
           io.to(`user:${employeeUserId}`).emit('asset-update', {
             asset,
             action,
@@ -39,6 +42,30 @@ export async function PUT(request, { params }) {
             timestamp: new Date()
           })
           console.log(`✅ [Socket.IO] Asset update sent to user:${employeeUserId}`)
+
+          // FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: `${icon} Asset ${action === 'assigned' ? 'Assigned' : 'Returned'}`,
+                body: `Asset "${asset.name}" (${asset.assetCode}) has been ${action}`,
+              },
+              {
+                clickAction: '/dashboard/assets',
+                eventType: 'asset_update',
+                data: {
+                  assetId: asset._id.toString(),
+                  action,
+                  type: 'asset_update'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Asset notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send asset FCM notification:', fcmError)
+          }
         }
       }
     } catch (socketError) {
