@@ -353,7 +353,7 @@ If you're still having issues:
 - **Bottom Navigation Bar:** `#192A5A` (Dark Blue)
 - **Active Button:** `#3B82F6` (Blue)
 - **Background:** `#F9FAFB` (Light Gray)
-- **Cards:** `#EEF3FF` (Light Blue)
+- **Cards:** `#ffffff` (Light Blue)
 
 ---
 

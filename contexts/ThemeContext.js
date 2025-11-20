@@ -22,7 +22,7 @@ export const themes = {
     },
     background: {
       main: '#F9FAFB',       // Original light gray background
-      card: '#EEF3FF',       // Original card color
+      card: '#ffffff',       // Original card color
       sidebar: '#111827',    // Original dark sidebar (gray-900)
       hover: '#1F2937',      // Dark gray hover for sidebar
     },
