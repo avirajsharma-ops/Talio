@@ -5,7 +5,7 @@ import User from '@/models/User'
 import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Notification from '@/models/Notification'
-import { sendFCMNotification } from '@/lib/firebaseAdmin'
+import { sendOneSignalNotification } from '@/lib/onesignal'
 
 export async function POST(request) {
   try {
@@ -280,32 +280,14 @@ export async function POST(request) {
       // Continue even if database save fails
     }
 
-    // Get FCM tokens for all target users
-    const usersWithTokens = await User.find({
-      _id: { $in: userIds },
-      'fcmTokens.0': { $exists: true }
-    }).select('fcmTokens')
+    console.log(`[OneSignal] Sending to ${userIds.length} user(s)`)
 
-    // Collect all FCM tokens
-    const fcmTokens = []
-    usersWithTokens.forEach(user => {
-      if (user.fcmTokens && user.fcmTokens.length > 0) {
-        user.fcmTokens.forEach(tokenObj => {
-          if (tokenObj.token) {
-            fcmTokens.push(tokenObj.token)
-          }
-        })
-      }
-    })
-
-    console.log(`[FCM] Found ${fcmTokens.length} FCM token(s) for ${userIds.length} user(s)`)
-
-    // Send notification via Firebase Cloud Messaging
-    let fcmResult = { success: false, message: 'No FCM tokens found' }
-    if (fcmTokens.length > 0) {
+    // Send notification via OneSignal
+    let onesignalResult = { success: false, message: 'No users found' }
+    if (userIds.length > 0) {
       try {
-        fcmResult = await sendFCMNotification({
-          tokens: fcmTokens,
+        onesignalResult = await sendOneSignalNotification({
+          userIds,
           title,
           body: message,
           data: {
@@ -313,40 +295,38 @@ export async function POST(request) {
             sentBy: currentEmployee ? currentEmployee._id.toString() : decoded.userId,
             url: url || '/dashboard'
           },
-          icon: '/icons/icon-192x192.png'
+          url: url || '/dashboard'
         })
 
-        if (fcmResult.success) {
-          console.log(`[FCM] Notification sent: ${fcmResult.successCount} success, ${fcmResult.failureCount} failures`)
+        if (onesignalResult.success) {
+          console.log(`[OneSignal] Notification sent successfully`)
 
           // Update delivery status in database
           if (savedNotifications.length > 0) {
             await Notification.updateMany(
               { _id: { $in: savedNotifications.map(n => n._id) } },
               {
-                'deliveryStatus.fcm.sent': true,
-                'deliveryStatus.fcm.sentAt': new Date(),
-                'deliveryStatus.fcm.successCount': fcmResult.successCount,
-                'deliveryStatus.fcm.failureCount': fcmResult.failureCount
+                'deliveryStatus.oneSignal.sent': true,
+                'deliveryStatus.oneSignal.sentAt': new Date()
               }
             )
           }
         } else {
-          console.warn(`[FCM] Failed to send notification:`, fcmResult.message)
+          console.warn(`[OneSignal] Failed to send notification:`, onesignalResult.message)
         }
-      } catch (fcmError) {
-        console.error('[FCM] Error sending notification:', fcmError)
-        fcmResult = { success: false, message: fcmError.message }
+      } catch (onesignalError) {
+        console.error('[OneSignal] Error sending notification:', onesignalError)
+        onesignalResult = { success: false, message: onesignalError.message }
       }
     } else {
-      console.warn('[FCM] No FCM tokens found for target users')
+      console.warn('[OneSignal] No users found for notification')
     }
 
-    // Success if FCM succeeded OR notifications saved to DB
-    const notificationSent = fcmResult.success || savedNotifications.length > 0
+    // Success if OneSignal succeeded OR notifications saved to DB
+    const notificationSent = onesignalResult.success || savedNotifications.length > 0
 
     if (!notificationSent) {
-      console.warn('[Notification] FCM failed and database save failed')
+      console.warn('[Notification] OneSignal failed and database save failed')
       return NextResponse.json(
         { success: false, message: 'Failed to send notifications' },
         { status: 500 }
@@ -359,13 +339,10 @@ export async function POST(request) {
       data: {
         recipientCount: userIds.length,
         savedToDatabase: savedNotifications.length,
-        fcmSuccess: fcmResult.success,
-        fcmTokensFound: fcmTokens.length,
-        fcmSuccessCount: fcmResult.successCount || 0,
-        fcmFailureCount: fcmResult.failureCount || 0,
+        oneSignalSuccess: onesignalResult.success,
         methods: {
           database: savedNotifications.length > 0 ? 'saved' : 'failed',
-          fcm: fcmResult.success ? 'sent' : 'failed'
+          oneSignal: onesignalResult.success ? 'sent' : 'failed'
         }
       }
     })

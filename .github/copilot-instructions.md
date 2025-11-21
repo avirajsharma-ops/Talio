@@ -100,8 +100,8 @@ When adding features that MAYA should control:
 
 ### Realtime & Notifications
 - `socket.io` / `socket.io-client` - realtime communication
-- `firebase` / `firebase-admin` - push notifications (FCM)
-- Service worker at `public/firebase-messaging-sw.js`
+- `react-onesignal` - OneSignal push notifications (Firebase has been completely removed)
+- Server-side push: `lib/onesignal.js` - OneSignal REST API wrapper
 
 ### AI & Vector Search
 - `openai` - embeddings and MAYA chat completions
@@ -124,17 +124,20 @@ When adding features that MAYA should control:
 
 **Required for core functionality:**
 - `MONGODB_URI` - MongoDB connection string
+- `MONGODB_DB_NAME` - Database name for vector search
 - `JWT_SECRET` - JWT signing secret
 - `NEXTAUTH_SECRET` - NextAuth session secret
 - `NEXTAUTH_URL` - App URL for NextAuth
 
 **Required for MAYA:**
 - `OPENAI_API_KEY` - OpenAI API key (or use free embeddings)
-- `MONGODB_DB_NAME` - Database name for vector search
+- `NEXT_PUBLIC_OPENAI_API_KEY` - OpenAI client-side key
+- `NEXT_PUBLIC_OPENAI_MODEL` - Model to use (default: gpt-4o)
 
 **Required for notifications:**
-- `NEXT_PUBLIC_FIREBASE_*` - Firebase client config (8 vars)
-- `FIREBASE_*` - Firebase Admin SDK credentials
+- `ONESIGNAL_APP_ID` - OneSignal App ID
+- `ONESIGNAL_REST_API_KEY` - OneSignal REST API key
+- `NEXT_PUBLIC_ONESIGNAL_APP_ID` - OneSignal client-side App ID
 
 ## Docker Deployment
 - **Dockerfile**: Multi-stage build with Node 20 Alpine

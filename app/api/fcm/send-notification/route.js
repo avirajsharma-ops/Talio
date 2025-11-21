@@ -1,14 +1,13 @@
 /**
  * Send Notification API
- * Test endpoint to send push notifications
+ * Test endpoint to send push notifications via OneSignal
  */
 
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
-import { sendFCMNotification } from '@/lib/firebaseAdmin'
+import { sendOneSignalNotification } from '@/lib/onesignal'
 
 /**
  * POST /api/fcm/send-notification
@@ -16,14 +15,18 @@ import { sendFCMNotification } from '@/lib/firebaseAdmin'
  */
 export async function POST(request) {
   try {
-    // Get session
-    const session = await getServerSession(authOptions)
-    if (!session) {
+    // Verify authentication
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
       )
     }
+
+    const token = authHeader.substring(7)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    await jwtVerify(token, secret)
 
     // Parse request body
     const { userId, title, body, data = {}, imageUrl = null, deviceType = null } = await request.json()
@@ -50,60 +53,29 @@ export async function POST(request) {
       )
     }
 
-    // Get FCM tokens
-    let tokens = targetUser.fcmTokens || []
-
-    // Filter by device type if specified
-    if (deviceType) {
-      tokens = tokens.filter(t => t.device === deviceType)
-    }
-
-    if (tokens.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: deviceType
-            ? `No ${deviceType} tokens found for user`
-            : 'No FCM tokens found for user'
-        },
-        { status: 404 }
-      )
-    }
-
-    // Extract token strings
-    const tokenStrings = tokens.map(t => t.token)
-
-    console.log(`[FCM API] Sending notification to ${tokenStrings.length} token(s)`)
-    console.log(`[FCM API] User: ${targetUser.email}`)
-    console.log(`[FCM API] Device types: ${tokens.map(t => t.device).join(', ')}`)
+    console.log(`[OneSignal API] Sending notification to user ${targetUser._id}`)
+    console.log(`[OneSignal API] User: ${targetUser.email}`)
 
     // Send notification
-    const result = await sendFCMNotification({
-      tokens: tokenStrings,
+    const result = await sendOneSignalNotification({
+      userIds: [targetUser._id.toString()],
       title,
       body,
       data,
-      imageUrl
+      url: data.url || '/dashboard'
     })
 
     return NextResponse.json({
       success: result.success,
       message: result.message,
-      successCount: result.successCount,
-      failureCount: result.failureCount,
-      errors: result.errors,
       user: {
         email: targetUser.email,
         name: targetUser.name
-      },
-      tokens: {
-        total: tokenStrings.length,
-        devices: tokens.map(t => t.device)
       }
     })
 
   } catch (error) {
-    console.error('[FCM API] Send error:', error)
+    console.error('[OneSignal API] Send error:', error)
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

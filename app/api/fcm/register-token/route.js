@@ -1,44 +1,38 @@
 /**
- * FCM Token Registration API
- * Registers FCM tokens for push notifications
+ * OneSignal Token Registration API (Legacy FCM endpoint)
+ * This endpoint is kept for backward compatibility but now uses OneSignal
  */
 
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 
 /**
  * POST /api/fcm/register-token
- * Register or update FCM token for a user
+ * Register user with OneSignal (backward compatible endpoint)
  */
 export async function POST(request) {
   try {
-    // Get session
-    const session = await getServerSession(authOptions)
-    if (!session) {
+    // Verify authentication
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    const token = authHeader.substring(7)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    const { payload: decoded } = await jwtVerify(token, secret)
+
     // Parse request body
-    const { token, device = 'web' } = await request.json()
+    const { token: oneSignalId, device = 'web' } = await request.json()
 
-    if (!token) {
+    if (!oneSignalId) {
       return NextResponse.json(
-        { success: false, message: 'Token is required' },
-        { status: 400 }
-      )
-    }
-
-    // Validate device type
-    const validDevices = ['web', 'android', 'ios']
-    if (!validDevices.includes(device)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid device type' },
+        { success: false, message: 'OneSignal ID is required' },
         { status: 400 }
       )
     }
@@ -47,7 +41,7 @@ export async function POST(request) {
     await connectDB()
 
     // Find user
-    const user = await User.findOne({ email: session.user.email })
+    const user = await User.findById(decoded.userId)
     if (!user) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
@@ -55,54 +49,16 @@ export async function POST(request) {
       )
     }
 
-    // Check if token already exists
-    const existingTokenIndex = user.fcmTokens?.findIndex(t => t.token === token)
-
-    if (existingTokenIndex !== -1) {
-      // Update existing token
-      user.fcmTokens[existingTokenIndex].lastUsed = new Date()
-      user.fcmTokens[existingTokenIndex].device = device
-      console.log(`[FCM] Token updated for user ${user.email}: ${device}`)
-    } else {
-      // Add new token
-      if (!user.fcmTokens) {
-        user.fcmTokens = []
-      }
-
-      user.fcmTokens.push({
-        token,
-        device,
-        createdAt: new Date(),
-        lastUsed: new Date()
-      })
-
-      // Keep only last 5 tokens per device type
-      const deviceTokens = user.fcmTokens.filter(t => t.device === device)
-      if (deviceTokens.length > 5) {
-        // Remove oldest tokens
-        const tokensToRemove = deviceTokens
-          .sort((a, b) => a.lastUsed - b.lastUsed)
-          .slice(0, deviceTokens.length - 5)
-          .map(t => t.token)
-
-        user.fcmTokens = user.fcmTokens.filter(t => !tokensToRemove.includes(t.token))
-      }
-
-      console.log(`[FCM] Token registered for user ${user.email}: ${device}`)
-    }
-
-    // Save user
-    await user.save()
+    console.log(`[OneSignal] User ${user.email} registered with device: ${device}`)
 
     return NextResponse.json({
       success: true,
-      message: 'Token registered successfully',
-      device,
-      tokenCount: user.fcmTokens.length
+      message: 'Registered with OneSignal successfully',
+      device
     })
 
   } catch (error) {
-    console.error('[FCM] Registration error:', error)
+    console.error('[OneSignal] Registration error:', error)
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

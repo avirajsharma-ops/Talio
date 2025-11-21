@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { sendFCMNotification } from '@/lib/firebaseAdmin'
+import { sendOneSignalNotification } from '@/lib/onesignal'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Notification from '@/models/Notification'
@@ -91,33 +91,18 @@ export async function POST(request) {
     console.log(`User: ${user.email} (${user._id})`)
     console.log(`Type: ${type}`)
     console.log(`Title: ${notification.title}`)
-    console.log(`FCM Tokens: ${user.fcmTokens.length}`)
     console.log('='.repeat(80) + '\n')
 
-    // Get FCM tokens
-    const fcmTokens = user.fcmTokens.map(tokenObj => tokenObj.token)
+    console.log(`\n🚀 Sending notification via OneSignal:`)
+    console.log(`   User ID: ${user._id}`)
+    console.log(`   Type: ${notification.type}`)
+    console.log(`   Title: ${notification.title}`)
+    console.log(`   Message: ${notification.message}`)
+    console.log('')
 
-    if (fcmTokens.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No FCM tokens found for user. Please login on Android app first.',
-          details: {
-            user: {
-              id: user._id,
-              email: user.email,
-              name: user.name
-            },
-            fcmTokensCount: 0
-          }
-        },
-        { status: 400 }
-      )
-    }
-
-    // Send notification via FCM directly
-    const result = await sendFCMNotification({
-      tokens: fcmTokens,
+    // Send notification via OneSignal
+    const result = await sendOneSignalNotification({
+      userIds: [user._id.toString()],
       title: notification.title,
       body: notification.message,
       data: {
@@ -127,13 +112,11 @@ export async function POST(request) {
         body: notification.message,
         message: notification.message
       },
-      icon: '/icons/icon-192x192.png'
+      url: '/dashboard'
     })
 
     console.log(`\n📊 Test Result:`)
     console.log(`   Success: ${result.success}`)
-    console.log(`   Success Count: ${result.successCount || 0}`)
-    console.log(`   Failure Count: ${result.failureCount || 0}`)
     if (result.error) {
       console.log(`   Error: ${result.message || result.error}`)
     }

@@ -66,8 +66,8 @@ export const registerServiceWorker = async () => {
   }
 
   try {
-    // Use Firebase Messaging service worker instead of sw.js
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+    // Register OneSignal service worker
+    const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', {
       scope: '/',
       updateViaCache: 'none'
     })
