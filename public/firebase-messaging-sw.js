@@ -11,12 +11,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 // Firebase configuration - Talio HRMS Project
 // Configuration loaded from environment variables at build time
 const firebaseConfig = {
-  "apiKey": "AIzaSyDsJgwFuOjgg4QFox6xw8Gg4rs5oub4ZD8",
-  "authDomain": "talio-a269f.firebaseapp.com",
-  "projectId": "talio-a269f",
-  "storageBucket": "talio-a269f.firebasestorage.app",
-  "messagingSenderId": "748268440394",
-  "appId": "1:748268440394:web:c659dbece00a2501c28fb3"
+  "apiKey": "AIzaSyDEyadwMSwamwG-KeMwzGwZ15UArNdJn-Y",
+  "authDomain": "talio-e9deb.firebaseapp.com",
+  "projectId": "talio-e9deb",
+  "storageBucket": "talio-e9deb.firebasestorage.app",
+  "messagingSenderId": "241026194465",
+  "appId": "1:241026194465:web:b91d15bf73bcf807ad1760"
 }
 
 // Initialize Firebase
@@ -29,43 +29,26 @@ try {
   console.error('[SW] Firebase initialization error:', error)
 }
 
-// Handle background messages (when app is closed or in background)
+// Handle background messages
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
-    console.log('[SW] 📩 Background FCM message received:', payload)
+    console.log('[SW] Background FCM message received:', payload)
 
     const notificationTitle = payload.notification?.title || 'Talio HRMS'
-    const notificationBody = payload.notification?.body || 'You have a new notification'
-
-    // Enhanced notification options for WhatsApp-like behavior
     const notificationOptions = {
-      body: notificationBody,
+      body: payload.notification?.body || 'You have a new notification',
       icon: payload.notification?.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-96x96.png',
-      tag: payload.data?.tag || payload.data?.type || 'talio-notification',
+      tag: payload.data?.tag || 'talio-notification',
       data: {
         url: payload.data?.clickAction || payload.data?.click_action || payload.fcmOptions?.link || '/dashboard',
         ...payload.data
       },
-      // Enhanced interaction settings
-      vibrate: [200, 100, 200, 100, 200], // More noticeable vibration pattern
-      requireInteraction: false, // Auto-dismiss after timeout
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
       silent: false, // Use device's default notification sound
-      renotify: true, // Show notification even if one with same tag exists
-      timestamp: Date.now(),
-      // Action buttons (optional - can be customized per notification type)
-      actions: [
-        {
-          action: 'open',
-          title: 'Open',
-          icon: '/icons/icon-96x96.png'
-        },
-        {
-          action: 'close',
-          title: 'Dismiss',
-          icon: '/icons/icon-96x96.png'
-        }
-      ]
+      renotify: true,
+      timestamp: Date.now()
     }
 
     // Add image if available
@@ -74,96 +57,39 @@ if (messaging) {
     }
 
     // Show notification - browser/Android will automatically play default notification sound
-    console.log('[SW] 🔔 Showing notification:', notificationTitle)
+    console.log('[SW] Showing notification:', notificationTitle)
     return self.registration.showNotification(notificationTitle, notificationOptions)
   })
 }
 
-// Handle push events (alternative method for receiving notifications)
-self.addEventListener('push', (event) => {
-  console.log('[SW] 📨 Push event received')
-
-  if (event.data) {
-    try {
-      const data = event.data.json()
-      console.log('[SW] Push data:', data)
-
-      // This is handled by onBackgroundMessage above
-      // But we keep this as a fallback
-    } catch (error) {
-      console.error('[SW] Error parsing push data:', error)
-    }
-  }
-})
-
-// Handle notification click (WhatsApp-like behavior)
+// Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] 👆 Notification clicked:', event)
+  console.log('[Firebase SW] Notification clicked:', event)
 
-  // Close the notification
   event.notification.close()
 
-  // Handle action buttons
   if (event.action === 'close') {
-    console.log('[SW] User dismissed notification')
     return
   }
 
   // Get the URL from notification data
-  const urlToOpen = new URL(
-    event.notification.data?.url || '/dashboard',
-    self.location.origin
-  ).href
+  const urlToOpen = event.notification.data?.url || '/dashboard'
 
-  console.log('[SW] Opening URL:', urlToOpen)
-
-  // Open or focus the app window
   event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    }).then((clientList) => {
-      console.log('[SW] Found', clientList.length, 'open windows')
-
-      // Try to find an existing window with the target URL
-      for (const client of clientList) {
-        const clientUrl = new URL(client.url)
-        const targetUrl = new URL(urlToOpen)
-
-        // Check if the path matches (ignore query params for matching)
-        if (clientUrl.pathname === targetUrl.pathname && 'focus' in client) {
-          console.log('[SW] Focusing existing window')
-          return client.focus().then(() => {
-            // Send message to client to update if needed
-            return client.postMessage({
-              type: 'NOTIFICATION_CLICKED',
-              url: urlToOpen,
-              data: event.notification.data
-            })
-          })
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Check if there's already a window open
+        for (const client of clientList) {
+          if (client.url.includes(urlToOpen) && 'focus' in client) {
+            return client.focus()
+          }
         }
-      }
 
-      // If there's any window open, focus it and navigate
-      if (clientList.length > 0 && 'focus' in clientList[0]) {
-        console.log('[SW] Focusing first window and navigating')
-        return clientList[0].focus().then(() => {
-          return clientList[0].postMessage({
-            type: 'NOTIFICATION_CLICKED',
-            url: urlToOpen,
-            data: event.notification.data
-          })
-        })
-      }
-
-      // If no window is open, open a new one
-      if (clients.openWindow) {
-        console.log('[SW] Opening new window')
-        return clients.openWindow(urlToOpen)
-      }
-    }).catch((error) => {
-      console.error('[SW] Error handling notification click:', error)
-    })
+        // If no window is open, open a new one
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen)
+        }
+      })
   )
 })
 

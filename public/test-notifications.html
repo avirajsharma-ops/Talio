@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Push Notification Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-task {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-announcement {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .btn-general {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .result.loading {
+            background: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Android Push Notification Tester</h1>
+        <p class="subtitle">Test WhatsApp-like notifications when app is killed</p>
+        
+        <div class="form-group">
+            <label for="userId">User ID *</label>
+            <input type="text" id="userId" placeholder="Enter your user ID from database" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="customTitle">Custom Title (optional)</label>
+            <input type="text" id="customTitle" placeholder="Leave empty for default title">
+        </div>
+        
+        <div class="form-group">
+            <label for="customMessage">Custom Message (optional)</label>
+            <textarea id="customMessage" placeholder="Leave empty for default message"></textarea>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-message" onclick="sendTest('message')">
+                💬 Message
+            </button>
+            <button class="btn-task" onclick="sendTest('task')">
+                📋 Task
+            </button>
+            <button class="btn-announcement" onclick="sendTest('announcement')">
+                📢 Announcement
+            </button>
+            <button class="btn-general" onclick="sendTest('general')">
+                🔔 General
+            </button>
+        </div>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="instructions">
+            <h3>📱 Testing Instructions:</h3>
+            <ol>
+                <li>Enter your User ID (get it from database or login response)</li>
+                <li><strong>Force stop the Android app</strong> (Settings → Apps → Talio → Force Stop)</li>
+                <li>Click one of the test buttons above</li>
+                <li>Check your Android device notification panel</li>
+                <li>You should see notification with sound & vibration!</li>
+                <li>Monitor logs: <code>adb logcat | grep TalioFCM</code></li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        async function sendTest(type) {
+            const userId = document.getElementById('userId').value.trim();
+            const customTitle = document.getElementById('customTitle').value.trim();
+            const customMessage = document.getElementById('customMessage').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!userId) {
+                showResult('error', '❌ Please enter a User ID');
+                return;
+            }
+            
+            // Show loading
+            showResult('loading', '⏳ Sending test notification...');
+            
+            try {
+                const response = await fetch('/api/test-notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        type,
+                        customTitle: customTitle || undefined,
+                        customMessage: customMessage || undefined
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('success', `
+                        ✅ ${data.message}
+                        <br><br>
+                        <strong>Details:</strong><br>
+                        • Type: ${data.details.notification.type}<br>
+                        • Title: ${data.details.notification.title}<br>
+                        • FCM Success: ${data.details.fcmSuccess}<br>
+                        • FCM Failure: ${data.details.fcmFailure}<br>
+                        • User: ${data.details.user.email}<br>
+                        <br>
+                        <strong>📱 Check your Android device now!</strong>
+                    `);
+                } else {
+                    showResult('error', `
+                        ❌ ${data.message || 'Failed to send notification'}
+                        <br><br>
+                        ${data.error ? `Error: ${data.error}` : ''}
+                    `);
+                }
+            } catch (error) {
+                showResult('error', `
+                    ❌ Network error: ${error.message}
+                    <br><br>
+                    Make sure your backend is running!
+                `);
+            }
+        }
+        
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = message;
+            resultDiv.style.display = 'block';
+            
+            // Scroll to result
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>
+
