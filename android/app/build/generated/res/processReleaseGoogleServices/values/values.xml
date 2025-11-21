@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="gcm_defaultSenderId" translatable="false">1059872536030</string>
-    <string name="google_api_key" translatable="false">AIzaSyBqZ9X8Y7W6V5U4T3S2R1Q0P9O8N7M6L5K</string>
-    <string name="google_app_id" translatable="false">1:1059872536030:android:8a7b9c6d5e4f3a2b1c9d0e</string>
-    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBqZ9X8Y7W6V5U4T3S2R1Q0P9O8N7M6L5K</string>
-    <string name="google_storage_bucket" translatable="false">talio-hrms.firebasestorage.app</string>
-    <string name="project_id" translatable="false">talio-hrms</string>
-</resources>

@@ -4,6 +4,11 @@ import android.app.Application
 import android.util.Log
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
+import com.onesignal.notifications.INotificationClickListener
+import com.onesignal.notifications.INotificationLifecycleListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class TalioApplication : Application() {
 
@@ -26,9 +31,9 @@ class TalioApplication : Application() {
 
         Log.d(TAG, "✅ OneSignal initialized with App ID: $ONESIGNAL_APP_ID")
 
-        // Request notification permission (Android 13+)
-        // This will automatically prompt the user for permission
-        OneSignal.Notifications.requestPermission(true) { accepted ->
+        // Request notification permission (Android 13+) using coroutine
+        CoroutineScope(Dispatchers.Main).launch {
+            val accepted = OneSignal.Notifications.requestPermission(true)
             if (accepted) {
                 Log.d(TAG, "✅ Notification permission granted")
             } else {
@@ -36,22 +41,26 @@ class TalioApplication : Application() {
             }
         }
 
-        // Set notification click handler
-        OneSignal.Notifications.addClickListener { event ->
-            Log.d(TAG, "📱 Notification clicked: ${event.notification.title}")
+        // Set notification click handler with proper listener interface
+        OneSignal.Notifications.addClickListener(object : INotificationClickListener {
+            override fun onClick(event: com.onesignal.notifications.INotificationClickEvent) {
+                Log.d(TAG, "📱 Notification clicked: ${event.notification.title}")
 
-            // Handle notification click - you can add deep linking logic here
-            val data = event.notification.additionalData
-            if (data != null) {
-                Log.d(TAG, "Notification data: $data")
+                // Handle notification click - you can add deep linking logic here
+                val data = event.notification.additionalData
+                if (data != null) {
+                    Log.d(TAG, "Notification data: $data")
+                }
             }
-        }
+        })
 
-        // Set notification foreground handler
-        OneSignal.Notifications.addForegroundLifecycleListener { event ->
-            Log.d(TAG, "📬 Notification received in foreground: ${event.notification.title}")
-            // The notification will be shown automatically
-        }
+        // Set notification foreground handler with proper listener interface
+        OneSignal.Notifications.addForegroundLifecycleListener(object : INotificationLifecycleListener {
+            override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
+                Log.d(TAG, "📬 Notification will display: ${event.notification.title}")
+                // The notification will be shown automatically
+            }
+        })
 
         Log.d(TAG, "✅ OneSignal setup complete")
     }

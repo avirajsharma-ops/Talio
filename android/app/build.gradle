@@ -29,8 +29,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false  // Disabled for faster testing builds
+            shrinkResources false  // Disabled for faster testing builds
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             // Signing configuration for release

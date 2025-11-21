@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "sbs.zenova.twa.app-mergeReleaseResources-41:/values-v16/values-v16.xml",
+            "outputFile": "sbs.zenova.twa.app-mergeReleaseResources-47:/values-v16/values-v16.xml",
             "map": [
                 {
-                    "source": "/Users/apple/.gradle/caches/transforms-3/5e4ab193fa9e110b29f55a904a95b567/transformed/core-1.12.0/res/values-v16/values-v16.xml",
+                    "source": "/Users/apple/.gradle/caches/transforms-3/217cd4443c329c3de6d6b6409afab4f6/transformed/core-1.12.0/res/values-v16/values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -14,7 +14,7 @@
                     }
                 },
                 {
-                    "source": "/Users/apple/.gradle/caches/transforms-3/e8b7fa243aa043d8941c2baf1b8bd6b9/transformed/appcompat-1.6.1/res/values-v16/values-v16.xml",
+                    "source": "/Users/apple/.gradle/caches/transforms-3/a41e6a68a8051e59a1bea027c058f81a/transformed/appcompat-1.6.1/res/values-v16/values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

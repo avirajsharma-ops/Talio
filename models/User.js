@@ -51,7 +51,20 @@ const UserSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  // OneSignal subscription data
+  oneSignalPlayerId: {
+    type: String,
+    default: null
+  },
+  oneSignalSubscribedAt: {
+    type: Date,
+    default: null
+  },
+  oneSignalLastPromptedAt: {
+    type: Date,
+    default: null
+  }
 }, {
   timestamps: true,
 });
