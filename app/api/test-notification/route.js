@@ -104,7 +104,7 @@ export async function POST(request) {
     const result = await sendOneSignalNotification({
       userIds: [user._id.toString()],
       title: notification.title,
-      body: notification.message,
+      message: notification.message,
       data: {
         ...notification.data,
         type: notification.type,

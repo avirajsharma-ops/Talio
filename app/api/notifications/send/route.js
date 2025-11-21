@@ -289,7 +289,7 @@ export async function POST(request) {
         onesignalResult = await sendOneSignalNotification({
           userIds,
           title,
-          body: message,
+          message: message,
           data: {
             type: 'custom',
             sentBy: currentEmployee ? currentEmployee._id.toString() : decoded.userId,

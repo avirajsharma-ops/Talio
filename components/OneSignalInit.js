@@ -149,14 +149,18 @@ export default function OneSignalInit() {
                   playerId: playerId || 'Not subscribed'
                 })
 
-                // IMPORTANT: Do NOT auto-subscribe
-                // Let the user explicitly subscribe via the banner
-                // This ensures they understand they're subscribing to push notifications
-                if (!isSubscribed) {
-                  console.log('[OneSignal] ⚠️ User is not subscribed to push notifications')
-                  console.log('[OneSignal] User will be prompted via notification banner')
+                // If permission is already granted, subscribe the user
+                if (permission) {
+                  console.log('[OneSignal] Permission granted, ensuring user is subscribed...')
+                  if (!isSubscribed) {
+                    await OneSignal.User.PushSubscription.optIn()
+                    console.log('[OneSignal] ✅ User subscribed to push notifications')
+                  } else {
+                    console.log('[OneSignal] ✅ User is already subscribed to push notifications')
+                  }
                 } else {
-                  console.log('[OneSignal] ✅ User is already subscribed to push notifications')
+                  console.log('[OneSignal] ⚠️ User has not granted notification permission')
+                  console.log('[OneSignal] User will be prompted via notification banner')
                 }
               }
             } catch (error) {
@@ -167,11 +171,42 @@ export default function OneSignalInit() {
           }
 
           // Listen for permission changes
-          OneSignal.Notifications.addEventListener('permissionChange', (isGranted) => {
+          OneSignal.Notifications.addEventListener('permissionChange', async (isGranted) => {
             console.log('[OneSignal] Permission changed:', isGranted)
             
             // Save preference to localStorage
             localStorage.setItem('onesignal-permission', isGranted ? 'granted' : 'denied')
+
+            // If permission granted, ensure user is logged in and subscribed
+            if (isGranted) {
+              const token = localStorage.getItem('token')
+              if (token) {
+                try {
+                  const payload = JSON.parse(atob(token.split('.')[1]))
+                  const userId = payload.userId
+                  
+                  if (userId) {
+                    // Login user with external ID
+                    await OneSignal.login(userId)
+                    console.log('[OneSignal] User logged in with ID:', userId)
+                    
+                    // Subscribe to push notifications
+                    await OneSignal.User.PushSubscription.optIn()
+                    console.log('[OneSignal] ✅ User subscribed after permission grant')
+                    
+                    // Set user tags
+                    await OneSignal.User.addTags({
+                      userId: userId,
+                      platform: 'web',
+                      appVersion: '1.0.0',
+                      lastLogin: new Date().toISOString()
+                    })
+                  }
+                } catch (error) {
+                  console.error('[OneSignal] Error subscribing after permission grant:', error)
+                }
+              }
+            }
           })
 
           // Listen for notification clicks
