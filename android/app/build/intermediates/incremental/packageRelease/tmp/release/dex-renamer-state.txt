@@ -1,4 +1,4 @@
-#Fri Nov 21 19:08:04 IST 2025
+#Fri Nov 21 19:15:08 IST 2025
 base.1=/Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/mergeDexRelease/classes2.dex
 path.1=classes2.dex
 base.0=/Users/apple/Desktop/Tailo/android/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
