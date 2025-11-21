@@ -1,218 +1,87 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import {
-  requestFCMToken,
-  saveFCMTokenToBackend,
-  onForegroundMessage,
-  getStoredFCMToken
-} from '@/lib/firebase'
 /**
- * Firebase Cloud Messaging Initialization Component
- * Initializes FCM for push notifications (background only)
- * In-app notifications are handled by InAppNotificationContext via Socket.IO
+ * Firebase Initialization Component
+ * Handles FCM token registration and foreground message listening
  */
-export default function FirebaseInit() {
-  const router = useRouter()
-  const [isAppVisible, setIsAppVisible] = useState(true)
 
-  // Track app visibility
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { requestFCMToken, saveFCMToken, onForegroundMessage } from '@/lib/firebase'
+
+export default function FirebaseInit() {
+  const { data: session, status } = useSession()
+  const [permissionGranted, setPermissionGranted] = useState(false)
+  const [tokenRegistered, setTokenRegistered] = useState(false)
+
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsAppVisible(!document.hidden)
-      console.log('[FirebaseInit] App visibility changed:', !document.hidden ? 'visible' : 'hidden')
+    // Only run on client side and when user is authenticated
+    if (typeof window === 'undefined' || status !== 'authenticated' || !session) {
+      return
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
+    // Check if already registered
+    const registered = localStorage.getItem('fcm_token_registered')
+    if (registered === 'true') {
+      setTokenRegistered(true)
+      return
+    }
 
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return
-
-    console.log('[FirebaseInit] Starting initialization...')
-
-    const initFirebase = async () => {
+    // Request FCM token after a short delay
+    const timer = setTimeout(async () => {
       try {
-        // Register service worker first
-        if ('serviceWorker' in navigator) {
-          try {
-            console.log('[FirebaseInit] Registering service worker...')
-
-            // Check if already registered
-            const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')
-
-            if (!existingRegistration) {
-              // Register the Firebase messaging service worker
-              const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-                scope: '/',
-                updateViaCache: 'none'
-              })
-
-              console.log('[FirebaseInit] ✅ Service worker registered:', registration.scope)
-            } else {
-              console.log('[FirebaseInit] ✅ Service worker already registered')
-            }
-
-            // Wait for service worker to be ready
-            await navigator.serviceWorker.ready
-            console.log('[FirebaseInit] ✅ Service worker ready')
-          } catch (swError) {
-            console.error('[FirebaseInit] Service worker registration failed:', swError)
-            // Continue anyway - Firebase will try to register its own SW
-          }
-        }
-
-        // Check if user is logged in
-        const token = localStorage.getItem('token')
-        const userStr = localStorage.getItem('user')
-
-        if (!token || !userStr) {
-          console.log('[FirebaseInit] User not logged in, skipping FCM initialization')
-          return
-        }
-
-        const user = JSON.parse(userStr)
-        const userId = user._id || user.id
-
-        console.log('[FirebaseInit] User logged in:', userId)
-
-        // Always request a fresh token on login to ensure it's valid
         console.log('[FirebaseInit] Requesting FCM token...')
 
-        const fcmToken = await requestFCMToken()
+        const token = await requestFCMToken()
 
-        if (fcmToken) {
-          console.log('[FirebaseInit] ✅ FCM token obtained')
+        if (token) {
+          console.log('[FirebaseInit] Token obtained, saving to backend...')
 
-          // Save token to backend (will update lastUsed timestamp)
-          const saveResult = await saveFCMTokenToBackend(fcmToken, userId)
+          const saved = await saveFCMToken(token, 'web')
 
-          if (saveResult && saveResult.success) {
-            console.log('[FirebaseInit] ✅ Token saved to backend')
-          } else {
-            console.warn('[FirebaseInit] ⚠️ Failed to save token to backend')
+          if (saved) {
+            console.log('[FirebaseInit] ✅ Token registered successfully')
+            localStorage.setItem('fcm_token_registered', 'true')
+            localStorage.setItem('fcm_token', token)
+            setPermissionGranted(true)
+            setTokenRegistered(true)
           }
-        } else {
-          console.warn('[FirebaseInit] ⚠️ Failed to get FCM token - user may have denied permission')
         }
-
-        // Set up foreground message listener (for background notifications only)
-        // In-app notifications are now handled by InAppNotificationContext via Socket.IO
-        onForegroundMessage((payload) => {
-          console.log('[FirebaseInit] Foreground message received:', payload)
-          console.log('[FirebaseInit] App is visible:', isAppVisible)
-
-          const title = payload.notification?.title || 'Talio HRMS'
-          const body = payload.notification?.body || 'You have a new notification'
-          const url = payload.data?.click_action || payload.fcmOptions?.link || '/dashboard'
-
-          // Only show browser notification if app is not visible
-          // When app is visible, Socket.IO handles in-app notifications
-          if (!isAppVisible && Notification.permission === 'granted') {
-            console.log('[FirebaseInit] Showing browser notification (app hidden)')
-
-            const options = {
-              body,
-              icon: payload.notification?.icon || '/icons/icon-192x192.png',
-              badge: '/icons/icon-96x96.png',
-              tag: 'talio-notification',
-              data: payload.data,
-              vibrate: [200, 100, 200],
-              requireInteraction: false
-            }
-
-            if (payload.notification?.image) {
-              options.image = payload.notification.image
-            }
-
-            const notification = new Notification(title, options)
-
-            // Handle notification click
-            notification.onclick = () => {
-              router.push(url)
-              notification.close()
-            }
-          } else {
-            console.log('[FirebaseInit] App is visible - Socket.IO handles in-app notifications')
-          }
-        })
-
-        // Set global flag to indicate Firebase is ready
-        window.FirebaseReady = true
-        console.log('[FirebaseInit] ✅ Firebase initialized successfully')
-
       } catch (error) {
-        console.error('[FirebaseInit] Initialization error:', error)
+        console.error('[FirebaseInit] Error:', error)
       }
+    }, 2000) // Wait 2 seconds after login
+
+    return () => clearTimeout(timer)
+  }, [session, status])
+
+  // Listen for foreground messages
+  useEffect(() => {
+    if (!tokenRegistered) {
+      return
     }
 
-    // Initialize Firebase
-    initFirebase()
+    console.log('[FirebaseInit] Setting up foreground message listener...')
 
-    // Re-initialize when user logs in
-    const handleStorageChange = (e) => {
-      if (e.key === 'token' && e.newValue) {
-        console.log('[FirebaseInit] User logged in, re-initializing...')
-        initFirebase()
+    onForegroundMessage((payload) => {
+      console.log('[FirebaseInit] Foreground message received:', payload)
+
+      // Show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const title = payload.notification?.title || payload.data?.title || 'Talio HRMS'
+        const body = payload.notification?.body || payload.data?.body || payload.data?.message || ''
+
+        new Notification(title, {
+          body,
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-96x96.png',
+          tag: payload.data?.tag || 'talio-notification',
+          data: payload.data
+        })
       }
-    }
+    })
+  }, [tokenRegistered])
 
-    window.addEventListener('storage', handleStorageChange)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-    }
-  }, [router])
-
-  return null // This component doesn't render anything
+  // Don't render anything
+  return null
 }
-
-/**
- * Hook to request Firebase notification permission
- */
-export function useFirebasePermission() {
-  const requestPermission = async () => {
-    try {
-      const fcmToken = await requestFCMToken()
-
-      if (fcmToken) {
-        console.log('[Firebase] Permission granted, token:', fcmToken)
-
-        // Save to backend
-        const userStr = localStorage.getItem('user')
-        if (userStr) {
-          const user = JSON.parse(userStr)
-          await saveFCMTokenToBackend(fcmToken, user._id || user.id)
-        }
-
-        return true
-      }
-
-      return false
-    } catch (error) {
-      console.error('[Firebase] Error requesting permission:', error)
-      return false
-    }
-  }
-
-  const getPermission = () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      return 'default'
-    }
-    return Notification.permission
-  }
-
-  const isOptedIn = () => {
-    return !!getStoredFCMToken() && Notification.permission === 'granted'
-  }
-
-  return {
-    requestPermission,
-    getPermission,
-    isOptedIn
-  }
-}
-
