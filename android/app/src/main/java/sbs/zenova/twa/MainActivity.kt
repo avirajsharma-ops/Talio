@@ -489,18 +489,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestPermissions() {
-        // Request notification permission first (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                // This will trigger the chain: notification -> location -> background location
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                return
-            }
-        }
+        // DO NOT request notification permission here
+        // Notification permission is handled by the web app's OneSignal flow
+        // Only request location permissions for attendance tracking
 
-        // If notification permission not needed or already granted, go straight to location
+        Log.d("Permissions", "Requesting location permissions only (notification handled by web app)")
         requestLocationPermissionSequence()
     }
 

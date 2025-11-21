@@ -31,15 +31,9 @@ class TalioApplication : Application() {
 
         Log.d(TAG, "✅ OneSignal initialized with App ID: $ONESIGNAL_APP_ID")
 
-        // Request notification permission (Android 13+) using coroutine
-        CoroutineScope(Dispatchers.Main).launch {
-            val accepted = OneSignal.Notifications.requestPermission(true)
-            if (accepted) {
-                Log.d(TAG, "✅ Notification permission granted")
-            } else {
-                Log.w(TAG, "⚠️ Notification permission denied")
-            }
-        }
+        // DO NOT request notification permission here - it will be requested after user logs in
+        // Permission flow: User logs in → Dashboard → Web app triggers OneSignal banner → Native permission
+        Log.d(TAG, "⏳ Notification permission will be requested after user login")
 
         // Set notification click handler with proper listener interface
         OneSignal.Notifications.addClickListener(object : INotificationClickListener {

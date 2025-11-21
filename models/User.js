@@ -64,6 +64,20 @@ const UserSchema = new mongoose.Schema({
   oneSignalLastPromptedAt: {
     type: Date,
     default: null
+  },
+  // Notification permission tracking
+  notificationPermissionStatus: {
+    type: String,
+    enum: ['granted', 'denied', 'default', null],
+    default: null
+  },
+  notificationPermissionDeniedAt: {
+    type: Date,
+    default: null
+  },
+  notificationPermissionGrantedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true,

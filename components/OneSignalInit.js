@@ -5,13 +5,32 @@ import { usePathname, useRouter } from 'next/navigation'
 
 /**
  * OneSignal Initialization Component with Custom Subscription Flow
- * Flow: 1) Show OneSignal banner → 2) User subscribes → 3) Request native permission → 4) Save Player ID
+ * Flow: 1) User logs in → 2) Show OneSignal banner → 3) User subscribes → 4) Request native permission → 5) Save Player ID
+ * Re-prompts on every session if permission was denied
  */
 export default function OneSignalInit() {
   const pathname = usePathname()
   const router = useRouter()
   const [showCustomBanner, setShowCustomBanner] = useState(false)
   const [isSubscribing, setIsSubscribing] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkLoginStatus = () => {
+      const token = localStorage.getItem('token')
+      const user = localStorage.getItem('user')
+      const loggedIn = !!(token && user)
+      setIsLoggedIn(loggedIn)
+      console.log('[OneSignalInit] Login status:', loggedIn)
+    }
+
+    checkLoginStatus()
+
+    // Listen for storage changes (login/logout events)
+    window.addEventListener('storage', checkLoginStatus)
+    return () => window.removeEventListener('storage', checkLoginStatus)
+  }, [])
 
   useEffect(() => {
     // Only run on client side
@@ -20,10 +39,22 @@ export default function OneSignalInit() {
     // Don't initialize on login page
     if (pathname === '/login') return
 
+    // Only initialize if user is logged in
+    if (!isLoggedIn) {
+      console.log('[OneSignalInit] User not logged in, skipping initialization')
+      return
+    }
+
+    // Only show on dashboard pages
+    if (!pathname?.startsWith('/dashboard')) {
+      console.log('[OneSignalInit] Not on dashboard, skipping initialization')
+      return
+    }
+
     console.log('[OneSignalInit] Starting initialization...')
 
     initOneSignal()
-  }, [pathname])
+  }, [pathname, isLoggedIn])
 
   const initOneSignal = async () => {
     try {
@@ -87,9 +118,9 @@ export default function OneSignalInit() {
       console.log('[OneSignal] ✅ User logged in with external ID:', userId)
 
       // Check current subscription status
-      const permission = await window.OneSignal.Notifications.permission
-      const isOptedIn = await window.OneSignal.User.PushSubscription.optedIn
-      const playerId = await window.OneSignal.User.PushSubscription.id
+      const permission = window.OneSignal.Notifications.permission
+      const isOptedIn = window.OneSignal.User.PushSubscription.optedIn
+      const playerId = window.OneSignal.User.PushSubscription.id
 
       console.log('[OneSignal] Current status:', {
         userId,
@@ -100,11 +131,11 @@ export default function OneSignalInit() {
 
       // Check if user is already subscribed in our database
       const dbStatus = await checkSubscriptionStatus(token)
-      
+
       if (dbStatus?.isSubscribed && playerId) {
         // Already subscribed - verify Player ID is saved
         console.log('[OneSignal] ✅ User already subscribed')
-        
+
         // Make sure Player ID is saved in database
         if (!dbStatus.oneSignalPlayerId || dbStatus.oneSignalPlayerId !== playerId) {
           await savePlayerIdToDatabase(playerId, token)
@@ -114,16 +145,22 @@ export default function OneSignalInit() {
         console.log('[OneSignal] User has permission, saving Player ID...')
         await savePlayerIdToDatabase(playerId, token)
       } else {
-        // Not subscribed - show custom banner
-        console.log('[OneSignal] User not subscribed, showing banner...')
-        setShowCustomBanner(true)
+        // Not subscribed - check if we should show banner
+        const shouldPrompt = await shouldShowPrompt(dbStatus, permission)
+
+        if (shouldPrompt) {
+          console.log('[OneSignalInit] Showing subscription banner...')
+          setShowCustomBanner(true)
+        } else {
+          console.log('[OneSignalInit] Skipping prompt based on user history')
+        }
       }
 
       // Listen for subscription changes
       window.OneSignal.User.PushSubscription.addEventListener('change', async (event) => {
         console.log('[OneSignal] Subscription changed:', event)
-        
-        const newPlayerId = await window.OneSignal.User.PushSubscription.id
+
+        const newPlayerId = window.OneSignal.User.PushSubscription.id
         if (newPlayerId) {
           await savePlayerIdToDatabase(newPlayerId, token)
           setShowCustomBanner(false)
@@ -133,9 +170,23 @@ export default function OneSignalInit() {
       // Listen for permission changes
       window.OneSignal.Notifications.addEventListener('permissionChange', async (isGranted) => {
         console.log('[OneSignal] Permission changed:', isGranted)
-        
+
+        // Update permission status in database
+        if (token) {
+          await fetch('/api/onesignal/permission-status', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              status: isGranted ? 'granted' : 'denied'
+            })
+          })
+        }
+
         if (isGranted) {
-          const newPlayerId = await window.OneSignal.User.PushSubscription.id
+          const newPlayerId = window.OneSignal.User.PushSubscription.id
           if (newPlayerId) {
             await savePlayerIdToDatabase(newPlayerId, token)
             setShowCustomBanner(false)
@@ -164,7 +215,7 @@ export default function OneSignalInit() {
           'Authorization': `Bearer ${token}`
         }
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         return data.data
@@ -173,6 +224,32 @@ export default function OneSignalInit() {
       console.error('[OneSignal] Error checking subscription status:', error)
     }
     return null
+  }
+
+  /**
+   * Determine if we should show the subscription prompt
+   * Re-prompt on every session if permission was denied
+   */
+  const shouldShowPrompt = async (dbStatus, currentPermission) => {
+    // If permission is denied, always re-prompt on new session
+    if (currentPermission === 'denied') {
+      console.log('[OneSignalInit] Permission denied, will re-prompt this session')
+      return true
+    }
+
+    // If permission is default (never asked), show prompt
+    if (!currentPermission || currentPermission === 'default') {
+      console.log('[OneSignalInit] Permission not requested yet, showing prompt')
+      return true
+    }
+
+    // If permission is granted but not subscribed, show prompt
+    if (currentPermission === 'granted' && !dbStatus?.isSubscribed) {
+      console.log('[OneSignalInit] Permission granted but not subscribed, showing prompt')
+      return true
+    }
+
+    return false
   }
 
   const savePlayerIdToDatabase = async (playerId, token) => {
@@ -202,12 +279,13 @@ export default function OneSignalInit() {
 
   const handleSubscribe = async () => {
     setIsSubscribing(true)
-    
+
     try {
       console.log('[OneSignal] User clicked subscribe button')
 
-      // Update last prompted timestamp
       const token = localStorage.getItem('token')
+
+      // Update last prompted timestamp
       if (token) {
         await fetch('/api/onesignal/subscribe', {
           method: 'PUT',
@@ -217,31 +295,56 @@ export default function OneSignalInit() {
         })
       }
 
-      // Check if already has permission
-      const currentPermission = await window.OneSignal.Notifications.permission
-      
-      if (!currentPermission) {
-        // Step 1: Opt in to OneSignal (this will trigger the native permission prompt)
-        console.log('[OneSignal] Requesting permission...')
-        await window.OneSignal.User.PushSubscription.optIn()
-        
-        // Wait a bit for subscription to complete
-        await new Promise(resolve => setTimeout(resolve, 1000))
+      // STEP 1: Opt in to OneSignal (this creates the subscription)
+      console.log('[OneSignal] Step 1: Opting in to OneSignal...')
+      await window.OneSignal.User.PushSubscription.optIn()
+
+      // Wait a bit for OneSignal subscription to initialize
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // STEP 2: Request native notification permission
+      console.log('[OneSignal] Step 2: Requesting native notification permission...')
+      const permissionGranted = await window.OneSignal.Notifications.requestPermission()
+
+      console.log('[OneSignal] Permission result:', permissionGranted)
+
+      // Update permission status in database
+      if (token) {
+        await fetch('/api/onesignal/permission-status', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            status: permissionGranted ? 'granted' : 'denied'
+          })
+        })
       }
 
-      // Get the Player ID
-      const playerId = await window.OneSignal.User.PushSubscription.id
-      
+      // Wait for subscription to complete
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // STEP 3: Get the Player ID and save to database
+      const playerId = window.OneSignal.User.PushSubscription.id
+
       if (playerId) {
         console.log('[OneSignal] ✅ Subscribed! Player ID:', playerId)
-        
+
         // Save to database
         await savePlayerIdToDatabase(playerId, token)
-        
+
         // Hide banner
         setShowCustomBanner(false)
       } else {
         console.warn('[OneSignal] ⚠️ No Player ID received')
+
+        // If permission was denied, we still hide the banner
+        // It will re-appear on next session
+        if (!permissionGranted) {
+          console.log('[OneSignal] Permission denied, will re-prompt on next session')
+          setShowCustomBanner(false)
+        }
       }
 
     } catch (error) {
@@ -298,7 +401,7 @@ export default function OneSignalInit() {
                 Stay Updated with Notifications
               </h3>
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
-                Get instant updates for messages, tasks, leave approvals, and important announcements. We'll only send you relevant notifications.
+                Get instant updates for messages, tasks, leave approvals, and important announcements. You'll be asked to allow notifications in the next step.
               </p>
             </div>
 
