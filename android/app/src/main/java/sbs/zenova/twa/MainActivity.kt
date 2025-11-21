@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.android.gms.location.*
 import com.google.firebase.messaging.FirebaseMessaging
+import com.onesignal.OneSignal
 import sbs.zenova.twa.databinding.ActivityMainBinding
 import sbs.zenova.twa.services.NotificationService
 
@@ -277,6 +278,9 @@ class MainActivity : AppCompatActivity() {
             // Add JavaScript interface for Firebase token
             addJavascriptInterface(FirebaseInterface(), "AndroidFirebase")
 
+            // Add JavaScript interface for OneSignal
+            addJavascriptInterface(OneSignalInterface(), "AndroidOneSignal")
+
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val url = request?.url.toString()
@@ -401,13 +405,22 @@ class MainActivity : AppCompatActivity() {
                                 });
                             }
 
-                            // Start notification service when user is logged in
+                            // Start notification service and OneSignal login when user is logged in
                             function startNotificationService() {
                                 try {
                                     const userId = localStorage.getItem('userId');
-                                    if (userId && window.AndroidNotifications) {
-                                        window.AndroidNotifications.startService(userId);
-                                        console.log('Notification service started for user:', userId);
+                                    if (userId) {
+                                        // Start notification service
+                                        if (window.AndroidNotifications) {
+                                            window.AndroidNotifications.startService(userId);
+                                            console.log('Notification service started for user:', userId);
+                                        }
+
+                                        // Login to OneSignal with external user ID
+                                        if (window.AndroidOneSignal) {
+                                            window.AndroidOneSignal.login(userId);
+                                            console.log('OneSignal login for user:', userId);
+                                        }
                                     }
                                 } catch (e) {
                                     console.error('Failed to start notification service:', e);
@@ -812,6 +825,89 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
+                }
+            }
+        }
+    }
+
+    // JavaScript Interface for OneSignal
+    inner class OneSignalInterface {
+        @JavascriptInterface
+        fun login(externalUserId: String) {
+            runOnUiThread {
+                try {
+                    OneSignal.login(externalUserId)
+                    Log.d("OneSignal", "✅ User logged in with external ID: $externalUserId")
+
+                    // Set user tags for segmentation
+                    OneSignal.User.addTags(mapOf(
+                        "userId" to externalUserId,
+                        "platform" to "android",
+                        "appVersion" to "1.0.1",
+                        "lastLogin" to System.currentTimeMillis().toString()
+                    ))
+
+                    Log.d("OneSignal", "✅ User tags set")
+                } catch (e: Exception) {
+                    Log.e("OneSignal", "Failed to login user", e)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun logout() {
+            runOnUiThread {
+                try {
+                    OneSignal.logout()
+                    Log.d("OneSignal", "✅ User logged out")
+                } catch (e: Exception) {
+                    Log.e("OneSignal", "Failed to logout user", e)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun getPlayerId(callback: String) {
+            runOnUiThread {
+                try {
+                    val playerId = OneSignal.User.pushSubscription.id
+                    Log.d("OneSignal", "Player ID: $playerId")
+
+                    // Call JavaScript callback with player ID
+                    binding.webView.evaluateJavascript(
+                        "if (typeof $callback === 'function') { $callback('$playerId'); }",
+                        null
+                    )
+                } catch (e: Exception) {
+                    Log.e("OneSignal", "Failed to get player ID", e)
+                    binding.webView.evaluateJavascript(
+                        "if (typeof $callback === 'function') { $callback(null); }",
+                        null
+                    )
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun addTag(key: String, value: String) {
+            runOnUiThread {
+                try {
+                    OneSignal.User.addTag(key, value)
+                    Log.d("OneSignal", "✅ Tag added: $key = $value")
+                } catch (e: Exception) {
+                    Log.e("OneSignal", "Failed to add tag", e)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun removeTag(key: String) {
+            runOnUiThread {
+                try {
+                    OneSignal.User.removeTag(key)
+                    Log.d("OneSignal", "✅ Tag removed: $key")
+                } catch (e: Exception) {
+                    Log.e("OneSignal", "Failed to remove tag", e)
                 }
             }
         }

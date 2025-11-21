@@ -98,29 +98,25 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Cloud Messaging Service -->
-        <!-- CRITICAL: This service handles notifications even when app is killed -->
-        <service
-            android:name=".services.TalioFirebaseMessagingService"
-            android:exported="false"
-            android:directBootAware="true"
-            android:stopWithTask="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
+        <!-- OneSignal handles FCM notifications now -->
+        <!-- TalioFirebaseMessagingService is no longer needed -->
 
-        <!-- Firebase Messaging Default Notification Channel -->
+        <!-- OneSignal Default Notification Channel -->
+        <meta-data
+            android:name="com.onesignal.NotificationOpened.DEFAULT"
+            android:value="DISABLE" />
+
+        <!-- Firebase Messaging Default Notification Channel (used by OneSignal) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="talio_messages" />
 
-        <!-- Firebase Messaging Default Notification Icon -->
+        <!-- Firebase Messaging Default Notification Icon (used by OneSignal) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />
 
-        <!-- Firebase Messaging Default Notification Color -->
+        <!-- Firebase Messaging Default Notification Color (used by OneSignal) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@android:color/holo_blue_dark" />

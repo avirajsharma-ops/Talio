@@ -67,10 +67,13 @@ dependencies {
     // Play Services for Location
     implementation 'com.google.android.gms:play-services-location:21.1.0'
 
-    // Firebase Cloud Messaging for Push Notifications
+    // Firebase Cloud Messaging for Push Notifications (required by OneSignal)
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-messaging-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
+
+    // OneSignal SDK for Push Notifications
+    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
 
     // Socket.IO Client for real-time notifications
     implementation 'io.socket:socket.io-client:2.1.0'

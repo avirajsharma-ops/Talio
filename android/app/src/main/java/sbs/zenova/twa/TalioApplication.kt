@@ -6,7 +6,8 @@ import android.app.NotificationManager
 import android.os.Build
 import android.util.Log
 import com.google.firebase.FirebaseApp
-import com.google.firebase.messaging.FirebaseMessaging
+import com.onesignal.OneSignal
+import com.onesignal.debug.LogLevel
 
 class TalioApplication : Application() {
 
@@ -16,32 +17,62 @@ class TalioApplication : Application() {
         const val CHANNEL_ID_TASKS = "talio_tasks"
         const val CHANNEL_ID_ANNOUNCEMENTS = "talio_announcements"
         const val CHANNEL_ID_GENERAL = "talio_general"
+
+        // OneSignal App ID
+        const val ONESIGNAL_APP_ID = "f7b9d1a1-5095-4be8-8a74-2af13058e7b2"
     }
 
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Firebase
+        // Initialize Firebase (required by OneSignal for FCM)
         FirebaseApp.initializeApp(this)
-        Log.d(TAG, "Firebase initialized")
+        Log.d(TAG, "✅ Firebase initialized")
 
-        // Create notification channels
+        // Create notification channels BEFORE initializing OneSignal
         createNotificationChannels()
 
-        // Get FCM token
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                Log.w(TAG, "Fetching FCM registration token failed", task.exception)
-                return@addOnCompleteListener
+        // Initialize OneSignal
+        initializeOneSignal()
+    }
+
+    private fun initializeOneSignal() {
+        // Verbose Logging set to help debug issues, remove before releasing your app.
+        OneSignal.Debug.logLevel = LogLevel.VERBOSE
+
+        // OneSignal Initialization
+        OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+
+        Log.d(TAG, "✅ OneSignal initialized with App ID: $ONESIGNAL_APP_ID")
+
+        // Request notification permission (Android 13+)
+        OneSignal.Notifications.requestPermission(true) { accepted ->
+            if (accepted) {
+                Log.d(TAG, "✅ Notification permission granted")
+            } else {
+                Log.w(TAG, "⚠️ Notification permission denied")
             }
-
-            // Get new FCM registration token
-            val token = task.result
-            Log.d(TAG, "FCM Token: $token")
-
-            // TODO: Send token to your server
-            // This will be handled by the WebView when user logs in
         }
+
+        // Set notification opened handler
+        OneSignal.Notifications.addClickListener { event ->
+            Log.d(TAG, "📱 Notification clicked: ${event.notification.title}")
+
+            // Handle notification click
+            val data = event.notification.additionalData
+            if (data != null) {
+                Log.d(TAG, "Notification data: $data")
+                // You can handle deep linking here if needed
+            }
+        }
+
+        // Set notification will show in foreground handler
+        OneSignal.Notifications.addForegroundLifecycleListener { event ->
+            Log.d(TAG, "📬 Notification received in foreground: ${event.notification.title}")
+            // The notification will be shown automatically
+        }
+
+        Log.d(TAG, "✅ OneSignal handlers configured")
     }
 
     private fun createNotificationChannels() {
