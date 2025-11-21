@@ -99,13 +99,31 @@
         </activity>
 
         <!-- Firebase Cloud Messaging Service -->
+        <!-- CRITICAL: This service handles notifications even when app is killed -->
         <service
             android:name=".services.TalioFirebaseMessagingService"
-            android:exported="false">
+            android:exported="false"
+            android:directBootAware="true"
+            android:stopWithTask="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Firebase Messaging Default Notification Channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="talio_messages" />
+
+        <!-- Firebase Messaging Default Notification Icon -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+
+        <!-- Firebase Messaging Default Notification Color -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/holo_blue_dark" />
 
         <!-- Location Tracking Service -->
         <service

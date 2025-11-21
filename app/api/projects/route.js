@@ -20,7 +20,7 @@ export async function GET(request) {
     }
 
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
-    
+
     // Get current user
     const user = await User.findById(decoded.userId).select('employeeId role')
     if (!user || !user.employeeId) {
@@ -103,7 +103,7 @@ export async function POST(request) {
     }
 
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
-    
+
     // Get current user
     const user = await User.findById(decoded.userId).select('employeeId role')
     if (!user || !user.employeeId) {
@@ -136,6 +136,56 @@ export async function POST(request) {
       .populate('crossDepartmentCollaboration.departments', 'name code')
       .populate('crossDepartmentCollaboration.collaborators.employee', 'firstName lastName employeeCode')
       .populate('crossDepartmentCollaboration.collaborators.department', 'name')
+
+    // Emit Socket.IO events for project team members
+    try {
+      const io = global.io
+      if (io && data.team && Array.isArray(data.team)) {
+        const { sendPushToUser } = require('@/lib/pushNotification')
+
+        for (const teamMember of data.team) {
+          const Employee = require('@/models/Employee').default
+          const employeeDoc = await Employee.findById(teamMember.member).populate('userId')
+          const employeeUserId = employeeDoc?.userId?._id || employeeDoc?.userId
+
+          if (employeeUserId) {
+            // Socket.IO event
+            io.to(`user:${employeeUserId}`).emit('project-assignment', {
+              project: populatedProject,
+              action: 'assigned',
+              assignedBy: user.employeeId,
+              message: `You have been assigned to project: ${project.name}`,
+              timestamp: new Date()
+            })
+            console.log(`✅ [Socket.IO] Project assignment sent to user:${employeeUserId}`)
+
+            // FCM push notification
+            try {
+              await sendPushToUser(
+                employeeUserId,
+                {
+                  title: '📊Prior Project Assigned',
+                  body: `You have been assigned to project: ${project.name}`,
+                },
+                {
+                  clickAction: '/dashboard/projects',
+                  eventType: 'project_assignment',
+                  data: {
+                    projectId: project._id.toString(),
+                    type: 'project_assignment'
+                  }
+                }
+              )
+              console.log(`📲 [FCM] Project assignment notification sent to user:${employeeUserId}`)
+            } catch (fcmError) {
+              console.error('Failed to send project FCM notification:', fcmError)
+            }
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send project assignment socket notification:', socketError)
+    }
 
     return NextResponse.json({
       success: true,

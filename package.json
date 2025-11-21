@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "node server.js",
     "dev:next": "next dev",
-    "build": "SKIP_ENV_VALIDATION=true next build",
+    "build": "npm run generate-sw && SKIP_ENV_VALIDATION=true next build",
     "start": "NODE_ENV=production node server.js",
     "start:next": "next start",
     "lint": "next lint",
     "seed": "node scripts/seed.js",
+    "generate-sw": "node scripts/generate-firebase-sw.js",
     "migrate": "node scripts/migrate-to-atlas.js",
     "check-env": "node scripts/fix-vercel-env.js",
     "setup-local": "node scripts/setup-local-env.js",

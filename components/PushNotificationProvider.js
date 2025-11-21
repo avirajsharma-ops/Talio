@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 export default function PushNotificationProvider({ children, userId }) {
   const [permissionStatus, setPermissionStatus] = useState('default')
   const [showPermissionBanner, setShowPermissionBanner] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
     // Check if we're in a browser environment
@@ -14,55 +15,65 @@ export default function PushNotificationProvider({ children, userId }) {
       return
     }
 
+    // Only initialize once when user logs in
+    if (!userId || isInitialized) {
+      return
+    }
+
     // Check current permission status
     const currentPermission = Notification.permission
     setPermissionStatus(currentPermission)
 
-    // Show banner if permission is not granted and user is logged in
-    if (currentPermission === 'default' && userId) {
-      // Wait a bit before showing the banner (don't annoy users immediately)
+    // If permission is already granted, request token immediately
+    if (currentPermission === 'granted') {
+      console.log('[PushProvider] Permission already granted, initializing...')
+      initializePushNotifications()
+      setIsInitialized(true)
+    }
+    // If permission is default (never asked), automatically request it like WhatsApp
+    else if (currentPermission === 'default') {
+      // Auto-request permission on first login (WhatsApp-style)
+      console.log('[PushProvider] Auto-requesting notification permission...')
       const timer = setTimeout(() => {
-        setShowPermissionBanner(true)
-      }, 5000) // Show after 5 seconds
+        handleEnableNotifications()
+      }, 2000) // Wait 2 seconds after login
 
       return () => clearTimeout(timer)
     }
-
-    // If permission is already granted, request token
-    if (currentPermission === 'granted' && userId) {
-      initializePushNotifications()
+    // If permission is denied, show a subtle banner
+    else if (currentPermission === 'denied') {
+      console.log('[PushProvider] Notification permission denied by user')
     }
-  }, [userId])
+  }, [userId, isInitialized])
 
   const initializePushNotifications = async () => {
     try {
       console.log('[Push] Initializing push notifications...')
-      
+
       // Request FCM token
       const token = await requestFCMToken()
-      
+
       if (token) {
         console.log('[Push] FCM token obtained:', token)
-        
+
         // Save token to backend
         const result = await saveFCMTokenToBackend(token, userId)
-        
+
         if (result && result.success) {
           console.log('[Push] Token saved to backend successfully')
-          
+
           // Set up foreground message listener
           onForegroundMessage((payload) => {
             console.log('[Push] Foreground message received:', payload)
-            
+
             // Show toast notification
             const title = payload.notification?.title || 'New Notification'
             const body = payload.notification?.body || ''
-            
+
             toast.custom((t) => (
               <div
-                className={`${
-                  t.visible ? 'animate-enter' : 'animate-leave'
-                } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
+                className={`${t.visible ? 'animate-enter' : 'animate-leave'
+                  } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
               >
                 <div className="flex-1 w-0 p-4">
                   <div className="flex items-start">
@@ -114,22 +125,30 @@ export default function PushNotificationProvider({ children, userId }) {
   const handleEnableNotifications = async () => {
     try {
       const token = await requestFCMToken()
-      
+
       if (token) {
         setPermissionStatus('granted')
         setShowPermissionBanner(false)
-        toast.success('Push notifications enabled!')
-        
+        setIsInitialized(true)
+        console.log('[PushProvider] ✅ Push notifications enabled successfully')
+
+        // Don't show toast for auto-requests
+        const wasAutoRequest = Notification.permission === 'granted'
+        if (!wasAutoRequest) {
+          toast.success('🔔 Notifications enabled! You\'ll now receive updates.')
+        }
+
         // Initialize push notifications
         await initializePushNotifications()
       } else {
         setPermissionStatus('denied')
         setShowPermissionBanner(false)
-        toast.error('Failed to enable push notifications')
+        setIsInitialized(true)
+        console.log('[PushProvider] ❌ User denied notification permission')
       }
     } catch (error) {
-      console.error('[Push] Error enabling notifications:', error)
-      toast.error('Failed to enable push notifications')
+      console.error('[PushProvider] Error enabling notifications:', error)
+      setIsInitialized(true)
     }
   }
 
@@ -142,7 +161,7 @@ export default function PushNotificationProvider({ children, userId }) {
   return (
     <>
       {children}
-      
+
       {/* Permission Banner */}
       {showPermissionBanner && permissionStatus === 'default' && (
         <div className="fixed bottom-4 right-4 max-w-sm bg-white shadow-lg rounded-lg p-4 border border-gray-200 z-50">

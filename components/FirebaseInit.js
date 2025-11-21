@@ -79,28 +79,24 @@ export default function FirebaseInit() {
 
         console.log('[FirebaseInit] User logged in:', userId)
 
-        // Check if we already have a token
-        let fcmToken = getStoredFCMToken()
+        // Always request a fresh token on login to ensure it's valid
+        console.log('[FirebaseInit] Requesting FCM token...')
 
-        if (!fcmToken) {
-          console.log('[FirebaseInit] No FCM token found, requesting new token...')
-          
-          // Request FCM token
-          fcmToken = await requestFCMToken()
+        const fcmToken = await requestFCMToken()
 
-          if (fcmToken) {
-            console.log('[FirebaseInit] ✅ FCM token obtained')
-            
-            // Save token to backend
-            await saveFCMTokenToBackend(fcmToken, userId)
+        if (fcmToken) {
+          console.log('[FirebaseInit] ✅ FCM token obtained')
+
+          // Save token to backend (will update lastUsed timestamp)
+          const saveResult = await saveFCMTokenToBackend(fcmToken, userId)
+
+          if (saveResult && saveResult.success) {
+            console.log('[FirebaseInit] ✅ Token saved to backend')
           } else {
-            console.warn('[FirebaseInit] Failed to get FCM token')
+            console.warn('[FirebaseInit] ⚠️ Failed to save token to backend')
           }
         } else {
-          console.log('[FirebaseInit] ✅ FCM token already exists')
-          
-          // Verify token is still valid by saving to backend
-          await saveFCMTokenToBackend(fcmToken, userId)
+          console.warn('[FirebaseInit] ⚠️ Failed to get FCM token - user may have denied permission')
         }
 
         // Set up foreground message listener (for background notifications only)
@@ -181,20 +177,20 @@ export function useFirebasePermission() {
   const requestPermission = async () => {
     try {
       const fcmToken = await requestFCMToken()
-      
+
       if (fcmToken) {
         console.log('[Firebase] Permission granted, token:', fcmToken)
-        
+
         // Save to backend
         const userStr = localStorage.getItem('user')
         if (userStr) {
           const user = JSON.parse(userStr)
           await saveFCMTokenToBackend(fcmToken, user._id || user.id)
         }
-        
+
         return true
       }
-      
+
       return false
     } catch (error) {
       console.error('[Firebase] Error requesting permission:', error)

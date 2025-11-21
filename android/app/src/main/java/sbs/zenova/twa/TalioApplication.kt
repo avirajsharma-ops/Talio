@@ -48,52 +48,78 @@ class TalioApplication : Application() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NotificationManager::class.java)
 
-            // Messages Channel
+            // Messages Channel - HIGH IMPORTANCE for WhatsApp-like behavior
             val messagesChannel = NotificationChannel(
                 CHANNEL_ID_MESSAGES,
                 "Messages",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH // Shows as heads-up notification
             ).apply {
-                description = "New message notifications"
+                description = "Chat messages and direct communications"
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 250, 250) // WhatsApp-like pattern
                 enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                setShowBadge(true) // Show badge on app icon
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC // Show on lock screen
+                setSound(
+                    android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION),
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
             }
 
-            // Tasks Channel
+            // Tasks Channel - HIGH IMPORTANCE
             val tasksChannel = NotificationChannel(
                 CHANNEL_ID_TASKS,
                 "Tasks",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Task assignment and update notifications"
+                description = "Task assignments, updates, and completions"
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300)
                 enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
 
-            // Announcements Channel
+            // Announcements Channel - HIGH IMPORTANCE (changed from DEFAULT)
             val announcementsChannel = NotificationChannel(
                 CHANNEL_ID_ANNOUNCEMENTS,
                 "Announcements",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH // Important company announcements
             ).apply {
-                description = "Company announcements"
+                description = "Company and department announcements"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+                enableLights(true)
+                lightColor = android.graphics.Color.YELLOW
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
 
-            // General Channel
+            // General Channel - DEFAULT IMPORTANCE
             val generalChannel = NotificationChannel(
                 CHANNEL_ID_GENERAL,
                 "General",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "General notifications"
+                description = "General notifications and updates"
+                enableVibration(true)
+                enableLights(true)
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
 
+            // Create all channels
             notificationManager.createNotificationChannel(messagesChannel)
             notificationManager.createNotificationChannel(tasksChannel)
             notificationManager.createNotificationChannel(announcementsChannel)
             notificationManager.createNotificationChannel(generalChannel)
 
-            Log.d(TAG, "Notification channels created")
+            Log.d(TAG, "✅ Notification channels created with HIGH importance for instant delivery")
         }
     }
 }

@@ -88,12 +88,51 @@ export async function PUT(request, { params }) {
             reason: rejectionReason
           })
         }
+
+        // Emit Socket.IO event for realtime notification with sound
+        const io = global.io
+        if (io) {
+          io.to(`user:${employeeUserId}`).emit('leave-status-update', {
+            leave: populatedLeave,
+            action: status,
+            message: status === 'approved'
+              ? `Your ${leaveTypeName} has been approved (${startDate} - ${endDate})`
+              : `Your ${leaveTypeName} has been rejected`,
+            timestamp: new Date()
+          })
+          console.log(`✅ [Socket.IO] Leave status update sent to user:${employeeUserId}`)
+        }
+
+        // Send FCM push notification (for when app is closed)
+        try {
+          const { sendPushToUser } = require('@/lib/pushNotification')
+          const icon = status === 'approved' ? '✅' : '❌'
+          await sendPushToUser(
+            employeeUserId,
+            {
+              title: `${icon} Leave ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+              body: status === 'approved'
+                ? `Your ${leaveTypeName} has been approved (${startDate} - ${endDate})`
+                : `Your ${leaveTypeName} has been rejected`,
+            },
+            {
+              clickAction: '/dashboard/leave',
+              eventType: 'leave_status',
+              data: {
+                leaveId: leave._id.toString(),
+                status,
+                type: 'leave_status_update'
+              }
+            }
+          )
+          console.log(`📲 [FCM] Leave notification sent to user:${employeeUserId}`)
+        } catch (fcmError) {
+          console.error('Failed to send FCM notification:', fcmError)
+        }
       }
     } catch (notifError) {
       console.error('Failed to send leave status notification:', notifError)
-    }
-
-    return NextResponse.json({
+    } return NextResponse.json({
       success: true,
       message: `Leave request ${status} successfully`,
       data: populatedLeave,

@@ -227,6 +227,94 @@ export function SocketProvider({ children }) {
     }
   }, [socket])
 
+  // Subscribe to leave status update events
+  const onLeaveStatusUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('leave-status-update', callback)
+      return () => socket.off('leave-status-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to expense status update events
+  const onExpenseStatusUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('expense-status-update', callback)
+      return () => socket.off('expense-status-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to travel status update events
+  const onTravelStatusUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('travel-status-update', callback)
+      return () => socket.off('travel-status-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to project assignment events
+  const onProjectAssignment = useCallback((callback) => {
+    if (socket) {
+      socket.on('project-assignment', callback)
+      return () => socket.off('project-assignment', callback)
+    }
+  }, [socket])
+
+  // Subscribe to performance review events
+  const onPerformanceReview = useCallback((callback) => {
+    if (socket) {
+      socket.on('performance-review', callback)
+      return () => socket.off('performance-review', callback)
+    }
+  }, [socket])
+
+  // Subscribe to helpdesk ticket events
+  const onHelpdeskTicket = useCallback((callback) => {
+    if (socket) {
+      socket.on('helpdesk-ticket', callback)
+      return () => socket.off('helpdesk-ticket', callback)
+    }
+  }, [socket])
+
+  // Subscribe to document events
+  const onDocumentUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('document-update', callback)
+      return () => socket.off('document-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to asset events
+  const onAssetUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('asset-update', callback)
+      return () => socket.off('asset-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to payroll events
+  const onPayrollUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('payroll-update', callback)
+      return () => socket.off('payroll-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to onboarding events
+  const onOnboardingUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('onboarding-update', callback)
+      return () => socket.off('onboarding-update', callback)
+    }
+  }, [socket])
+
+  // Subscribe to offboarding events
+  const onOffboardingUpdate = useCallback((callback) => {
+    if (socket) {
+      socket.on('offboarding-update', callback)
+      return () => socket.off('offboarding-update', callback)
+    }
+  }, [socket])
+
   const value = {
     socket,
     isConnected,
@@ -247,7 +335,18 @@ export function SocketProvider({ children }) {
     onAnnouncement,
     onMessageReaction,
     onMessageDeleted,
-    onGeofenceApproval
+    onGeofenceApproval,
+    onLeaveStatusUpdate,
+    onExpenseStatusUpdate,
+    onTravelStatusUpdate,
+    onProjectAssignment,
+    onPerformanceReview,
+    onHelpdeskTicket,
+    onDocumentUpdate,
+    onAssetUpdate,
+    onPayrollUpdate,
+    onOnboardingUpdate,
+    onOffboardingUpdate
   }
 
   return (

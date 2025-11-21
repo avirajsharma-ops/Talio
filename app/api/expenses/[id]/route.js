@@ -24,6 +24,55 @@ export async function PUT(request, { params }) {
       )
     }
 
+    // Emit Socket.IO event for realtime notification with sound
+    try {
+      if (data.status && (data.status === 'approved' || data.status === 'rejected')) {
+        const Employee = require('@/models/Employee').default
+        const employeeDoc = await Employee.findById(expense.employee._id || expense.employee).select('userId')
+        const employeeUserId = employeeDoc?.userId
+
+        if (employeeUserId) {
+          const io = global.io
+          if (io) {
+            io.to(`user:${employeeUserId}`).emit('expense-status-update', {
+              expense,
+              action: data.status,
+              message: `Your expense claim of ${expense.amount} has been ${data.status}`,
+              timestamp: new Date()
+            })
+            console.log(`✅ [Socket.IO] Expense status update sent to user:${employeeUserId}`)
+          }
+
+          // Send FCM push notification
+          try {
+            const { sendPushToUser } = require('@/lib/pushNotification')
+            const icon = data.status === 'approved' ? '✅' : '❌'
+            await sendPushToUser(
+              employeeUserId,
+              {
+                title: `${icon} Expense ${data.status === 'approved' ? 'Approved' : 'Rejected'}`,
+                body: `Your expense claim of ₹${expense.amount} has been ${data.status}`,
+              },
+              {
+                clickAction: '/dashboard/expenses',
+                eventType: 'expense_status',
+                data: {
+                  expenseId: expense._id.toString(),
+                  status: data.status,
+                  type: 'expense_status_update'
+                }
+              }
+            )
+            console.log(`📲 [FCM] Expense notification sent to user:${employeeUserId}`)
+          } catch (fcmError) {
+            console.error('Failed to send expense FCM notification:', fcmError)
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send expense socket notification:', socketError)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Expense updated successfully',
