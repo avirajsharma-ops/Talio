@@ -25,7 +25,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.android.gms.location.*
-import com.google.firebase.messaging.FirebaseMessaging
 import com.onesignal.OneSignal
 import sbs.zenova.twa.databinding.ActivityMainBinding
 import sbs.zenova.twa.services.NotificationService
@@ -274,9 +273,6 @@ class MainActivity : AppCompatActivity() {
             // Add JavaScript interface for navigation bar color and notifications
             addJavascriptInterface(NavigationBarInterface(), "AndroidInterface")
             addJavascriptInterface(NotificationInterface(), "AndroidNotifications")
-
-            // Add JavaScript interface for Firebase token
-            addJavascriptInterface(FirebaseInterface(), "AndroidFirebase")
 
             // Add JavaScript interface for OneSignal
             addJavascriptInterface(OneSignalInterface(), "AndroidOneSignal")
@@ -786,56 +782,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // JavaScript Interface for Firebase Token
-    inner class FirebaseInterface {
-        @JavascriptInterface
-        fun getFCMToken(callback: String) {
-            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val token = task.result
-                    Log.d("Firebase", "FCM Token: $token")
-
-                    // Call JavaScript callback with token
-                    runOnUiThread {
-                        binding.webView.evaluateJavascript(
-                            "if (typeof $callback === 'function') { $callback('$token'); }",
-                            null
-                        )
-                    }
-                } else {
-                    Log.e("Firebase", "Failed to get FCM token", task.exception)
-                    runOnUiThread {
-                        binding.webView.evaluateJavascript(
-                            "if (typeof $callback === 'function') { $callback(null); }",
-                            null
-                        )
-                    }
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun requestNotificationPermission() {
-            runOnUiThread {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if (ContextCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.POST_NOTIFICATIONS
-                        ) != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }
-            }
-        }
-    }
-
     // JavaScript Interface for OneSignal
     inner class OneSignalInterface {
         @JavascriptInterface
         fun login(externalUserId: String) {
             runOnUiThread {
                 try {
+                    // Login user with external ID (as per OneSignal documentation)
                     OneSignal.login(externalUserId)
                     Log.d("OneSignal", "✅ User logged in with external ID: $externalUserId")
 
@@ -847,9 +800,9 @@ class MainActivity : AppCompatActivity() {
                         "lastLogin" to System.currentTimeMillis().toString()
                     ))
 
-                    Log.d("OneSignal", "✅ User tags set")
+                    Log.d("OneSignal", "✅ User tags set for segmentation")
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "Failed to login user", e)
+                    Log.e("OneSignal", "❌ Failed to login user", e)
                 }
             }
         }
@@ -861,25 +814,25 @@ class MainActivity : AppCompatActivity() {
                     OneSignal.logout()
                     Log.d("OneSignal", "✅ User logged out")
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "Failed to logout user", e)
+                    Log.e("OneSignal", "❌ Failed to logout user", e)
                 }
             }
         }
 
         @JavascriptInterface
-        fun getPlayerId(callback: String) {
+        fun getSubscriptionId(callback: String) {
             runOnUiThread {
                 try {
-                    val playerId = OneSignal.User.pushSubscription.id
-                    Log.d("OneSignal", "Player ID: $playerId")
+                    val subscriptionId = OneSignal.User.pushSubscription.id
+                    Log.d("OneSignal", "Subscription ID: $subscriptionId")
 
-                    // Call JavaScript callback with player ID
+                    // Call JavaScript callback with subscription ID
                     binding.webView.evaluateJavascript(
-                        "if (typeof $callback === 'function') { $callback('$playerId'); }",
+                        "if (typeof $callback === 'function') { $callback('$subscriptionId'); }",
                         null
                     )
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "Failed to get player ID", e)
+                    Log.e("OneSignal", "❌ Failed to get subscription ID", e)
                     binding.webView.evaluateJavascript(
                         "if (typeof $callback === 'function') { $callback(null); }",
                         null
@@ -895,7 +848,7 @@ class MainActivity : AppCompatActivity() {
                     OneSignal.User.addTag(key, value)
                     Log.d("OneSignal", "✅ Tag added: $key = $value")
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "Failed to add tag", e)
+                    Log.e("OneSignal", "❌ Failed to add tag", e)
                 }
             }
         }
@@ -907,7 +860,7 @@ class MainActivity : AppCompatActivity() {
                     OneSignal.User.removeTag(key)
                     Log.d("OneSignal", "✅ Tag removed: $key")
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "Failed to remove tag", e)
+                    Log.e("OneSignal", "❌ Failed to remove tag", e)
                 }
             }
         }

@@ -28,7 +28,7 @@ export default function OneSignalInit() {
           console.log('[OneSignalInit] ✅ OneSignal SDK loaded, initializing...')
 
           await OneSignal.init({
-            appId: "f7b9d1a1-5095-4be8-8a74-2af13058e7b2",
+            appId: "d39b9d6c-e7b9-4bae-ad23-66b382b358f2",
             safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
 
             // Notification settings

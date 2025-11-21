@@ -98,28 +98,11 @@
             </intent-filter>
         </activity>
 
-        <!-- OneSignal handles FCM notifications now -->
-        <!-- TalioFirebaseMessagingService is no longer needed -->
-
-        <!-- OneSignal Default Notification Channel -->
+        <!-- OneSignal Configuration -->
+        <!-- Disable default notification opening behavior - we handle it in the app -->
         <meta-data
             android:name="com.onesignal.NotificationOpened.DEFAULT"
             android:value="DISABLE" />
-
-        <!-- Firebase Messaging Default Notification Channel (used by OneSignal) -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="talio_messages" />
-
-        <!-- Firebase Messaging Default Notification Icon (used by OneSignal) -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
-
-        <!-- Firebase Messaging Default Notification Color (used by OneSignal) -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_color"
-            android:resource="@android:color/holo_blue_dark" />
 
         <!-- Location Tracking Service -->
         <service
