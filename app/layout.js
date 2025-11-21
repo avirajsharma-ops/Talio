@@ -6,7 +6,7 @@ import '../styles/mobile-fix.css'
 import '../styles/card-redesign.css'
 import '../styles/theme.css'
 import { Toaster } from 'react-hot-toast'
-import { ThemeProvider } from '@/contexts/ThemeContext'
+import { Providers } from '@/components/Providers'
 import FirebaseInit from '@/components/FirebaseInit'
 import ErrorPageCache from '@/components/ErrorPageCache'
 import { MayaShell } from '@/components/maya/MayaShell'
@@ -100,7 +100,7 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className={inter.className}>
-        <ThemeProvider>
+        <Providers>
           <FirebaseInit />
           <ErrorPageCache />
           {children}
@@ -117,7 +117,7 @@ export default function RootLayout({ children }) {
           <MayaShell />
           <MayaAiDots />
           <MayaPipWindow />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )

@@ -8,7 +8,6 @@ import BottomNav from '@/components/BottomNav'
 import PWAInstaller, { OfflineIndicator } from '@/components/PWAInstaller'
 import OutOfPremisesPopup from '@/components/OutOfPremisesPopup'
 import OfflineDetector from '@/components/OfflineDetector'
-import PushNotificationProvider from '@/components/PushNotificationProvider'
 
 import { useNotificationInit } from '@/hooks/useNotifications'
 import useGeofencing from '@/hooks/useGeofencing'
@@ -51,8 +50,7 @@ export default function DashboardLayout({ children }) {
     <SocketProvider>
       <UnreadMessagesProvider>
         <InAppNotificationProvider>
-          <PushNotificationProvider userId={userId}>
-            <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
+          <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
 
 
             {/* Offline Detector - Monitors connection and redirects to offline page */}
@@ -74,7 +72,7 @@ export default function DashboardLayout({ children }) {
               {/* Gradient above bottom nav - Mobile only - Hide on chat page */}
               {!isChatPage && (
                 <div className="md:hidden fixed bottom-[72px] left-0  right-0 h-[124px] pointer-events-none z-[39]"
-                     style={{ background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)` }}>
+                  style={{ background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)` }}>
                 </div>
               )}
 
@@ -87,8 +85,7 @@ export default function DashboardLayout({ children }) {
 
             {/* Out of Premises Popup */}
             <OutOfPremisesPopup />
-            </div>
-          </PushNotificationProvider>
+          </div>
         </InAppNotificationProvider>
       </UnreadMessagesProvider>
     </SocketProvider>

@@ -8,7 +8,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
-import { sendPushNotification } from '@/lib/firebaseAdmin'
+import { sendFCMNotification } from '@/lib/firebaseAdmin'
 
 /**
  * POST /api/fcm/send-notification
@@ -78,7 +78,7 @@ export async function POST(request) {
     console.log(`[FCM API] Device types: ${tokens.map(t => t.device).join(', ')}`)
 
     // Send notification
-    const result = await sendPushNotification({
+    const result = await sendFCMNotification({
       tokens: tokenStrings,
       title,
       body,
