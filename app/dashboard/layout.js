@@ -9,7 +9,6 @@ import PWAInstaller, { OfflineIndicator } from '@/components/PWAInstaller'
 import OutOfPremisesPopup from '@/components/OutOfPremisesPopup'
 import OfflineDetector from '@/components/OfflineDetector'
 
-import { useNotificationInit } from '@/hooks/useNotifications'
 import useGeofencing from '@/hooks/useGeofencing'
 import { SocketProvider } from '@/contexts/SocketContext'
 import { UnreadMessagesProvider } from '@/contexts/UnreadMessagesContext'
@@ -32,9 +31,6 @@ export default function DashboardLayout({ children }) {
       }
     }
   }, [])
-
-  // Initialize notifications
-  useNotificationInit()
 
   // Initialize geofencing
   useGeofencing()

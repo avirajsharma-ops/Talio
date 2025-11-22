@@ -165,7 +165,6 @@ The Android app includes:
 
 ✅ **WebView-based** - Loads your web app (https://zenova.sbs)
 ✅ **Native Permissions** - Handles notifications and location natively
-✅ **OneSignal Integration** - Push notifications support
 ✅ **GPS Tracking** - For attendance and geofencing
 ✅ **Offline Support** - Caches web content
 ✅ **Deep Linking** - Opens app from web links
@@ -197,7 +196,6 @@ For issues or questions:
 
 - **v1.0.0** (Initial Release)
   - WebView-based app
-  - OneSignal push notifications
   - GPS location tracking
   - Native permission handling
   - Deep linking support

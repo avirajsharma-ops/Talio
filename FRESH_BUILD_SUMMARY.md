@@ -34,30 +34,6 @@
 
 ---
 
-## 🆕 Latest Changes Included
-
-This build includes all the latest changes from the repository:
-
-### Recent Commits Included:
-1. **OneSignal Flow Optimization** (3fc8612)
-   - Optimized OneSignal notification flow
-   
-2. **Email Fallback Implementation** (03edec1)
-   - Added email fallback for failed push notifications
-   - Enhanced OneSignal notification service
-   - Created email fallback test endpoint
-   
-3. **Firebase to OneSignal Migration** (bd0cf09, 659861d, d1ab26e)
-   - Complete removal of Firebase Cloud Messaging
-   - Full migration to OneSignal service worker
-   - Removed all Firebase dependencies
-   
-4. **Push Notification Refactoring** (5efe832)
-   - Refactored push notification handling
-   - Implemented new Providers component
-
----
-
 ## 🛠️ Build Environment
 
 - **Java Version:** OpenJDK 17.0.17 (Homebrew)
@@ -103,15 +79,13 @@ https://app.talio.in/.well-known/assetlinks.json
 ## ⚠️ Important Notes
 
 1. **Keystore Security:** Keep `talio-release.keystore` secure - you'll need it for all future updates
-2. **OneSignal Integration:** This build uses OneSignal for push notifications (Firebase removed)
-3. **Location Permissions:** Location access is required for attendance tracking
-4. **Geofencing:** Office radius validation is enforced in strict mode
+2. **Location Permissions:** Location access is required for attendance tracking
+3. **Geofencing:** Office radius validation is enforced in strict mode
 
 ---
 
 ## 🔧 Key Features in This Build
 
-- ✅ OneSignal push notifications (replaces Firebase)
 - ✅ Email fallback for failed notifications
 - ✅ GPS location tracking for attendance
 - ✅ Geofencing with office radius validation

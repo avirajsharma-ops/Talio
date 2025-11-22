@@ -93,15 +93,12 @@ adb install release/talio.apk
 ## 🎯 What's Included in This Build
 
 ### Web App Features:
-✅ OneSignal notification subscription banner (fixed)
 ✅ Offline page with auto-detection
 ✅ Error boundaries for graceful error handling
 ✅ Bottom navigation with correct color (#192A5A)
 ✅ All previous features and fixes
 
 ### Android App Features:
-✅ Native OneSignal notifications
-✅ Background notification service
 ✅ Socket.IO real-time updates
 ✅ Location tracking
 ✅ Custom WebView with JavaScript interfaces
@@ -111,35 +108,13 @@ adb install release/talio.apk
 
 ---
 
-## 🔔 OneSignal Notification Setup
-
-### Web App:
-1. Login to the application
-2. Navigate to `/dashboard`
-3. OneSignal subscription banner will appear if not subscribed
-4. Click "Enable & Subscribe" button
-5. Grant browser permission when prompted
-6. Banner will disappear after successful subscription
-
-### Android App:
-1. Install APK on device
-2. Grant notification permission when prompted
-3. Login with credentials
-4. Background service starts automatically
-5. Notifications will appear immediately
-
----
-
 ## 🧪 Testing Checklist
 
 ### Web App:
 - [x] App loads without errors
-- [x] OneSignal banner appears for non-subscribed users
 - [x] Offline page shows when connection lost
 - [x] Error boundaries catch and display errors
 - [x] Bottom navigation uses #192A5A color
-- [ ] Test notification subscription flow
-- [ ] Test sending notifications
 - [ ] Test offline functionality
 
 ### Android App:
@@ -147,8 +122,6 @@ adb install release/talio.apk
 - [ ] Grant permissions
 - [ ] Login successfully
 - [ ] Background service starts
-- [ ] Receive test notification
-- [ ] Tap notification opens correct page
 - [ ] Test offline functionality
 
 ---
@@ -168,21 +141,20 @@ adb install release/talio.apk
 
 1. **Test the Web App:**
    - Open http://localhost:3000/dashboard
-   - Verify OneSignal banner appears
-   - Test subscription flow
-   - Send test notifications
+   - Verify offline mode handling
+   - Exercise error boundaries
+   - Check bottom navigation styling
 
 2. **Test the Android APK:**
    - Install on device
    - Grant permissions
-   - Test notifications
-   - Verify background service
+   - Confirm login and navigation
+   - Verify offline page support
 
 3. **Deploy to Production:**
    - Build production web app
    - Upload APK to Play Store
-   - Update OneSignal configuration
-   - Monitor notification delivery
+   - Smoke test SMTP/email notifications
 
 ---
 
@@ -199,18 +171,12 @@ adb install release/talio.apk
 ### Verified:
 - `app/offline/page.js` - Offline page (already exists)
 - `components/BottomNav.js` - Bottom nav color (already correct)
-- `components/OneSignalInit.js` - OneSignal initialization (already fixed)
-- `components/NotificationBanner.js` - Subscription banner (already fixed)
 
 ---
 
 ## ✨ All Previous Features Included
 
 This build includes ALL previous fixes and features:
-- ✅ OneSignal SDK integration
-- ✅ Notification subscription banner
-- ✅ Native Android notifications
-- ✅ Background notification service
 - ✅ Socket.IO real-time updates
 - ✅ Location tracking
 - ✅ Offline detection

@@ -14,7 +14,6 @@ See [QUICK_START.md](QUICK_START.md) for the fastest way to build.
 
 - **WebView-based**: Loads https://zenova.sbs with full functionality
 - **Native Permissions**: Handles notifications and location natively
-- **OneSignal Push Notifications**: Integrated push notification support
 - **GPS Location Tracking**: For attendance and geofencing
 - **Offline Support**: Caches web content for offline access
 - **Deep Linking**: Opens app from web links automatically
@@ -77,7 +76,6 @@ android/
 
 The app requests:
 
-- **POST_NOTIFICATIONS** - Push notifications
 - **ACCESS_FINE_LOCATION** - GPS tracking
 - **ACCESS_COARSE_LOCATION** - Network location
 - **ACCESS_BACKGROUND_LOCATION** - Background tracking

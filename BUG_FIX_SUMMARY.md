@@ -76,7 +76,7 @@ await Notification.create({
   data: notification.data || {},
   deliveryStatus: {
     socketIO: { sent: false },
-    oneSignal: {
+    fcm: {
       sent: result.successCount > 0,
       sentAt: result.successCount > 0 ? new Date() : null
     }

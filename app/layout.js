@@ -7,7 +7,6 @@ import '../styles/card-redesign.css'
 import '../styles/theme.css'
 import { Toaster } from 'react-hot-toast'
 import { Providers } from '@/components/Providers'
-import OneSignalInit from '@/components/OneSignalInit'
 import ErrorPageCache from '@/components/ErrorPageCache'
 import { MayaShell } from '@/components/maya/MayaShell'
 import { MayaAiDots } from '@/components/maya/MayaAiDots'
@@ -59,9 +58,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* OneSignal SDK - Push Notifications */}
-        <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-
         {/* Socket.IO Client - Load globally for messaging system */}
         <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossOrigin="anonymous"></script>
 
@@ -104,7 +100,6 @@ export default function RootLayout({ children }) {
 
       <body className={inter.className}>
         <Providers>
-          <OneSignalInit />
           <ErrorPageCache />
           {children}
           <Toaster
