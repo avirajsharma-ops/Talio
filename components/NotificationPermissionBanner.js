@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { FaBell, FaTimes } from 'react-icons/fa'
+import { getUserIdFromToken } from '@/utils/jwt'
 
 /**
  * Persistent banner that prompts users to enable notifications
@@ -15,10 +16,10 @@ export default function NotificationPermissionBanner() {
 
   useEffect(() => {
     checkNotificationStatus()
-    
+
     // Check status every 5 seconds
     const interval = setInterval(checkNotificationStatus, 5000)
-    
+
     return () => clearInterval(interval)
   }, [])
 
@@ -37,7 +38,7 @@ export default function NotificationPermissionBanner() {
       try {
         const subscribed = await window.OneSignal.User.PushSubscription.optedIn
         setIsSubscribed(subscribed)
-        
+
         // Show banner if permission is not granted OR not subscribed to OneSignal
         setShow(currentPermission !== 'granted' || !subscribed)
       } catch (error) {
@@ -52,19 +53,17 @@ export default function NotificationPermissionBanner() {
 
   const handleEnableNotifications = async () => {
     setRequesting(true)
-    
+
     try {
       if (window.OneSignal) {
         // Use OneSignal to request permission
         await window.OneSignal.Notifications.requestPermission()
-        
+
         // Login user if we have a token
         const token = localStorage.getItem('token')
         if (token) {
           try {
-            const payload = JSON.parse(atob(token.split('.')[1]))
-            const userId = payload.userId
-            
+            const userId = getUserIdFromToken(token)
             if (userId) {
               await window.OneSignal.login(userId)
               console.log('[NotificationBanner] User logged in to OneSignal:', userId)
@@ -73,18 +72,18 @@ export default function NotificationPermissionBanner() {
             console.error('[NotificationBanner] Error logging in to OneSignal:', error)
           }
         }
-        
+
         // Opt in to push notifications
         await window.OneSignal.User.PushSubscription.optIn()
         console.log('[NotificationBanner] Successfully subscribed to notifications')
-        
+
         // Recheck status
         await checkNotificationStatus()
       } else {
         // Fallback to browser notification API
         const result = await Notification.requestPermission()
         setPermission(result)
-        
+
         if (result === 'granted') {
           setShow(false)
         }
@@ -100,7 +99,7 @@ export default function NotificationPermissionBanner() {
   const handleDismiss = () => {
     // Hide for this session only
     setShow(false)
-    
+
     // Store dismissal in sessionStorage (not localStorage, so it shows again on next visit)
     sessionStorage.setItem('notification-banner-dismissed', 'true')
   }
@@ -123,24 +122,24 @@ export default function NotificationPermissionBanner() {
             <FaBell className="text-2xl flex-shrink-0 animate-pulse" />
             <div className="flex-1">
               <p className="font-semibold text-sm md:text-base">
-                {permission === 'denied' 
+                {permission === 'denied'
                   ? '🔕 Notifications are blocked'
                   : !isSubscribed && permission === 'granted'
-                  ? '⚠️ Complete notification setup'
-                  : '🔔 Enable notifications to stay updated'
+                    ? '⚠️ Complete notification setup'
+                    : '🔔 Enable notifications to stay updated'
                 }
               </p>
               <p className="text-xs md:text-sm opacity-90 mt-0.5">
                 {permission === 'denied'
                   ? 'Please enable notifications in your browser settings to receive important updates'
                   : !isSubscribed && permission === 'granted'
-                  ? 'Click "Enable" to complete your notification subscription'
-                  : 'Get instant alerts for messages, tasks, announcements, and more'
+                    ? 'Click "Enable" to complete your notification subscription'
+                    : 'Get instant alerts for messages, tasks, announcements, and more'
                 }
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 flex-shrink-0">
             {permission !== 'denied' && (
               <button
@@ -151,7 +150,7 @@ export default function NotificationPermissionBanner() {
                 {requesting ? '⏳ Enabling...' : '✅ Enable'}
               </button>
             )}
-            
+
             {permission === 'denied' && (
               <a
                 href="/dashboard/notification-debug"
@@ -160,7 +159,7 @@ export default function NotificationPermissionBanner() {
                 📋 Help
               </a>
             )}
-            
+
             <button
               onClick={handleDismiss}
               className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"

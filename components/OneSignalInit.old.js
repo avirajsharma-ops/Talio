@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getUserIdFromToken } from '@/utils/jwt'
 
 /**
  * OneSignal Initialization Component
@@ -24,7 +25,7 @@ export default function OneSignalInit() {
 
         console.log('[OneSignalInit] Pushing init function to OneSignalDeferred queue...')
 
-        window.OneSignalDeferred.push(async function(OneSignal) {
+        window.OneSignalDeferred.push(async function (OneSignal) {
           console.log('[OneSignalInit] ✅ OneSignal SDK loaded, initializing...')
 
           await OneSignal.init({
@@ -119,9 +120,7 @@ export default function OneSignalInit() {
           const token = localStorage.getItem('token')
           if (token) {
             try {
-              // Decode JWT to get user ID
-              const payload = JSON.parse(atob(token.split('.')[1]))
-              const userId = payload.userId
+              const userId = getUserIdFromToken(token)
 
               if (userId) {
                 // Set external user ID for targeting
@@ -173,7 +172,7 @@ export default function OneSignalInit() {
           // Listen for permission changes
           OneSignal.Notifications.addEventListener('permissionChange', async (isGranted) => {
             console.log('[OneSignal] Permission changed:', isGranted)
-            
+
             // Save preference to localStorage
             localStorage.setItem('onesignal-permission', isGranted ? 'granted' : 'denied')
 
@@ -182,18 +181,16 @@ export default function OneSignalInit() {
               const token = localStorage.getItem('token')
               if (token) {
                 try {
-                  const payload = JSON.parse(atob(token.split('.')[1]))
-                  const userId = payload.userId
-                  
+                  const userId = getUserIdFromToken(token)
                   if (userId) {
                     // Login user with external ID
                     await OneSignal.login(userId)
                     console.log('[OneSignal] User logged in with ID:', userId)
-                    
+
                     // Subscribe to push notifications
                     await OneSignal.User.PushSubscription.optIn()
                     console.log('[OneSignal] ✅ User subscribed after permission grant')
-                    
+
                     // Set user tags
                     await OneSignal.User.addTags({
                       userId: userId,
@@ -212,7 +209,7 @@ export default function OneSignalInit() {
           // Listen for notification clicks
           OneSignal.Notifications.addEventListener('click', (event) => {
             console.log('[OneSignal] Notification clicked:', event)
-            
+
             // Handle notification click
             const data = event.notification.additionalData
             if (data && data.url) {
@@ -223,10 +220,10 @@ export default function OneSignalInit() {
           // Listen for foreground notifications
           OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
             console.log('[OneSignal] Foreground notification:', event)
-            
+
             // You can prevent the notification from displaying
             // event.preventDefault()
-            
+
             // Or modify the notification
             // event.notification.title = 'Modified Title'
           })
@@ -302,7 +299,7 @@ export default function OneSignalInit() {
     script.onerror = (error) => {
       console.error('[OneSignal] Failed to load SDK:', error)
     }
-    
+
     document.head.appendChild(script)
 
     // Cleanup

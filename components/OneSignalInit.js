@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { getUserIdFromToken } from '@/utils/jwt'
 
 /**
  * OneSignal Initialization Component with Custom Subscription Flow
@@ -71,21 +72,21 @@ export default function OneSignalInit() {
       await window.OneSignal.init({
         appId: 'd39b9d6c-e7b9-4bae-ad23-66b382b358f2',
         safari_web_id: 'web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4',
-        
+
         allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
         autoResubscribe: true,
-        
+
         serviceWorkerPath: '/OneSignalSDKWorker.js',
         serviceWorkerUpdaterPath: '/OneSignalSDKWorker.js',
-        
+
         notifyButton: {
           enable: false // Use custom UI
         },
-        
+
         welcomeNotification: {
           disable: true
         },
-        
+
         // DISABLE ALL AUTO-PROMPTS - we control the flow
         promptOptions: {
           slidedown: {
@@ -105,8 +106,7 @@ export default function OneSignalInit() {
       }
 
       // Decode JWT to get user ID
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const userId = payload.userId
+      const userId = getUserIdFromToken(token)
 
       if (!userId) {
         console.log('[OneSignalInit] No user ID found in token')
@@ -255,7 +255,7 @@ export default function OneSignalInit() {
   const savePlayerIdToDatabase = async (playerId, token) => {
     try {
       console.log('[OneSignal] Saving Player ID to database:', playerId)
-      
+
       const response = await fetch('/api/onesignal/subscribe', {
         method: 'POST',
         headers: {
@@ -266,7 +266,7 @@ export default function OneSignalInit() {
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
         console.log('[OneSignal] ✅ Player ID saved to database')
       } else {
@@ -357,7 +357,7 @@ export default function OneSignalInit() {
 
   const handleDismiss = async () => {
     console.log('[OneSignal] User dismissed banner')
-    
+
     // Update last prompted timestamp
     const token = localStorage.getItem('token')
     if (token) {
@@ -368,7 +368,7 @@ export default function OneSignalInit() {
         }
       })
     }
-    
+
     setShowCustomBanner(false)
   }
 
@@ -377,11 +377,11 @@ export default function OneSignalInit() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[9999] animate-slide-up">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/30 backdrop-blur-sm"
         onClick={handleDismiss}
       />
-      
+
       {/* Banner */}
       <div className="relative bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

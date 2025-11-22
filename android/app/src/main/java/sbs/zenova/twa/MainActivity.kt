@@ -404,7 +404,18 @@ class MainActivity : AppCompatActivity() {
                             // Start notification service and OneSignal login when user is logged in
                             function startNotificationService() {
                                 try {
-                                    const userId = localStorage.getItem('userId');
+                                    let userId = localStorage.getItem('userId');
+                                    if (!userId) {
+                                        try {
+                                            const storedUser = localStorage.getItem('user');
+                                            if (storedUser) {
+                                                const parsedUser = JSON.parse(storedUser);
+                                                userId = parsedUser?.id || parsedUser?._id || parsedUser?.userId || null;
+                                            }
+                                        } catch (parseError) {
+                                            console.error('Failed to derive userId from stored user:', parseError);
+                                        }
+                                    }
                                     if (userId) {
                                         // Start notification service
                                         if (window.AndroidNotifications) {

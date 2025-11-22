@@ -11,8 +11,8 @@ function AuthCallbackContent() {
 
       // Check if running in TWA (Android app)
       const isInApp = window.matchMedia('(display-mode: standalone)').matches ||
-                      window.navigator.standalone ||
-                      document.referrer.includes('android-app://')
+        window.navigator.standalone ||
+        document.referrer.includes('android-app://')
 
       console.log('🔵 Running in app:', isInApp)
       setStatus('Reading authentication data...')
@@ -56,6 +56,10 @@ function AuthCallbackContent() {
           // Store in localStorage
           localStorage.setItem('token', cookies.token)
           localStorage.setItem('user', JSON.stringify(userData))
+          const resolvedUserId = userData?.id || userData?._id || userData?.userId
+          if (resolvedUserId) {
+            localStorage.setItem('userId', resolvedUserId)
+          }
 
           // Also set cookie for middleware (non-httpOnly)
           document.cookie = `token=${cookies.token}; path=/; max-age=${7 * 24 * 60 * 60}`

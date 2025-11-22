@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { FaBell, FaCheckCircle, FaTimesCircle, FaExclamationTriangle } from 'react-icons/fa'
+import { getUserIdFromToken } from '@/utils/jwt'
 
 export default function NotificationDebugPage() {
   const [debugInfo, setDebugInfo] = useState({
@@ -37,23 +38,23 @@ export default function NotificationDebugPage() {
     if (window.OneSignal) {
       try {
         info.oneSignalInitialized = true
-        
+
         // Check if user is subscribed
         const isPushSupported = await window.OneSignal.Notifications.isPushSupported()
         const permission = await window.OneSignal.Notifications.permissionNative
         const isSubscribed = await window.OneSignal.User.PushSubscription.optedIn
-        
+
         info.oneSignalSubscribed = isSubscribed
         info.permission = permission
-        
+
         // Get user ID
         const userId = await window.OneSignal.User.getExternalId()
         info.oneSignalUserId = userId
-        
+
         // Get player ID (OneSignal subscription ID)
         const playerId = await window.OneSignal.User.PushSubscription.id
         info.oneSignalPlayerId = playerId
-        
+
         console.log('[Debug] OneSignal Status:', {
           isPushSupported,
           permission,
@@ -104,17 +105,15 @@ export default function NotificationDebugPage() {
 
       // Request permission first
       await window.OneSignal.Notifications.requestPermission()
-      
+
       // Login user
       const token = localStorage.getItem('token')
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        const userId = payload.userId
-        
+      const userId = getUserIdFromToken(token)
+      if (userId) {
         await window.OneSignal.login(userId)
         console.log('[Debug] Logged in to OneSignal with user ID:', userId)
       }
-      
+
       await checkNotificationStatus()
       alert('Successfully subscribed to notifications!')
     } catch (error) {
@@ -126,7 +125,7 @@ export default function NotificationDebugPage() {
   const sendTestNotification = async () => {
     setSending(true)
     setTestResult(null)
-    
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/notifications/send', {
@@ -144,7 +143,7 @@ export default function NotificationDebugPage() {
 
       const result = await response.json()
       console.log('[Debug] Test notification result:', result)
-      
+
       setTestResult(result)
     } catch (error) {
       console.error('[Debug] Error sending test notification:', error)
@@ -162,7 +161,7 @@ export default function NotificationDebugPage() {
       if (Notification.permission !== 'granted') {
         await Notification.requestPermission()
       }
-      
+
       if (Notification.permission === 'granted') {
         new Notification('🧪 Browser Test Notification', {
           body: 'This is a direct browser notification (not via OneSignal)',
@@ -205,10 +204,9 @@ export default function NotificationDebugPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Permission Status</span>
-              <span className={`text-sm font-medium ${
-                debugInfo.permission === 'granted' ? 'text-green-600' :
-                debugInfo.permission === 'denied' ? 'text-red-600' : 'text-yellow-600'
-              }`}>
+              <span className={`text-sm font-medium ${debugInfo.permission === 'granted' ? 'text-green-600' :
+                  debugInfo.permission === 'denied' ? 'text-red-600' : 'text-yellow-600'
+                }`}>
                 {debugInfo.permission}
               </span>
             </div>
@@ -260,7 +258,7 @@ export default function NotificationDebugPage() {
           >
             🔄 Refresh Status
           </button>
-          
+
           <button
             onClick={requestPermission}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -268,7 +266,7 @@ export default function NotificationDebugPage() {
           >
             🔔 Request Permission
           </button>
-          
+
           <button
             onClick={subscribeToOneSignal}
             className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
@@ -276,7 +274,7 @@ export default function NotificationDebugPage() {
           >
             ✅ Subscribe to OneSignal
           </button>
-          
+
           <button
             onClick={showBrowserNotification}
             className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
@@ -284,7 +282,7 @@ export default function NotificationDebugPage() {
           >
             🧪 Test Browser Notification
           </button>
-          
+
           <button
             onClick={sendTestNotification}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors md:col-span-2"
@@ -297,9 +295,8 @@ export default function NotificationDebugPage() {
 
       {/* Test Result */}
       {testResult && (
-        <div className={`rounded-lg shadow p-6 ${
-          testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        }`}>
+        <div className={`rounded-lg shadow p-6 ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
           <h3 className="font-semibold text-gray-800 mb-2">Test Result</h3>
           <pre className="text-xs bg-white p-3 rounded overflow-auto">
             {JSON.stringify(testResult, null, 2)}

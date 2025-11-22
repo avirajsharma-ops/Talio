@@ -262,6 +262,7 @@ export default function Header({ toggleSidebar }) {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('userId')
     // Clear cookie
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     toast.success('Logged out successfully')
@@ -558,8 +559,8 @@ export default function Header({ toggleSidebar }) {
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900 truncate max-w-32">
                   {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
-                   user?.firstName ? `${user.firstName} ${user.lastName}` :
-                   user?.email || 'User'}
+                    user?.firstName ? `${user.firstName} ${user.lastName}` :
+                      user?.email || 'User'}
                 </p>
                 <p className="text-xs text-gray-500">
                   {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
@@ -588,8 +589,8 @@ export default function Header({ toggleSidebar }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">
                           {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
-                           user?.firstName ? `${user.firstName} ${user.lastName}` :
-                           user?.email || 'User'}
+                            user?.firstName ? `${user.firstName} ${user.lastName}` :
+                              user?.email || 'User'}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
                           {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
@@ -684,7 +685,7 @@ export default function Header({ toggleSidebar }) {
                   <FaSpinner className="animate-spin w-8 h-8" style={{ color: primaryColor }} />
                 </div>
               ) : searchResults ? (
-<div>
+                <div>
                   {Object.entries(searchResults).map(([category, items]) => {
                     if (items.length === 0) return null
                     return (

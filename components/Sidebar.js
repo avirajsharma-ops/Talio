@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
           { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
           { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-          {name: 'Geofencing', path: '/dashboard/team/geofencing'}
+          { name: 'Geofencing', path: '/dashboard/team/geofencing' }
         ]
       }
 
@@ -104,6 +104,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem('userId')
     toast.success('Logged out successfully')
     router.push('/login')
   }
@@ -184,9 +185,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       </div>
                       <span className="text-sm font-medium">{item.name}</span>
                     </div>
-                    <div className={`transition-transform duration-200 ${
-                      expandedMenus[item.name] ? 'rotate-90' : ''
-                    }`}>
+                    <div className={`transition-transform duration-200 ${expandedMenus[item.name] ? 'rotate-90' : ''
+                      }`}>
                       <FaChevronRight className="w-3 h-3" />
                     </div>
                   </button>

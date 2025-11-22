@@ -82,6 +82,10 @@ export default function LoginPage() {
         // Store in localStorage
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
+        const resolvedUserId = data.user?.id || data.user?._id || data.user?.userId
+        if (resolvedUserId) {
+          localStorage.setItem('userId', resolvedUserId)
+        }
 
         // Also set cookie for middleware
         document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}` // 7 days
@@ -106,8 +110,8 @@ export default function LoginPage() {
 
       // Check if running in TWA (Trusted Web Activity) / Android app
       const isInApp = window.matchMedia('(display-mode: standalone)').matches ||
-                      window.navigator.standalone ||
-                      document.referrer.includes('android-app://')
+        window.navigator.standalone ||
+        document.referrer.includes('android-app://')
 
       // Determine the correct origin based on environment
       // If in Android app, use the production URL, otherwise use current origin

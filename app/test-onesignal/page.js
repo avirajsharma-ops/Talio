@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getUserIdFromToken } from '@/utils/jwt'
 
 export default function TestOneSignalPage() {
   const router = useRouter()
@@ -42,8 +43,7 @@ export default function TestOneSignalPage() {
       const token = localStorage.getItem('token')
       let userId = null
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        userId = payload.userId
+        userId = getUserIdFromToken(token)
       }
 
       setStatus({
@@ -79,12 +79,19 @@ export default function TestOneSignalPage() {
   const subscribeUser = async () => {
     try {
       await window.OneSignal.User.PushSubscription.optIn()
-      
+
       // Login with user ID if available
-      if (status.userId) {
-        await window.OneSignal.login(status.userId)
+      let userId = status.userId
+      if (!userId) {
+        const token = localStorage.getItem('token')
+        userId = getUserIdFromToken(token)
       }
-      
+
+      if (userId) {
+        await window.OneSignal.login(userId)
+        console.log('[Debug] Logged in to OneSignal with user ID:', userId)
+      }
+
       // Recheck status
       setTimeout(checkOneSignalStatus, 1000)
     } catch (error) {
@@ -143,7 +150,7 @@ export default function TestOneSignalPage() {
           {/* Status Section */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Status</h2>
-            
+
             {status.loading ? (
               <p className="text-gray-500">Loading...</p>
             ) : status.error ? (
@@ -158,21 +165,21 @@ export default function TestOneSignalPage() {
                     {status.initialized ? '✅ Yes' : '❌ No'}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <span className="font-medium">Permission:</span>
                   <span className={status.permission ? 'text-green-600' : 'text-yellow-600'}>
                     {status.permission ? '✅ Granted' : '⚠️ Not Granted'}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <span className="font-medium">Subscribed:</span>
                   <span className={status.subscribed ? 'text-green-600' : 'text-red-600'}>
                     {status.subscribed ? '✅ Yes' : '❌ No'}
                   </span>
                 </div>
-                
+
                 {status.userId && (
                   <div className="flex items-center gap-3">
                     <span className="font-medium">User ID:</span>
@@ -181,7 +188,7 @@ export default function TestOneSignalPage() {
                     </code>
                   </div>
                 )}
-                
+
                 {status.playerId && (
                   <div className="flex items-center gap-3">
                     <span className="font-medium">Player ID:</span>
@@ -213,7 +220,7 @@ export default function TestOneSignalPage() {
                   Request Permission
                 </button>
               )}
-              
+
               {status.permission && !status.subscribed && (
                 <button
                   onClick={subscribeUser}
@@ -222,16 +229,15 @@ export default function TestOneSignalPage() {
                   Subscribe to Notifications
                 </button>
               )}
-              
+
               {status.subscribed && (
                 <button
                   onClick={sendTestNotification}
                   disabled={sending}
-                  className={`w-full px-4 py-2 text-white rounded ${
-                    sending 
-                      ? 'bg-gray-400 cursor-not-allowed' 
+                  className={`w-full px-4 py-2 text-white rounded ${sending
+                      ? 'bg-gray-400 cursor-not-allowed'
                       : 'bg-purple-500 hover:bg-purple-600'
-                  }`}
+                    }`}
                 >
                   {sending ? 'Sending...' : 'Send Test Notification'}
                 </button>
@@ -243,11 +249,10 @@ export default function TestOneSignalPage() {
           {testResult && (
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-4">Test Result</h2>
-              <div className={`border rounded p-4 ${
-                testResult.success 
-                  ? 'bg-green-50 border-green-200' 
+              <div className={`border rounded p-4 ${testResult.success
+                  ? 'bg-green-50 border-green-200'
                   : 'bg-red-50 border-red-200'
-              }`}>
+                }`}>
                 <pre className="text-sm overflow-auto">
                   {JSON.stringify(testResult, null, 2)}
                 </pre>
