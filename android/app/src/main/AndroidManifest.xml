@@ -98,11 +98,14 @@
             </intent-filter>
         </activity>
 
-        <!-- OneSignal Configuration -->
-        <!-- Disable default notification opening behavior - we handle it in the app -->
-        <meta-data
-            android:name="com.onesignal.NotificationOpened.DEFAULT"
-            android:value="DISABLE" />
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".services.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Location Tracking Service -->
         <service

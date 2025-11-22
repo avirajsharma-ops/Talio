@@ -372,7 +372,7 @@ const ProjectSchema = new mongoose.Schema({
 })
 
 // Generate project code
-ProjectSchema.pre('save', function(next) {
+ProjectSchema.pre('save', function (next) {
   if (!this.projectCode) {
     const year = new Date().getFullYear()
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -383,7 +383,7 @@ ProjectSchema.pre('save', function(next) {
 })
 
 // Virtual for project duration
-ProjectSchema.virtual('duration').get(function() {
+ProjectSchema.virtual('duration').get(function () {
   if (this.startDate && this.endDate) {
     return Math.ceil((this.endDate - this.startDate) / (1000 * 60 * 60 * 24))
   }
@@ -391,7 +391,7 @@ ProjectSchema.virtual('duration').get(function() {
 })
 
 // Virtual for days remaining
-ProjectSchema.virtual('daysRemaining').get(function() {
+ProjectSchema.virtual('daysRemaining').get(function () {
   if (this.endDate && this.status !== 'completed') {
     const today = new Date()
     const remaining = Math.ceil((this.endDate - today) / (1000 * 60 * 60 * 24))
@@ -401,14 +401,14 @@ ProjectSchema.virtual('daysRemaining').get(function() {
 })
 
 // Methods
-ProjectSchema.methods.addTeamMember = function(employeeId, role, permissions = [], allocation = 100) {
-  const existingMember = this.team.find(member => 
+ProjectSchema.methods.addTeamMember = function (employeeId, role, permissions = [], allocation = 100) {
+  const existingMember = this.team.find(member =>
     member.member.toString() === employeeId.toString() && member.isActive)
-  
+
   if (existingMember) {
     return { success: false, message: 'Employee is already a team member' }
   }
-  
+
   this.team.push({
     member: employeeId,
     role,
@@ -417,40 +417,40 @@ ProjectSchema.methods.addTeamMember = function(employeeId, role, permissions = [
     joinedAt: new Date(),
     isActive: true
   })
-  
+
   return { success: true, message: 'Team member added successfully' }
 }
 
-ProjectSchema.methods.updateProgress = function() {
+ProjectSchema.methods.updateProgress = function () {
   // This would calculate progress based on completed tasks/milestones
   // Implementation depends on your task completion logic
   return this.progress
 }
 
-ProjectSchema.methods.calculateHealth = function() {
+ProjectSchema.methods.calculateHealth = function () {
   let healthScore = 100
-  
+
   // Check schedule variance
   if (this.daysRemaining < 0) healthScore -= 30
   else if (this.daysRemaining < 7) healthScore -= 15
-  
+
   // Check budget variance
   if (this.budget.spent > this.budget.allocated) healthScore -= 25
   else if (this.budget.spent > this.budget.allocated * 0.9) healthScore -= 10
-  
+
   // Check risk level
   const highRisks = this.risks.filter(r => r.impact === 'high' && r.status !== 'closed').length
   healthScore -= highRisks * 10
-  
+
   // Determine health color
   if (healthScore >= 80) this.health = 'green'
   else if (healthScore >= 60) this.health = 'yellow'
   else this.health = 'red'
-  
+
   return this.health
 }
 
-ProjectSchema.methods.addRisk = function(title, description, category, probability, impact, owner) {
+ProjectSchema.methods.addRisk = function (title, description, category, probability, impact, owner) {
   this.risks.push({
     title,
     description,
@@ -462,7 +462,7 @@ ProjectSchema.methods.addRisk = function(title, description, category, probabili
   })
 }
 
-ProjectSchema.methods.addUpdate = function(title, content, type, author, visibility = 'team') {
+ProjectSchema.methods.addUpdate = function (title, content, type, author, visibility = 'team') {
   this.updates.push({
     title,
     content,
@@ -474,7 +474,7 @@ ProjectSchema.methods.addUpdate = function(title, content, type, author, visibil
 }
 
 // Indexes
-ProjectSchema.index({ projectCode: 1 })
+// projectCode already indexed via unique: true
 ProjectSchema.index({ projectManager: 1, status: 1 })
 ProjectSchema.index({ 'team.member': 1, 'team.isActive': 1 })
 ProjectSchema.index({ status: 1, priority: 1 })

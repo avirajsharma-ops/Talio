@@ -100,6 +100,9 @@ const AttendanceSchema = new mongoose.Schema({
 
 // Compound index for employee and date
 AttendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
+// Additional indexes for common queries
+AttendanceSchema.index({ date: 1, status: 1 }); // Date-based reports
+AttendanceSchema.index({ employee: 1, date: -1 }); // Employee attendance history
 
 export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
 

@@ -76,7 +76,7 @@ export async function POST(request) {
       general: {
         title: customTitle || '🔔 Test General Notification',
         message: customMessage || 'This is a general test notification.',
-        type: 'general',
+        type: 'system',
         data: {
           url: '/dashboard'
         }
@@ -125,8 +125,8 @@ export async function POST(request) {
     // Save to database
     try {
       const notificationType = notification.type === 'message' ? 'chat' :
-                               notification.type === 'task' ? 'task' :
-                               notification.type === 'announcement' ? 'announcement' : 'system'
+        notification.type === 'task' ? 'task' :
+          notification.type === 'announcement' ? 'announcement' : 'system'
 
       await Notification.create({
         user: user._id,
@@ -238,7 +238,7 @@ export async function GET() {
       },
       {
         name: 'General Notification',
-        type: 'general',
+        type: 'system',
         channel: 'talio_general',
         vibration: 'Default',
         led: 'White'

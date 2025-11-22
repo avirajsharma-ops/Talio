@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "sbs.zenova.twa.app-mergeReleaseResources-47:/values-v26/values-v26.xml",
+            "outputFile": "sbs.zenova.twa.app-mergeReleaseResources-41:/values-v26/values-v26.xml",
             "map": [
                 {
-                    "source": "/Users/apple/.gradle/caches/transforms-3/a41e6a68a8051e59a1bea027c058f81a/transformed/appcompat-1.6.1/res/values-v26/values-v26.xml",
+                    "source": "C:\\Users\\adilk\\.gradle\\caches\\transforms-3\\e8b7fa243aa043d8941c2baf1b8bd6b9\\transformed\\appcompat-1.6.1\\res\\values-v26\\values-v26.xml",
                     "from": {
                         "startLines": "2,3,4,8,12,16",
                         "startColumns": "4,4,4,4,4,4",

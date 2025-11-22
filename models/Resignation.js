@@ -349,7 +349,7 @@ const ResignationSchema = new mongoose.Schema({
 })
 
 // Generate resignation number
-ResignationSchema.pre('save', function(next) {
+ResignationSchema.pre('save', function (next) {
   if (!this.resignationNumber) {
     const year = new Date().getFullYear()
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -360,7 +360,7 @@ ResignationSchema.pre('save', function(next) {
 })
 
 // Methods
-ResignationSchema.methods.calculateNoticePeriod = function() {
+ResignationSchema.methods.calculateNoticePeriod = function () {
   const submissionDate = new Date(this.submissionDate)
   const lastWorkingDate = new Date(this.lastWorkingDate)
   const timeDiff = lastWorkingDate.getTime() - submissionDate.getTime()
@@ -368,7 +368,7 @@ ResignationSchema.methods.calculateNoticePeriod = function() {
   return this.noticePeriod.served
 }
 
-ResignationSchema.methods.calculateProcessingTime = function() {
+ResignationSchema.methods.calculateProcessingTime = function () {
   if (this.completedAt) {
     const submissionDate = new Date(this.submissionDate)
     const completionDate = new Date(this.completedAt)
@@ -378,15 +378,15 @@ ResignationSchema.methods.calculateProcessingTime = function() {
   return this.processingTime
 }
 
-ResignationSchema.methods.isReadyForCompletion = function() {
+ResignationSchema.methods.isReadyForCompletion = function () {
   return this.status === 'approved' &&
-         this.knowledgeTransfer.completionStatus === 'completed' &&
-         this.assetReturn.allAssetsReturned &&
-         this.accessRevocation.allAccessRevoked &&
-         this.finalSettlement.paid
+    this.knowledgeTransfer.completionStatus === 'completed' &&
+    this.assetReturn.allAssetsReturned &&
+    this.accessRevocation.allAccessRevoked &&
+    this.finalSettlement.paid
 }
 
-ResignationSchema.methods.addAuditEntry = function(action, performedBy, details) {
+ResignationSchema.methods.addAuditEntry = function (action, performedBy, details) {
   this.auditTrail.push({
     action,
     performedBy,

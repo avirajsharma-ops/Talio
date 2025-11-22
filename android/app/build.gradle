@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
-    // Removed: id 'com.google.gms.google-services' - Not needed with OneSignal
+    id 'com.google.gms.google-services' // Firebase
 }
 
 android {
@@ -67,8 +67,10 @@ dependencies {
     // Play Services for Location
     implementation 'com.google.android.gms:play-services-location:21.1.0'
 
-    // OneSignal SDK for Push Notifications (includes FCM automatically)
-    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
+    // Firebase Cloud Messaging for Push Notifications
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
 
     // Socket.IO Client for real-time notifications
     implementation 'io.socket:socket.io-client:2.1.0'

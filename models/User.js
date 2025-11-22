@@ -33,6 +33,7 @@ const UserSchema = new mongoose.Schema({
   },
   passwordResetToken: String,
   passwordResetExpires: Date,
+  // Firebase Cloud Messaging tokens for push notifications
   fcmTokens: [{
     token: {
       type: String,
@@ -40,8 +41,13 @@ const UserSchema = new mongoose.Schema({
     },
     device: {
       type: String,
-      enum: ['web', 'android', 'ios'],
-      default: 'web'
+      enum: ['android'],
+      default: 'android'
+    },
+    deviceInfo: {
+      model: String,
+      osVersion: String,
+      appVersion: String
     },
     createdAt: {
       type: Date,
@@ -52,39 +58,20 @@ const UserSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
-  // OneSignal subscription data
-  oneSignalPlayerId: {
-    type: String,
-    default: null
-  },
-  oneSignalSubscribedAt: {
-    type: Date,
-    default: null
-  },
-  oneSignalLastPromptedAt: {
-    type: Date,
-    default: null
-  },
-  // Notification permission tracking
-  notificationPermissionStatus: {
-    type: String,
-    enum: ['granted', 'denied', 'default', null],
-    default: null
-  },
-  notificationPermissionDeniedAt: {
-    type: Date,
-    default: null
-  },
-  notificationPermissionGrantedAt: {
-    type: Date,
-    default: null
+  // Notification preferences
+  notificationPreferences: {
+    chat: { type: Boolean, default: true },
+    projects: { type: Boolean, default: true },
+    leave: { type: Boolean, default: true },
+    attendance: { type: Boolean, default: true },
+    announcements: { type: Boolean, default: true }
   }
 }, {
   timestamps: true,
 });
 
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
   }
@@ -94,9 +81,13 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-UserSchema.methods.comparePassword = async function(enteredPassword) {
+UserSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Indexes for performance optimization
+UserSchema.index({ employeeId: 1 }); // Reverse lookup from employee
+UserSchema.index({ role: 1, isActive: 1 }); // Role-based queries
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
 

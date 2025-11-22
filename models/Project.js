@@ -462,7 +462,7 @@ const ProjectSchema = new mongoose.Schema({
 })
 
 // Generate project number
-ProjectSchema.pre('save', function(next) {
+ProjectSchema.pre('save', function (next) {
   if (!this.projectNumber) {
     const year = new Date().getFullYear()
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -473,12 +473,12 @@ ProjectSchema.pre('save', function(next) {
 })
 
 // Virtual for overdue status
-ProjectSchema.virtual('isOverdue').get(function() {
+ProjectSchema.virtual('isOverdue').get(function () {
   return this.dueDate < new Date() && this.status !== 'completed' && this.status !== 'cancelled'
 })
 
 // Methods
-ProjectSchema.methods.canAssignTo = function(assignerId, assigneeId) {
+ProjectSchema.methods.canAssignTo = function (assignerId, assigneeId) {
   // Self assignment is always allowed
   if (assignerId.toString() === assigneeId.toString()) {
     return { allowed: true, reason: 'self_assignment' }
@@ -489,7 +489,7 @@ ProjectSchema.methods.canAssignTo = function(assignerId, assigneeId) {
   return { allowed: true, reason: 'hierarchy_check_needed' }
 }
 
-ProjectSchema.methods.addTimeEntry = function(employeeId, startTime, endTime, description) {
+ProjectSchema.methods.addTimeEntry = function (employeeId, startTime, endTime, description) {
   const duration = Math.round((endTime - startTime) / (1000 * 60)) // Minutes
 
   this.timeEntries.push({
@@ -509,7 +509,7 @@ ProjectSchema.methods.addTimeEntry = function(employeeId, startTime, endTime, de
     total + entry.duration, 0)
 }
 
-ProjectSchema.methods.updateProgress = function(newProgress, updatedBy, notes) {
+ProjectSchema.methods.updateProgress = function (newProgress, updatedBy, notes) {
   const oldProgress = this.progress
   this.progress = Math.max(0, Math.min(100, newProgress))
 
@@ -532,7 +532,7 @@ ProjectSchema.methods.updateProgress = function(newProgress, updatedBy, notes) {
   }
 }
 
-ProjectSchema.methods.assignTo = function(assigneeId, assignerId, role = 'owner') {
+ProjectSchema.methods.assignTo = function (assigneeId, assignerId, role = 'owner') {
   // Check if already assigned
   const existingAssignment = this.assignedTo.find(a =>
     a.employee.toString() === assigneeId.toString())
@@ -560,7 +560,7 @@ ProjectSchema.methods.assignTo = function(assigneeId, assignerId, role = 'owner'
   return { success: true, message: 'Project assigned successfully' }
 }
 
-ProjectSchema.methods.calculateEfficiency = function() {
+ProjectSchema.methods.calculateEfficiency = function () {
   if (this.estimatedHours && this.actualHours) {
     this.metrics.efficiency = (this.estimatedHours / this.actualHours) * 100
   }
@@ -568,7 +568,7 @@ ProjectSchema.methods.calculateEfficiency = function() {
 }
 
 // Indexes
-ProjectSchema.index({ projectNumber: 1 })
+// projectNumber already indexed via unique: true
 ProjectSchema.index({ 'assignedTo.employee': 1, status: 1 })
 ProjectSchema.index({ assignedBy: 1, status: 1 })
 ProjectSchema.index({ dueDate: 1, status: 1 })

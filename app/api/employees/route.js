@@ -4,6 +4,7 @@ import Employee from '@/models/Employee'
 import User from '@/models/User'
 import Department from '@/models/Department'
 import Designation from '@/models/Designation'
+import queryCache from '@/lib/queryCache'
 import bcrypt from 'bcryptjs'
 
 // GET - List all employees with filters
@@ -17,6 +18,13 @@ export async function GET(request) {
     const search = searchParams.get('search') || ''
     const department = searchParams.get('department')
     const status = searchParams.get('status')
+
+    // Generate cache key
+    const cacheKey = queryCache.generateKey('employees', page, limit, search, department, status)
+    const cached = queryCache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
 
     // Build query
     const query = {}
@@ -40,29 +48,30 @@ export async function GET(request) {
 
     const skip = (page - 1) * limit
 
-    // Fetch employees with populated fields
+    // Optimized: Use select() to fetch only needed fields and lean() for plain objects
     const employees = await Employee.find(query)
+      .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status profilePicture')
       .populate({
         path: 'department',
         select: 'name _id',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .populate({
         path: 'designation',
         select: 'title levelName level',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .populate({
         path: 'reportingManager',
         select: 'firstName lastName',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean()
 
-    // Get user data for each employee (reverse lookup)
+    // Optimized: Single query to get all user data
     const employeeIds = employees.map(emp => emp._id)
     const users = await User.find({ employeeId: { $in: employeeIds } })
       .select('_id email role employeeId')
@@ -88,7 +97,7 @@ export async function GET(request) {
 
     const total = await Employee.countDocuments(query)
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: employeesWithUsers,
       pagination: {
@@ -97,7 +106,12 @@ export async function GET(request) {
         total,
         pages: Math.ceil(total / limit),
       },
-    })
+    }
+
+    // Cache for 30 seconds
+    queryCache.set(cacheKey, response, 30000)
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Get employees error:', error)
     console.error('Error stack:', error.stack)
@@ -115,8 +129,13 @@ export async function POST(request) {
 
     const data = await request.json()
 
-    // Check if employee code already exists
-    const existingEmployee = await Employee.findOne({ employeeCode: data.employeeCode })
+    // Optimized: Check both in parallel
+    const [existingEmployee, existingEmail, existingUser] = await Promise.all([
+      Employee.findOne({ employeeCode: data.employeeCode }).lean(),
+      Employee.findOne({ email: data.email }).lean(),
+      User.findOne({ email: data.email }).lean()
+    ])
+
     if (existingEmployee) {
       return NextResponse.json(
         { success: false, message: 'Employee code already exists' },
@@ -124,8 +143,6 @@ export async function POST(request) {
       )
     }
 
-    // Check if email already exists
-    const existingEmail = await Employee.findOne({ email: data.email })
     if (existingEmail) {
       return NextResponse.json(
         { success: false, message: 'Email already exists' },
@@ -133,49 +150,53 @@ export async function POST(request) {
       )
     }
 
-    // Check if user with this email already exists
-    const existingUser = await User.findOne({ email: data.email })
     if (existingUser) {
       return NextResponse.json(
         { success: false, message: 'User account with this email already exists' },
         { status: 400 }
       )
     }
+  }
 
     // Create employee first
     const employee = await Employee.create(data)
 
-    // Create user account for the employee
-    const password = data.password || 'employee123' // Default password if not provided
+  // Create user account for the employee
+  const password = data.password || 'employee123' // Default password if not provided
 
-    const user = await User.create({
+  const user = await User.create({
+    email: data.email,
+    password: password, // Let the pre-save hook handle hashing
+    role: data.role || 'employee', // Default role is employee
+    employeeId: employee._id,
+  })
+
+  const populatedEmployee = await Employee.findById(employee._id)
+    .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status')
+    .populate('department', 'name')
+    .populate('designation', 'title levelName')
+    .populate('reportingManager', 'firstName lastName')
+    .lean()
+
+  // Clear employee list cache
+  queryCache.clearPattern('employees')
+
+  return NextResponse.json({
+    success: true,
+    message: 'Employee and user account created successfully',
+    data: populatedEmployee,
+    credentials: {
       email: data.email,
-      password: password, // Let the pre-save hook handle hashing
-      role: data.role || 'employee', // Default role is employee
-      employeeId: employee._id,
-    })
-
-    const populatedEmployee = await Employee.findById(employee._id)
-      .populate('department', 'name')
-      .populate('designation', 'title levelName')
-      .populate('reportingManager', 'firstName lastName')
-
-    return NextResponse.json({
-      success: true,
-      message: 'Employee and user account created successfully',
-      data: populatedEmployee,
-      credentials: {
-        email: data.email,
-        password: data.password || 'employee123',
-        message: 'Please share these credentials with the employee'
-      }
-    }, { status: 201 })
-  } catch (error) {
-    console.error('Create employee error:', error)
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create employee' },
-      { status: 500 }
-    )
-  }
+      password: data.password || 'employee123',
+      message: 'Please share these credentials with the employee'
+    }
+  }, { status: 201 })
+} catch (error) {
+  console.error('Create employee error:', error)
+  return NextResponse.json(
+    { success: false, message: error.message || 'Failed to create employee' },
+    { status: 500 }
+  )
+}
 }
 

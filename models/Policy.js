@@ -202,7 +202,7 @@ const PolicySchema = new mongoose.Schema({
 });
 
 // Methods
-PolicySchema.methods.isApplicableTo = function(employee) {
+PolicySchema.methods.isApplicableTo = function (employee) {
   if (this.applicableTo === 'all') return true
   if (this.applicableTo === 'specific') {
     return this.specificEmployees.includes(employee._id)
@@ -213,7 +213,7 @@ PolicySchema.methods.isApplicableTo = function(employee) {
   return false
 }
 
-PolicySchema.methods.addView = function(employeeId, duration = 0) {
+PolicySchema.methods.addView = function (employeeId, duration = 0) {
   this.views.push({
     employee: employeeId,
     viewedAt: new Date(),
@@ -222,7 +222,7 @@ PolicySchema.methods.addView = function(employeeId, duration = 0) {
   this.analytics.totalViews += 1
 }
 
-PolicySchema.methods.addAcknowledgment = function(employeeId, ipAddress = '') {
+PolicySchema.methods.addAcknowledgment = function (employeeId, ipAddress = '') {
   const existingAck = this.acknowledgments.find(ack =>
     ack.employee.toString() === employeeId.toString()
   )
@@ -237,7 +237,7 @@ PolicySchema.methods.addAcknowledgment = function(employeeId, ipAddress = '') {
 }
 
 // Indexes
-PolicySchema.index({ code: 1 })
+// code already indexed via unique: true
 PolicySchema.index({ category: 1, status: 1 })
 PolicySchema.index({ effectiveDate: 1, expiryDate: 1 })
 PolicySchema.index({ tags: 1 })

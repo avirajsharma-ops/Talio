@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
+import Department from '@/models/Department'
+import Designation from '@/models/Designation'
+import queryCache from '@/lib/queryCache'
 import { logActivity } from '@/lib/activityLogger'
 
 // GET - Get single employee
@@ -9,21 +12,28 @@ export async function GET(request, { params }) {
   try {
     await connectDB()
 
+    // Check cache first
+    const cacheKey = queryCache.generateKey('employee', params.id)
+    const cached = queryCache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
+
     const employee = await Employee.findById(params.id)
       .populate({
         path: 'department',
         select: 'name',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .populate({
         path: 'designation',
         select: 'title levelName',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .populate({
         path: 'reportingManager',
         select: 'firstName lastName email',
-        options: { strictPopulate: false }
+        options: { strictPopulate: false, lean: true }
       })
       .lean()
 
@@ -45,10 +55,15 @@ export async function GET(request, { params }) {
       userId: user || null
     }
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: employeeWithUser,
-    })
+    }
+
+    // Cache for 60 seconds
+    queryCache.set(cacheKey, response, 60000)
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Get employee error:', error)
     console.error('Error stack:', error.stack)
@@ -67,7 +82,7 @@ export async function PUT(request, { params }) {
     const data = await request.json()
 
     // Check if employee exists
-    const employee = await Employee.findById(params.id)
+    const employee = await Employee.findById(params.id).lean()
     if (!employee) {
       return NextResponse.json(
         { success: false, message: 'Employee not found' },
@@ -75,23 +90,28 @@ export async function PUT(request, { params }) {
       )
     }
 
-    // Check if employee code is being changed and already exists
+    // Optimized: Check both validations in parallel if needed
+    const validationChecks = []
+
     if (data.employeeCode && data.employeeCode !== employee.employeeCode) {
-      const existingEmployee = await Employee.findOne({ employeeCode: data.employeeCode })
-      if (existingEmployee) {
-        return NextResponse.json(
-          { success: false, message: 'Employee code already exists' },
-          { status: 400 }
-        )
-      }
+      validationChecks.push(
+        Employee.findOne({ employeeCode: data.employeeCode }).lean()
+          .then(existing => existing ? 'Employee code already exists' : null)
+      )
     }
 
-    // Check if email is being changed and already exists
     if (data.email && data.email !== employee.email) {
-      const existingEmail = await Employee.findOne({ email: data.email })
-      if (existingEmail) {
+      validationChecks.push(
+        Employee.findOne({ email: data.email }).lean()
+          .then(existing => existing ? 'Email already exists' : null)
+      )
+    }
+
+    if (validationChecks.length > 0) {
+      const errors = (await Promise.all(validationChecks)).filter(Boolean)
+      if (errors.length > 0) {
         return NextResponse.json(
-          { success: false, message: 'Email already exists' },
+          { success: false, message: errors[0] },
           { status: 400 }
         )
       }
@@ -105,6 +125,11 @@ export async function PUT(request, { params }) {
       .populate('department', 'name')
       .populate('designation', 'title levelName')
       .populate('reportingManager', 'firstName lastName')
+      .lean()
+
+    // Clear cache for this employee and list
+    queryCache.delete(queryCache.generateKey('employee', params.id))
+    queryCache.clearPattern('employees')
 
     // Log activity for profile update
     await logActivity({

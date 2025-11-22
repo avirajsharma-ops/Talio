@@ -25,9 +25,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.google.android.gms.location.*
-import com.onesignal.OneSignal
+import com.google.firebase.messaging.FirebaseMessaging
 import sbs.zenova.twa.databinding.ActivityMainBinding
 import sbs.zenova.twa.services.NotificationService
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
@@ -274,8 +275,8 @@ class MainActivity : AppCompatActivity() {
             addJavascriptInterface(NavigationBarInterface(), "AndroidInterface")
             addJavascriptInterface(NotificationInterface(), "AndroidNotifications")
 
-            // Add JavaScript interface for OneSignal
-            addJavascriptInterface(OneSignalInterface(), "AndroidOneSignal")
+            // Add JavaScript interface for Firebase Cloud Messaging
+            addJavascriptInterface(FCMInterface(), "AndroidFCM")
 
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -401,7 +402,7 @@ class MainActivity : AppCompatActivity() {
                                 });
                             }
 
-                            // Start notification service and OneSignal login when user is logged in
+                            // Start notification service and FCM token registration when user is logged in
                             function startNotificationService() {
                                 try {
                                     let userId = localStorage.getItem('userId');
@@ -423,10 +424,10 @@ class MainActivity : AppCompatActivity() {
                                             console.log('Notification service started for user:', userId);
                                         }
 
-                                        // Login to OneSignal with external user ID
-                                        if (window.AndroidOneSignal) {
-                                            window.AndroidOneSignal.login(userId);
-                                            console.log('OneSignal login for user:', userId);
+                                        // Register FCM token with backend
+                                        if (window.AndroidFCM) {
+                                            window.AndroidFCM.registerToken(userId);
+                                            console.log('FCM token registration for user:', userId);
                                         }
                                     }
                                 } catch (e) {
@@ -501,7 +502,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestPermissions() {
         // DO NOT request notification permission here
-        // Notification permission is handled by the web app's OneSignal flow
+        // Notification permission is handled by Android's native permission system
         // Only request location permissions for attendance tracking
 
         Log.d("Permissions", "Requesting location permissions only (notification handled by web app)")
@@ -786,27 +787,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // JavaScript Interface for OneSignal
-    inner class OneSignalInterface {
+    // JavaScript Interface for Firebase Cloud Messaging
+    inner class FCMInterface {
         @JavascriptInterface
-        fun login(externalUserId: String) {
+        fun registerToken(userId: String) {
             runOnUiThread {
                 try {
-                    // Login user with external ID (as per OneSignal documentation)
-                    OneSignal.login(externalUserId)
-                    Log.d("OneSignal", "✅ User logged in with external ID: $externalUserId")
-
-                    // Set user tags for segmentation
-                    OneSignal.User.addTags(mapOf(
-                        "userId" to externalUserId,
-                        "platform" to "android",
-                        "appVersion" to "1.0.1",
-                        "lastLogin" to System.currentTimeMillis().toString()
-                    ))
-
-                    Log.d("OneSignal", "✅ User tags set for segmentation")
+                    // Get FCM token
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val token = task.result
+                            Log.d("FCM", "✅ FCM Token: $token")
+                            
+                            // Send token to backend server
+                            sendTokenToServer(userId, token)
+                        } else {
+                            Log.e("FCM", "❌ Failed to get FCM token", task.exception)
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "❌ Failed to login user", e)
+                    Log.e("FCM", "❌ Failed to register FCM token", e)
                 }
             }
         }
@@ -815,28 +815,39 @@ class MainActivity : AppCompatActivity() {
         fun logout() {
             runOnUiThread {
                 try {
-                    OneSignal.logout()
-                    Log.d("OneSignal", "✅ User logged out")
+                    // Clear FCM token from backend
+                    Log.d("FCM", "✅ Logging out - FCM token will be cleared from server")
+                    // The web app will handle removing the token from backend
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "❌ Failed to logout user", e)
+                    Log.e("FCM", "❌ Failed to logout", e)
                 }
             }
         }
 
         @JavascriptInterface
-        fun getSubscriptionId(callback: String) {
+        fun getToken(callback: String) {
             runOnUiThread {
                 try {
-                    val subscriptionId = OneSignal.User.pushSubscription.id
-                    Log.d("OneSignal", "Subscription ID: $subscriptionId")
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val token = task.result
+                            Log.d("FCM", "FCM Token: $token")
 
-                    // Call JavaScript callback with subscription ID
-                    binding.webView.evaluateJavascript(
-                        "if (typeof $callback === 'function') { $callback('$subscriptionId'); }",
-                        null
-                    )
+                            // Call JavaScript callback with token
+                            binding.webView.evaluateJavascript(
+                                "if (typeof $callback === 'function') { $callback('$token'); }",
+                                null
+                            )
+                        } else {
+                            Log.e("FCM", "❌ Failed to get token", task.exception)
+                            binding.webView.evaluateJavascript(
+                                "if (typeof $callback === 'function') { $callback(null); }",
+                                null
+                            )
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.e("OneSignal", "❌ Failed to get subscription ID", e)
+                    Log.e("FCM", "❌ Error getting token", e)
                     binding.webView.evaluateJavascript(
                         "if (typeof $callback === 'function') { $callback(null); }",
                         null
@@ -845,27 +856,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        @JavascriptInterface
-        fun addTag(key: String, value: String) {
-            runOnUiThread {
-                try {
-                    OneSignal.User.addTag(key, value)
-                    Log.d("OneSignal", "✅ Tag added: $key = $value")
-                } catch (e: Exception) {
-                    Log.e("OneSignal", "❌ Failed to add tag", e)
+        private fun sendTokenToServer(userId: String, token: String) {
+            try {
+                // Get device information
+                val deviceInfo = JSONObject().apply {
+                    put("model", Build.MODEL)
+                    put("osVersion", Build.VERSION.RELEASE)
+                    put("appVersion", "1.0.1")
                 }
-            }
-        }
 
-        @JavascriptInterface
-        fun removeTag(key: String) {
-            runOnUiThread {
-                try {
-                    OneSignal.User.removeTag(key)
-                    Log.d("OneSignal", "✅ Tag removed: $key")
-                } catch (e: Exception) {
-                    Log.e("OneSignal", "❌ Failed to remove tag", e)
-                }
+                // Inject token into web app via JavaScript
+                binding.webView.evaluateJavascript(
+                    """
+                    (function() {
+                        if (window.handleFCMToken) {
+                            window.handleFCMToken('$token', '$userId', $deviceInfo);
+                        } else {
+                            console.log('FCM Token ready:', '$token');
+                        }
+                    })();
+                    """.trimIndent(),
+                    null
+                )
+
+                Log.d("FCM", "✅ Token sent to web app for user: $userId")
+            } catch (e: Exception) {
+                Log.e("FCM", "❌ Failed to send token to server", e)
             }
         }
     }

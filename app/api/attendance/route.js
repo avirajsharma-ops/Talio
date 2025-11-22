@@ -5,6 +5,7 @@ import Employee from '@/models/Employee'
 import Leave from '@/models/Leave'
 import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
+import queryCache from '@/lib/queryCache'
 import { logActivity } from '@/lib/activityLogger'
 import { sendEmail } from '@/lib/mailer'
 import { sendPushToUser } from '@/lib/pushNotification'
@@ -17,10 +18,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const Δφ = (lat2 - lat1) * Math.PI / 180
   const Δλ = (lon2 - lon1) * Math.PI / 180
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
   return R * c // Distance in meters
 }
@@ -82,6 +83,13 @@ export async function GET(request) {
     const month = searchParams.get('month')
     const year = searchParams.get('year')
 
+    // Generate cache key
+    const cacheKey = queryCache.generateKey('attendance', date, employeeId, month, year)
+    const cached = queryCache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
+
     const query = {}
 
     if (employeeId) {
@@ -100,14 +108,26 @@ export async function GET(request) {
       query.date = { $gte: startDate, $lte: endDate }
     }
 
+    // Optimized: Use lean() and select only needed fields
     const attendance = await Attendance.find(query)
-      .populate('employee', 'firstName lastName employeeCode')
+      .select('employee date checkIn checkOut status workHours overtime')
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName employeeCode',
+        options: { lean: true }
+      })
       .sort({ date: -1 })
+      .lean()
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: attendance,
-    })
+    }
+
+    // Cache for 30 seconds
+    queryCache.set(cacheKey, response, 30000)
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Get attendance error:', error)
     return NextResponse.json(

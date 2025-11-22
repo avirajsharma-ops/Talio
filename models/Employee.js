@@ -149,9 +149,16 @@ const EmployeeSchema = new mongoose.Schema({
 });
 
 // Virtual for full name
-EmployeeSchema.virtual('fullName').get(function() {
+EmployeeSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
+
+// Indexes for performance optimization
+EmployeeSchema.index({ department: 1, status: 1 }); // Common filter combination
+EmployeeSchema.index({ status: 1, createdAt: -1 }); // List queries with sorting
+EmployeeSchema.index({ reportingManager: 1 }); // Manager queries
+EmployeeSchema.index({ firstName: 'text', lastName: 'text', email: 'text' }); // Text search
+EmployeeSchema.index({ designation: 1 }); // Designation queries
 
 export default mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema);
 

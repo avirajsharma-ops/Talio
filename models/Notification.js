@@ -53,7 +53,7 @@ const NotificationSchema = new mongoose.Schema({
 
   // Delivery status
   deliveryStatus: {
-    oneSignal: {
+    fcm: {
       sent: { type: Boolean, default: false },
       sentAt: { type: Date }
     },
@@ -80,8 +80,8 @@ const NotificationSchema = new mongoose.Schema({
     index: true
   },
   expiresAt: {
-    type: Date,
-    index: true
+    type: Date
+    // No index:true here - TTL index below creates the index
   }
 }, {
   timestamps: true
@@ -90,22 +90,23 @@ const NotificationSchema = new mongoose.Schema({
 // Index for efficient queries
 NotificationSchema.index({ user: 1, createdAt: -1 })
 NotificationSchema.index({ user: 1, read: 1 })
+// TTL index for auto-expiring notifications
 NotificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 // Virtual for checking if notification is expired
-NotificationSchema.virtual('isExpired').get(function() {
+NotificationSchema.virtual('isExpired').get(function () {
   return this.expiresAt && this.expiresAt < new Date()
 })
 
 // Method to mark as read
-NotificationSchema.methods.markAsRead = async function() {
+NotificationSchema.methods.markAsRead = async function () {
   this.read = true
   this.readAt = new Date()
   return await this.save()
 }
 
 // Static method to mark multiple as read
-NotificationSchema.statics.markManyAsRead = async function(notificationIds, userId) {
+NotificationSchema.statics.markManyAsRead = async function (notificationIds, userId) {
   return await this.updateMany(
     { _id: { $in: notificationIds }, user: userId },
     { read: true, readAt: new Date() }
@@ -113,15 +114,15 @@ NotificationSchema.statics.markManyAsRead = async function(notificationIds, user
 }
 
 // Static method to get unread count
-NotificationSchema.statics.getUnreadCount = async function(userId) {
+NotificationSchema.statics.getUnreadCount = async function (userId) {
   return await this.countDocuments({ user: userId, read: false })
 }
 
 // Static method to delete old read notifications
-NotificationSchema.statics.deleteOldReadNotifications = async function(daysOld = 30) {
+NotificationSchema.statics.deleteOldReadNotifications = async function (daysOld = 30) {
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - daysOld)
-  
+
   return await this.deleteMany({
     read: true,
     readAt: { $lt: cutoffDate }

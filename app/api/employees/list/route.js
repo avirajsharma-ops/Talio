@@ -5,6 +5,7 @@ import Employee from '@/models/Employee'
 import User from '@/models/User'
 import Designation from '@/models/Designation'
 import Department from '@/models/Department'
+import queryCache from '@/lib/queryCache'
 
 // GET - Fetch all employees for chat
 export async function GET(request) {
@@ -19,27 +20,44 @@ export async function GET(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
+    // Check cache first (per user)
+    const cacheKey = queryCache.generateKey('employee-list', decoded.userId)
+    const cached = queryCache.get(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
+
     await connectDB()
 
     // Get current user
-    const currentUserDoc = await User.findById(decoded.userId).select('employeeId role')
+    const currentUserDoc = await User.findById(decoded.userId).select('employeeId role').lean()
     if (!currentUserDoc || !currentUserDoc.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
-    // Fetch all active employees except current user
-    const employees = await Employee.find({
-      _id: { $ne: currentUserDoc.employeeId },
-      status: 'active'
-    })
-      .select('firstName lastName employeeCode profilePicture email designation department')
-      .populate('designation', 'title levelName')
-      .populate('department', 'name')
-      .sort({ firstName: 1 })
-      .lean()
+    // Optimized: Fetch employees and users in parallel
+    const [employees, allUsers] = await Promise.all([
+      Employee.find({
+        _id: { $ne: currentUserDoc.employeeId },
+        status: 'active'
+      })
+        .select('firstName lastName employeeCode profilePicture email designation department')
+        .populate({
+          path: 'designation',
+          select: 'title levelName',
+          options: { lean: true }
+        })
+        .populate({
+          path: 'department',
+          select: 'name',
+          options: { lean: true }
+        })
+        .sort({ firstName: 1 })
+        .lean(),
 
-    // Get all users to filter out admins
-    const allUsers = await User.find({ isActive: true }).select('employeeId role').lean()
+      User.find({ isActive: true }).select('employeeId role').lean()
+    ])
+
     const adminEmployeeIds = allUsers
       .filter(u => u.role === 'admin')
       .map(u => u.employeeId?.toString())
@@ -49,10 +67,15 @@ export async function GET(request) {
       !adminEmployeeIds.includes(emp._id.toString())
     )
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: filteredEmployees
-    })
+    }
+
+    // Cache for 60 seconds
+    queryCache.set(cacheKey, response, 60000)
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Get employees error:', error)
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })

@@ -17,12 +17,12 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { verifyTokenFromRequest } from '@/lib/auth';
-import { 
-  hasPermission, 
-  validateMayaAction, 
+import {
+  hasPermission,
+  validateMayaAction,
   buildRoleBasedFilter,
   getAllowedFields,
-  canAccessEmployeeData 
+  canAccessEmployeeData
 } from '@/lib/mayaPermissions';
 
 // Import all models
@@ -93,10 +93,10 @@ export async function POST(request) {
     const authResult = await verifyTokenFromRequest(request);
     if (!authResult.success) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: 'Authentication required',
-          message: authResult.message 
+          message: authResult.message
         },
         { status: 401 }
       );
@@ -109,9 +109,9 @@ export async function POST(request) {
     // Validate request
     if (!action || !collection) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Missing required fields: action and collection are required' 
+        {
+          success: false,
+          error: 'Missing required fields: action and collection are required'
         },
         { status: 400 }
       );
@@ -121,8 +121,8 @@ export async function POST(request) {
     const validation = validateMayaAction(user.role, action, collection, data);
     if (!validation.valid) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: validation.error,
           userRole: user.role,
           requiredAction: action,
@@ -138,8 +138,8 @@ export async function POST(request) {
     const Model = MODELS[collection];
     if (!Model) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: `Unknown collection: ${collection}`,
           availableCollections: Object.keys(MODELS)
         },
@@ -399,7 +399,7 @@ export async function GET(request) {
         data: {
           title: 'Team Meeting',
           description: 'Monthly team sync',
-          type: 'general',
+          type: 'system',
         },
       },
       updateLeave: {

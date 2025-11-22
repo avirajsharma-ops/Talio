@@ -265,7 +265,7 @@ const PIPSchema = new mongoose.Schema({
 })
 
 // Generate PIP number
-PIPSchema.pre('save', function(next) {
+PIPSchema.pre('save', function (next) {
   if (!this.pipNumber) {
     const year = new Date().getFullYear()
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -276,7 +276,7 @@ PIPSchema.pre('save', function(next) {
 })
 
 // Calculate duration before save
-PIPSchema.pre('save', function(next) {
+PIPSchema.pre('save', function (next) {
   if (this.startDate && this.endDate) {
     const timeDiff = this.endDate.getTime() - this.startDate.getTime()
     this.duration = Math.ceil(timeDiff / (1000 * 3600 * 24))
@@ -285,25 +285,25 @@ PIPSchema.pre('save', function(next) {
 })
 
 // Methods
-PIPSchema.methods.calculateOverallProgress = function() {
+PIPSchema.methods.calculateOverallProgress = function () {
   if (this.improvementGoals.length === 0) return 0
-  
+
   const totalProgress = this.improvementGoals.reduce((sum, goal) => sum + goal.progress, 0)
   return Math.round(totalProgress / this.improvementGoals.length)
 }
 
-PIPSchema.methods.getDaysRemaining = function() {
+PIPSchema.methods.getDaysRemaining = function () {
   const today = new Date()
   const timeDiff = this.endDate.getTime() - today.getTime()
   return Math.ceil(timeDiff / (1000 * 3600 * 24))
 }
 
-PIPSchema.methods.isOverdue = function() {
+PIPSchema.methods.isOverdue = function () {
   return new Date() > this.endDate && this.status === 'active'
 }
 
-PIPSchema.methods.getNextReview = function() {
-  const upcomingReviews = this.reviewSchedule.filter(review => 
+PIPSchema.methods.getNextReview = function () {
+  const upcomingReviews = this.reviewSchedule.filter(review =>
     review.status === 'scheduled' && new Date(review.reviewDate) > new Date()
   )
   return upcomingReviews.sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate))[0]

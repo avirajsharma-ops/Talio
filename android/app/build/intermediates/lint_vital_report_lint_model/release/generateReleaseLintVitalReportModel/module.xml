@@ -1,12 +1,12 @@
 <lint-module
     format="1"
-    dir="/Users/apple/Desktop/Tailo/android/app"
+    dir="C:\Users\adilk\Downloads\Talio\android\app"
     name=":app"
     type="APP"
     maven="Talio HRMS:app:"
     agpVersion="8.2.2"
     buildFolder="build"
-    bootClassPath="/opt/homebrew/share/android-commandlinetools/platforms/android-34/android.jar:/opt/homebrew/share/android-commandlinetools/build-tools/34.0.0/core-lambda-stubs.jar"
+    bootClassPath="C:\Users\adilk\AppData\Local\Android\Sdk\platforms\android-34\android.jar;C:\Users\adilk\AppData\Local\Android\Sdk\build-tools\34.0.0\core-lambda-stubs.jar"
     javaSourceLevel="17"
     compileTarget="android-34"
     neverShrinking="true">

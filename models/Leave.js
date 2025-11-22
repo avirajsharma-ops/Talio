@@ -147,7 +147,7 @@ const LeaveSchema = new mongoose.Schema({
 });
 
 // Generate application number
-LeaveSchema.pre('save', function(next) {
+LeaveSchema.pre('save', function (next) {
   if (!this.applicationNumber) {
     const year = new Date().getFullYear()
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -158,15 +158,15 @@ LeaveSchema.pre('save', function(next) {
 })
 
 // Methods
-LeaveSchema.methods.canCancel = function() {
+LeaveSchema.methods.canCancel = function () {
   return this.status === 'pending' || (this.status === 'approved' && new Date() < this.startDate)
 }
 
-LeaveSchema.methods.canEdit = function() {
+LeaveSchema.methods.canEdit = function () {
   return this.status === 'pending'
 }
 
-LeaveSchema.methods.getNextApprover = function() {
+LeaveSchema.methods.getNextApprover = function () {
   const nextLevel = this.approvalWorkflow.find(level =>
     level.level === this.currentApprovalLevel && level.status === 'pending'
   )
@@ -176,7 +176,7 @@ LeaveSchema.methods.getNextApprover = function() {
 // Indexes
 LeaveSchema.index({ employee: 1, startDate: 1 })
 LeaveSchema.index({ status: 1 })
-LeaveSchema.index({ applicationNumber: 1 })
+// applicationNumber already indexed via unique: true
 LeaveSchema.index({ 'approvalWorkflow.approver': 1, 'approvalWorkflow.status': 1 })
 
 export default mongoose.models.Leave || mongoose.model('Leave', LeaveSchema);

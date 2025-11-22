@@ -73,7 +73,7 @@ MayaFormattedDataSchema.index({ 'accessControl.roles': 1 });
 MayaFormattedDataSchema.index({ 'accessControl.departments': 1 });
 MayaFormattedDataSchema.index({ 'metadata.lastSynced': -1 });
 
-// TTL index for auto-expiring data
+// TTL index for auto-expiring data (expiresAt field doesn't need separate index)
 MayaFormattedDataSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.models.MayaFormattedData || mongoose.model('MayaFormattedData', MayaFormattedDataSchema);

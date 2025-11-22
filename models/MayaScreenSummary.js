@@ -88,7 +88,7 @@ const MayaScreenSummarySchema = new mongoose.Schema({
 MayaScreenSummarySchema.index({ monitoredUserId: 1, createdAt: -1 });
 MayaScreenSummarySchema.index({ requestedByUserId: 1, createdAt: -1 });
 MayaScreenSummarySchema.index({ status: 1, createdAt: -1 });
-MayaScreenSummarySchema.index({ expiresAt: 1 });
+// expiresAt field doesn't need separate index
 
 // Auto-expire old summaries after 30 days
 MayaScreenSummarySchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 });
