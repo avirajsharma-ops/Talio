@@ -35,10 +35,17 @@ android {
 
             // Signing configuration for release
             signingConfig signingConfigs.release
+            
+            // Production URL
+            buildConfigField "String", "BASE_URL", '"https://app.talio.in"'
         }
         debug {
             applicationIdSuffix ".debug"
             debuggable true
+            
+            // Development URL - change this to your local IP for testing
+            // Example: buildConfigField "String", "BASE_URL", '"http://192.168.1.100:3000"'
+            buildConfigField "String", "BASE_URL", '"http://10.0.2.2:3000"'
         }
     }
 
@@ -53,6 +60,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 

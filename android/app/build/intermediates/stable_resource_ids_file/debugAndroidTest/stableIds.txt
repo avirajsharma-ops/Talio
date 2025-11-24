@@ -1,0 +1,2 @@
+sbs.zenova.twa.debug.test:style/WhiteBackgroundTheme = 0x7f010001
+sbs.zenova.twa.debug.test:style/WhiteBackgroundDialogTheme = 0x7f010000

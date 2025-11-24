@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
     private var geolocationOrigin: String? = null
 
     companion object {
-        private const val URL = "https://app.talio.in"
+        private val URL = BuildConfig.BASE_URL
         private const val LOCATION_PERMISSION_REQUEST_CODE = 100
     }
 
@@ -182,8 +182,8 @@ class MainActivity : AppCompatActivity() {
         // Setup WebView
         setupWebView()
 
-        // Don't request permissions on startup - wait for dashboard
-        // requestPermissions()
+        // Request permissions on first launch
+        requestPermissions()
 
         // Load URL
         binding.webView.loadUrl(URL)
@@ -501,12 +501,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestPermissions() {
-        // DO NOT request notification permission here
-        // Notification permission is handled by Android's native permission system
-        // Only request location permissions for attendance tracking
-
-        Log.d("Permissions", "Requesting location permissions only (notification handled by web app)")
-        requestLocationPermissionSequence()
+        // Request notification permission first (Android 13+), then location permissions
+        Log.d("Permissions", "Starting permission request sequence")
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ requires POST_NOTIFICATIONS permission
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                // Notification permission already granted, proceed to location
+                requestLocationPermissionSequence()
+            }
+        } else {
+            // Android 12 and below - notifications don't need runtime permission
+            requestLocationPermissionSequence()
+        }
     }
 
     private fun requestLocationPermissionSequence() {

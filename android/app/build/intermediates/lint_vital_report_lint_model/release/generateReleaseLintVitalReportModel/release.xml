@@ -25,7 +25,7 @@
       classOutputs="build\intermediates\javac\release\classes;build\tmp\kotlin-classes\release;build\kotlinToolingMetadata;build\intermediates\compile_and_runtime_not_namespaced_r_class_jar\release\R.jar"
       type="MAIN"
       applicationId="sbs.zenova.twa"
-      generatedSourceFolders="build\generated\ap_generated_sources\release\out;build\generated\data_binding_base_class_source_out\release\out"
+      generatedSourceFolders="build\generated\ap_generated_sources\release\out;build\generated\source\buildConfig\release;build\generated\data_binding_base_class_source_out\release\out"
       generatedResourceFolders="build\generated\res\resValues\release"
       desugaredMethodsFiles="C:\Users\adilk\.gradle\caches\transforms-3\4b832eaa297b192b4900893e906358d6\transformed\D8BackportedDesugaredMethods.txt">
   </artifact>

@@ -1,7 +1,12 @@
 @echo off
 echo ==========================================
-echo Talio HRMS - Quick APK Build
+echo Talio HRMS - Quick RELEASE APK Build
 echo ==========================================
+echo.
+echo Building RELEASE version for production
+echo URL: https://app.talio.in
+echo.
+echo NOTE: Use quick-build-debug.bat for local testing
 echo.
 
 REM Wait for Android Studio SDK
