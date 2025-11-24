@@ -90,6 +90,12 @@ export default function LoginPage() {
         // Also set cookie for middleware
         document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}` // 7 days
 
+        // Check for pending FCM token from Android app
+        if (window.checkPendingFCMToken) {
+          console.log('[Login] Checking for pending FCM token...')
+          window.checkPendingFCMToken()
+        }
+
         console.log('[Login] Redirecting to dashboard...')
         // Use window.location.href for reliable redirect
         window.location.href = '/dashboard'

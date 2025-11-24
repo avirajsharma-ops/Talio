@@ -43,22 +43,35 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         
+        Log.d(TAG, "========== FCM MESSAGE RECEIVED ==========")
         Log.d(TAG, "Message received from: ${message.from}")
+        Log.d(TAG, "Message ID: ${message.messageId}")
+        Log.d(TAG, "Data payload: ${message.data}")
+        Log.d(TAG, "Notification: ${message.notification}")
+        Log.d(TAG, "==========================================")
         
         // Check if message contains a data payload
         message.data.isNotEmpty().let {
-            Log.d(TAG, "Message data payload: ${message.data}")
+            Log.d(TAG, "Processing data payload...")
             handleDataMessage(message.data)
         }
 
         // Check if message contains a notification payload
         message.notification?.let {
+            Log.d(TAG, "Processing notification payload...")
+            Log.d(TAG, "Notification Title: ${it.title}")
             Log.d(TAG, "Message Notification Body: ${it.body}")
             sendNotification(
                 title = it.title ?: "Talio HRMS",
                 body = it.body ?: "",
                 data = message.data
             )
+        }
+        
+        // If no notification payload but has data, show notification from data
+        if (message.notification == null && message.data.isNotEmpty()) {
+            Log.d(TAG, "No notification payload, creating from data...")
+            handleDataMessage(message.data)
         }
     }
 
@@ -109,7 +122,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification) // You'll need to add this icon
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -118,6 +131,12 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setLights(android.graphics.Color.BLUE, 1000, 1000)
+            // Critical for heads-up notifications (pop-up bubbles)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(pendingIntent, false)
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -130,6 +149,13 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             ).apply {
                 description = "Notifications from Talio HRMS"
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+                enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                // This is KEY for pop-up notifications
+                setShowBadge(true)
+                setBypassDnd(false)
             }
             notificationManager.createNotificationChannel(channel)
         }

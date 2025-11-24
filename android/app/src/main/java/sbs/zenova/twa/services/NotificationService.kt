@@ -11,6 +11,7 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import io.socket.emitter.Emitter
 import org.json.JSONObject
+import sbs.zenova.twa.BuildConfig
 import sbs.zenova.twa.MainActivity
 import sbs.zenova.twa.R
 import sbs.zenova.twa.notifications.TalioNotificationManager
@@ -22,7 +23,8 @@ class NotificationService : Service() {
         private const val TAG = "NotificationService"
         private const val CHANNEL_ID = "talio_service"
         private const val NOTIFICATION_ID = 9999
-        private const val SERVER_URL = "https://zenova.sbs"
+        // Use the same URL as the WebView from BuildConfig
+        private val SERVER_URL = BuildConfig.BASE_URL
         
         fun start(context: Context, userId: String) {
             val intent = Intent(context, NotificationService::class.java).apply {

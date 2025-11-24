@@ -61,6 +61,9 @@ export default function RootLayout({ children }) {
         {/* Socket.IO Client - Load globally for messaging system */}
         <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossOrigin="anonymous"></script>
 
+        {/* FCM Handler - For Android App Token Registration */}
+        <script src="/fcm-handler.js"></script>
+
         {/* MAYA Fonts and Icons - Desktop Only */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

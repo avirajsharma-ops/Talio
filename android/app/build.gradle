@@ -36,7 +36,8 @@ android {
             // Signing configuration for release
             signingConfig signingConfigs.release
             
-            // Production URL
+            // Production URL - UPDATE THIS WITH YOUR NGROK URL
+            // Example: buildConfigField "String", "BASE_URL", '"https://abc123.ngrok.io"'
             buildConfigField "String", "BASE_URL", '"https://app.talio.in"'
         }
         debug {
