@@ -156,47 +156,46 @@ export async function POST(request) {
         { status: 400 }
       )
     }
-  }
 
     // Create employee first
     const employee = await Employee.create(data)
 
-  // Create user account for the employee
-  const password = data.password || 'employee123' // Default password if not provided
+    // Create user account for the employee
+    const password = data.password || 'employee123' // Default password if not provided
 
-  const user = await User.create({
-    email: data.email,
-    password: password, // Let the pre-save hook handle hashing
-    role: data.role || 'employee', // Default role is employee
-    employeeId: employee._id,
-  })
-
-  const populatedEmployee = await Employee.findById(employee._id)
-    .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status')
-    .populate('department', 'name')
-    .populate('designation', 'title levelName')
-    .populate('reportingManager', 'firstName lastName')
-    .lean()
-
-  // Clear employee list cache
-  queryCache.clearPattern('employees')
-
-  return NextResponse.json({
-    success: true,
-    message: 'Employee and user account created successfully',
-    data: populatedEmployee,
-    credentials: {
+    const user = await User.create({
       email: data.email,
-      password: data.password || 'employee123',
-      message: 'Please share these credentials with the employee'
-    }
-  }, { status: 201 })
-} catch (error) {
-  console.error('Create employee error:', error)
-  return NextResponse.json(
-    { success: false, message: error.message || 'Failed to create employee' },
-    { status: 500 }
-  )
-}
+      password: password, // Let the pre-save hook handle hashing
+      role: data.role || 'employee', // Default role is employee
+      employeeId: employee._id,
+    })
+
+    const populatedEmployee = await Employee.findById(employee._id)
+      .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status')
+      .populate('department', 'name')
+      .populate('designation', 'title levelName')
+      .populate('reportingManager', 'firstName lastName')
+      .lean()
+
+    // Clear employee list cache
+    queryCache.clearPattern('employees')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Employee and user account created successfully',
+      data: populatedEmployee,
+      credentials: {
+        email: data.email,
+        password: data.password || 'employee123',
+        message: 'Please share these credentials with the employee'
+      }
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Create employee error:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to create employee' },
+      { status: 500 }
+    )
+  }
 }
 
