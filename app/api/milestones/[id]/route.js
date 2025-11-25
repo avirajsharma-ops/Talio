@@ -27,7 +27,8 @@ export async function PUT(request, { params }) {
     const milestoneId = params.id
     const body = await request.json()
 
-    const milestone = await Task.findById(milestoneId)
+    // Find milestone using Project model (milestones are subProjects)
+    const milestone = await Project.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
@@ -47,23 +48,27 @@ export async function PUT(request, { params }) {
       milestone.completedAt = new Date()
       milestone.completedBy = employeeId
 
-      // Add to progress history
-      milestone.progressHistory.push({
-        progress: 100,
-        remark: body.completionRemark,
-        updatedBy: employeeId,
-        updatedAt: new Date()
+      // Add to status history
+      if (!milestone.statusHistory) {
+        milestone.statusHistory = []
+      }
+      milestone.statusHistory.push({
+        status: 'completed',
+        changedBy: employeeId,
+        reason: body.completionRemark
       })
 
-      // Add timeline entry to task
-      const task = await Task.findById(milestone.task)
-      if (task) {
-        task.statusHistory.push({
-          status: `Task completed: ${milestone.title}`,
-          changedBy: employeeId,
-          reason: body.completionRemark
-        })
-        await task.save()
+      // Add timeline entry to parent task
+      if (milestone.parentProject) {
+        const parentTask = await Project.findById(milestone.parentProject)
+        if (parentTask) {
+          parentTask.statusHistory.push({
+            status: `Task completed: ${milestone.title}`,
+            changedBy: employeeId,
+            reason: body.completionRemark
+          })
+          await parentTask.save()
+        }
       }
 
       // Log activity for milestone completion
@@ -74,9 +79,9 @@ export async function PUT(request, { params }) {
         details: `"${milestone.title}" - ${body.completionRemark}`,
         metadata: {
           milestoneId: milestone._id,
-          taskId: milestone.task
+          taskId: milestone.parentProject
         },
-        relatedModel: 'Milestone',
+        relatedModel: 'Project',
         relatedId: milestone._id
       })
     }
@@ -90,11 +95,15 @@ export async function PUT(request, { params }) {
       }
 
       milestone.progress = body.progress
-      milestone.progressHistory.push({
-        progress: body.progress,
-        remark: body.remark,
-        updatedBy: employeeId,
-        updatedAt: new Date()
+
+      // Add to status history
+      if (!milestone.statusHistory) {
+        milestone.statusHistory = []
+      }
+      milestone.statusHistory.push({
+        status: `Progress updated to ${body.progress}%`,
+        changedBy: employeeId,
+        reason: body.remark
       })
     }
 
@@ -106,11 +115,11 @@ export async function PUT(request, { params }) {
     await milestone.save()
 
     // Update task progress based on all milestones
-    await updateTaskProgress(milestone.task)
+    if (milestone.parentProject) {
+      await updateTaskProgress(milestone.parentProject)
+    }
 
-    const updatedMilestone = await Task.findById(milestoneId)
-      .populate('createdBy', 'firstName lastName employeeCode')
-      .populate('progressHistory.updatedBy', 'firstName lastName employeeCode')
+    const updatedMilestone = await Project.findById(milestoneId)
 
     return NextResponse.json({
       success: true,
@@ -146,10 +155,14 @@ export async function DELETE(request, { params }) {
 
     const milestoneId = params.id
 
-    const milestone = await Task.findById(milestoneId)
+    // Find milestone using Project model (milestones are subProjects)
+    const milestone = await Project.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
+
+    // Get parent task ID before deletion
+    const parentTaskId = milestone.parentProject
 
     // Soft delete
     milestone.isDeleted = true
@@ -157,19 +170,26 @@ export async function DELETE(request, { params }) {
     milestone.deletedBy = employeeId
     await milestone.save()
 
-    // Add timeline entry to task
-    const task = await Task.findById(milestone.task)
-    if (task) {
-      task.statusHistory.push({
-        status: `Milestone deleted: ${milestone.title}`,
-        changedBy: employeeId,
-        reason: 'Milestone removed from task'
+    // Remove from parent task's subProjects array
+    if (parentTaskId) {
+      await Project.findByIdAndUpdate(parentTaskId, {
+        $pull: { subProjects: milestoneId }
       })
-      await task.save()
-    }
 
-    // Update task progress based on remaining milestones
-    await updateTaskProgress(milestone.task)
+      // Add timeline entry to parent task
+      const parentTask = await Project.findById(parentTaskId)
+      if (parentTask) {
+        parentTask.statusHistory.push({
+          status: `Milestone deleted: ${milestone.title}`,
+          changedBy: employeeId,
+          reason: 'Milestone removed from task'
+        })
+        await parentTask.save()
+      }
+
+      // Update task progress based on remaining milestones
+      await updateTaskProgress(parentTaskId)
+    }
 
     return NextResponse.json({
       success: true,
@@ -188,7 +208,11 @@ export async function DELETE(request, { params }) {
 // Helper function to update task progress based on milestones
 async function updateTaskProgress(taskId) {
   try {
-    const milestones = await Task.find({ task: taskId, isDeleted: false })
+    // Find all subProjects (milestones) of this task
+    const milestones = await Project.find({
+      parentProject: taskId,
+      isDeleted: false
+    })
 
     if (milestones.length === 0) {
       // No milestones, keep task progress as is
@@ -201,7 +225,8 @@ async function updateTaskProgress(taskId) {
     const averageProgress = Math.round((completedMilestones / totalMilestones) * 100)
 
     // Get the task to check current status
-    const task = await Task.findById(taskId)
+    const task = await Project.findById(taskId)
+    if (!task) return
 
     // Update task progress
     task.progress = averageProgress

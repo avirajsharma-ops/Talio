@@ -123,8 +123,6 @@ export async function GET(request) {
           select: 'name level levelName'
         }
       })
-      .populate('project', 'name projectCode')
-      .populate('milestone', 'name')
       .populate({
         path: 'comments.author',
         select: 'firstName lastName employeeCode',

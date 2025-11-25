@@ -50,7 +50,7 @@ export async function GET(request) {
     } else if (decoded.role === 'manager') {
       // Manager can see their team's task history (department-wise)
       const empDoc = await Employee.findById(currentEmployeeId)
-      
+
       // Get all team members reporting to this manager
       const teamMembers = await Employee.find({
         reportingManager: currentEmployeeId
@@ -108,7 +108,6 @@ export async function GET(request) {
     const tasks = await Project.find(query)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
-      .populate('project', 'name projectCode')
       .populate('deletedBy', 'firstName lastName employeeCode')
       .sort({ createdAt: -1 })
       .skip(skip)

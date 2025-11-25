@@ -130,10 +130,10 @@ export async function GET(request) {
     }
 
     // Calculate completion rate and efficiency
-    stats.completionRate = stats.totalTasks > 0 ? 
+    stats.completionRate = stats.totalTasks > 0 ?
       ((stats.completedTasks / stats.totalTasks) * 100).toFixed(1) : 0
-    
-    stats.efficiency = stats.totalEstimatedHours > 0 ? 
+
+    stats.efficiency = stats.totalEstimatedHours > 0 ?
       ((stats.totalEstimatedHours / stats.totalActualHours) * 100).toFixed(1) : 0
 
     // Get tasks by status for charts
@@ -173,23 +173,21 @@ export async function GET(request) {
     const recentTasks = await Project.find(taskQuery)
       .populate('assignedBy', 'firstName lastName')
       .populate('assignedTo.employee', 'firstName lastName')
-      .populate('project', 'name projectCode')
       .sort({ updatedAt: -1 })
       .limit(10)
 
     // Get upcoming deadlines
     const upcomingDeadlines = await Project.find({
       ...taskQuery,
-      dueDate: { 
+      dueDate: {
         $gte: new Date(),
         $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Next 7 days
       },
       status: { $nin: ['completed', 'cancelled'] }
     })
-    .populate('assignedTo.employee', 'firstName lastName')
-    .populate('project', 'name')
-    .sort({ dueDate: 1 })
-    .limit(10)
+      .populate('assignedTo.employee', 'firstName lastName')
+      .sort({ dueDate: 1 })
+      .limit(10)
 
     // Get productivity trends (last 30 days)
     const productivityTrend = await Project.aggregate([

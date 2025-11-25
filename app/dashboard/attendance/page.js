@@ -11,13 +11,48 @@ export default function AttendancePage() {
   const [user, setUser] = useState(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
+  // Helper function to safely get employeeId
+  const getEmployeeId = (userObj) => {
+    if (!userObj) return null
+    // Check if employeeId._id exists and is valid
+    if (userObj.employeeId?._id && userObj.employeeId._id !== 'undefined') {
+      return userObj.employeeId._id
+    }
+    // Check if employeeId is a direct string and is valid
+    if (userObj.employeeId && typeof userObj.employeeId === 'string' && userObj.employeeId !== 'undefined') {
+      return userObj.employeeId
+    }
+    // Fallback to user._id
+    if (userObj._id && userObj._id !== 'undefined') {
+      return userObj._id
+    }
+    // Fallback to user.id
+    if (userObj.id && userObj.id !== 'undefined') {
+      return userObj.id
+    }
+    return null
+  }
+
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (userData) {
       const parsedUser = JSON.parse(userData)
+      console.log('📊 User object:', parsedUser)
+      console.log('📊 employeeId field:', parsedUser.employeeId)
+      console.log('📊 _id field:', parsedUser._id)
+
       setUser(parsedUser)
-      fetchTodayAttendance(parsedUser.employeeId._id)
-      fetchAttendance(parsedUser.employeeId._id)
+      // Handle both object and string formats for employeeId
+      const empId = parsedUser.employeeId?._id || parsedUser.employeeId || parsedUser._id
+      console.log('📊 Extracted empId:', empId)
+
+      if (empId) {
+        fetchTodayAttendance(empId)
+        fetchAttendance(empId)
+      } else {
+        console.error('❌ No valid employee ID found in user object')
+        toast.error('Employee ID not found. Please log in again.')
+      }
     }
   }, [])
 
@@ -112,7 +147,7 @@ export default function AttendancePage() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId._id,
+          employeeId: getEmployeeId(user),
           type: 'clock-in',
           latitude,
           longitude,
@@ -125,7 +160,7 @@ export default function AttendancePage() {
       if (data.success) {
         toast.success('Clocked in successfully')
         setTodayAttendance(data.data)
-        fetchAttendance(user.employeeId._id)
+        fetchAttendance(getEmployeeId(user))
       } else {
         toast.error(data.message || 'Failed to clock in')
       }
@@ -184,7 +219,7 @@ export default function AttendancePage() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId._id,
+          employeeId: getEmployeeId(user),
           type: 'clock-out',
           latitude,
           longitude,
@@ -197,7 +232,7 @@ export default function AttendancePage() {
       if (data.success) {
         toast.success('Clocked out successfully')
         setTodayAttendance(data.data)
-        fetchAttendance(user.employeeId._id)
+        fetchAttendance(getEmployeeId(user))
       } else {
         toast.error(data.message || 'Failed to clock out')
       }
@@ -290,7 +325,7 @@ export default function AttendancePage() {
               onChange={(e) => {
                 setSelectedDate(e.target.value + '-01')
                 if (user) {
-                  fetchAttendance(user.employeeId._id)
+                  fetchAttendance(getEmployeeId(user))
                 }
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -342,12 +377,11 @@ export default function AttendancePage() {
                       {record.workHours ? `${record.workHours}h` : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        record.status === 'present' ? 'bg-green-100 text-green-800' :
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' :
                         record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                        record.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                          record.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                        }`}>
                         {record.status}
                       </span>
                     </td>

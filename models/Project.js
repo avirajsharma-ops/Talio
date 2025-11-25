@@ -385,6 +385,11 @@ const ProjectSchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  taskNumber: {
+    type: String,
+    unique: true,
+    sparse: true // Allow null values, only enforce uniqueness on non-null values
+  },
   // Analytics and Metrics
   metrics: {
     viewCount: { type: Number, default: 0 },
@@ -468,6 +473,10 @@ ProjectSchema.pre('save', function (next) {
     const month = String(new Date().getMonth() + 1).padStart(2, '0')
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
     this.projectNumber = `PRJ${year}${month}${random}`
+  }
+  // Set taskNumber to match projectNumber for backward compatibility
+  if (this.projectNumber && !this.taskNumber) {
+    this.taskNumber = this.projectNumber
   }
   next()
 })

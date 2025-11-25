@@ -193,8 +193,7 @@ export async function GET(request) {
     const tasks = await Project.find(query)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
-      .populate('project', 'name projectCode')
-      .populate('parentTask', 'title taskNumber')
+      .populate('parentProject', 'title projectNumber')
       .sort(sort)
       .skip(skip)
       .limit(limit)
@@ -349,7 +348,7 @@ export async function POST(request) {
     }
 
     // Create task
-    const task = new Task({
+    const task = new Project({
       ...taskData,
       assignedBy: currentEmployeeId,
       assignmentType,
@@ -361,18 +360,26 @@ export async function POST(request) {
       }))
     })
 
+    console.log('About to save task with data:', JSON.stringify({
+      title: task.title,
+      assignedBy: task.assignedBy,
+      assignedTo: task.assignedTo,
+      assignmentType: task.assignmentType,
+      dueDate: task.dueDate
+    }))
+
     await task.save()
+    console.log('Task saved successfully:', task._id)
 
     // If this is a subtask, link it to the parent
     if (task.parentTask) {
       await Project.findByIdAndUpdate(task.parentTask, { $addToSet: { subtasks: task._id } })
     }
 
-    // Populate the created task
+    // Populate the created task (only populate fields that exist)
     await task.populate([
       { path: 'assignedBy', select: 'firstName lastName employeeCode' },
-      { path: 'assignedTo.employee', select: 'firstName lastName employeeCode' },
-      { path: 'project', select: 'name projectCode' }
+      { path: 'assignedTo.employee', select: 'firstName lastName employeeCode' }
     ])
 
     // Add to assignment history
@@ -455,8 +462,13 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Create task error:', error)
+    console.error('Error name:', error.name)
+    console.error('Error message:', error.message)
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2))
+    }
     return NextResponse.json(
-      { success: false, message: 'Failed to create task' },
+      { success: false, message: 'Failed to create task', error: error.message },
       { status: 500 }
     )
   }
@@ -511,7 +523,7 @@ async function checkAssignmentPermission(assignerId, assigneeId, assignerRole) {
 
       // Check if same department (peer assignment)
       if (assigner.department && assignee.department &&
-          assigner.department.toString() === assignee.department.toString()) {
+        assigner.department.toString() === assignee.department.toString()) {
         return { allowed: true, reason: 'same_department_peer' }
       }
 
@@ -525,7 +537,7 @@ async function checkAssignmentPermission(assignerId, assigneeId, assignerRole) {
 
     // Regular employees can only assign to same department colleagues
     if (assigner.department && assignee.department &&
-        assigner.department.toString() === assignee.department.toString()) {
+      assigner.department.toString() === assignee.department.toString()) {
       return { allowed: true, reason: 'same_department_colleague' }
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { FaTasks, FaUsers, FaArrowLeft, FaSearch, FaFilter } from 'react-icons/fa'
+import { FaTasks, FaUsers, FaArrowLeft, FaSearch, FaFilter, FaUser } from 'react-icons/fa'
 import TaskAssignment from '@/components/tasks/TaskAssignment'
 import RoleBasedAccess from '@/components/RoleBasedAccess'
 
@@ -36,7 +36,7 @@ export default function AssignTaskPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      
+
       // Fetch tasks based on user role
       let view = 'personal'
       if (user?.role === 'manager') view = 'team'
@@ -51,6 +51,8 @@ export default function AssignTaskPage() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Tasks data:', data.data.tasks)
+        console.log('First task assignedTo:', data.data.tasks?.[0]?.assignedTo)
         setTasks(data.data.tasks || [])
       } else {
         console.error('Failed to fetch tasks')
@@ -150,9 +152,9 @@ export default function AssignTaskPage() {
                 </h1>
                 <p className="text-sm sm:text-base text-gray-600 hidden sm:block">
                   {user.role === 'admin' ? 'Assign Projects to any employee in the organization' :
-                   user.role === 'hr' ? 'Assign Projects to employees in your department' :
-                   user.role === 'manager' ? 'Assign Projects to your team members' :
-                   'Assign Projects to your colleagues'}
+                    user.role === 'hr' ? 'Assign Projects to employees in your department' :
+                      user.role === 'manager' ? 'Assign Projects to your team members' :
+                        'Assign Projects to your colleagues'}
                 </p>
                 <p className="text-xs text-gray-600 sm:hidden">
                   Assign Projects to your colleagues
@@ -184,7 +186,7 @@ export default function AssignTaskPage() {
                     ✕
                   </button>
                 </div>
-                
+
                 <div className="flex items-center space-x-4 text-sm text-gray-600">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
                     {selectedTask.status.replace('_', ' ')}
@@ -194,7 +196,7 @@ export default function AssignTaskPage() {
                   </span>
                   <span>Due: {formatDate(selectedTask.dueDate)}</span>
                 </div>
-                
+
                 {selectedTask.description && (
                   <p className="text-gray-700 mt-2">{selectedTask.description}</p>
                 )}
@@ -248,8 +250,8 @@ export default function AssignTaskPage() {
                   <FaTasks className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
                   <p className="text-gray-500">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'No Projects match your current filters.' 
+                    {searchTerm || statusFilter !== 'all'
+                      ? 'No Projects match your current filters.'
                       : 'No Projects available for assignment.'}
                   </p>
                 </div>
@@ -273,16 +275,43 @@ export default function AssignTaskPage() {
                               {task.priority}
                             </span>
                           </div>
-                          
+
                           {task.description && (
                             <p className="text-gray-600 mb-3 line-clamp-2">{task.description}</p>
                           )}
-                          
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Due: {formatDate(task.dueDate)}</span>
-                            <span>Created by: {task.assignedBy?.firstName} {task.assignedBy?.lastName}</span>
+
+                          <div className="flex flex-col space-y-2 text-sm text-gray-500">
+                            <div className="flex items-center space-x-4">
+                              <span>Due: {formatDate(task.dueDate)}</span>
+                              <span>Created by: {task.assignedBy?.firstName} {task.assignedBy?.lastName}</span>
+                            </div>
                             {task.assignedTo && task.assignedTo.length > 0 && (
-                              <span>Assigned to: {task.assignedTo.length} person(s)</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-gray-700">Assigned to ({task.assignedTo.length}):</span>
+                                {task.assignedTo.map((assignment, idx) => {
+                                  const employeeName = assignment.employee?.firstName && assignment.employee?.lastName
+                                    ? `${assignment.employee.firstName} ${assignment.employee.lastName}`
+                                    : assignment.employee?.firstName || assignment.employee?.lastName || 'Unknown User'
+
+                                  return (
+                                    <span key={idx} className="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
+                                      <FaUser className="w-3 h-3 mr-1.5" />
+                                      {employeeName}
+                                      {assignment.role && assignment.role !== 'owner' && (
+                                        <span className="ml-1.5 text-blue-600 opacity-75">• {assignment.role}</span>
+                                      )}
+                                      {assignment.status && (
+                                        <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] ${assignment.status === 'accepted' ? 'bg-green-200 text-green-800' :
+                                            assignment.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
+                                              'bg-gray-200 text-gray-800'
+                                          }`}>
+                                          {assignment.status}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )
+                                })}
+                              </div>
                             )}
                           </div>
                         </div>

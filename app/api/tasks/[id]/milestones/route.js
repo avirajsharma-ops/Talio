@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Task from '@/models/Task'
 import Project from '@/models/Project'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
-// GET - Fetch all milestones for a task
+// GET - Fetch all milestones (subProjects) for a task/project
 export async function GET(request, { params }) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -22,24 +21,25 @@ export async function GET(request, { params }) {
 
     const taskId = params.id
 
-    // Verify task exists
-    const task = await Task.findById(taskId)
+    // Verify task exists and get its subProjects
+    const task = await Project.findById(taskId)
+      .populate({
+        path: 'subProjects',
+        match: { isDeleted: { $ne: true } },
+        populate: [
+          { path: 'assignedBy', select: 'firstName lastName employeeCode' },
+          { path: 'assignedTo.employee', select: 'firstName lastName employeeCode' }
+        ],
+        options: { sort: { createdAt: 1 } }
+      })
+
     if (!task) {
       return NextResponse.json({ success: false, message: 'Task not found' }, { status: 404 })
     }
 
-    // Fetch milestones
-    const milestones = await Task.find({ 
-      task: taskId, 
-      isDeleted: false 
-    })
-      .populate('createdBy', 'firstName lastName employeeCode')
-      .populate('progressHistory.updatedBy', 'firstName lastName employeeCode')
-      .sort({ order: 1 })
-
     return NextResponse.json({
       success: true,
-      data: milestones
+      data: task.subProjects || []
     })
 
   } catch (error) {
@@ -51,7 +51,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// POST - Create a new milestone
+// POST - Create a new milestone (subProject)
 export async function POST(request, { params }) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -69,45 +69,40 @@ export async function POST(request, { params }) {
     const currentUser = await User.findById(decoded.userId).select('employeeId')
     const employeeId = currentUser?.employeeId
 
-    const taskId = params.id
+    const parentTaskId = params.id
     const body = await request.json()
 
-    // Verify task exists
-    const task = await Task.findById(taskId)
-    if (!task) {
-      return NextResponse.json({ success: false, message: 'Task not found' }, { status: 404 })
+    // Verify parent task exists
+    const parentTask = await Project.findById(parentTaskId)
+    if (!parentTask) {
+      return NextResponse.json({ success: false, message: 'Parent task not found' }, { status: 404 })
     }
 
-    // Get the highest order number
-    const lastMilestone = await Task.findOne({ task: taskId, isDeleted: false })
-      .sort({ order: -1 })
-    const nextOrder = lastMilestone ? lastMilestone.order + 1 : 0
-
-    // Create milestone
-    const milestone = await Task.create({
-      task: taskId,
+    // Create milestone as a subProject
+    const milestone = await Project.create({
+      parentProject: parentTaskId,
       title: body.title,
       description: body.description,
       dueDate: body.dueDate,
-      order: nextOrder,
-      createdBy: employeeId,
-      progress: 0,
-      progressHistory: []
+      assignedBy: employeeId,
+      assignedTo: body.assignedTo || [{ employee: employeeId, role: 'owner' }],
+      assignmentType: 'self_assigned',
+      status: 'assigned',
+      priority: body.priority || 'medium',
+      category: body.category || 'other',
+      progress: 0
     })
 
-    // Add timeline entry to task
-    task.statusHistory.push({
-      status: `Milestone created: ${body.title}`,
-      changedBy: employeeId,
-      reason: body.description || 'New milestone added to task'
-    })
-    await task.save()
+    // Add milestone to parent's subProjects array
+    parentTask.subProjects.push(milestone._id)
+    await parentTask.save()
 
-    // Update task progress based on all milestones
-    await updateTaskProgress(taskId)
+    // Update parent task progress based on all subProjects
+    await updateTaskProgress(parentTaskId)
 
-    const populatedMilestone = await Task.findById(milestone._id)
-      .populate('createdBy', 'firstName lastName employeeCode')
+    const populatedMilestone = await Project.findById(milestone._id)
+      .populate('assignedBy', 'firstName lastName employeeCode')
+      .populate('assignedTo.employee', 'firstName lastName employeeCode')
 
     return NextResponse.json({
       success: true,
@@ -126,21 +121,20 @@ export async function POST(request, { params }) {
 // Helper function to update task progress based on milestones
 async function updateTaskProgress(taskId) {
   try {
-    const milestones = await Task.find({ task: taskId, isDeleted: false })
-    
-    if (milestones.length === 0) {
+    const task = await Project.findById(taskId).populate('subProjects')
+
+    if (!task || !task.subProjects || task.subProjects.length === 0) {
       // No milestones, keep task progress as is
       return
     }
 
-    // Calculate average progress
-    const totalProgress = milestones.reduce((sum, m) => sum + m.progress, 0)
-    const averageProgress = Math.round(totalProgress / milestones.length)
+    // Calculate average progress from subProjects
+    const totalProgress = task.subProjects.reduce((sum, sp) => sum + (sp.progress || 0), 0)
+    const averageProgress = Math.round(totalProgress / task.subProjects.length)
 
     // Update task progress
-    await Task.findByIdAndUpdate(taskId, {
-      progress: averageProgress
-    })
+    task.progress = averageProgress
+    await task.save()
 
   } catch (error) {
     console.error('Update task progress error:', error)
