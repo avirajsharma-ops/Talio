@@ -24,7 +24,7 @@ echo "✅ Port 80 is free"
 echo ""
 
 # Navigate to project directory
-cd /root/Tailo || exit 1
+cd /root/Talio || exit 1
 
 # Stop containers
 echo "3️⃣ Stopping Docker containers..."

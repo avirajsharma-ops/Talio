@@ -117,7 +117,7 @@ All required environment variables are now properly configured:
 - ✅ `NEXTAUTH_URL` - Application URL
 
 ### Application
-- ✅ `NEXT_PUBLIC_APP_NAME` - Tailo HRMS
+- ✅ `NEXT_PUBLIC_APP_NAME` - Talio HRMS
 - ✅ `NEXT_PUBLIC_APP_URL` - Application URL
 - ✅ `NODE_ENV` - Environment mode
 - ✅ `MAX_FILE_SIZE` - File upload limit
@@ -154,7 +154,7 @@ curl http://localhost:3000/api/test
 ## 📁 File Structure
 
 ```
-Tailo/
+Talio/
 ├── .env                          # ✅ Production environment variables
 ├── .env.local                    # ✅ Local development environment variables
 ├── .env.example                  # ✅ Example environment template

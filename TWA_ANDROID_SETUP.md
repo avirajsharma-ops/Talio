@@ -2,7 +2,7 @@
 
 ## ✅ What's Been Configured
 
-Your Tailo HRMS application is now fully configured for Android TWA deployment using PWABuilder!
+Your Talio HRMS application is now fully configured for Android TWA deployment using PWABuilder!
 
 ---
 
@@ -95,8 +95,8 @@ This allows the Android app to open your website in a TWA without showing the br
 
 6. **Configure Android App:**
    - **Package ID:** `sbs.zenova.twa`
-   - **App Name:** `Tailo HRMS`
-   - **Short Name:** `Tailo`
+   - **App Name:** `Talio HRMS`
+   - **Short Name:** `Talio`
    - **Theme Color:** `#5F9EA0`
    - **Background Color:** `#ffffff`
    - **Icon:** Upload your Talio logo (512x512 PNG)
@@ -170,7 +170,7 @@ keytool -list -v -keystore your-keystore.jks -alias your-alias
    ```
 
 2. **Create a new app:**
-   - **App Name:** Tailo HRMS
+   - **App Name:** Talio HRMS
    - **Default Language:** English
    - **App Type:** App
    - **Free/Paid:** Free
@@ -328,7 +328,7 @@ If you encounter issues:
 
 ---
 
-**Your Tailo HRMS app is ready for Android deployment! 🎉**
+**Your Talio HRMS app is ready for Android deployment! 🎉**
 
 Good luck with your Play Store submission! 🚀
 

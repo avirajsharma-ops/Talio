@@ -117,7 +117,7 @@ chmod +x gradlew build-apk.sh
 ## 📞 Support
 
 - Email: aviraj.sharma@mushroomworldgroup.com
-- GitHub: https://github.com/avirajsharma-ops/Tailo
+- GitHub: https://github.com/avirajsharma-ops/Talio
 
 ## 📄 License
 

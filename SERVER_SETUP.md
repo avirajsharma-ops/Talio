@@ -17,7 +17,7 @@ Instead, we use a deployment script that creates the `.env` file on the server.
 
 ```bash
 cd ~
-git clone https://github.com/avirajsharma-ops/Tailo.git hrms
+git clone https://github.com/avirajsharma-ops/Talio.git hrms
 cd hrms
 ```
 

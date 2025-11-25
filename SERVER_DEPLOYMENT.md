@@ -21,8 +21,8 @@ Before starting, ensure:
 ssh user@your-server-ip
 
 # Clone the repository
-git clone https://github.com/avirajsharma-ops/Tailo.git
-cd Tailo
+git clone https://github.com/avirajsharma-ops/Talio.git
+cd Talio
 ```
 
 ### Step 2: Configure Environment

@@ -96,7 +96,7 @@ http://localhost:3000/login
 ssh root@72.61.170.205
 
 # Navigate to project
-cd /root/Tailo
+cd /root/Talio
 
 # Update .env file
 nano .env

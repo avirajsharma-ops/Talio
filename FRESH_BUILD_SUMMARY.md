@@ -101,7 +101,7 @@ https://app.talio.in/.well-known/assetlinks.json
 
 For issues or questions:
 - Email: aviraj.sharma@mushroomworldgroup.com
-- Repository: https://github.com/avirajsharma-ops/Tailo
+- Repository: https://github.com/avirajsharma-ops/Talio
 
 ---
 

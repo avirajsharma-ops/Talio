@@ -1,4 +1,4 @@
-# Quick Reference Guide - Tailo HRMS
+# Quick Reference Guide - Talio HRMS
 
 ## 🚀 Quick Start
 
@@ -48,7 +48,7 @@ MONGODB_URI=mongodb+srv://avirajsharma_db_user:aviraj@taliocluster.mvnlgwj.mongo
 JWT_SECRET=1mMMQ9J5DghFUW2e5YKA+/eD0jxmlHSI9GJiVRAUUZw=
 NEXTAUTH_SECRET=wg5Q+WLKYbxH3IXjom+F4SnhUacmsJSdCxf4rsQsuNI=
 NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_APP_NAME=Tailo HRMS
+NEXT_PUBLIC_APP_NAME=Talio HRMS
 ```
 
 ---

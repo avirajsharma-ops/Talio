@@ -190,7 +190,7 @@ The Android app includes:
 
 For issues or questions:
 - Email: aviraj.sharma@mushroomworldgroup.com
-- GitHub: https://github.com/avirajsharma-ops/Tailo
+- GitHub: https://github.com/avirajsharma-ops/Talio
 
 ## Version History
 

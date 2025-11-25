@@ -26,7 +26,7 @@ echo ""
 # Step 2: Clone repository
 echo "📥 Step 2/7: Cloning repository..."
 cd ~
-git clone https://github.com/avirajsharma-ops/Tailo.git hrms
+git clone https://github.com/avirajsharma-ops/Talio.git hrms
 cd hrms
 echo "✅ Repository cloned"
 echo ""
