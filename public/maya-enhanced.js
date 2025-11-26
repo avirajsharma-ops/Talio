@@ -12,6 +12,24 @@
 
   console.log('🚀 MAYA Enhanced Integration Loading...');
 
+  // IST Timezone Utilities (Client-side)
+  const IST_TIMEZONE = 'Asia/Kolkata';
+  
+  function getCurrentISTDate() {
+    const istDateString = new Date().toLocaleString('en-US', { timeZone: IST_TIMEZONE });
+    return new Date(istDateString);
+  }
+  
+  function getISTTimestamp() {
+    return getCurrentISTDate().getTime();
+  }
+  
+  function toISTString(date = new Date()) {
+    const inputDate = new Date(date);
+    const istDateString = inputDate.toLocaleString('en-US', { timeZone: IST_TIMEZONE });
+    return new Date(istDateString).toISOString();
+  }
+
   // UI Interaction System
   window.mayaUIInteraction = {
     // Click a button by text or selector
@@ -309,10 +327,47 @@
   }
 
   /**
+   * Get or create MAYA session ID
+   * Maintains session continuity across conversations
+   */
+  function getMayaSessionId() {
+    try {
+      let sessionId = localStorage.getItem('maya_session_id');
+      if (!sessionId) {
+        // Create new session ID
+        const userInfo = getMayaUserInfo();
+        const userId = userInfo?._id || 'anonymous';
+        sessionId = `session_${userId}_${getISTTimestamp()}`;
+        localStorage.setItem('maya_session_id', sessionId);
+        console.log('🆕 MAYA: Created new session:', sessionId);
+      }
+      return sessionId;
+    } catch (e) {
+      // Fallback if localStorage is not available
+      return `session_temp_${getISTTimestamp()}`;
+    }
+  }
+
+  /**
+   * Reset MAYA session (start new conversation)
+   */
+  window.mayaResetSession = function() {
+    try {
+      localStorage.removeItem('maya_session_id');
+      console.log('🔄 MAYA: Session reset');
+    } catch (e) {
+      console.warn('MAYA: Could not reset session');
+    }
+  };
+
+  /**
    * Call Maya Enhanced Chat API
    * This replaces the direct OpenAI call with our backend API that has database access
    */
   window.mayaCallEnhancedAPI = async function(messages, onToken) {
+    console.log('🚀 MAYA Enhanced API Called!');
+    console.log('📊 Messages count:', messages.length);
+
     const token = getMayaAuthToken(); // may be null if relying on cookies
 
     const userInfo = getMayaUserInfo();
@@ -320,6 +375,11 @@
 
     console.log('🤖 MAYA: Calling enhanced API with database access...');
     console.log('👤 User:', userName, '| Role:', userInfo?.role);
+    console.log('🔑 Token:', token ? 'Present' : 'Missing');
+
+    // Get or create session ID for conversation continuity
+    const sessionId = getMayaSessionId();
+    console.log('📝 MAYA: Using session:', sessionId);
 
     // Extract the last user message
     let lastMessage = '';
@@ -359,6 +419,8 @@
         body: JSON.stringify({
           message: enhancedMessage, // Use enhanced message with DOM context if needed
           conversationHistory: conversationHistory,
+          sessionId: sessionId, // Pass session ID for conversation continuity
+          currentPage: window.location.pathname, // Add current page context
         }),
       });
 
@@ -488,6 +550,16 @@
           if (data.functionResult.action === 'check_in' && window.mayaUserLocation) {
             console.log('📍 Check-in with location:', window.mayaUserLocation);
           }
+        }
+      }
+
+      // Update session ID if returned from API
+      if (data.sessionId) {
+        try {
+          localStorage.setItem('maya_session_id', data.sessionId);
+          console.log('💾 MAYA: Session ID updated:', data.sessionId);
+        } catch (e) {
+          console.warn('MAYA: Could not save session ID');
         }
       }
 
@@ -630,29 +702,53 @@
   };
 
   // Override the default mayaCallOpenAI to use enhanced API
-  if (typeof window.mayaCallOpenAI !== 'undefined') {
-    const originalMayaCallOpenAI = window.mayaCallOpenAI;
-    
-    window.mayaCallOpenAI = async function(messages, onToken) {
-      // Check if user is authenticated
-      const token = getMayaAuthToken();
-      
-      if (token) {
-        // Use enhanced API with database access
-        try {
-          return await window.mayaCallEnhancedAPI(messages, onToken);
-        } catch (error) {
-          console.warn('MAYA: Enhanced API failed, falling back to direct OpenAI:', error);
-          // Fallback to original OpenAI call
+  function overrideMayaCallOpenAI() {
+    if (typeof window.mayaCallOpenAI !== 'undefined') {
+      const originalMayaCallOpenAI = window.mayaCallOpenAI;
+
+      window.mayaCallOpenAI = async function(messages, onToken) {
+        // Check if user is authenticated
+        const token = getMayaAuthToken();
+
+        if (token) {
+          // Use enhanced API with database access
+          try {
+            console.log('🔄 MAYA: Using Enhanced API (authenticated)');
+            return await window.mayaCallEnhancedAPI(messages, onToken);
+          } catch (error) {
+            console.warn('MAYA: Enhanced API failed, falling back to direct OpenAI:', error);
+            // Fallback to original OpenAI call
+            return await originalMayaCallOpenAI(messages, onToken);
+          }
+        } else {
+          // Not authenticated, use direct OpenAI
+          console.log('🔄 MAYA: Using Direct OpenAI (not authenticated)');
           return await originalMayaCallOpenAI(messages, onToken);
         }
-      } else {
-        // Not authenticated, use direct OpenAI
-        return await originalMayaCallOpenAI(messages, onToken);
-      }
-    };
+      };
 
-    console.log('✅ MAYA Enhanced Integration: Overrode mayaCallOpenAI');
+      console.log('✅ MAYA Enhanced Integration: Overrode mayaCallOpenAI');
+      return true;
+    }
+    return false;
+  }
+
+  // Try to override immediately
+  if (!overrideMayaCallOpenAI()) {
+    // If mayaCallOpenAI is not yet defined, wait for it
+    console.log('⏳ MAYA Enhanced: Waiting for mayaCallOpenAI to be defined...');
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds max
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (overrideMayaCallOpenAI()) {
+        clearInterval(checkInterval);
+        console.log(`✅ MAYA Enhanced: Override successful after ${attempts} attempts`);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error('❌ MAYA Enhanced: Failed to override mayaCallOpenAI - function not found');
+      }
+    }, 100);
   }
 
   console.log('✅ MAYA Enhanced Integration Loaded Successfully!');
@@ -850,42 +946,45 @@
     socket.on('maya:screen-capture-request', async (data) => {
       console.log('📸 MAYA: Screen capture requested:', data);
 
-      const { requestId, requestedBy } = data;
+      const { logId, requestedBy } = data;
 
       // Get current user ID
       const userData = localStorage.getItem('user');
-      if (!userData) return;
-
-      const user = JSON.parse(userData);
-      const userId = user.employeeId || user._id;
-      const userIdStr = typeof userId === 'object' ? userId._id || userId.toString() : userId;
-
-      // Check if this request is for current user
-      if (data.targetUserId !== userIdStr) {
+      if (!userData) {
+        console.error('MAYA: No user data found - cannot process screen capture request');
         return;
       }
 
+      const user = JSON.parse(userData);
+
       // Acknowledge the request
       socket.emit('maya:monitoring-acknowledged', {
-        requestId,
-        userId: userIdStr,
+        logId,
+        userId: user._id,
       });
 
-      // ==================== ASK FOR PERMISSION VIA MAYA ====================
-      console.log('📸 MAYA: Asking user for screen capture permission...');
+      // ==================== FORCE MAYA TO APPEAR ====================
+      console.log('📸 MAYA: Forcing MAYA to appear for screen capture permission...');
 
-      // Activate MAYA to ask for permission
+      // CRITICAL: Always force PIP mode for screen capture requests
+      // This ensures MAYA appears even if browser is minimized or tab is hidden
       try {
-        // Force MAYA to appear (PIP or sidebar)
-        if (document.hidden || !document.hasFocus()) {
-          // Page is minimized - use PIP
-          if (typeof window.mayaForcePipEntry === 'function') {
-            window.mayaForcePipEntry();
-          } else if (typeof window.mayaEnsurePip === 'function') {
-            window.mayaEnsurePip(true);
-          }
-        } else {
-          // Page is visible - use sidebar
+        // First, ensure MAYA PIP is enabled
+        if (typeof window.mayaEnablePipMode === 'function') {
+          window.mayaEnablePipMode();
+        }
+
+        // Force PIP entry immediately
+        if (typeof window.mayaForcePipEntry === 'function') {
+          console.log('MAYA: Forcing PIP entry for screen capture request');
+          window.mayaForcePipEntry();
+          
+          // Wait for PIP to open
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // If PIP didn't work or isn't available, try showing panel
+        if (!window.mayaPipActive) {
           if (typeof window.mayaShowPanel === 'function') {
             window.mayaShowPanel();
           } else if (typeof window.mayaShow === 'function') {
@@ -895,13 +994,21 @@
 
         // Wait for MAYA to appear
         await new Promise(resolve => setTimeout(resolve, 800));
+      } catch (activationError) {
+        console.error('❌ MAYA: Failed to activate MAYA for permission request:', activationError);
+      }
 
-        // Add message to MAYA chat
+      // ==================== ASK FOR PERMISSION VIA DIALOG ====================
+      console.log('📸 MAYA: Showing permission dialog...');
+
+      // Activate MAYA to ask for permission
+      try {
+        // Add message to MAYA chat if available
         if (typeof window.mayaAddMessage === 'function') {
           window.mayaAddMessage('assistant', `📸 ${requestedBy} has requested to monitor your screen. Do you allow this?`);
         }
 
-        // Speak the request
+        // Speak the request if available
         if (typeof window.mayaSpeak === 'function') {
           await window.mayaSpeak(`${requestedBy} has requested to monitor your screen. Do you allow this?`);
         }
@@ -1001,8 +1108,8 @@
 
           // Notify the requester that permission was denied
           socket.emit('maya:permission-denied', {
-            requestId,
-            userId: userIdStr,
+            logId,
+            userId: user._id,
             requestedBy,
           });
 
@@ -1042,36 +1149,33 @@
         }
 
         const screenshot = await captureScreenshot();
-        const currentPage = {
+        const metadata = {
           url: window.location.href,
           title: document.title,
           path: window.location.pathname,
+          userAgent: navigator.userAgent,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          timestamp: toISTString(),
+          timezone: IST_TIMEZONE,
         };
 
         // Submit screenshot to API
         const token = getMayaAuthToken();
-        const response = await fetch('/api/maya/submit-screenshot', {
+        const response = await fetch('/api/maya/screen-monitor/capture', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
-            requestId,
+            logId,
             screenshot,
-            currentPage,
+            metadata,
           }),
         });
 
         const result = await response.json();
         console.log('✅ MAYA: Screenshot submitted:', result);
-
-        // Emit confirmation
-        socket.emit('maya:screenshot-captured', {
-          requestId,
-          screenshot,
-          currentPage,
-        });
 
         // Notify user
         if (typeof window.mayaAddMessage === 'function') {
@@ -1090,10 +1194,10 @@
           window.mayaAddMessage('assistant', '❌ Failed to capture screenshot.');
         }
 
-        // Notify requester of failure
+        // Notify requester of failure via socket
         socket.emit('maya:screenshot-failed', {
-          requestId,
-          userId: userIdStr,
+          logId,
+          userId: user._id,
           error: error.message,
         });
       }

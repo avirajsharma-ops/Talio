@@ -4764,6 +4764,24 @@
       }
     }
 
+    // Enable PIP mode programmatically (can be called from other scripts)
+    window.mayaEnablePipMode = function(){
+      console.log("MAYA: 🔧 Enabling PIP mode programmatically");
+      pipAutoTriggerEnabled = true;
+      
+      // If document is already hidden, trigger PIP immediately
+      if(document.hidden){
+        console.log("MAYA: Document is hidden, triggering PIP immediately");
+        mayaForcePipEntry();
+      }
+    };
+
+    // Disable PIP mode programmatically
+    window.mayaDisablePipMode = function(){
+      console.log("MAYA: 🔧 Disabling PIP mode");
+      pipAutoTriggerEnabled = false;
+    };
+
     // Primary trigger: Tab visibility change
     var lastVisibilityChange = 0;
     var pipParentUrl = window.location.href; // Store the parent URL when MAYA loads
@@ -4774,7 +4792,7 @@
 
       // Debounce rapid visibility changes
       var now = Date.now();
-      if(now - lastVisibilityChange < 200){
+      if(now - lastVisibilityChange < 100){ // Reduced from 200ms to 100ms for faster response
         console.log("MAYA: ⏭️ Skipping rapid visibility change");
         return;
       }
@@ -4797,54 +4815,39 @@
           return;
         }
 
-        // CRITICAL: Check if document actually lost focus (not just blur from URL bar, inspect, etc.)
-        // If document still has focus, user is just clicking browser UI, not switching tabs
-        if(document.hasFocus()){
-          console.log("MAYA: ⚠️ Document still has focus - user clicked browser UI (URL bar, inspect, etc.), not switching tabs");
-          return;
-        }
+        // IMMEDIATE TRIGGER: Don't wait - trigger PIP immediately when tab is hidden
+        console.log("MAYA: 🔴 TAB HIDDEN - IMMEDIATE PIP TRIGGER");
+        pipRetryCount = 0;
+        mayaForcePipEntry();
 
-        // Additional check: Detect if this is likely a native popup by checking document.hasFocus()
-        // Native popups (permissions, alerts) don't actually hide the document in the same way
+        // Aggressive backup triggers with shorter delays
         setTimeout(function(){
-          // If document regains visibility quickly (< 500ms), it was likely a popup
-          if(!document.hidden){
-            console.log("MAYA: ⚠️ Document became visible again quickly - was likely a native popup, not a tab switch");
-            return;
+          if(!mayaPipActive && document.hidden){
+            console.log("MAYA: 🔄 Backup trigger 1 (50ms)");
+            mayaForcePipEntry();
           }
+        }, 50);
 
-          // FINAL CHECK: Ensure document is still hidden and has no focus
-          if(document.hidden && !document.hasFocus()){
-            // Tab switched or window minimized (confirmed)
-            console.log("MAYA: 🔴 TAB HIDDEN (confirmed tab switch/minimize) - TRIGGERING PIP MODE");
-            pipRetryCount = 0;
-
-            // Immediate trigger
-              mayaForcePipEntry();
-
-            // Multiple backup triggers to ensure PIP opens
-            pipTriggerTimeout = setTimeout(function(){
-              if(!mayaPipActive && document.hidden && !document.hasFocus()){
-                console.log("MAYA: 🔄 Backup trigger 1 (100ms)");
-                mayaForcePipEntry();
-              }
-            }, 100);
-
-            setTimeout(function(){
-              if(!mayaPipActive && document.hidden && !document.hasFocus()){
-                console.log("MAYA: 🔄 Backup trigger 2 (300ms)");
-                mayaForcePipEntry();
-              }
-            }, 300);
-
-            setTimeout(function(){
-              if(!mayaPipActive && document.hidden && !document.hasFocus()){
-                console.log("MAYA: 🔄 Backup trigger 3 (500ms)");
-                mayaForcePipEntry();
-              }
-            }, 500);
+        setTimeout(function(){
+          if(!mayaPipActive && document.hidden){
+            console.log("MAYA: 🔄 Backup trigger 2 (150ms)");
+            mayaForcePipEntry();
           }
-        }, 500); // End of setTimeout that waits to confirm it's not a popup
+        }, 150);
+
+        setTimeout(function(){
+          if(!mayaPipActive && document.hidden){
+            console.log("MAYA: 🔄 Backup trigger 3 (300ms)");
+            mayaForcePipEntry();
+          }
+        }, 300);
+
+        setTimeout(function(){
+          if(!mayaPipActive && document.hidden){
+            console.log("MAYA: 🔄 Backup trigger 4 (600ms)");
+            mayaForcePipEntry();
+          }
+        }, 600);
       } else {
         // Tab restored - exit PIP and minimize to blob
         console.log("MAYA: 🟢 TAB VISIBLE AGAIN - Minimizing to blob");
@@ -4865,43 +4868,33 @@
       }
     });
 
-    // Secondary trigger: Window blur (DISABLED - too aggressive, triggers on URL bar clicks)
-    // We rely only on visibilitychange for accurate tab switch detection
+    // Secondary trigger: Window blur for faster PIP activation
     window.addEventListener('blur', function(){
       if(!pipAutoTriggerEnabled) return;
 
-      // CRITICAL: Only trigger if document is actually hidden AND has no focus
-      // This prevents PIP from triggering when user clicks URL bar, inspect, etc.
-      if(!document.hidden || document.hasFocus()){
-        console.log("MAYA: ⚠️ Window blurred but document still visible/focused - skipping PIP");
-        console.log("MAYA: This is likely a click on URL bar, inspect, or other browser UI");
-        return;
+      // Immediate check - if document is hidden, trigger PIP right away
+      if(document.hidden){
+        console.log("MAYA: 🔴 WINDOW BLURRED + DOCUMENT HIDDEN - Immediate PIP trigger");
+        pipRetryCount = 0;
+        mayaForcePipEntry();
+        
+        // Quick backup
+        setTimeout(function(){
+          if(!mayaPipActive && document.hidden){
+            console.log("MAYA: 🔄 Window blur backup trigger (100ms)");
+            mayaForcePipEntry();
+          }
+        }, 100);
+      } else {
+        // Document not hidden yet - wait a moment to see if it becomes hidden
+        setTimeout(function(){
+          if(document.hidden && !document.hasFocus()){
+            console.log("MAYA: 🔴 WINDOW BLURRED (delayed check) - Document now hidden, triggering PIP");
+            pipRetryCount = 0;
+            mayaForcePipEntry();
+          }
+        }, 50);
       }
-
-      console.log("MAYA: 🔴 WINDOW BLURRED (document hidden) - Triggering PIP");
-
-      // Immediate trigger
-      setTimeout(function(){
-        if(!mayaPipActive && document.hidden && !document.hasFocus()){
-          pipRetryCount = 0;
-          mayaForcePipEntry();
-        }
-      }, 50);
-
-      // Backup trigger
-      setTimeout(function(){
-        if(!mayaPipActive && document.hidden && !document.hasFocus()){
-          console.log("MAYA: 🔄 Window blur backup trigger");
-          mayaForcePipEntry();
-        }
-      }, 200);
-    });
-
-    // Tertiary trigger: Page focus loss (DISABLED - too aggressive)
-    // We rely only on visibilitychange for accurate detection
-    document.addEventListener('focusout', function(e){
-      // DISABLED - causes false triggers on URL bar, inspect, etc.
-      return;
     });
 
     // Additional trigger: Page hide event (for browser minimize)
@@ -4909,7 +4902,7 @@
       if(!pipAutoTriggerEnabled) return;
 
       // Only trigger if document is actually hidden
-      if(document.hidden && !document.hasFocus()){
+      if(document.hidden){
         console.log("MAYA: 🔴 PAGE HIDE - Triggering PIP");
         pipRetryCount = 0;
         mayaForcePipEntry();

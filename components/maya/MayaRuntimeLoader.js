@@ -112,18 +112,30 @@ export function MayaRuntimeLoader() {
       script.id = "maya-runtime-script";
       script.src = "/maya-runtime.js";
       script.async = true;
-      document.body.appendChild(script);
-    }
 
-    // Load the enhanced Maya integration script (database access & navigation)
-    if (!document.getElementById("maya-enhanced-script")) {
-      const enhancedScript = document.createElement("script");
-      enhancedScript.id = "maya-enhanced-script";
-      enhancedScript.src = "/maya-enhanced.js";
-      enhancedScript.async = true;
-      // Load after maya-runtime.js
-      enhancedScript.defer = true;
-      document.body.appendChild(enhancedScript);
+      // Load enhanced script AFTER runtime script finishes loading
+      script.onload = () => {
+        console.log('✅ MAYA Runtime loaded, now loading enhanced integration...');
+
+        if (!document.getElementById("maya-enhanced-script")) {
+          const enhancedScript = document.createElement("script");
+          enhancedScript.id = "maya-enhanced-script";
+          enhancedScript.src = "/maya-enhanced.js";
+          enhancedScript.async = false; // Load synchronously after runtime
+          document.body.appendChild(enhancedScript);
+        }
+      };
+
+      document.body.appendChild(script);
+    } else {
+      // Runtime already loaded, load enhanced script if not already loaded
+      if (!document.getElementById("maya-enhanced-script")) {
+        const enhancedScript = document.createElement("script");
+        enhancedScript.id = "maya-enhanced-script";
+        enhancedScript.src = "/maya-enhanced.js";
+        enhancedScript.async = false;
+        document.body.appendChild(enhancedScript);
+      }
     }
   }, []);
 

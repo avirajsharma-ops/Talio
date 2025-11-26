@@ -1,0 +1,101 @@
+{
+  "name": "talio-activity-monitor",
+  "version": "1.0.0",
+  "description": "Talio HRMS Employee Activity Monitor for Windows - Comprehensive productivity tracking with unrestricted screen capture",
+  "main": "main.js",
+  "author": "Talio HRMS",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64 --ia32 --arm64",
+    "build:win64": "electron-builder --win --x64",
+    "build:win32": "electron-builder --win --ia32",
+    "build:portable": "electron-builder --win portable",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.talio.activitymonitor",
+    "productName": "Talio Activity Monitor",
+    "copyright": "Copyright © 2025 Talio HRMS",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32", "arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "msi",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "publisherName": "Talio HRMS"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Talio Activity Monitor",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "perMachine": true,
+      "allowElevation": true,
+      "include": "installer.nsh"
+    },
+    "msi": {
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    },
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": ["**/*"]
+      }
+    ]
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "electron-store": "^8.1.0"
+  },
+  "optionalDependencies": {
+    "active-win": "^8.0.0",
+    "screenshot-desktop": "^1.15.0",
+    "node-machine-id": "^1.1.12",
+    "windows-process-tree": "^0.4.0",
+    "node-window-manager": "^2.2.4",
+    "robotjs": "^0.6.0"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.9.0"
+  }
+}

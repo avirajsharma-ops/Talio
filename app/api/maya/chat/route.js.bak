@@ -608,7 +608,7 @@ USER REQUEST: ${message}]\n\n${message}`;
 
     // No function call, return direct response
     // Define currentSessionId outside try block so it's accessible in return statement
-    const currentSessionId = sessionId || `session_${user._id}_${getISTTimestamp()}`;
+    const currentSessionId = sessionId || `session_${user._id}_${Date.now()}`;
 
     // Save chat history to database for learning
     try {
@@ -625,13 +625,13 @@ USER REQUEST: ${message}]\n\n${message}`;
         {
           $push: {
             messages: [
-              { role: 'user', content: message, timestamp: getCurrentISTDate() },
-              { role: 'assistant', content: responseMessage.content, timestamp: getCurrentISTDate() }
+              { role: 'user', content: message, timestamp: new Date() },
+              { role: 'assistant', content: responseMessage.content, timestamp: new Date() }
             ]
           },
           $set: {
             employeeId: employee?._id,
-            lastMessageAt: getCurrentISTDate(),
+            lastMessageAt: new Date(),
             context: {
               currentPage: currentPage || body.currentPage,
               userRole: user.role,
@@ -780,23 +780,22 @@ async function performDashboardAction(args, user) {
           collection: 'attendance',
           data: {
             employee: user._id,
-            date: getCurrentISTDate(),
-            checkIn: getCurrentISTDate(),
+            date: new Date(),
+            checkIn: new Date(),
             status: 'in-progress',
           },
         }, user);
       },
 
       check_out: async () => {
-        const { getISTStartOfDay } = await import('@/lib/timezone');
         return await executeDatabaseAction({
           action: 'update',
           collection: 'attendance',
           query: {
             employee: user._id,
-            date: { $gte: getISTStartOfDay() },
+            date: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
           },
-          data: { checkOut: getCurrentISTDate(), status: 'present' },
+          data: { checkOut: new Date(), status: 'present' },
         }, user);
       },
 
@@ -822,7 +821,7 @@ async function performDashboardAction(args, user) {
             employee: user._id,
             ...data,
             status: 'pending',
-            requestedDate: getCurrentISTDate(),
+            requestedDate: new Date(),
           },
         }, user);
       },
@@ -832,7 +831,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'attendancecorrections',
           query: { _id: data.correctionId },
-          data: { status: 'approved', approvedBy: user._id, approvedDate: getCurrentISTDate() },
+          data: { status: 'approved', approvedBy: user._id, approvedDate: new Date() },
         }, user);
       },
 
@@ -845,7 +844,7 @@ async function performDashboardAction(args, user) {
             employee: user._id,
             ...data,
             status: 'pending',
-            appliedDate: getCurrentISTDate(),
+            appliedDate: new Date(),
           },
         }, user);
       },
@@ -855,7 +854,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'leave',
           query: { _id: data.leaveId, employee: user._id },
-          data: { status: 'cancelled', cancelledDate: getCurrentISTDate() },
+          data: { status: 'cancelled', cancelledDate: new Date() },
         }, user);
       },
 
@@ -864,7 +863,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'leave',
           query: { _id: data.leaveId },
-          data: { status: 'approved', approvedBy: user._id, approvedDate: getCurrentISTDate() },
+          data: { status: 'approved', approvedBy: user._id, approvedDate: new Date() },
         }, user);
       },
 
@@ -873,7 +872,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'leave',
           query: { _id: data.leaveId },
-          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: getCurrentISTDate(), rejectionReason: data.reason },
+          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: new Date(), rejectionReason: data.reason },
         }, user);
       },
 
@@ -900,7 +899,7 @@ async function performDashboardAction(args, user) {
             createdBy: user._id,
             ...data,
             status: data.status || 'pending',
-            createdAt: getCurrentISTDate(),
+            createdAt: new Date(),
           },
         }, user);
       },
@@ -910,7 +909,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'tasks',
           query: { _id: data.taskId },
-          data: { ...data, updatedAt: getCurrentISTDate() },
+          data: { ...data, updatedAt: new Date() },
         }, user);
       },
 
@@ -919,7 +918,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'tasks',
           query: { _id: data.taskId },
-          data: { assignedTo: data.assignedTo, assignedBy: user._id, assignedDate: getCurrentISTDate() },
+          data: { assignedTo: data.assignedTo, assignedBy: user._id, assignedDate: new Date() },
         }, user);
       },
 
@@ -928,7 +927,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'tasks',
           query: { _id: data.taskId },
-          data: { status: 'completed', completedBy: user._id, completedDate: getCurrentISTDate() },
+          data: { status: 'completed', completedBy: user._id, completedDate: new Date() },
         }, user);
       },
 
@@ -945,7 +944,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'tasks',
           query: { _id: data.taskId },
-          data: { $push: { comments: { user: user._id, text: data.comment, date: getCurrentISTDate() } } },
+          data: { $push: { comments: { user: user._id, text: data.comment, date: new Date() } } },
         }, user);
       },
 
@@ -958,7 +957,7 @@ async function performDashboardAction(args, user) {
             employee: user._id,
             ...data,
             status: 'pending',
-            submittedDate: getCurrentISTDate(),
+            submittedDate: new Date(),
           },
         }, user);
       },
@@ -968,7 +967,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'expenses',
           query: { _id: data.expenseId },
-          data: { status: 'approved', approvedBy: user._id, approvedDate: getCurrentISTDate() },
+          data: { status: 'approved', approvedBy: user._id, approvedDate: new Date() },
         }, user);
       },
 
@@ -977,7 +976,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'expenses',
           query: { _id: data.expenseId },
-          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: getCurrentISTDate(), rejectionReason: data.reason },
+          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: new Date(), rejectionReason: data.reason },
         }, user);
       },
 
@@ -986,7 +985,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'expenses',
           query: { _id: data.expenseId, employee: user._id },
-          data: { status: 'cancelled', cancelledDate: getCurrentISTDate() },
+          data: { status: 'cancelled', cancelledDate: new Date() },
         }, user);
       },
 
@@ -999,7 +998,7 @@ async function performDashboardAction(args, user) {
             employee: user._id,
             ...data,
             status: 'pending',
-            requestedDate: getCurrentISTDate(),
+            requestedDate: new Date(),
           },
         }, user);
       },
@@ -1009,7 +1008,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'travel',
           query: { _id: data.travelId },
-          data: { status: 'approved', approvedBy: user._id, approvedDate: getCurrentISTDate() },
+          data: { status: 'approved', approvedBy: user._id, approvedDate: new Date() },
         }, user);
       },
 
@@ -1018,7 +1017,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'travel',
           query: { _id: data.travelId },
-          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: getCurrentISTDate(), rejectionReason: data.reason },
+          data: { status: 'rejected', rejectedBy: user._id, rejectedDate: new Date(), rejectionReason: data.reason },
         }, user);
       },
 
@@ -1027,7 +1026,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'travel',
           query: { _id: data.travelId, employee: user._id },
-          data: { status: 'cancelled', cancelledDate: getCurrentISTDate() },
+          data: { status: 'cancelled', cancelledDate: new Date() },
         }, user);
       },
 
@@ -1039,7 +1038,7 @@ async function performDashboardAction(args, user) {
           data: {
             createdBy: user._id,
             ...data,
-            createdAt: getCurrentISTDate(),
+            createdAt: new Date(),
           },
         }, user);
       },
@@ -1049,7 +1048,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'announcements',
           query: { _id: data.announcementId },
-          data: { ...data, updatedBy: user._id, updatedAt: getCurrentISTDate() },
+          data: { ...data, updatedBy: user._id, updatedAt: new Date() },
         }, user);
       },
 
@@ -1066,7 +1065,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'announcements',
           query: { _id: data.announcementId },
-          data: { isPinned: true, pinnedBy: user._id, pinnedDate: getCurrentISTDate() },
+          data: { isPinned: true, pinnedBy: user._id, pinnedDate: new Date() },
         }, user);
       },
 
@@ -1076,7 +1075,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'notifications',
           query: { _id: data.notificationId },
-          data: { isRead: true, readAt: getCurrentISTDate() },
+          data: { isRead: true, readAt: new Date() },
         }, user);
       },
 
@@ -1085,7 +1084,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'notifications',
           query: { recipient: user._id, isRead: false },
-          data: { isRead: true, readAt: getCurrentISTDate() },
+          data: { isRead: true, readAt: new Date() },
         }, user);
       },
 
@@ -1105,7 +1104,7 @@ async function performDashboardAction(args, user) {
           data: {
             employee: user._id,
             ...data,
-            uploadedDate: getCurrentISTDate(),
+            uploadedDate: new Date(),
             status: 'pending',
           },
         }, user);
@@ -1124,7 +1123,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'documents',
           query: { _id: data.documentId },
-          data: { status: 'approved', approvedBy: user._id, approvedDate: getCurrentISTDate() },
+          data: { status: 'approved', approvedBy: user._id, approvedDate: new Date() },
         }, user);
       },
 
@@ -1134,7 +1133,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'employees',
           query: { _id: user._id },
-          data: { ...data, updatedAt: getCurrentISTDate() },
+          data: { ...data, updatedAt: new Date() },
         }, user);
       },
 
@@ -1143,7 +1142,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'employees',
           query: { _id: user._id },
-          data: { phone: data.phone, email: data.email, address: data.address, updatedAt: getCurrentISTDate() },
+          data: { phone: data.phone, email: data.email, address: data.address, updatedAt: new Date() },
         }, user);
       },
 
@@ -1152,7 +1151,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'employees',
           query: { _id: user._id },
-          data: { emergencyContact: data.emergencyContact, updatedAt: getCurrentISTDate() },
+          data: { emergencyContact: data.emergencyContact, updatedAt: new Date() },
         }, user);
       },
 
@@ -1161,7 +1160,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'employees',
           query: { _id: user._id },
-          data: { bankDetails: data.bankDetails, updatedAt: getCurrentISTDate() },
+          data: { bankDetails: data.bankDetails, updatedAt: new Date() },
         }, user);
       },
 
@@ -1174,7 +1173,7 @@ async function performDashboardAction(args, user) {
             employee: data.employeeId,
             reviewer: user._id,
             ...data,
-            createdAt: getCurrentISTDate(),
+            createdAt: new Date(),
           },
         }, user);
       },
@@ -1184,7 +1183,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'performance',
           query: { _id: data.reviewId },
-          data: { selfAssessment: data.assessment, selfAssessmentDate: getCurrentISTDate() },
+          data: { selfAssessment: data.assessment, selfAssessmentDate: new Date() },
         }, user);
       },
 
@@ -1193,7 +1192,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'goals',
           query: { _id: data.goalId },
-          data: { progress: data.progress, lastUpdated: getCurrentISTDate() },
+          data: { progress: data.progress, lastUpdated: new Date() },
         }, user);
       },
 
@@ -1205,7 +1204,7 @@ async function performDashboardAction(args, user) {
             employee: data.employeeId || user._id,
             ...data,
             createdBy: user._id,
-            createdAt: getCurrentISTDate(),
+            createdAt: new Date(),
           },
         }, user);
       },
@@ -1219,7 +1218,7 @@ async function performDashboardAction(args, user) {
             createdBy: user._id,
             ...data,
             status: 'open',
-            createdAt: getCurrentISTDate(),
+            createdAt: new Date(),
           },
         }, user);
       },
@@ -1229,7 +1228,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'helpdesk',
           query: { _id: data.ticketId },
-          data: { ...data, updatedAt: getCurrentISTDate() },
+          data: { ...data, updatedAt: new Date() },
         }, user);
       },
 
@@ -1238,7 +1237,7 @@ async function performDashboardAction(args, user) {
           action: 'update',
           collection: 'helpdesk',
           query: { _id: data.ticketId },
-          data: { status: 'closed', closedBy: user._id, closedDate: getCurrentISTDate() },
+          data: { status: 'closed', closedBy: user._id, closedDate: new Date() },
         }, user);
       },
     };

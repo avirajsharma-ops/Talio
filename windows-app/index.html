@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <title>Talio Activity Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen" class="screen">
+    <div class="login-container">
+      <div class="logo">
+        <h1>Talio</h1>
+        <p>Activity Monitor</p>
+      </div>
+      
+      <form id="login-form">
+        <h2>Sign In</h2>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required autocomplete="current-password">
+        </div>
+        <div id="login-error" class="error-message"></div>
+        <button type="submit" class="btn-primary" id="login-btn">
+          <span class="btn-text">Sign In</span>
+          <span class="btn-loader" style="display: none;">Signing in...</span>
+        </button>
+      </form>
+      
+      <div class="info-text">
+        <p>This application will monitor your activity to improve productivity.</p>
+        <p class="small">By logging in, you consent to activity monitoring.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Screen -->
+  <div id="dashboard-screen" class="screen" style="display: none;">
+    <div class="header">
+      <div class="header-left">
+        <h1>Talio Activity Monitor</h1>
+        <p class="status-indicator">
+          <span class="status-dot status-active"></span>
+          <span id="status-text">Monitoring Active</span>
+        </p>
+      </div>
+      <div class="header-right">
+        <span id="user-email"></span>
+        <button id="logout-btn" class="btn-secondary">Logout</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📸</div>
+          <div class="stat-content">
+            <div class="stat-value" id="screenshot-count">0</div>
+            <div class="stat-label">Screenshots Captured</div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">🪟</div>
+          <div class="stat-content">
+            <div class="stat-value" id="window-count">0</div>
+            <div class="stat-label">Window Switches</div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-content">
+            <div class="stat-value" id="uptime">0h 0m</div>
+            <div class="stat-label">Monitoring Time</div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">💻</div>
+          <div class="stat-content">
+            <div class="stat-value" id="current-app">None</div>
+            <div class="stat-label">Current Application</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="activity-section">
+        <h3>Recent Activity</h3>
+        <div id="activity-feed" class="activity-feed">
+          <p class="empty-state">Waiting for activity...</p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button id="toggle-tracking-btn" class="btn-primary">
+          <span id="toggle-btn-text">Pause Tracking</span>
+        </button>
+        <button id="open-dashboard-btn" class="btn-secondary">Open Web Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

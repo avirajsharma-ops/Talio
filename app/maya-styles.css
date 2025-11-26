@@ -36,6 +36,12 @@
       padding: 0 !important;
       border: none !important;
       background: transparent !important;
+      transform: translate3d(0, 0, 0) !important;
+      will-change: auto !important;
+      backface-visibility: hidden !important;
+      -webkit-backface-visibility: hidden !important;
+      perspective: 1000px !important;
+      -webkit-font-smoothing: antialiased !important;
     }
     /* Futuristic ambient orbits behind MAYA */
     .maya-blob-shell::before,

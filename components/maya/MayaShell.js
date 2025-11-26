@@ -28,14 +28,24 @@ export function MayaShell() {
 
   return (
     <div
-      className="maya-shell fixed inset-0 z-maya pointer-events-none m-0 p-0 border-0 bg-transparent font-sans"
+      className="maya-shell fixed inset-0 pointer-events-none m-0 p-0 border-0 bg-transparent font-sans"
       id="maya-shell"
       style={{ zIndex: 2147483647 }}
     >
       <div
-        className="maya-blob-shell fixed bottom-6 right-6 w-[120px] h-[120px] grid place-items-center pointer-events-auto overflow-visible visible opacity-100 m-0 p-0 border-0 bg-transparent transition-all duration-200 ease-out"
+        className="maya-blob-shell"
         id="maya-blob-shell"
-        style={{ zIndex: 2147483647 }}
+        style={{ 
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '120px',
+          height: '120px',
+          zIndex: 2147483647,
+          pointerEvents: 'auto',
+          transform: 'translate3d(0, 0, 0)',
+          willChange: 'auto'
+        }}
       >
         <div className="maya-listening-indicator" id="maya-listening-indicator" />
 

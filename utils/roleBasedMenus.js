@@ -121,7 +121,7 @@ export const roleBasedMenus = {
       icon: FaRobot,
       path: '/dashboard/maya',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
         { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
       ]
@@ -215,7 +215,7 @@ export const roleBasedMenus = {
       icon: FaRobot,
       path: '/dashboard/maya',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
         { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
       ]
@@ -288,7 +288,7 @@ export const roleBasedMenus = {
       icon: FaRobot,
       path: '/dashboard/maya',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
       ]
     },
@@ -357,7 +357,7 @@ export const roleBasedMenus = {
       icon: FaRobot,
       path: '/dashboard/maya',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
       ]
     },
@@ -475,7 +475,7 @@ export const roleBasedMenus = {
       icon: FaRobot,
       path: '/dashboard/maya',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/history' },
+        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
         { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
         { name: 'Custom Context', path: '/dashboard/maya/context' },

@@ -93,72 +93,41 @@ export default function SettingsPage() {
         <p className="text-sm sm:text-base text-gray-600 mt-1">Configure your HRMS system</p>
       </div>
 
-      {/* Mobile Tabs */}
-      <div className="md:hidden mb-4">
-        <div className="rounded-lg shadow-md p-2 overflow-x-auto" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-          <div className="flex space-x-2 min-w-max">
+      {/* Horizontal Tabs (All Devices) */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200" style={{ borderColor: 'var(--color-border)' }}>
+          <nav className="-mb-px flex space-x-4 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  className={`flex items-center space-x-2 px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                   style={{
-                    backgroundColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'var(--color-primary-100)',
-                    color: activeTab === tab.id ? '#FFFFFF' : 'var(--color-primary-700)'
+                    borderBottomColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'transparent',
+                    color: activeTab === tab.id ? 'var(--color-primary-600)' : 'var(--color-text-secondary)'
                   }}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="text-sm">{tab.name}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-4 sm:gap-6">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block w-56 lg:w-64 rounded-lg shadow-md p-4" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-          <nav className="space-y-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors"
-                  style={{
-                    backgroundColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'transparent',
-                    color: activeTab === tab.id ? '#FFFFFF' : '#374151'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.backgroundColor = 'var(--color-primary-100)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== tab.id) {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                    }
-                  }}
-                >
-                  <Icon />
                   <span>{tab.name}</span>
                 </button>
               )
             })}
           </nav>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-          {activeTab === 'company' && <CompanySettingsTab />}
-          {activeTab === 'geofencing' && <GeofencingTab />}
-          {activeTab === 'notifications' && <NotificationsTab />}
-          {activeTab === 'personalization' && <PersonalizationTab />}
-        </div>
+      {/* Content */}
+      <div className="rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+        {activeTab === 'company' && <CompanySettingsTab />}
+        {activeTab === 'geofencing' && <GeofencingTab />}
+        {activeTab === 'notifications' && <NotificationsTab />}
+        {activeTab === 'personalization' && <PersonalizationTab />}
       </div>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
+import { getCurrentISTDate, getCurrentISTMinutesSinceMidnight, getCurrentISTDayName } from '@/lib/timezone'
 
 export default function useGeofencing() {
   const [isTracking, setIsTracking] = useState(false)
@@ -27,12 +28,11 @@ export default function useGeofencing() {
     return R * c // Distance in meters
   }
 
-  // Check if current time is during work hours
+  // Check if current time is during work hours (IST)
   const isDuringWorkHours = (checkInTime, checkOutTime) => {
     if (!checkInTime || !checkOutTime) return false
 
-    const now = new Date()
-    const currentTime = now.getHours() * 60 + now.getMinutes()
+    const currentTime = getCurrentISTMinutesSinceMidnight()
 
     const [checkInHour, checkInMin] = checkInTime.split(':').map(Number)
     const [checkOutHour, checkOutMin] = checkOutTime.split(':').map(Number)
@@ -43,13 +43,12 @@ export default function useGeofencing() {
     return currentTime >= checkInMinutes && currentTime <= checkOutMinutes
   }
 
-  // Check if current time is during break time
+  // Check if current time is during break time (IST)
   const isDuringBreakTime = (breakTimings) => {
     if (!breakTimings || breakTimings.length === 0) return false
 
-    const now = new Date()
-    const currentTime = now.getHours() * 60 + now.getMinutes()
-    const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()]
+    const currentTime = getCurrentISTMinutesSinceMidnight()
+    const currentDay = getCurrentISTDayName()
 
     for (const breakTiming of breakTimings) {
       if (!breakTiming.isActive) continue
@@ -149,7 +148,7 @@ export default function useGeofencing() {
 
     // The API will handle checking multiple locations
     // We just need to log the location and get the response
-    const now = Date.now()
+    const now = getCurrentISTDate().getTime()
     const shouldLog = !lastCheckTime || (now - lastCheckTime) > 15 * 60 * 1000 // Every 15 minutes
 
     if (shouldLog || !isWithinGeofence) {
