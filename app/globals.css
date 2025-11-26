@@ -2,6 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PWA Window Controls Overlay - Hide default title bar */
+@media (display-mode: window-controls-overlay) {
+  html {
+    /* Extend content into the title bar area */
+    --titlebar-height: env(titlebar-area-height, 0px);
+  }
+
+  /* Hide the title bar area completely by making it transparent */
+  body {
+    padding-top: env(titlebar-area-height, 0px);
+  }
+
+  /* Custom draggable title bar region */
+  .pwa-titlebar-drag {
+    position: fixed;
+    top: 0;
+    left: env(titlebar-area-x, 0);
+    width: env(titlebar-area-width, 100%);
+    height: env(titlebar-area-height, 0px);
+    -webkit-app-region: drag;
+    app-region: drag;
+    background: #ffffff;
+    z-index: 2147483649;
+  }
+}
+
+/* Standalone PWA mode */
+@media (display-mode: standalone) {
+  /* Ensure clean appearance */
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
 /* Theme CSS Variables */
 :root {
   /* Default Blue Theme - Primary Colors */

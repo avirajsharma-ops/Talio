@@ -102,6 +102,8 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className={inter.className}>
+        {/* PWA Window Controls Overlay - Draggable title bar region */}
+        <div className="pwa-titlebar-drag" aria-hidden="true" />
         <Providers>
           <ErrorPageCache />
           {children}
