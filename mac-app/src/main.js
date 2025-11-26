@@ -131,42 +131,31 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  // Hide blob when main window is focused/visible
+  // Maya blob is ALWAYS visible (unless widget is open)
+  // No hiding on main window focus/blur - blob stays visible
+
   mainWindow.on('focus', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible - don't hide
   });
 
-  // Show blob when main window loses focus or is minimized
   mainWindow.on('blur', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('minimize', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('restore', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('show', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('hide', () => {
-    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 
   // Open DevTools in development
@@ -202,7 +191,7 @@ function createMayaBlobWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../preload.js')
+      preload: path.join(__dirname, '../maya-preload.js')
     },
     show: false
   });
@@ -782,9 +771,10 @@ function setupIPC() {
     }
   });
 
-  // Open Maya from blob click
+  // Open Maya from blob click - activates listening mode
   ipcMain.handle('open-maya-from-blob', () => {
     createMayaPIPWindow();
+    // Widget will auto-start listening mode
   });
 
   // Minimize Maya to blob
@@ -882,12 +872,10 @@ app.whenReady().then(async () => {
   // Initialize activity tracking (will start when auth is confirmed)
   await initializeActivityTracking();
 
-  // Create Maya blob after short delay
+  // Create Maya blob after short delay - always visible
   setTimeout(() => {
     createMayaBlobWindow();
-    if (mainWindow && mainWindow.isVisible() && mainWindow.isFocused()) {
-      if (mayaBlobWindow) mayaBlobWindow.hide();
-    }
+    // Blob is always visible (unless widget is open)
   }, 2000);
 
   console.log('[Talio] App ready');

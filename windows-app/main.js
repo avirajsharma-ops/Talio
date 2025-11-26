@@ -110,42 +110,31 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
-  // Hide blob when main window is focused/visible
+  // Maya blob is ALWAYS visible (unless widget is open)
+  // No hiding on main window focus/blur - blob stays visible
+
   mainWindow.on('focus', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible
   });
 
-  // Show blob when main window loses focus or is minimized
   mainWindow.on('blur', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('minimize', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('restore', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('show', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.hide();
-    }
+    // Blob stays visible
   });
 
   mainWindow.on('hide', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
-      mayaBlobWindow.show();
-    }
+    // Blob stays visible
   });
 }
 
@@ -857,7 +846,7 @@ function createMayaBlobWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'maya-preload.js')
     },
     show: false
   });
@@ -975,14 +964,10 @@ app.whenReady().then(() => {
   createTray();
   initialize();
 
-  // Create Maya blob after short delay
-  // Blob will be hidden if main window is visible/focused
+  // Create Maya blob after short delay - always visible
   setTimeout(() => {
     createMayaBlobWindow();
-    // Hide blob if main window is visible and focused
-    if (mainWindow && mainWindow.isVisible() && mainWindow.isFocused()) {
-      if (mayaBlobWindow) mayaBlobWindow.hide();
-    }
+    // Blob is always visible (unless widget is open)
   }, 3000);
 });
 
