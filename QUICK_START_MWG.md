@@ -55,14 +55,14 @@ curl https://mwg.talio.in/.well-known/assetlinks.json
 
 ```bash
 # Copy updated dashboard component
-scp components/dashboards/EmployeeDashboard.js root@YOUR_SERVER_IP:/root/Tailo/components/dashboards/
+scp components/dashboards/EmployeeDashboard.js root@YOUR_SERVER_IP:/root/Talio/components/dashboards/
 
 # Copy updated API route
-scp app/api/dashboard/employee-stats/route.js root@YOUR_SERVER_IP:/root/Tailo/app/api/dashboard/employee-stats/
+scp app/api/dashboard/employee-stats/route.js root@YOUR_SERVER_IP:/root/Talio/app/api/dashboard/employee-stats/
 
 # SSH and rebuild
 ssh root@YOUR_SERVER_IP
-cd /root/Tailo
+cd /root/Talio
 docker-compose down && docker-compose up -d --build
 ```
 
@@ -263,7 +263,7 @@ Clock in BLOCKED
 ```bash
 # Server logs
 ssh root@YOUR_SERVER_IP
-cd /root/Tailo
+cd /root/Talio
 docker-compose logs -f hrms-app
 
 # Browser console

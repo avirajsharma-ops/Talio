@@ -1,7 +1,7 @@
 # Geofencing Implementation Summary
 
 ## Overview
-Comprehensive geofencing functionality has been implemented for the Tailo HRMS application, supporting multiple office locations, break timings, attendance integration, and real-time notifications.
+Comprehensive geofencing functionality has been implemented for the Talio HRMS application, supporting multiple office locations, break timings, attendance integration, and real-time notifications.
 
 ## ✅ Completed Features
 

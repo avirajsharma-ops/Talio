@@ -65,7 +65,7 @@ docker-compose --version
 ```bash
 # Clone the project
 cd ~
-git clone https://github.com/avirajsharma-ops/Tailo.git hrms
+git clone https://github.com/avirajsharma-ops/Talio.git hrms
 cd hrms
 
 # Verify files

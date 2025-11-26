@@ -75,8 +75,8 @@ NEXT_PUBLIC_APP_NAME=Talio HRMS
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/avirajsharma-ops/Tailo.git
-cd Tailo
+git clone https://github.com/avirajsharma-ops/Talio.git
+cd Talio
 
 # 2. Create .env file with production values
 nano .env

@@ -58,7 +58,7 @@ Once you've saved the logo files, I'll update the following files to use your Ta
 
 1. ✅ **`components/Sidebar.js`**
    - Replace "HR" icon with fox logo
-   - Keep "Tailo" text branding
+   - Keep "Talio" text branding
 
 2. ✅ **`app/login/page.js`**
    - Replace "HR" icon with fox logo
@@ -80,7 +80,7 @@ After updating the code, verify the branding appears correctly:
 
 ### Desktop/Browser:
 - ✅ Browser tab shows fox favicon
-- ✅ Sidebar shows fox icon + "Tailo" text
+- ✅ Sidebar shows fox icon + "Talio" text
 - ✅ Login page shows fox icon + "Talio HRMS" title
 
 ### Mobile/PWA:

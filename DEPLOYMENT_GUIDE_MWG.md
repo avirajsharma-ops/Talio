@@ -92,11 +92,11 @@ docker-compose up -d
 
 ```bash
 # Copy updated EmployeeDashboard.js to server
-scp components/dashboards/EmployeeDashboard.js root@YOUR_SERVER_IP:/root/Tailo/components/dashboards/
+scp components/dashboards/EmployeeDashboard.js root@YOUR_SERVER_IP:/root/Talio/components/dashboards/
 
 # SSH and rebuild
 ssh root@YOUR_SERVER_IP
-cd /root/Tailo
+cd /root/Talio
 docker-compose down
 docker-compose up -d --build
 ```
@@ -257,7 +257,7 @@ Visit: https://mwg.talio.in/dashboard/settings/company
 **Server Logs:**
 ```bash
 ssh root@YOUR_SERVER_IP
-cd /root/Tailo
+cd /root/Talio
 docker-compose logs -f hrms-app
 ```
 
@@ -309,13 +309,13 @@ docker-compose logs -f hrms-app
 **Solution:**
 ```bash
 # Check file exists
-ls -la /root/Tailo/public/.well-known/assetlinks.json
+ls -la /root/Talio/public/.well-known/assetlinks.json
 
 # Check nginx is serving it
 curl https://mwg.talio.in/.well-known/assetlinks.json
 
 # Check permissions
-chmod 644 /root/Tailo/public/.well-known/assetlinks.json
+chmod 644 /root/Talio/public/.well-known/assetlinks.json
 ```
 
 ---

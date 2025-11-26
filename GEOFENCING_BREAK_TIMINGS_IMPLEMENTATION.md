@@ -2,7 +2,7 @@
 
 ## ✅ Implementation Complete
 
-This document outlines the complete implementation of **Multiple Geofence Locations** and **Break Timings** functionality in the Tailo HRMS system.
+This document outlines the complete implementation of **Multiple Geofence Locations** and **Break Timings** functionality in the Talio HRMS system.
 
 ---
 

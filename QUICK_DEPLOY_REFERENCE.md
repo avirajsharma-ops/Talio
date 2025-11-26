@@ -98,7 +98,7 @@ docker-compose logs hrms-app
 ssh root@srv1118054
 
 # Navigate to app directory
-cd /root/Tailo
+cd /root/Talio
 
 # Pull latest code
 git pull

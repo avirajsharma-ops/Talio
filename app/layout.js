@@ -16,14 +16,14 @@ import { MayaRuntimeLoader } from '@/components/maya/MayaRuntimeLoader'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Tailo HRMS - Human Resource Management System',
+  title: 'Talio HRMS - Human Resource Management System',
   description: 'Complete HRMS solution for managing employees, attendance, payroll, and more',
   manifest: '/manifest.json',
 
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Tailo HRMS',
+    title: 'Talio HRMS',
   },
   icons: {
     icon: [
@@ -39,8 +39,8 @@ export const metadata = {
     'mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
-    'apple-mobile-web-app-title': 'Tailo HRMS',
-    'application-name': 'Tailo HRMS',
+    'apple-mobile-web-app-title': 'Talio HRMS',
+    'application-name': 'Talio HRMS',
     'msapplication-TileColor': '#ffffff',
     'msapplication-TileImage': '/icons/icon-144x144.png',
   },
