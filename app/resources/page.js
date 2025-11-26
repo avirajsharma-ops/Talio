@@ -40,7 +40,7 @@ export default function ResourcesPage() {
 
       {/* Main Content */}
       <div className="max-w-2xl w-full text-center">
-          <span className="text-teal-500 text-xs font-semibold tracking-wider">✦ DESKTOP APPLICATION</span>
+        <span className="text-teal-500 text-xs font-semibold tracking-wider">✦ DESKTOP APPLICATION</span>
           <h1 className="mt-6 text-5xl font-bold bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent">
             Download Talio
           </h1>
