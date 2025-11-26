@@ -131,20 +131,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           w-[70vw] md:w-[17rem] text-gray-800
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col h-screen
+          flex flex-col h-screen shadow-lg
         `}
         style={{ backgroundColor: 'var(--color-bg-sidebar)' }}
       >
         {/* Sticky Logo Section */}
         <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
           <div className="flex items-center justify-between">
-            <div className="bg-white rounded-full px-4 py-2 flex items-center justify-center">
-              <img
-                src="/assets/logo.png"
-                alt="Talio Logo"
-                className="h-10 w-auto object-contain"
-              />
-            </div>
+            <img
+              src="/assets/logo.png"
+              alt="Talio Logo"
+              className="h-10 w-auto object-contain"
+            />
             <button
               onClick={() => setIsOpen(false)}
               className="lg:hidden hover:opacity-70 focus:outline-none"

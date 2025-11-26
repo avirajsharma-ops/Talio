@@ -16,15 +16,15 @@
   --color-primary-800: #1E40AF;
   --color-primary-900: #1E3A8A;
 
-  /* Background Colors - Original Default Theme */
+  /* Background Colors - White Sidebar Theme */
   --color-bg-main: #F9FAFB;
   --color-bg-card: #ffffff;
-  --color-bg-sidebar: #111827;
-  --color-bg-hover: #1F2937;
+  --color-bg-sidebar: #FFFFFF;
+  --color-bg-hover: #EFF6FF;
 
-  /* Text Colors - For Dark Sidebar */
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: #9CA3AF;
+  /* Text Colors - For White Sidebar with Accent Colors */
+  --color-text-primary: #1E40AF;
+  --color-text-secondary: #6B7280;
 
   /* Accent Colors - For Special Cards */
   --color-accent-profile: #1A295A;

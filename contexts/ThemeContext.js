@@ -23,18 +23,18 @@ export const themes = {
     background: {
       main: '#F9FAFB',       // Original light gray background
       card: '#ffffff',       // Original card color
-      sidebar: '#111827',    // Original dark sidebar (gray-900)
-      hover: '#1F2937',      // Dark gray hover for sidebar
+      sidebar: '#FFFFFF',    // White sidebar for professional look
+      hover: '#EFF6FF',      // Light blue hover for sidebar
     },
     text: {
-      primary: '#FFFFFF',    // White text for dark sidebar
-      secondary: '#9CA3AF',  // Gray text for dark sidebar
+      primary: '#1E40AF',    // Dark blue text for white sidebar (primary-800)
+      secondary: '#6B7280',  // Gray text for secondary items
     },
     accent: {
       profile: '#1A295A',    // Profile card background (dark blue)
       gradient: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', // Gradient for special cards
     },
-    sidebarDark: true,       // Flag to indicate dark sidebar
+    sidebarDark: false,      // Flag to indicate light sidebar
   },
   purple: {
     name: 'Purple Dream',
@@ -53,18 +53,18 @@ export const themes = {
     background: {
       main: '#FAF5FF',       // Soft pastel purple background
       card: '#FFFFFF',       // White cards for contrast
-      sidebar: '#4C1D95',    // Dark purple sidebar (purple-900)
-      hover: '#5B21B6',      // Slightly lighter purple hover
+      sidebar: '#FFFFFF',    // White sidebar for professional look
+      hover: '#FAF5FF',      // Light purple hover for sidebar
     },
     text: {
-      primary: '#FFFFFF',    // White text for dark sidebar
-      secondary: '#E9D5FF',  // Light purple text
+      primary: '#6B21A8',    // Dark purple text for white sidebar (primary-800)
+      secondary: '#6B7280',  // Gray text for secondary items
     },
     accent: {
       profile: '#581C87',    // Profile card background (dark purple)
       gradient: 'linear-gradient(135deg, #6B21A8 0%, #A855F7 100%)', // Purple gradient
     },
-    sidebarDark: true,
+    sidebarDark: false,
   },
   green: {
     name: 'Fresh Green',
@@ -83,18 +83,18 @@ export const themes = {
     background: {
       main: '#F0FDF4',       // Soft pastel green background
       card: '#FFFFFF',       // White cards for contrast
-      sidebar: '#14532D',    // Dark green sidebar (green-900)
-      hover: '#166534',      // Slightly lighter green hover
+      sidebar: '#FFFFFF',    // White sidebar for professional look
+      hover: '#F0FDF4',      // Light green hover for sidebar
     },
     text: {
-      primary: '#FFFFFF',    // White text for dark sidebar
-      secondary: '#BBF7D0',  // Light green text
+      primary: '#166534',    // Dark green text for white sidebar (primary-800)
+      secondary: '#6B7280',  // Gray text for secondary items
     },
     accent: {
       profile: '#14532D',    // Profile card background (dark green)
       gradient: 'linear-gradient(135deg, #166534 0%, #22C55E 100%)', // Green gradient
     },
-    sidebarDark: true,
+    sidebarDark: false,
   },
   orange: {
     name: 'Warm Orange',
@@ -113,18 +113,18 @@ export const themes = {
     background: {
       main: '#FFF7ED',       // Soft pastel orange background
       card: '#FFFFFF',       // White cards for contrast
-      sidebar: '#7C2D12',    // Dark orange sidebar (orange-900)
-      hover: '#9A3412',      // Slightly lighter orange hover
+      sidebar: '#FFFFFF',    // White sidebar for professional look
+      hover: '#FFF7ED',      // Light orange hover for sidebar
     },
     text: {
-      primary: '#FFFFFF',    // White text for dark sidebar
-      secondary: '#FED7AA',  // Light orange text
+      primary: '#9A3412',    // Dark orange text for white sidebar (primary-800)
+      secondary: '#6B7280',  // Gray text for secondary items
     },
     accent: {
       profile: '#7C2D12',    // Profile card background (dark orange)
       gradient: 'linear-gradient(135deg, #9A3412 0%, #F97316 100%)', // Orange gradient
     },
-    sidebarDark: true,
+    sidebarDark: false,
   },
   teal: {
     name: 'Ocean Teal',
@@ -143,18 +143,18 @@ export const themes = {
     background: {
       main: '#F0FDFA',       // Soft pastel teal background
       card: '#FFFFFF',       // White cards for contrast
-      sidebar: '#134E4A',    // Dark teal sidebar (teal-900)
-      hover: '#115E59',      // Slightly lighter teal hover
+      sidebar: '#FFFFFF',    // White sidebar for professional look
+      hover: '#F0FDFA',      // Light teal hover for sidebar
     },
     text: {
-      primary: '#FFFFFF',    // White text for dark sidebar
-      secondary: '#99F6E4',  // Light teal text
+      primary: '#115E59',    // Dark teal text for white sidebar (primary-800)
+      secondary: '#6B7280',  // Gray text for secondary items
     },
     accent: {
       profile: '#134E4A',    // Profile card background (dark teal)
       gradient: 'linear-gradient(135deg, #115E59 0%, #14B8A6 100%)', // Teal gradient
     },
-    sidebarDark: true,
+    sidebarDark: false,
   }
 }
 
