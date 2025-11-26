@@ -28,7 +28,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
     checkDepartmentHead()
   }, [])
 
-  
+
 
   useEffect(() => {
     filterEmployees()
@@ -41,6 +41,28 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
       setCurrentEmp(me || null)
     }
   }, [user, employees])
+
+  // Enrich currentAssignees with employee data when employees list is loaded
+  useEffect(() => {
+    if (employees.length > 0 && currentAssignees.length > 0) {
+      const enrichedAssignees = currentAssignees.map(assignee => {
+        // If assignee already has employeeData, keep it
+        if (assignee.employeeData) return assignee
+
+        // Otherwise, find the employee data from employees list
+        const employeeId = assignee.employee?._id || assignee.employee
+        const employeeData = employees.find(emp => emp._id === employeeId)
+
+        return {
+          ...assignee,
+          employee: employeeId,
+          employeeData: employeeData || assignee.employee // Use existing employee object if no match found
+        }
+      })
+
+      setSelectedEmployees(enrichedAssignees)
+    }
+  }, [employees, currentAssignees])
 
   const checkDepartmentHead = async () => {
     try {
@@ -55,8 +77,8 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
 
       const data = await response.json()
       if (data.success && data.isDepartmentHead) {
-      
-        
+
+
         setIsDepartmentHead(true)
       }
     } catch (error) {
@@ -187,16 +209,64 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
     }
   }
 
-  const removeAssignee = (employeeId) => {
+  const removeAssignee = async (employeeId) => {
     const updated = selectedEmployees.filter(assignee => assignee.employee !== employeeId)
     setSelectedEmployees(updated)
 
-    if (onAssignmentChange) {
-      onAssignmentChange(updated)
+    // If in manage mode and taskId exists, update the database
+    if (mode === 'manage' && taskId) {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('token')
+
+        const response = await fetch('/api/tasks/assign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            taskId,
+            assignees: updated.map(a => ({
+              employee: a.employee,
+              role: a.role
+            })),
+            action: 'reassign', // Use reassign to update the full assignee list
+            reason: 'Assignee removed'
+          })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Assignee removed successfully')
+
+          if (onAssignmentChange) {
+            onAssignmentChange(data.data?.assignedTo || updated)
+          }
+        } else {
+          const error = await response.json()
+          console.error('Failed to remove assignee:', error.message)
+          alert('Failed to remove assignee: ' + error.message)
+          // Revert the change
+          setSelectedEmployees(selectedEmployees)
+        }
+      } catch (error) {
+        console.error('Remove assignee error:', error)
+        alert('Failed to remove assignee. Please try again.')
+        // Revert the change
+        setSelectedEmployees(selectedEmployees)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // In create mode, just update local state
+      if (onAssignmentChange) {
+        onAssignmentChange(updated)
+      }
     }
   }
 
-  const updateAssigneeRole = (employeeId, newRole) => {
+  const updateAssigneeRole = async (employeeId, newRole) => {
     const updated = selectedEmployees.map(assignee =>
       assignee.employee === employeeId
         ? { ...assignee, role: newRole }
@@ -204,8 +274,54 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
     )
     setSelectedEmployees(updated)
 
-    if (onAssignmentChange) {
-      onAssignmentChange(updated)
+    // If in manage mode and taskId exists, update the database
+    if (mode === 'manage' && taskId) {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('token')
+
+        const response = await fetch('/api/tasks/assign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            taskId,
+            assignees: updated.map(a => ({
+              employee: a.employee,
+              role: a.role
+            })),
+            action: 'reassign', // Use reassign to update the full assignee list
+            reason: `Role updated to ${newRole}`
+          })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Role updated successfully')
+
+          if (onAssignmentChange) {
+            onAssignmentChange(data.data?.assignedTo || updated)
+          }
+        } else {
+          const error = await response.json()
+          console.error('Failed to update role:', error.message)
+          // Revert the change
+          setSelectedEmployees(selectedEmployees)
+        }
+      } catch (error) {
+        console.error('Update role error:', error)
+        // Revert the change
+        setSelectedEmployees(selectedEmployees)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // In create mode, just update local state
+      if (onAssignmentChange) {
+        onAssignmentChange(updated)
+      }
     }
   }
 
@@ -215,7 +331,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      
+
       const response = await fetch('/api/tasks/assign', {
         method: action === 'accept' || action === 'reject' ? 'PUT' : 'POST',
         headers: {
@@ -236,7 +352,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
       if (response.ok) {
         const data = await response.json()
         console.log('Assignment successful:', data.message)
-        
+
         if (onAssignmentChange) {
           onAssignmentChange(data.data.assignedTo)
         }
@@ -259,7 +375,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
 
     // Check if department head
     if (isDepartmentHead) {
-     
+
       const empDeptId = employee.department?._id || employee.department
       const myDeptId = currentEmp.department?._id || currentEmp.department
       if (empDeptId && myDeptId && empDeptId.toString() === myDeptId.toString()) {
@@ -280,7 +396,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
 
   const getAssignmentTypeColor = (employee) => {
     const type = getAssignmentTypeLabel(employee)
-    switch(type) {
+    switch (type) {
       case 'Self': return 'bg-blue-100 text-blue-800'
       case 'Dept Head': return 'bg-purple-100 text-purple-800'
       case 'Same Level': return 'bg-green-100 text-green-800'
@@ -299,72 +415,81 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
             Assigned To ({selectedEmployees.length})
           </label>
           <div className="space-y-2">
-            {selectedEmployees.map((assignee,index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                {console.log(assignee)}
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                      {assignee.employeeData?.profilePicture ? (
-                        <img
-                          src={assignee.employeeData.profilePicture}
-                          alt={`${assignee.employeeData.firstName} ${assignee.employeeData.lastName}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <FaUser className="w-4 h-4 text-white" />
-                      )}
+            {selectedEmployees.map((assignee, index) => {
+              // Get employee data from either employeeData or employee (if it's populated)
+              const empData = assignee.employeeData || assignee.employee
+              const employeeName = empData?.firstName && empData?.lastName
+                ? `${empData.firstName} ${empData.lastName}`
+                : empData?.firstName || empData?.lastName || 'Unknown User'
+
+              return (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                        {empData?.profilePicture ? (
+                          <img
+                            src={empData.profilePicture}
+                            alt={employeeName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FaUser className="w-4 h-4 text-white" />
+                        )}
+                      </div>
                     </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {employeeName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {empData?.employeeCode} {empData?.department?.name ? `• ${empData.department.name}` : ''}
+                      </p>
+                    </div>
+                    {empData && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssignmentTypeColor(empData)}`}>
+                        {getAssignmentTypeLabel(empData)}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {assignee.employeeData?.firstName} {assignee.employeeData?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {assignee.employeeData?.employeeCode} • {assignee.employeeData?.department?.name}
-                    </p>
+
+                  <div className="flex items-center space-x-2">
+                    {/* Role Selector */}
+                    <select
+                      value={assignee.role}
+                      onChange={(e) => updateAssigneeRole(assignee.employee, e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="owner">Owner</option>
+                      <option value="collaborator">Collaborator</option>
+                      <option value="reviewer">Reviewer</option>
+                      <option value="observer">Observer</option>
+                    </select>
+
+                    {/* Status Badge */}
+                    {assignee.status && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${assignee.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                        assignee.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          assignee.status === 'delegated' ? 'bg-purple-100 text-purple-800' :
+                            'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {assignee.status}
+                      </span>
+                    )}
+
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => removeAssignee(assignee.employee)}
+                      disabled={loading}
+                      className={`p-1 ${loading ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-800'}`}
+                      title="Remove assignee"
+                    >
+                      <FaTrash className="w-3 h-3" />
+                    </button>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssignmentTypeColor(assignee.employeeData)}`}>
-                    {getAssignmentTypeLabel(assignee.employeeData)}
-                  </span>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  {/* Role Selector */}
-                  <select
-                    value={assignee.role}
-                    onChange={(e) => updateAssigneeRole(assignee.employee, e.target.value)}
-                    className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="owner">Owner</option>
-                    <option value="collaborator">Collaborator</option>
-                    <option value="reviewer">Reviewer</option>
-                    <option value="observer">Observer</option>
-                  </select>
-
-                  {/* Status Badge */}
-                  {assignee.status && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      assignee.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                      assignee.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      assignee.status === 'delegated' ? 'bg-purple-100 text-purple-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {assignee.status}
-                    </span>
-                  )}
-
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => removeAssignee(assignee.employee)}
-                    className="text-red-600 hover:text-red-800 p-1"
-                    title="Remove assignee"
-                  >
-                    <FaTrash className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -374,11 +499,10 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('myDepartment')}
-            className={`${
-              activeTab === 'myDepartment'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            className={`${activeTab === 'myDepartment'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
             My Department
             {currentEmp?.department?.name && (
@@ -488,28 +612,28 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                       <p className="text-xs text-gray-500 mt-2">Loading more employees...</p>
                     </div>
                   )}
-              </>
-            ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                {activeTab === 'myDepartment' ? (
-                  <>
-                    <p className="font-medium">No team members available</p>
-                    <p className="text-xs mt-1">
-                      {searchTerm
-                        ? 'No employees match your search criteria.'
-                        : isDepartmentHead
-                          ? 'All department members are already assigned.'
-                          : 'You can only assign to employees at your level or lower hierarchy.'}
-                    </p>
-                  </>
-                ) : (
-                  <p>No employees found in other departments.</p>
-                )}
-              </div>
-            )}
-          </div>
+                </>
+              ) : (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  {activeTab === 'myDepartment' ? (
+                    <>
+                      <p className="font-medium">No team members available</p>
+                      <p className="text-xs mt-1">
+                        {searchTerm
+                          ? 'No employees match your search criteria.'
+                          : isDepartmentHead
+                            ? 'All department members are already assigned.'
+                            : 'You can only assign to employees at your level or lower hierarchy.'}
+                      </p>
+                    </>
+                  ) : (
+                    <p>No employees found in other departments.</p>
+                  )}
+                </div>
+              )}
+            </div>
 
-          {/* Load More Button */}
+            {/* Load More Button */}
             {employeeHasMore && !employeeLoading && filteredEmployees.length > 0 && (
               <div className="border-t border-gray-200 p-3">
                 <button

@@ -193,6 +193,8 @@ function CreateTaskContent() {
         assignedTo: assignees
       }
 
+      console.log('Sending task data to API:', JSON.stringify(taskData, null, 2))
+
       const response = await fetch(`/api/tasks?_t=${Date.now()}`, {
         method: 'POST',
         headers: {

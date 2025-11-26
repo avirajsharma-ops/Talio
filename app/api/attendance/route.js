@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
+import User from '@/models/User'
 import Leave from '@/models/Leave'
 import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
@@ -90,10 +91,35 @@ export async function GET(request) {
       return NextResponse.json(cached)
     }
 
+    // Validate employeeId if provided
+    if (employeeId && (employeeId === 'undefined' || employeeId === 'null' || !employeeId.match(/^[0-9a-fA-F]{24}$/))) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid employee ID format' },
+        { status: 400 }
+      )
+    }
+
     const query = {}
 
     if (employeeId) {
-      query.employee = employeeId
+      // Try to find as Employee first
+      let resolvedEmployeeId = employeeId
+      const employee = await Employee.findById(employeeId).select('_id').lean()
+
+      if (!employee) {
+        // Not an Employee ID, check if it's a User ID
+        const user = await User.findById(employeeId).select('employeeId').lean()
+        if (user && user.employeeId) {
+          resolvedEmployeeId = user.employeeId
+        } else {
+          // Neither Employee nor User with employeeId found - return empty
+          const emptyResult = { success: true, data: [] }
+          queryCache.set(cacheKey, emptyResult)
+          return NextResponse.json(emptyResult)
+        }
+      }
+
+      query.employee = resolvedEmployeeId
     }
 
     if (date) {

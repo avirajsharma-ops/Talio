@@ -30,9 +30,8 @@ export async function GET(request, { params }) {
     const task = await Project.findOne({ _id: taskId, isDeleted: { $ne: true } })
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
-      .populate('project', 'name projectCode')
-      .populate('parentTask', 'title taskNumber')
-      .populate('subtasks', 'title taskNumber status progress dueDate')
+      .populate('parentProject', 'title projectNumber')
+      .populate('subProjects', 'title projectNumber status progress dueDate')
       .populate('approvedBy', 'firstName lastName employeeCode designation')
       .populate({
         path: 'approvedBy',
@@ -122,7 +121,6 @@ export async function PUT(request, { params }) {
     )
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
-      .populate('project', 'name projectCode')
 
     // Log activity for task update
     await logActivity({
