@@ -6,6 +6,7 @@ import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Notification from '@/models/Notification'
 import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 
 export async function POST(request) {
   try {
@@ -73,7 +74,37 @@ export async function POST(request) {
     }
 
     const data = await request.json()
-    const { title, message, url, targetType, targetDepartment, targetUsers, targetRoles, scheduleType, scheduledFor } = data
+    const { title: rawTitle, message: rawMessage, url: rawUrl, targetType, targetDepartment, targetUsers, targetRoles, scheduleType, scheduledFor } = data
+
+    // Sanitize and validate inputs
+    const sanitizeInput = (input, maxLength) => {
+      if (!input) return ''
+      return input
+        .toString()
+        .trim()
+        .substring(0, maxLength)
+        .replace(/[<>]/g, '')  // Remove angle brackets to prevent XSS
+    }
+
+    const validateUrl = (url) => {
+      if (!url) return '/dashboard'
+      const urlStr = url.toString().trim()
+      // Only allow relative URLs starting with /
+      if (!urlStr.startsWith('/')) {
+        console.warn(`[Security] Blocked external URL: ${urlStr}`)
+        return '/dashboard'
+      }
+      // Prevent javascript: and data: URLs
+      if (urlStr.toLowerCase().includes('javascript:') || urlStr.toLowerCase().includes('data:')) {
+        console.warn(`[Security] Blocked malicious URL: ${urlStr}`)
+        return '/dashboard'
+      }
+      return urlStr.substring(0, 200)  // Max URL length
+    }
+
+    const title = sanitizeInput(rawTitle, 100)
+    const message = sanitizeInput(rawMessage, 1000)
+    const url = validateUrl(rawUrl)
 
     // Validate required fields
     if (!title || !message) {
@@ -322,11 +353,56 @@ export async function POST(request) {
       console.warn('[OneSignal] No users found for notification')
     }
 
-    // Success if OneSignal succeeded OR notifications saved to DB
-    const notificationSent = onesignalResult.success || savedNotifications.length > 0
+    // Send Firebase push notification
+    let firebasePushResult = { success: false, message: 'No users found' }
+    if (userIds.length > 0) {
+      try {
+        console.log(`[Firebase] Sending push notification to ${userIds.length} user(s)`)
+        
+        firebasePushResult = await sendPushToUsers(
+          userIds,
+          {
+            title: title,
+            body: message
+          },
+          {
+            data: {
+              type: 'custom',
+              sentBy: currentEmployee ? currentEmployee._id.toString() : decoded.userId,
+              url: url || '/dashboard'
+            },
+            url: url || '/dashboard',
+            type: 'custom'
+          }
+        )
+
+        if (firebasePushResult.success) {
+          console.log(`[Firebase] Push notification sent successfully to ${firebasePushResult.successCount || userIds.length} user(s)`)
+
+          // Update delivery status in database
+          if (savedNotifications.length > 0) {
+            await Notification.updateMany(
+              { _id: { $in: savedNotifications.map(n => n._id) } },
+              {
+                'deliveryStatus.fcm.sent': true,
+                'deliveryStatus.fcm.sentAt': new Date()
+              }
+            )
+          }
+        } else {
+          console.warn(`[Firebase] Failed to send push notification:`, firebasePushResult.message)
+        }
+      } catch (firebaseError) {
+        console.error('[Firebase] Error sending push notification:', firebaseError)
+        firebasePushResult = { success: false, message: firebaseError.message }
+      }
+    }
+
+    // Success if OneSignal succeeded OR Firebase succeeded OR notifications saved to DB
+    const notificationSent = onesignalResult.success || firebasePushResult.success || savedNotifications.length > 0
 
     if (!notificationSent) {
-      console.warn('[Notification] OneSignal failed and database save failed')
+      console.warn('[Notification] OneSignal, Firebase, and database save all failed')
       return NextResponse.json(
         { success: false, message: 'Failed to send notifications' },
         { status: 500 }
@@ -340,9 +416,11 @@ export async function POST(request) {
         recipientCount: userIds.length,
         savedToDatabase: savedNotifications.length,
         oneSignalSuccess: onesignalResult.success,
+        firebasePushSuccess: firebasePushResult.success,
         methods: {
           database: savedNotifications.length > 0 ? 'saved' : 'failed',
-          oneSignal: onesignalResult.success ? 'sent' : 'failed'
+          oneSignal: onesignalResult.success ? 'sent' : 'failed',
+          firebasePush: firebasePushResult.success ? 'sent' : 'failed'
         }
       }
     })

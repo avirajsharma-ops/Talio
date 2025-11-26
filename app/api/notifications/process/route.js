@@ -5,6 +5,7 @@ import RecurringNotification from '@/models/RecurringNotification'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
 import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 
 /**
  * This endpoint should be called by a cron job every minute
@@ -71,7 +72,36 @@ export async function GET(request) {
           }
         })
 
-        if (result.success) {
+        // Send Firebase push notification
+        let firebasePushResult = { success: false }
+        try {
+          console.log(`[Firebase] Sending scheduled notification to ${userIds.length} user(s)`)
+          
+          firebasePushResult = await sendPushToUsers(
+            userIds,
+            {
+              title: notification.title,
+              body: notification.message
+            },
+            {
+              data: {
+                type: 'scheduled',
+                notificationId: notification._id.toString(),
+                url: notification.url || '/dashboard'
+              },
+              url: notification.url || '/dashboard',
+              type: 'scheduled'
+            }
+          )
+
+          if (firebasePushResult.success) {
+            console.log(`[Firebase] Scheduled notification sent successfully to ${firebasePushResult.successCount || userIds.length} user(s)`)
+          }
+        } catch (firebaseError) {
+          console.error('[Firebase] Error sending scheduled notification:', firebaseError)
+        }
+
+        if (result.success || firebasePushResult.success) {
           notification.status = 'sent'
           notification.sentAt = now
           notification.successCount = userIds.length
@@ -132,11 +162,40 @@ export async function GET(request) {
           }
         })
 
+        // Send Firebase push notification
+        let firebasePushResult = { success: false }
+        try {
+          console.log(`[Firebase] Sending recurring notification to ${userIds.length} user(s)`)
+          
+          firebasePushResult = await sendPushToUsers(
+            userIds,
+            {
+              title: notification.title,
+              body: notification.message
+            },
+            {
+              data: {
+                type: 'recurring',
+                notificationId: notification._id.toString(),
+                url: notification.url || '/dashboard'
+              },
+              url: notification.url || '/dashboard',
+              type: 'recurring'
+            }
+          )
+
+          if (firebasePushResult.success) {
+            console.log(`[Firebase] Recurring notification sent successfully to ${firebasePushResult.successCount || userIds.length} user(s)`)
+          }
+        } catch (firebaseError) {
+          console.error('[Firebase] Error sending recurring notification:', firebaseError)
+        }
+
         // Update statistics
         notification.lastSentAt = now
         notification.totalSent++
 
-        if (result.success) {
+        if (result.success || firebasePushResult.success) {
           notification.totalSuccess += userIds.length
           results.recurring.sent++
         } else {
