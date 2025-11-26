@@ -4,26 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Maya Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    :root {
-      --primary: #8B5CF6;
-      --primary-dark: #7C3AED;
-      --bg-glass: rgba(15, 15, 25, 0.85);
-      --bg-message: rgba(30, 30, 45, 0.9);
-      --text-primary: #FFFFFF;
-      --text-secondary: rgba(255, 255, 255, 0.7);
-      --border: rgba(255, 255, 255, 0.1);
-      --accent-teal: #4DFFA3;
-      --accent-blue: #64DCFF;
-    }
 
     html, body {
       width: 100%;
       height: 100%;
       background: transparent;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
       overflow: hidden;
       user-select: none;
     }
@@ -31,122 +20,119 @@
     .maya-container {
       width: 100%;
       height: 100%;
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 20px;
-      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(4,12,32,0.98), rgba(2,6,18,0.98));
+      backdrop-filter: blur(40px) saturate(1.6);
+      -webkit-backdrop-filter: blur(40px) saturate(1.6);
+      border-radius: 16px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
-    /* Header - Draggable */
-    .maya-header {
+    /* Animated blob in top left */
+    .maya-blob-wrapper {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 50px;
+      height: 50px;
+      z-index: 10;
       -webkit-app-region: drag;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
     }
 
-    .maya-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .maya-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent-teal), var(--primary));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-    }
-
-    .maya-name h2 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .maya-status {
-      font-size: 12px;
-      color: var(--accent-teal);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent-teal);
+    .maya-blob-canvas {
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
-      animation: pulse 2s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    .header-actions {
-      -webkit-app-region: no-drag;
+    /* Top controls - positioned top right */
+    .maya-top-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
       display: flex;
       gap: 8px;
+      z-index: 20;
+      -webkit-app-region: no-drag;
     }
 
-    .header-btn {
-      width: 28px;
-      height: 28px;
-      border: none;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      color: var(--text-secondary);
-      cursor: pointer;
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.8);
+      transition: all 0.2s ease;
+      font-size: 16px;
     }
 
-    .header-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      color: var(--text-primary);
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.05);
+    }
+
+    .control-btn.muted {
+      background: rgba(255, 95, 95, 0.2);
+      border-color: rgba(255, 95, 95, 0.4);
+      color: rgba(255, 95, 95, 0.95);
+    }
+
+    .control-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Draggable area */
+    .maya-drag-area {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      -webkit-app-region: drag;
+      z-index: 5;
     }
 
     /* Messages Area */
     .maya-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 80px 16px 16px 16px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(77,163,255,0.3) transparent;
     }
 
     .maya-messages::-webkit-scrollbar {
       width: 4px;
     }
 
+    .maya-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
     .maya-messages::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(77,163,255,0.3);
       border-radius: 2px;
     }
 
     .message {
       max-width: 85%;
-      padding: 12px 16px;
-      border-radius: 16px;
+      padding: 12px 18px;
+      border-radius: 20px;
       font-size: 14px;
       line-height: 1.5;
       animation: fadeIn 0.3s ease;
+      word-wrap: break-word;
     }
 
     @keyframes fadeIn {
@@ -155,260 +141,296 @@
     }
 
     .message.assistant {
-      background: var(--bg-message);
-      color: var(--text-primary);
-      border-bottom-left-radius: 4px;
+      background: linear-gradient(135deg, rgba(20,36,90,0.9), rgba(40,118,255,0.8));
+      border: 1px solid rgba(139,93,255,0.8);
+      color: rgba(255,255,255,0.96);
+      border-bottom-left-radius: 6px;
       align-self: flex-start;
     }
 
     .message.user {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      border-bottom-right-radius: 4px;
+      background: linear-gradient(135deg, rgba(34,120,255,0.65), rgba(0,200,155,0.6));
+      border: 1px solid rgba(77,213,255,0.85);
+      color: rgba(255,255,255,0.98);
+      border-bottom-right-radius: 6px;
       align-self: flex-end;
     }
-  </style>
-</head>
-<body>
-  <div class="maya-container">
-    <div class="maya-header">
-      <div class="maya-title">
-        <div class="maya-avatar">🤖</div>
-        <div class="maya-name">
-          <h2>Maya</h2>
-          <div class="maya-status">
-            <span class="status-dot"></span>
-            <span id="statusText">Listening...</span>
-          </div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <button class="header-btn" id="settingsBtn" title="Settings">⚙️</button>
-        <button class="header-btn" id="minimizeBtn" title="Minimize">−</button>
-        <button class="header-btn" id="closeBtn" title="Close">×</button>
-      </div>
-    </div>
-    <div class="maya-messages" id="messagesContainer">
-      <div class="message assistant">Hi! I'm Maya, your AI assistant. Say "Hey Maya" or type a message to get started.</div>
-    </div>
 
-    <!-- Input Area -->
-    <div class="maya-input-area">
-      <div class="input-wrapper">
-        <button class="voice-btn" id="voiceBtn" title="Voice input">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-          </svg>
-        </button>
-        <input type="text" id="messageInput" placeholder="Ask Maya anything..." autocomplete="off" />
-        <button class="send-btn" id="sendBtn" title="Send">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
-      </div>
-      <div class="wake-word-indicator" id="wakeWordIndicator">
-        <span class="listening-dot"></span>
-        <span>Listening for "Hey Maya"</span>
-      </div>
-    </div>
-  </div>
+    .message.system {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      align-self: center;
+      font-size: 12px;
+      padding: 8px 14px;
+    }
 
-  <style>
-    /* Input Area Styles */
+    .message .timestamp {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+    }
+
+    /* Input Area */
     .maya-input-area {
       padding: 16px;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
+      background: rgba(255,255,255,0.03);
+      border-top: 1px solid rgba(255,255,255,0.08);
     }
 
     .input-wrapper {
       display: flex;
       align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 4px;
+      gap: 10px;
+      background: rgba(20,30,60,0.8);
+      border: 2px solid rgba(77,163,255,0.4);
+      border-radius: 25px;
+      padding: 4px 8px 4px 16px;
     }
 
-    .input-wrapper input {
+    .input-wrapper:focus-within {
+      border-color: rgba(77,163,255,0.7);
+    }
+
+    #messageInput {
       flex: 1;
       background: transparent;
       border: none;
-      outline: none;
-      color: var(--text-primary);
+      color: rgba(255,255,255,0.95);
       font-size: 14px;
-      padding: 8px 12px;
+      font-family: 'Raleway', sans-serif;
+      outline: none;
+      padding: 10px 0;
     }
 
-    .input-wrapper input::placeholder {
-      color: var(--text-secondary);
+    #messageInput::placeholder {
+      color: rgba(255,255,255,0.4);
     }
 
-    .voice-btn, .send-btn {
-      width: 36px;
-      height: 36px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+    .action-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      border: none;
     }
 
-    .voice-btn {
-      background: transparent;
-      color: var(--text-secondary);
+    .keyboard-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
     }
 
-    .voice-btn:hover, .voice-btn.active {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--accent-teal);
-    }
-
-    .voice-btn.listening {
-      color: #FF4444;
-      animation: pulseVoice 1s infinite;
-    }
-
-    @keyframes pulseVoice {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
+    .keyboard-btn:hover {
+      background: rgba(255,255,255,0.15);
     }
 
     .send-btn {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
+      background: linear-gradient(135deg, rgba(77,163,255,0.25), rgba(139,93,255,0.25));
+      border: 1px solid rgba(77,163,255,0.45);
+      color: #fff;
     }
 
     .send-btn:hover {
       transform: scale(1.05);
+      background: linear-gradient(135deg, rgba(77,163,255,0.4), rgba(139,93,255,0.4));
     }
 
-    .send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
+    .action-btn svg {
+      width: 18px;
+      height: 18px;
     }
 
-    .wake-word-indicator {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin-top: 8px;
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    .listening-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent-teal);
-      border-radius: 50%;
-      animation: pulse 1.5s infinite;
-    }
-
-    /* Typing indicator */
-    .typing-indicator {
+    /* Thinking animation */
+    .thinking-dots {
       display: flex;
       gap: 4px;
-      padding: 12px 16px;
+      padding: 12px 18px;
     }
 
-    .typing-indicator span {
+    .thinking-dots span {
       width: 8px;
       height: 8px;
-      background: var(--primary);
+      background: rgba(77,163,255,0.7);
       border-radius: 50%;
-      animation: bounce 1.4s infinite ease-in-out;
+      animation: thinking 1.4s ease-in-out infinite;
     }
 
-    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
+    @keyframes thinking {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
     }
 
-    /* Onboarding styles */
-    .skip-onboarding-btn {
-      position: absolute;
-      top: 70px;
-      right: 16px;
-      padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      z-index: 10;
+    /* Voice visualizer */
+    .voice-visualizer {
+      display: none;
+      align-items: center;
+      gap: 2px;
+      height: 30px;
+      padding: 0 10px;
     }
-    .skip-onboarding-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      color: var(--text-primary);
+
+    .voice-visualizer.active {
+      display: flex;
     }
-    .onboarding-slide {
-      text-align: center;
-      padding: 12px;
-      margin-bottom: 8px;
+
+    .voice-bar {
+      width: 3px;
+      background: linear-gradient(to top, #4da3ff, #8b5dff);
+      border-radius: 3px;
+      animation: voiceBar 0.3s ease-in-out infinite alternate;
     }
-    .slide-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--accent-teal);
-      margin-bottom: 4px;
-    }
-    .slide-progress {
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-    .onboarding-msg {
-      background: linear-gradient(135deg, rgba(77, 255, 163, 0.15), rgba(139, 92, 246, 0.15)) !important;
-      border: 1px solid rgba(77, 255, 163, 0.3);
+
+    @keyframes voiceBar {
+      from { height: 5px; }
+      to { height: 25px; }
     }
   </style>
+</head>
+<body>
+  <div class="maya-container">
+    <!-- Drag area for moving window -->
+    <div class="maya-drag-area"></div>
+
+    <!-- Animated blob top left -->
+    <div class="maya-blob-wrapper">
+      <canvas class="maya-blob-canvas" id="mayaBlobCanvas"></canvas>
+    </div>
+
+    <!-- Top controls -->
+    <div class="maya-top-controls">
+      <button class="control-btn" id="historyBtn" title="Chat History">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="muteBtn" title="Toggle Sound">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="resizeBtn" title="Resize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="closeBtn" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages area -->
+    <div class="maya-messages" id="messagesContainer">
+      <!-- Messages will be added here -->
+    </div>
+
+    <!-- Input Area -->
+    <div class="maya-input-area">
+      <div class="input-wrapper">
+        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off" />
+        <button class="action-btn keyboard-btn" id="keyboardBtn" title="Keyboard shortcuts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h8"/>
+          </svg>
+        </button>
+        <button class="action-btn send-btn" id="sendBtn" title="Send message">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // Maya Widget Script - Native Implementation with Onboarding
+    // Maya Widget Script - Native Implementation
     const API_URL = 'https://app.talio.in';
     let authToken = null;
     let currentUser = null;
-    let recognition = null;
-    let isListening = false;
-    let wakeWordActive = true;
     let voiceEnabled = true;
     let hasGreetedToday = false;
     let onboardingInProgress = false;
     let currentSlideIndex = 0;
+    let blobAnimationId = null;
 
     // Onboarding slides
     const ONBOARDING_SLIDES = [
-      { id: 'welcome', title: 'Welcome to Talio', script: "Hi! I'm Maya, your AI assistant. Welcome to Talio - HR that runs itself. I'll give you a quick tour of the platform. This will only take a minute!", duration: 5000 },
-      { id: 'dashboard', title: 'Your Dashboard', script: "This is your personalized dashboard. Here you can see your attendance status, pending tasks, recent announcements, and quick actions. Everything you need at a glance!", duration: 6000 },
-      { id: 'attendance', title: 'Attendance & Check-in', script: "Track your attendance with a single click. Check in when you arrive, check out when you leave. The system automatically calculates your work hours.", duration: 5000 },
-      { id: 'tasks', title: 'Task Management', script: "Manage your tasks efficiently. View assigned tasks, update progress, and collaborate with your team. Never miss a deadline with our smart reminders.", duration: 5000 },
-      { id: 'leave', title: 'Leave Management', script: "Apply for leave in seconds. Check your leave balance, view the team calendar, and track approval status. It's that simple!", duration: 5000 },
-      { id: 'maya', title: 'Meet Maya', script: "I'm here to help you anytime! Just say 'Hey Maya' or click my icon. I can answer questions, help with tasks, check your schedule, and much more!", duration: 6000 },
-      { id: 'complete', title: "You're All Set!", script: "That's it! You're ready to use Talio. If you ever need help, just ask me. Let's get started!", duration: 4000 }
+      { id: 'welcome', title: 'Welcome to Talio', script: "Hi! I'm Maya, your AI assistant. Welcome to Talio - HR that runs itself. I'll give you a quick tour!", duration: 5000 },
+      { id: 'dashboard', title: 'Your Dashboard', script: "This is your dashboard. See attendance, tasks, and announcements at a glance.", duration: 5000 },
+      { id: 'tasks', title: 'Task Management', script: "Manage tasks efficiently. View assignments, update progress, and collaborate with your team.", duration: 5000 },
+      { id: 'maya', title: 'Meet Maya', script: "I'm here to help anytime! Click my icon or type your question. I can help with tasks, schedules, and more!", duration: 5000 },
+      { id: 'complete', title: "You're All Set!", script: "That's it! You're ready to use Talio. Ask me anything!", duration: 4000 }
     ];
 
     // DOM Elements
     const messagesContainer = document.getElementById('messagesContainer');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
-    const voiceBtn = document.getElementById('voiceBtn');
     const closeBtn = document.getElementById('closeBtn');
-    const minimizeBtn = document.getElementById('minimizeBtn');
-    const statusText = document.getElementById('statusText');
+    const muteBtn = document.getElementById('muteBtn');
+    const historyBtn = document.getElementById('historyBtn');
+    const keyboardBtn = document.getElementById('keyboardBtn');
+    const blobCanvas = document.getElementById('mayaBlobCanvas');
 
-    // Speak text
+    // Initialize animated blob
+    function initBlobAnimation() {
+      if (!blobCanvas) return;
+      const ctx = blobCanvas.getContext('2d');
+      const size = 50;
+      blobCanvas.width = size;
+      blobCanvas.height = size;
+
+      let time = 0;
+      function drawBlob() {
+        ctx.clearRect(0, 0, size, size);
+        ctx.beginPath();
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const baseRadius = 18;
+
+        // Create organic blob shape
+        for (let i = 0; i <= 360; i += 10) {
+          const angle = (i * Math.PI) / 180;
+          const noise = Math.sin(time * 0.05 + i * 0.1) * 3 + Math.sin(time * 0.03 + i * 0.05) * 2;
+          const radius = baseRadius + noise;
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+
+        // Gradient fill
+        const gradient = ctx.createRadialGradient(centerX - 5, centerY - 5, 0, centerX, centerY, baseRadius + 5);
+        gradient.addColorStop(0, 'rgba(139, 92, 246, 0.9)');
+        gradient.addColorStop(0.5, 'rgba(77, 163, 255, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 200, 155, 0.7)');
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        time++;
+        blobAnimationId = requestAnimationFrame(drawBlob);
+      }
+      drawBlob();
+    }
+
+    // Speak text using Web Speech API
     function speak(text, callback) {
       if (!voiceEnabled || !window.speechSynthesis) {
         if (callback) setTimeout(callback, 2000);
@@ -416,20 +438,46 @@
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1;
-      utterance.pitch = 1;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.1;
       utterance.onend = callback;
       window.speechSynthesis.speak(utterance);
     }
 
+    // Get timestamp
+    function getTimestamp() {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+
     // Add message to chat
-    function addMessage(text, role, isOnboarding = false) {
+    function addMessage(text, role) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
-      if (isOnboarding) msgDiv.classList.add('onboarding-msg');
-      msgDiv.textContent = text;
+      msgDiv.innerHTML = `
+        <span>${text}</span>
+        <div class="timestamp">${getTimestamp()}</div>
+      `;
       messagesContainer.appendChild(msgDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Show thinking indicator
+    function showThinking() {
+      const t = document.createElement('div');
+      t.className = 'message assistant';
+      t.id = 'thinkingIndicator';
+      t.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
+      messagesContainer.appendChild(t);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideThinking() {
+      document.getElementById('thinkingIndicator')?.remove();
     }
 
     // Check onboarding and greeting status
@@ -448,9 +496,15 @@
             startOnboarding();
           } else if (data.data.needsGreeting && data.data.preferences?.autoGreetingEnabled !== false) {
             showDailyGreeting();
+          } else {
+            // Show default welcome
+            addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
           }
         }
-      } catch (e) { console.error('Onboarding check failed:', e); }
+      } catch (e) {
+        console.error('Onboarding check failed:', e);
+        addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
+      }
     }
 
     // Start onboarding flow
@@ -458,10 +512,18 @@
       onboardingInProgress = true;
       currentSlideIndex = 0;
       messagesContainer.innerHTML = '';
+
+      // Add skip button
+      const skipBtn = document.createElement('button');
+      skipBtn.className = 'skip-btn';
+      skipBtn.textContent = 'Skip Tour';
+      skipBtn.style.cssText = 'position:absolute;top:80px;right:20px;padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;z-index:30;';
+      skipBtn.onclick = skipOnboarding;
+      document.querySelector('.maya-container').appendChild(skipBtn);
+
       showOnboardingSlide();
     }
 
-    // Show onboarding slide
     function showOnboardingSlide() {
       const slide = ONBOARDING_SLIDES[currentSlideIndex];
       if (!slide) {
@@ -469,25 +531,7 @@
         return;
       }
 
-      // Add skip button on first slide
-      if (currentSlideIndex === 0) {
-        const skipBtn = document.createElement('button');
-        skipBtn.className = 'skip-onboarding-btn';
-        skipBtn.textContent = 'Skip Tour';
-        skipBtn.onclick = skipOnboarding;
-        messagesContainer.appendChild(skipBtn);
-      }
-
-      // Add slide content
-      const slideDiv = document.createElement('div');
-      slideDiv.className = 'onboarding-slide';
-      slideDiv.innerHTML = `
-        <div class="slide-title">${slide.title}</div>
-        <div class="slide-progress">${currentSlideIndex + 1} / ${ONBOARDING_SLIDES.length}</div>
-      `;
-      messagesContainer.appendChild(slideDiv);
-
-      addMessage(slide.script, 'assistant', true);
+      addMessage(slide.script, 'assistant');
       speak(slide.script, () => {
         setTimeout(() => {
           currentSlideIndex++;
@@ -500,24 +544,21 @@
       });
     }
 
-    // Complete onboarding
     async function completeOnboarding() {
       onboardingInProgress = false;
+      document.querySelector('.skip-btn')?.remove();
       await updateOnboarding('complete');
-      addMessage("You're all set! Feel free to ask me anything.", 'assistant');
-      speak("You're all set! Feel free to ask me anything.");
     }
 
-    // Skip onboarding
     async function skipOnboarding() {
       window.speechSynthesis?.cancel();
       onboardingInProgress = false;
+      document.querySelector('.skip-btn')?.remove();
       await updateOnboarding('skip');
       messagesContainer.innerHTML = '';
-      addMessage("No problem! I've skipped the tour. Just ask if you need any help!", 'assistant');
+      addMessage("No problem! Ask me anything when you need help.", 'assistant');
     }
 
-    // Update onboarding status
     async function updateOnboarding(action) {
       if (!authToken) return;
       try {
@@ -529,89 +570,128 @@
       } catch (e) { console.error('Update onboarding failed:', e); }
     }
 
-    // Show daily greeting with summary
     async function showDailyGreeting() {
       if (hasGreetedToday || !authToken) return;
       hasGreetedToday = true;
-
       try {
         const res = await fetch(`${API_URL}/api/maya/daily-summary`, {
           headers: { 'Authorization': `Bearer ${authToken}` }
         });
         const data = await res.json();
         if (data.success && data.data?.message) {
-          messagesContainer.innerHTML = '';
           addMessage(data.data.message, 'assistant');
           speak(data.data.message);
           await updateOnboarding('greeting');
         }
-      } catch (e) { console.error('Daily summary failed:', e); }
+      } catch (e) {
+        addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
+      }
     }
 
-    // Initialize speech recognition
-    function initSpeechRecognition() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event) => {
-        if (onboardingInProgress) return;
-        const last = event.results.length - 1;
-        const transcript = event.results[last][0].transcript.toLowerCase().trim();
-        if (wakeWordActive && transcript.includes('hey maya')) {
-          statusText.textContent = 'Yes? How can I help?';
-          wakeWordActive = false;
-          document.querySelector('.maya-avatar').style.background = 'linear-gradient(135deg, #FF6B6B, #8B5CF6)';
-          setTimeout(() => { statusText.textContent = 'Listening...'; document.querySelector('.maya-avatar').style.background = ''; }, 2000);
-        } else if (!wakeWordActive && event.results[last].isFinal) {
-          const command = transcript.replace('hey maya', '').trim();
-          if (command) { addMessage(command, 'user'); sendToMaya(command); wakeWordActive = true; }
-        }
-      };
-      recognition.onerror = (e) => { if (e.error === 'not-allowed') statusText.textContent = 'Microphone denied'; };
-      recognition.onend = () => { if (isListening) recognition.start(); };
-    }
-
-    function startWakeWordListening() { if (recognition && !isListening) { isListening = true; wakeWordActive = true; recognition.start(); statusText.textContent = 'Listening...'; } }
-    function stopListening() { if (recognition && isListening) { isListening = false; recognition.stop(); statusText.textContent = 'Paused'; } }
-    function showTyping() { const t = document.createElement('div'); t.className = 'message assistant typing-indicator'; t.id = 'typingIndicator'; t.innerHTML = '<span></span><span></span><span></span>'; messagesContainer.appendChild(t); messagesContainer.scrollTop = messagesContainer.scrollHeight; }
-    function hideTyping() { document.getElementById('typingIndicator')?.remove(); }
-
+    // Send message to Maya API
     async function sendToMaya(message) {
-      showTyping(); statusText.textContent = 'Thinking...';
+      showThinking();
       if (window.mayaBridge?.showDotMatrix) window.mayaBridge.showDotMatrix();
+
       try {
-        const res = await fetch(`${API_URL}/api/maya/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ message }) });
-        const data = await res.json(); hideTyping();
+        const res = await fetch(`${API_URL}/api/maya/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        hideThinking();
         if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
-        if (data.success && data.response) { addMessage(data.response, 'assistant'); speak(data.response); }
-        else addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
-      } catch (e) { hideTyping(); if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix(); addMessage('Connection error. Please check your network.', 'assistant'); }
-      statusText.textContent = 'Listening...';
+
+        if (data.success && data.response) {
+          addMessage(data.response, 'assistant');
+          speak(data.response);
+        } else {
+          addMessage('Sorry, I encountered an error. Please try again.', 'assistant');
+        }
+      } catch (e) {
+        hideThinking();
+        if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
+        addMessage('Connection error. Please check your network.', 'assistant');
+      }
     }
 
     // Event Listeners
-    sendBtn.addEventListener('click', () => { const msg = messageInput.value.trim(); if (msg) { addMessage(msg, 'user'); sendToMaya(msg); messageInput.value = ''; } });
-    messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
-    voiceBtn.addEventListener('click', () => { if (isListening) { stopListening(); voiceBtn.classList.remove('listening'); } else { startWakeWordListening(); voiceBtn.classList.add('listening'); } });
-    closeBtn.addEventListener('click', () => { if (window.mayaBridge?.closeWidget) window.mayaBridge.closeWidget(); });
-    minimizeBtn.addEventListener('click', () => { if (window.mayaBridge?.minimizeWidget) window.mayaBridge.minimizeWidget(); });
+    sendBtn.addEventListener('click', () => {
+      const msg = messageInput.value.trim();
+      if (msg && !onboardingInProgress) {
+        addMessage(msg, 'user');
+        sendToMaya(msg);
+        messageInput.value = '';
+      }
+    });
+
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    closeBtn.addEventListener('click', () => {
+      if (window.mayaBridge?.minimizeWidget) window.mayaBridge.minimizeWidget();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      if (!voiceEnabled) {
+        window.speechSynthesis?.cancel();
+        muteBtn.classList.add('muted');
+        muteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <line x1="23" y1="9" x2="17" y2="15"/>
+          <line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>`;
+      } else {
+        muteBtn.classList.remove('muted');
+        muteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>`;
+      }
+    });
+
+    historyBtn.addEventListener('click', () => {
+      // Open chat history in main window
+      if (window.mayaBridge?.notification) {
+        window.mayaBridge.notification('Chat History', 'Opening chat history...');
+      }
+    });
+
+    // Initialize
+    initBlobAnimation();
 
     // Receive auth from main process
     if (window.mayaBridge?.onAuth) {
-      window.mayaBridge.onAuth((data) => { authToken = data.token; currentUser = data.user; console.log('Maya authenticated:', currentUser?.name); checkOnboardingStatus(); });
+      window.mayaBridge.onAuth((data) => {
+        authToken = data.token;
+        currentUser = data.user;
+        console.log('Maya authenticated:', currentUser?.name);
+        checkOnboardingStatus();
+      });
     }
 
     // Get stored credentials on load
     if (window.mayaBridge?.getCredentials) {
-      window.mayaBridge.getCredentials().then((creds) => { if (creds?.token) { authToken = creds.token; checkOnboardingStatus(); } });
+      window.mayaBridge.getCredentials().then((creds) => {
+        if (creds?.token) {
+          authToken = creds.token;
+          checkOnboardingStatus();
+        } else {
+          addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
+        }
+      });
+    } else {
+      // No bridge - show default message
+      setTimeout(() => {
+        addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
+      }, 500);
     }
-
-    initSpeechRecognition();
-    setTimeout(() => startWakeWordListening(), 1000);
   </script>
 </body>
 </html>

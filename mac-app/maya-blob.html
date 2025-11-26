@@ -164,6 +164,93 @@
     card.addEventListener('click', async () => {
       if (window.talioDesktop) await window.talioDesktop.openMayaFromBlob();
     });
+
+    // Wake word detection - only active when blob is visible (widget minimized)
+    let recognition = null;
+    let isListening = false;
+
+    function initWakeWordDetection() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        console.log('[Maya Blob] Speech recognition not supported');
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = async (event) => {
+        const last = event.results.length - 1;
+        const transcript = event.results[last][0].transcript.toLowerCase().trim();
+
+        // Check for wake word
+        if (transcript.includes('hey maya') || transcript.includes('hey maia') || transcript.includes('hey mya')) {
+          console.log('[Maya Blob] Wake word detected!');
+          // Visual feedback
+          card.classList.add('speaking');
+
+          // Open Maya widget
+          if (window.talioDesktop) {
+            await window.talioDesktop.openMayaFromBlob();
+          }
+
+          // Stop listening (widget will take over)
+          stopWakeWordListening();
+
+          setTimeout(() => {
+            card.classList.remove('speaking');
+          }, 1000);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.log('[Maya Blob] Speech recognition error:', e.error);
+        if (e.error === 'not-allowed') {
+          console.log('[Maya Blob] Microphone permission denied');
+        }
+      };
+
+      recognition.onend = () => {
+        // Restart if still supposed to be listening
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.log('[Maya Blob] Could not restart recognition');
+          }
+        }
+      };
+    }
+
+    function startWakeWordListening() {
+      if (recognition && !isListening) {
+        isListening = true;
+        try {
+          recognition.start();
+          console.log('[Maya Blob] Wake word listening started');
+        } catch (e) {
+          console.log('[Maya Blob] Could not start recognition:', e);
+        }
+      }
+    }
+
+    function stopWakeWordListening() {
+      if (recognition && isListening) {
+        isListening = false;
+        try {
+          recognition.stop();
+          console.log('[Maya Blob] Wake word listening stopped');
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+
+    // Initialize and start wake word detection
+    initWakeWordDetection();
+    setTimeout(() => startWakeWordListening(), 1000);
   </script>
 </body>
 </html>

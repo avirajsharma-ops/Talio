@@ -133,38 +133,38 @@ function createMainWindow() {
 
   // Hide blob when main window is focused/visible
   mainWindow.on('focus', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.hide();
     }
   });
 
   // Show blob when main window loses focus or is minimized
   mainWindow.on('blur', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.show();
     }
   });
 
   mainWindow.on('minimize', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.show();
     }
   });
 
   mainWindow.on('restore', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.hide();
     }
   });
 
   mainWindow.on('show', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.hide();
     }
   });
 
   mainWindow.on('hide', () => {
-    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+    if (mayaBlobWindow && !mayaWidgetWindow?.isVisible()) {
       mayaBlobWindow.show();
     }
   });
@@ -617,16 +617,18 @@ function createTray() {
     {
       label: 'Toggle Maya Assistant',
       click: () => {
-        if (mayaPIPWindow) {
-          if (mayaPIPWindow.isVisible()) {
-            mayaPIPWindow.hide();
+        if (mayaWidgetWindow) {
+          if (mayaWidgetWindow.isVisible()) {
+            mayaWidgetWindow.hide();
             store.set('showMayaPIP', false);
+            if (mayaBlobWindow) mayaBlobWindow.show();
           } else {
-            mayaPIPWindow.show();
+            mayaWidgetWindow.show();
             store.set('showMayaPIP', true);
+            if (mayaBlobWindow) mayaBlobWindow.hide();
           }
         } else {
-          createMayaPIPWindow();
+          createMayaWidgetWindow();
         }
       }
     },
