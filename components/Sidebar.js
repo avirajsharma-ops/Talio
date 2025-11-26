@@ -135,9 +135,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         `}
         style={{ backgroundColor: 'var(--color-bg-sidebar)' }}
       >
-        {/* Sticky Logo Section */}
-        <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
-          <div className="flex items-center justify-between">
+        {/* Sticky Logo Section - Height matched with header */}
+        <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
+          <div className="flex items-center justify-between w-full px-3 sm:px-4">
             <img
               src="/assets/logo.png"
               alt="Talio Logo"
@@ -146,7 +146,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             <button
               onClick={() => setIsOpen(false)}
               className="lg:hidden hover:opacity-70 focus:outline-none"
-              style={{ color: 'var(--color-text-primary)' }}
+              style={{ color: '#374151' }}
             >
               <FaTimes className="w-4 h-4" strokeWidth="0.5" />
             </button>
@@ -168,7 +168,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group"
                     style={{
                       backgroundColor: expandedMenus[item.name] ? 'var(--color-bg-hover)' : 'transparent',
-                      color: 'var(--color-text-primary)'
+                      color: '#111827'
                     }}
                   >
                     <div className="flex items-center space-x-3">
@@ -198,7 +198,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                           className="w-full text-left block px-3 py-2 text-sm rounded-lg transition-all duration-200 cursor-pointer"
                           style={{
                             backgroundColor: pathname === subItem.path ? 'var(--color-primary-500)' : 'transparent',
-                            color: pathname === subItem.path ? 'white' : 'var(--color-text-secondary)'
+                            color: pathname === subItem.path ? 'white' : '#6B7280'
                           }}
                         >
                           <span className="flex items-center">
@@ -217,7 +217,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   className="w-full flex items-center space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group cursor-pointer relative"
                   style={{
                     backgroundColor: pathname === item.path ? 'var(--color-primary-500)' : 'transparent',
-                    color: pathname === item.path ? 'white' : 'var(--color-text-primary)'
+                    color: pathname === item.path ? 'white' : '#111827'
                   }}
                 >
                   <div
@@ -248,7 +248,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group cursor-pointer"
             style={{
               backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-500)' : 'transparent',
-              color: pathname === '/dashboard/settings' ? 'white' : 'var(--color-text-primary)'
+              color: pathname === '/dashboard/settings' ? 'white' : '#111827'
             }}
           >
             <div
@@ -267,7 +267,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           <button
             onClick={() => setShowLogoutConfirm(true)}
             className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
-            style={{ color: 'var(--color-text-primary)' }}
+            style={{ color: '#111827' }}
           >
             <div className="p-1.5 rounded-lg transition-colors group-hover:bg-red-700 group-hover:text-white" style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}>
               <FaSignOutAlt className="w-3.5 h-3.5" />
