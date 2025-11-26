@@ -52,8 +52,8 @@ export async function GET(request) {
 
     let query = {};
 
-    // Check user roles
-    const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head'];
+    // Check user roles - include manager role
+    const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head', 'manager'];
     const isPrivilegedUser = allowedRoles.includes(user.role);
 
     // If specific employee requested
@@ -80,11 +80,11 @@ export async function GET(request) {
         );
       }
 
-      // If department_head, verify they manage this employee (unless it's their own)
-      if (user.role === 'department_head' && !isOwnRecord) {
+      // If department_head or manager, verify they manage this employee (unless it's their own)
+      if ((user.role === 'department_head' || user.role === 'manager') && !isOwnRecord) {
         if (!user.employeeId) {
           return NextResponse.json(
-            { error: 'Department head must be linked to an employee record' },
+            { error: 'Department head/manager must be linked to an employee record' },
             { status: 403 }
           );
         }
@@ -102,7 +102,7 @@ export async function GET(request) {
           return NextResponse.json(
             {
               error: 'Access denied',
-              message: 'Department heads can only view employees in their department'
+              message: 'Department heads/managers can only view employees in their department'
             },
             { status: 403 }
           );
@@ -121,11 +121,11 @@ export async function GET(request) {
           );
         }
         query.targetEmployee = user.employeeId._id || user.employeeId;
-      } else if (user.role === 'department_head') {
-        // Department head sees their department's employees
+      } else if (user.role === 'department_head' || user.role === 'manager') {
+        // Department head/manager sees their department's employees
         if (!user.employeeId) {
           return NextResponse.json(
-            { error: 'Department head must be linked to an employee record' },
+            { error: 'Department head/manager must be linked to an employee record' },
             { status: 403 }
           );
         }

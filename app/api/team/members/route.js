@@ -44,14 +44,25 @@ export async function GET(request) {
 
     let teamMembers = []
     let department = null
+    let isDepartmentHead = false
 
-    // Check if user is a department head
+    // Check if user is a department head (by Department.head reference OR by role)
     department = await Department.findOne({
       head: user.employeeId,
       isActive: true
     }).lean()
 
+    // Also check if user has department_head role
+    if (!department && (userRole === 'department_head' || userRole === 'manager')) {
+      // Get the user's department
+      const userEmployee = await Employee.findById(user.employeeId).select('department').lean()
+      if (userEmployee?.department) {
+        department = await Department.findById(userEmployee.department).lean()
+      }
+    }
+
     if (department) {
+      isDepartmentHead = true
       // User is department head - get all team members in the department
       teamMembers = await Employee.find({
         department: department._id,

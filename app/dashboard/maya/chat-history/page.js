@@ -47,8 +47,8 @@ export default function ChatHistoryPage() {
       setUserRole(user.role)
       setCurrentUser(user)
 
-      if (['admin', 'god_admin', 'department_head', 'hr'].includes(user.role)) {
-        // For admins/department heads, show employees
+      if (['admin', 'god_admin', 'department_head', 'hr', 'manager'].includes(user.role)) {
+        // For admins/department heads/managers, show employees
         fetchEmployees(user)
       } else {
         // For regular users, show only their own chat directly
@@ -89,8 +89,8 @@ export default function ChatHistoryPage() {
           isCurrentUser: false
         }))
 
-        // For department heads, filter to only show team members
-        if (user.role === 'department_head') {
+        // For department heads and managers, filter to only show team members
+        if (user.role === 'department_head' || user.role === 'manager') {
           // Fetch team members to get the list of employee IDs in this department
           const teamResponse = await fetch('/api/team/members', {
             headers: {

@@ -43,13 +43,13 @@ export async function GET(request) {
       );
     }
 
-    // Check if user is admin or department_head
-    const allowedRoles = ['admin', 'god_admin', 'department_head'];
+    // Check if user is admin, department_head or manager
+    const allowedRoles = ['admin', 'god_admin', 'department_head', 'manager'];
     if (!allowedRoles.includes(user.role)) {
       return NextResponse.json(
-        { 
+        {
           error: 'Access denied',
-          message: 'Only admins and department heads can view employee chats'
+          message: 'Only admins, department heads and managers can view employee chats'
         },
         { status: 403 }
       );
@@ -74,17 +74,17 @@ export async function GET(request) {
         );
       }
 
-      // If department_head, verify they manage this employee
-      if (user.role === 'department_head') {
+      // If department_head or manager, verify they manage this employee
+      if (user.role === 'department_head' || user.role === 'manager') {
         if (!user.employeeId) {
           return NextResponse.json(
-            { error: 'Department head must be linked to an employee record' },
+            { error: 'Department head/manager must be linked to an employee record' },
             { status: 403 }
           );
         }
 
         const requestingEmployee = await Employee.findById(user.employeeId._id).lean();
-        
+
         if (!requestingEmployee.department || !targetEmployee.department) {
           return NextResponse.json(
             { error: 'Department information missing' },
@@ -94,9 +94,9 @@ export async function GET(request) {
 
         if (requestingEmployee.department.toString() !== targetEmployee.department.toString()) {
           return NextResponse.json(
-            { 
+            {
               error: 'Access denied',
-              message: 'Department heads can only view chats of employees in their department'
+              message: 'Department heads/managers can only view chats of employees in their department'
             },
             { status: 403 }
           );
@@ -105,17 +105,17 @@ export async function GET(request) {
 
       query.employeeId = employeeId;
     } else {
-      // If department_head, only show their department's employees
-      if (user.role === 'department_head') {
+      // If department_head or manager, only show their department's employees
+      if (user.role === 'department_head' || user.role === 'manager') {
         if (!user.employeeId) {
           return NextResponse.json(
-            { error: 'Department head must be linked to an employee record' },
+            { error: 'Department head/manager must be linked to an employee record' },
             { status: 403 }
           );
         }
 
         const requestingEmployee = await Employee.findById(user.employeeId._id).lean();
-        
+
         if (!requestingEmployee.department) {
           return NextResponse.json(
             { error: 'Department information missing' },
@@ -128,8 +128,8 @@ export async function GET(request) {
           department: requestingEmployee.department
         }).select('_id').lean();
 
-        query.employeeId = { 
-          $in: departmentEmployees.map(e => e._id) 
+        query.employeeId = {
+          $in: departmentEmployees.map(e => e._id)
         };
       }
       // Admins can see all

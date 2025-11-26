@@ -36,7 +36,7 @@ export async function GET(request) {
         );
       }
 
-      const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head'];
+      const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head', 'manager'];
 
       if (!allowedRoles.includes(currentUserDoc.role)) {
         return NextResponse.json(
@@ -45,13 +45,21 @@ export async function GET(request) {
         );
       }
 
-      // For department heads, verify the requested user is in their department
-      if (currentUserDoc.role === 'department_head') {
-        // Find the department where current user is head
-        const headDepartment = await Department.findOne({
+      // For department heads and managers, verify the requested user is in their department
+      if (currentUserDoc.role === 'department_head' || currentUserDoc.role === 'manager') {
+        // Find the department where current user is head OR get user's department
+        let headDepartment = await Department.findOne({
           head: currentUserDoc.employeeId,
           isActive: true
         }).lean();
+
+        // If not a formal department head, get their department
+        if (!headDepartment && currentUserDoc.employeeId) {
+          const userEmployee = await Employee.findById(currentUserDoc.employeeId).select('department').lean();
+          if (userEmployee?.department) {
+            headDepartment = { _id: userEmployee.department };
+          }
+        }
 
         if (headDepartment) {
           // Get the requested user's employee info

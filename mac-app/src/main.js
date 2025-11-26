@@ -111,6 +111,36 @@ function createMainWindow() {
   // Load the Talio web app - ALWAYS use APP_URL
   mainWindow.loadURL(APP_URL);
 
+  // Inject CSS for macOS title bar spacing when content loads
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.insertCSS(`
+      /* Add top padding for macOS traffic lights */
+      body {
+        padding-top: 38px !important;
+      }
+      /* Ensure sidebar also has top padding */
+      .sidebar, [class*="sidebar"], nav {
+        padding-top: 38px !important;
+      }
+      /* Adjust fixed headers */
+      header[class*="fixed"], .fixed-header, [class*="sticky"] {
+        top: 38px !important;
+      }
+      /* Title bar drag region */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 38px;
+        -webkit-app-region: drag;
+        z-index: 9999;
+        pointer-events: none;
+      }
+    `);
+  });
+
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

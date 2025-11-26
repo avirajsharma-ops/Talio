@@ -39,7 +39,7 @@ export default function ProductivityMonitoringPage() {
   // Determine if user can view all employees
   const canViewAllEmployees = useCallback(() => {
     if (!currentUser) return false
-    return ['admin', 'god_admin', 'hr', 'department_head'].includes(currentUser.role)
+    return ['admin', 'god_admin', 'hr', 'department_head', 'manager'].includes(currentUser.role)
   }, [currentUser])
 
   // Fetch employees for admin/department head view
@@ -92,9 +92,9 @@ export default function ProductivityMonitoringPage() {
 
           console.log('[Productivity Monitoring] Employee list count before filtering:', employeeList.length)
 
-          // For department heads, filter to only show team members
-          if (currentUser.role === 'department_head') {
-            console.log('[Productivity Monitoring] Department head - fetching team members')
+          // For department heads and managers, filter to only show team members
+          if (currentUser.role === 'department_head' || currentUser.role === 'manager') {
+            console.log('[Productivity Monitoring] Department head/manager - fetching team members')
             const teamResponse = await fetch('/api/team/members', {
               headers: { 'Authorization': `Bearer ${token}` }
             })
