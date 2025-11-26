@@ -1,0 +1,94 @@
+{
+  "name": "talio",
+  "version": "1.0.0",
+  "description": "Talio - HR that runs itself. Desktop application for macOS.",
+  "main": "src/main.js",
+  "author": "Talio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build": "electron-builder --mac",
+    "build:dmg": "electron-builder --mac dmg",
+    "build:universal": "electron-builder --mac --universal",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.talio.app",
+    "productName": "Talio",
+    "copyright": "Copyright © 2025 Talio",
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.plist",
+      "entitlementsInherit": "entitlements.plist",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "NSScreenCaptureDescription": "Talio HRMS needs screen capture access for productivity monitoring.",
+        "NSCameraUsageDescription": "Talio HRMS may use the camera for video calls and profile photos.",
+        "NSMicrophoneUsageDescription": "Talio HRMS may use the microphone for audio calls.",
+        "NSLocationWhenInUseUsageDescription": "Talio HRMS may use your location for attendance tracking.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Talio HRMS may use your location for attendance and geo-fencing.",
+        "LSUIElement": false,
+        "LSBackgroundOnly": false,
+        "SUEnableAutomaticChecks": true,
+        "SUFeedURL": "https://talio.in/updates/mac/appcast.xml"
+      }
+    },
+    "dmg": {
+      "icon": "assets/icon.icns",
+      "iconSize": 100,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 400
+      }
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "preload.js",
+      "maya-preload.js",
+      "maya-blob.html",
+      "maya-widget.html",
+      "dot-matrix-overlay.html"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    }
+  },
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "auto-launch": "^5.0.6",
+    "axios": "^1.13.2",
+    "electron-store": "^8.1.0",
+    "node-global-key-listener": "^0.3.0",
+    "screenshot-desktop": "^1.15.3"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  }
+}

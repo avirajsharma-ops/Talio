@@ -48,7 +48,17 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { screenshot, capturedAt, windowTitle, url, domain, sessionId } = body;
+    const {
+      screenshot,
+      capturedAt,
+      windowTitle,
+      activeApplication, // From desktop apps
+      url,
+      domain,
+      sessionId,
+      deviceId,        // From desktop apps
+      deviceInfo       // From desktop apps { platform, screenResolution, displays }
+    } = body;
 
     if (!screenshot) {
       return NextResponse.json(
@@ -152,6 +162,11 @@ Respond in JSON format:
       // Continue without analysis
     }
 
+    // Determine platform from device info or user agent
+    const platform = deviceInfo?.platform ||
+                     (request.headers.get('user-agent')?.includes('Windows') ? 'windows' :
+                      request.headers.get('user-agent')?.includes('Mac') ? 'mac' : 'browser');
+
     // Save screenshot with analysis
     const screenCapture = new AutoScreenCapture({
       employee: employee._id,
@@ -160,14 +175,18 @@ Respond in JSON format:
       screenshotSize,
       capturedAt: new Date(capturedAt),
       windowTitle,
-      activeApplication: extractApplicationName(windowTitle),
+      activeApplication: activeApplication || extractApplicationName(windowTitle),
       url,
       domain,
       analysis,
       sessionId,
+      deviceId: deviceId || null,
       deviceInfo: {
         userAgent: request.headers.get('user-agent'),
-        platform: 'browser'
+        platform: platform,
+        screenResolution: deviceInfo?.screenResolution || null,
+        displays: deviceInfo?.displays || 1,
+        captureMethod: deviceInfo?.captureMethod || 'browser'
       }
     });
 

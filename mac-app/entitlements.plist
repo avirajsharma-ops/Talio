@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Allow the app to be distributed outside the Mac App Store -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- Screen Recording Permission -->
+    <key>com.apple.security.device.screen-capture</key>
+    <true/>
+
+    <!-- Camera Access -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
+
+    <!-- Microphone Access -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- Location Access -->
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+
+    <!-- Network Access (for connecting to the web app) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- File Access -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+
+    <!-- Allow unsigned executable memory (needed for JIT) -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- Hardened Runtime -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Allow DYLD environment variables -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- Automation/Accessibility (for startup at boot) -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>
+

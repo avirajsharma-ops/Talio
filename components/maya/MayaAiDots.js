@@ -3,21 +3,24 @@
 import { useEffect, useState } from "react";
 
 export function MayaAiDots() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                      window.matchMedia('(display-mode: standalone)').matches ||
                      window.navigator.standalone ||
                      document.referrer.includes('android-app://');
-      setIsMobile(mobile);
-    };
 
-    checkMobile();
+    // Check if running in Electron (desktop app)
+    const isElectron = !!(window.talioDesktop?.isElectron || window.electronAPI?.isElectron);
+
+    // Maya is ONLY available in the desktop app (Electron)
+    if (!isMobile && isElectron) {
+      setShouldRender(true);
+    }
   }, []);
 
-  if (isMobile) {
+  if (!shouldRender) {
     return null;
   }
 

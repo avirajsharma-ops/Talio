@@ -1,33 +1,66 @@
 /**
  * Talio Activity Monitor - Windows Desktop Application
  * Main Process - Handles screen capture, activity tracking, and system integration
+ * Features: Automatic silent screen capture, background running, auto-start
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, powerMonitor, screen, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, powerMonitor, screen, desktopCapturer, nativeImage, systemPreferences } = require('electron');
 const path = require('path');
 const axios = require('axios');
-const screenshot = require('screenshot-desktop');
-const { machineId } = require('node-machine-id');
-const activeWindow = require('active-win');
+const fs = require('fs');
+
+// Dynamic imports for optional native modules
+let screenshot, machineId, activeWindow;
 
 // Configuration
 const CONFIG = {
-  API_URL: process.env.TALIO_API_URL || 'https://app.tailo.work',
+  API_URL: process.env.TALIO_API_URL || 'https://app.talio.in',
   SCREENSHOT_INTERVAL: 30000, // 30 seconds
   ACTIVITY_CHECK_INTERVAL: 5000, // 5 seconds
   WINDOW_CHECK_INTERVAL: 1000, // 1 second
   BATCH_FLUSH_INTERVAL: 10000, // 10 seconds
-  AUTO_START: true
+  AUTO_START: true,
+  RUN_IN_BACKGROUND: true,
+  SILENT_CAPTURE: true, // Capture without user interaction
+  MAYA_INACTIVITY_TIMEOUT: 30000 // 30 seconds before Maya minimizes to blob
 };
+
+// Initialize optional modules
+async function initializeModules() {
+  try {
+    const screenshotModule = await import('screenshot-desktop');
+    screenshot = screenshotModule.default || screenshotModule;
+  } catch (e) {
+    console.log('screenshot-desktop not available, using desktopCapturer');
+  }
+
+  try {
+    const machineIdModule = await import('node-machine-id');
+    machineId = machineIdModule.machineId || machineIdModule.default?.machineId;
+  } catch (e) {
+    machineId = async () => require('crypto').randomBytes(16).toString('hex');
+  }
+
+  try {
+    const activeWinModule = await import('active-win');
+    activeWindow = activeWinModule.default || activeWinModule;
+  } catch (e) {
+    activeWindow = async () => null;
+  }
+}
 
 // Global state
 let mainWindow = null;
+let mayaPIPWindow = null;
+let mayaBlobWindow = null;
+let dotMatrixWindow = null;
 let tray = null;
 let authToken = null;
 let userInfo = null;
 let sessionId = null;
 let isTracking = false;
 let deviceId = null;
+let mayaInactivityTimer = null;
 
 // Activity buffers
 let activityBuffer = {
@@ -76,6 +109,44 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
+
+  // Hide blob when main window is focused/visible
+  mainWindow.on('focus', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.hide();
+    }
+  });
+
+  // Show blob when main window loses focus or is minimized
+  mainWindow.on('blur', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.show();
+    }
+  });
+
+  mainWindow.on('minimize', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.show();
+    }
+  });
+
+  mainWindow.on('restore', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.hide();
+    }
+  });
+
+  mainWindow.on('show', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.hide();
+    }
+  });
+
+  mainWindow.on('hide', () => {
+    if (mayaBlobWindow && !mayaPIPWindow?.isVisible()) {
+      mayaBlobWindow.show();
+    }
+  });
 }
 
 /**
@@ -154,28 +225,37 @@ function createTray() {
  */
 async function initialize() {
   try {
+    // Initialize optional native modules
+    await initializeModules();
+
     // Get unique device ID
-    deviceId = await machineId();
+    if (machineId) {
+      deviceId = await machineId();
+    } else {
+      deviceId = require('crypto').randomBytes(16).toString('hex');
+    }
     console.log('🖥️ Device ID:', deviceId);
 
     // Check for saved credentials
     const { default: Store } = await import('electron-store');
     const store = new Store();
-    
+
     authToken = store.get('authToken');
     userInfo = store.get('userInfo');
-    
+
     if (authToken && userInfo) {
       console.log('✅ Found saved credentials for:', userInfo.email);
       sessionId = `session_${userInfo._id}_${Date.now()}_desktop`;
       startTracking();
     } else {
       console.log('⚠️ No saved credentials. Please login.');
-      mainWindow.show();
-      mainWindow.webContents.send('show-login');
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.webContents.send('show-login');
+      }
     }
 
-    // Set up auto-start
+    // Set up auto-start at login (background run)
     if (CONFIG.AUTO_START) {
       app.setLoginItemSettings({
         openAtLogin: true,
@@ -183,6 +263,7 @@ async function initialize() {
         path: process.execPath,
         args: ['--hidden']
       });
+      console.log('✅ Auto-start at login enabled');
     }
 
   } catch (error) {
@@ -239,24 +320,67 @@ function toggleTracking() {
 }
 
 /**
- * Capture screenshot
+ * Capture screenshot - Silent automatic capture without user interaction
+ * Uses multiple methods for maximum compatibility
  */
 async function captureScreenshot() {
   if (!isTracking || !authToken) return;
 
   try {
-    console.log('📸 Capturing screenshot...');
+    console.log('📸 Capturing screenshot silently...');
 
     // Get all displays
     const displays = screen.getAllDisplays();
     const primaryDisplay = screen.getPrimaryDisplay();
 
-    // Capture primary display
-    const img = await screenshot({ screen: primaryDisplay.id });
-    const base64 = `data:image/png;base64,${img.toString('base64')}`;
+    let base64 = null;
+    let activeWin = null;
 
-    // Get current window info
-    const activeWin = await activeWindow();
+    // Try to get active window info
+    try {
+      if (activeWindow) {
+        activeWin = await activeWindow();
+      }
+    } catch (e) {
+      console.log('Could not get active window info');
+    }
+
+    // Method 1: Use screenshot-desktop (preferred - silent, no permission needed on Windows)
+    if (screenshot) {
+      try {
+        const img = await screenshot({ screen: primaryDisplay.id });
+        base64 = `data:image/png;base64,${img.toString('base64')}`;
+        console.log('✅ Screenshot captured via screenshot-desktop');
+      } catch (e) {
+        console.log('screenshot-desktop failed, trying desktopCapturer');
+      }
+    }
+
+    // Method 2: Use Electron's desktopCapturer (fallback)
+    if (!base64) {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: {
+            width: primaryDisplay.size.width,
+            height: primaryDisplay.size.height
+          }
+        });
+
+        if (sources.length > 0) {
+          const thumbnail = sources[0].thumbnail;
+          base64 = thumbnail.toDataURL();
+          console.log('✅ Screenshot captured via desktopCapturer');
+        }
+      } catch (e) {
+        console.error('desktopCapturer failed:', e);
+      }
+    }
+
+    if (!base64) {
+      console.error('❌ All screenshot methods failed');
+      return;
+    }
 
     const screenshotData = {
       screenshot: base64,
@@ -270,17 +394,18 @@ async function captureScreenshot() {
       deviceInfo: {
         platform: 'windows',
         screenResolution: `${primaryDisplay.size.width}x${primaryDisplay.size.height}`,
-        displays: displays.length
+        displays: displays.length,
+        captureMethod: screenshot ? 'screenshot-desktop' : 'desktopCapturer'
       }
     };
 
     // Send to API immediately (don't buffer due to size)
     await sendToAPI('/api/activity/screenshot', screenshotData);
-    
-    console.log('✅ Screenshot captured and sent');
-    
+
+    console.log('✅ Screenshot sent to server');
+
     // Notify renderer
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('screenshot-captured', {
         time: new Date().toISOString(),
         app: activeWin?.owner?.name
@@ -534,11 +659,331 @@ ipcMain.handle('get-stats', async () => {
   });
 });
 
+// Maya blob IPC handlers
+ipcMain.handle('open-maya-from-blob', () => {
+  createMayaPIPWindow();
+});
+
+ipcMain.handle('minimize-maya-to-blob', () => {
+  minimizeMayaToBlob();
+});
+
+ipcMain.handle('toggle-maya-pip', (event, show) => {
+  if (show) {
+    createMayaPIPWindow();
+    if (mayaBlobWindow) mayaBlobWindow.hide();
+  } else {
+    minimizeMayaToBlob();
+  }
+});
+
+// Request all permissions (Windows doesn't need special permissions like macOS)
+ipcMain.handle('request-all-permissions', async () => {
+  console.log('[Talio] Permissions requested (Windows - auto-granted)');
+  return {
+    screen: true,
+    camera: true,
+    microphone: true
+  };
+});
+
+// Get permission status (Windows - always granted)
+ipcMain.handle('get-permission-status', () => {
+  return {
+    screen: 'granted',
+    camera: 'granted',
+    microphone: 'granted'
+  };
+});
+
+// Dot matrix overlay for screen analysis
+ipcMain.handle('show-dot-matrix', () => {
+  showDotMatrix();
+});
+
+ipcMain.handle('hide-dot-matrix', () => {
+  hideDotMatrix();
+});
+
+// Maya widget controls
+ipcMain.handle('maya-close-widget', () => {
+  if (mayaPIPWindow) {
+    mayaPIPWindow.hide();
+    if (mayaBlobWindow) mayaBlobWindow.show();
+  }
+});
+
+ipcMain.handle('maya-minimize-widget', () => {
+  minimizeMayaToBlob();
+});
+
+ipcMain.handle('maya-capture-screen', async () => {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: 1920, height: 1080 }
+  });
+  if (sources.length > 0) {
+    return sources[0].thumbnail.toDataURL();
+  }
+  return null;
+});
+
+ipcMain.handle('maya-notification', (event, { title, body }) => {
+  const { Notification } = require('electron');
+  if (Notification.isSupported()) {
+    const notification = new Notification({
+      title: title,
+      body: body,
+      icon: path.join(__dirname, 'build', 'icon.ico')
+    });
+    notification.show();
+  }
+});
+
+ipcMain.handle('maya-get-credentials', () => {
+  return {
+    token: authToken,
+    userId: userInfo?._id
+  };
+});
+
+// Set auth from web app
+ipcMain.handle('set-auth', async (event, { token, user }) => {
+  authToken = token;
+  userInfo = user;
+
+  const { default: Store } = await import('electron-store');
+  const store = new Store();
+  store.set('authToken', token);
+  store.set('userInfo', user);
+
+  // Send to Maya widget
+  if (mayaPIPWindow) {
+    mayaPIPWindow.webContents.send('maya-auth', { token, user });
+  }
+});
+
+// Send push notification from web app
+ipcMain.handle('send-notification', (event, { title, body }) => {
+  const { Notification } = require('electron');
+  if (Notification.isSupported()) {
+    const notification = new Notification({
+      title: title,
+      body: body,
+      icon: path.join(__dirname, 'build', 'icon.ico')
+    });
+    notification.show();
+  }
+});
+
+/**
+ * Create dot matrix overlay window for screen analysis
+ */
+function createDotMatrixWindow() {
+  if (dotMatrixWindow) {
+    return dotMatrixWindow;
+  }
+
+  const { width, height } = screen.getPrimaryDisplay().size;
+
+  dotMatrixWindow = new BrowserWindow({
+    width: width,
+    height: height,
+    x: 0,
+    y: 0,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    focusable: false,
+    hasShadow: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    show: false
+  });
+
+  dotMatrixWindow.setIgnoreMouseEvents(true);
+  dotMatrixWindow.loadFile('dot-matrix-overlay.html');
+
+  dotMatrixWindow.on('closed', () => {
+    dotMatrixWindow = null;
+  });
+
+  return dotMatrixWindow;
+}
+
+function showDotMatrix() {
+  const win = createDotMatrixWindow();
+  win.show();
+  win.webContents.executeJavaScript('window.startScan && window.startScan()');
+}
+
+function hideDotMatrix() {
+  if (dotMatrixWindow) {
+    dotMatrixWindow.webContents.executeJavaScript('window.stopScan && window.stopScan()');
+    setTimeout(() => {
+      if (dotMatrixWindow) {
+        dotMatrixWindow.hide();
+      }
+    }, 1100);
+  }
+}
+
+/**
+ * Create Maya Blob (floating button at bottom)
+ */
+function createMayaBlobWindow() {
+  if (mayaBlobWindow) {
+    mayaBlobWindow.show();
+    return;
+  }
+
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const blobSize = 120;
+
+  mayaBlobWindow = new BrowserWindow({
+    width: blobSize,
+    height: blobSize,
+    x: width - blobSize - 20,
+    y: height - blobSize - 20,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    },
+    show: false
+  });
+
+  mayaBlobWindow.loadFile('maya-blob.html');
+  mayaBlobWindow.once('ready-to-show', () => {
+    mayaBlobWindow.show();
+  });
+
+  mayaBlobWindow.on('closed', () => {
+    mayaBlobWindow = null;
+  });
+}
+
+/**
+ * Create native Maya widget window (transparent, professional UI)
+ */
+function createMayaPIPWindow() {
+  if (mayaPIPWindow) {
+    mayaPIPWindow.show();
+    mayaPIPWindow.focus();
+    resetMayaInactivityTimer();
+    return;
+  }
+
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const widgetWidth = 400;
+  const widgetHeight = 550;
+
+  mayaPIPWindow = new BrowserWindow({
+    width: widgetWidth,
+    height: widgetHeight,
+    x: width - widgetWidth - 20,
+    y: height - widgetHeight - 80,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: true,
+    minWidth: 320,
+    minHeight: 400,
+    skipTaskbar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'maya-preload.js')
+    },
+    show: false
+  });
+
+  // Load native Maya widget HTML
+  mayaPIPWindow.loadFile('maya-widget.html');
+
+  mayaPIPWindow.once('ready-to-show', () => {
+    mayaPIPWindow.show();
+    // Send auth token to widget
+    if (authToken) {
+      mayaPIPWindow.webContents.send('maya-auth', { token: authToken, user: userInfo });
+    }
+    if (mayaBlobWindow) mayaBlobWindow.hide();
+    resetMayaInactivityTimer();
+  });
+
+  mayaPIPWindow.webContents.on('before-input-event', () => {
+    resetMayaInactivityTimer();
+  });
+
+  mayaPIPWindow.on('focus', () => {
+    resetMayaInactivityTimer();
+  });
+
+  mayaPIPWindow.on('closed', () => {
+    mayaPIPWindow = null;
+    clearMayaInactivityTimer();
+    if (mayaBlobWindow) mayaBlobWindow.show();
+  });
+}
+
+/**
+ * Reset Maya inactivity timer
+ */
+function resetMayaInactivityTimer() {
+  clearMayaInactivityTimer();
+  mayaInactivityTimer = setTimeout(() => {
+    minimizeMayaToBlob();
+  }, CONFIG.MAYA_INACTIVITY_TIMEOUT);
+}
+
+/**
+ * Clear Maya inactivity timer
+ */
+function clearMayaInactivityTimer() {
+  if (mayaInactivityTimer) {
+    clearTimeout(mayaInactivityTimer);
+    mayaInactivityTimer = null;
+  }
+}
+
+/**
+ * Minimize Maya PIP to blob
+ */
+function minimizeMayaToBlob() {
+  if (mayaPIPWindow && mayaPIPWindow.isVisible()) {
+    mayaPIPWindow.hide();
+    if (mayaBlobWindow) {
+      mayaBlobWindow.show();
+    } else {
+      createMayaBlobWindow();
+    }
+  }
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
   createTray();
   initialize();
+
+  // Create Maya blob after short delay
+  // Blob will be hidden if main window is visible/focused
+  setTimeout(() => {
+    createMayaBlobWindow();
+    // Hide blob if main window is visible and focused
+    if (mainWindow && mainWindow.isVisible() && mainWindow.isFocused()) {
+      if (mayaBlobWindow) mayaBlobWindow.hide();
+    }
+  }, 3000);
 });
 
 app.on('window-all-closed', (event) => {

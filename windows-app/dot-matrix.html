@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Maya Screen Analysis</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      pointer-events: none;
+    }
+    .dot-matrix-container {
+      position: fixed;
+      inset: 0;
+      background: transparent;
+      opacity: 0;
+      transition: opacity 0.5s ease-out;
+    }
+    .dot-matrix-container.active {
+      opacity: 1;
+    }
+    .dot-matrix-container.fade-out {
+      opacity: 0;
+      transition: opacity 1s ease-out;
+    }
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="dot-matrix-container" id="dotMatrixContainer">
+    <canvas id="dotCanvas"></canvas>
+  </div>
+  <script>
+    const container = document.getElementById('dotMatrixContainer');
+    const canvas = document.getElementById('dotCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let animationId = null;
+    let dots = [];
+    const DOT_SPACING = 20;
+    const DOT_SIZE = 2;
+    const SCAN_SPEED = 3;
+    let scanY = 0;
+    let isScanning = true;
+    
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      initDots();
+    }
+    
+    function initDots() {
+      dots = [];
+      const cols = Math.ceil(canvas.width / DOT_SPACING);
+      const rows = Math.ceil(canvas.height / DOT_SPACING);
+      
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          dots.push({
+            x: col * DOT_SPACING + DOT_SPACING / 2,
+            y: row * DOT_SPACING + DOT_SPACING / 2,
+            baseAlpha: 0.15,
+            alpha: 0.15,
+            scanned: false
+          });
+        }
+      }
+    }
+    
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update scan line
+      if (isScanning) {
+        scanY += SCAN_SPEED;
+        if (scanY > canvas.height) {
+          scanY = 0;
+        }
+      }
+      
+      // Draw dots
+      for (const dot of dots) {
+        // Calculate distance from scan line
+        const distFromScan = Math.abs(dot.y - scanY);
+        
+        if (distFromScan < 50 && isScanning) {
+          // Highlight dots near scan line
+          const intensity = 1 - (distFromScan / 50);
+          dot.alpha = 0.15 + intensity * 0.6;
+          dot.scanned = true;
+        } else if (dot.scanned) {
+          // Fade scanned dots
+          dot.alpha = Math.max(0.2, dot.alpha - 0.01);
+        }
+        
+        // Draw dot with glow
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, DOT_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(77, 255, 163, ${dot.alpha})`;
+        ctx.fill();
+        
+        // Add glow for highlighted dots
+        if (dot.alpha > 0.3) {
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, DOT_SIZE * 2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(77, 255, 163, ${dot.alpha * 0.3})`;
+          ctx.fill();
+        }
+      }
+      
+      // Draw scan line
+      if (isScanning) {
+        const gradient = ctx.createLinearGradient(0, scanY - 30, 0, scanY + 30);
+        gradient.addColorStop(0, 'rgba(77, 255, 163, 0)');
+        gradient.addColorStop(0.5, 'rgba(77, 255, 163, 0.4)');
+        gradient.addColorStop(1, 'rgba(77, 255, 163, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, scanY - 30, canvas.width, 60);
+      }
+      
+      animationId = requestAnimationFrame(animate);
+    }
+    
+    function startAnalysis() {
+      container.classList.remove('fade-out');
+      container.classList.add('active');
+      isScanning = true;
+      scanY = 0;
+      initDots();
+      if (!animationId) animate();
+    }
+    
+    function stopAnalysis() {
+      isScanning = false;
+      container.classList.add('fade-out');
+      setTimeout(() => {
+        container.classList.remove('active', 'fade-out');
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+      }, 1000);
+    }
+    
+    // Listen for IPC messages
+    window.addEventListener('message', (event) => {
+      if (event.data === 'start-analysis') startAnalysis();
+      if (event.data === 'stop-analysis') stopAnalysis();
+    });
+    
+    // Expose functions globally for IPC
+    window.startAnalysis = startAnalysis;
+    window.stopAnalysis = stopAnalysis;
+    
+    resize();
+    window.addEventListener('resize', resize);
+  </script>
+</body>
+</html>
+

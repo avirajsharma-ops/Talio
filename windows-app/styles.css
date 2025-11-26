@@ -4,9 +4,17 @@
   box-sizing: border-box;
 }
 
+:root {
+  --talio-teal: #0d9488;
+  --talio-teal-light: #14b8a6;
+  --talio-teal-dark: #0f766e;
+  --talio-gradient: linear-gradient(135deg, #0d9488 0%, #0f766e 50%, #134e4a 100%);
+  --talio-gradient-light: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--talio-gradient);
   color: #333;
   overflow: hidden;
 }
@@ -21,14 +29,14 @@ body {
 
 /* Login Screen */
 #login-screen {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--talio-gradient);
 }
 
 .login-container {
   background: white;
   border-radius: 16px;
   padding: 48px;
-  width: 400px;
+  width: 420px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
@@ -37,12 +45,19 @@ body {
   margin-bottom: 32px;
 }
 
+.logo-img {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 12px;
+}
+
 .logo h1 {
   font-size: 36px;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--talio-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 4px;
 }
 
@@ -80,8 +95,8 @@ body {
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--talio-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
 }
 
 .error-message {
@@ -103,13 +118,13 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--talio-gradient);
   color: white;
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
 .btn-primary:disabled {

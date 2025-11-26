@@ -123,7 +123,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
       ]
     },
   ],
@@ -217,7 +217,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
       ]
     },
 
@@ -477,7 +477,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'Chat History', path: '/dashboard/maya/chat-history' },
         { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Screen Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
         { name: 'Custom Context', path: '/dashboard/maya/context' },
       ]
     },

@@ -29,6 +29,18 @@ export function MayaRuntimeLoader() {
       return;
     }
 
+    // MAYA is now ONLY available in the desktop app (Electron)
+    // Check if running in Electron
+    const isElectron = !!(window.talioDesktop?.isElectron || window.electronAPI?.isElectron);
+
+    if (!isElectron) {
+      console.log('[MAYA] Disabled on web - Maya is only available in the Talio desktop app');
+      window.__MAYA_DISABLED__ = true;
+      return;
+    }
+
+    console.log('[MAYA] Running in Talio desktop app - Maya enabled');
+
     // Check if service worker is installed
     const checkServiceWorker = async () => {
       if ('serviceWorker' in navigator) {

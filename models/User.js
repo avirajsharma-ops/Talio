@@ -65,6 +65,15 @@ const UserSchema = new mongoose.Schema({
     leave: { type: Boolean, default: true },
     attendance: { type: Boolean, default: true },
     announcements: { type: Boolean, default: true }
+  },
+  // Maya AI Assistant preferences
+  mayaPreferences: {
+    onboardingCompleted: { type: Boolean, default: false },
+    onboardingCompletedAt: { type: Date },
+    onboardingSkipped: { type: Boolean, default: false },
+    lastGreetingDate: { type: String }, // YYYY-MM-DD format to track daily greeting
+    autoGreetingEnabled: { type: Boolean, default: true },
+    voiceEnabled: { type: Boolean, default: true }
   }
 }, {
   timestamps: true,

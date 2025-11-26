@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { verifyTokenFromRequest } from '@/lib/auth';
 import MayaChatHistory from '@/models/MayaChatHistory';
+import User from '@/models/User';
+import Employee from '@/models/Employee';
+import Department from '@/models/Department';
 
 export async function GET(request) {
   try {
@@ -16,9 +19,67 @@ export async function GET(request) {
     }
 
     const { user } = authResult;
+    const { searchParams } = new URL(request.url);
+    const requestedUserId = searchParams.get('userId');
 
-    // Fetch chat history for the user
-    const history = await MayaChatHistory.find({ userId: user._id })
+    let targetUserId = user._id;
+
+    // If a specific userId is requested, verify permission
+    if (requestedUserId && requestedUserId !== user._id.toString()) {
+      // Check if current user has permission to view other users' chat history
+      const currentUserDoc = await User.findById(user._id).select('role employeeId').lean();
+
+      if (!currentUserDoc) {
+        return NextResponse.json(
+          { success: false, error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head'];
+
+      if (!allowedRoles.includes(currentUserDoc.role)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have permission to view other users\' chat history' },
+          { status: 403 }
+        );
+      }
+
+      // For department heads, verify the requested user is in their department
+      if (currentUserDoc.role === 'department_head') {
+        // Find the department where current user is head
+        const headDepartment = await Department.findOne({
+          head: currentUserDoc.employeeId,
+          isActive: true
+        }).lean();
+
+        if (headDepartment) {
+          // Get the requested user's employee info
+          const requestedUserDoc = await User.findById(requestedUserId).select('employeeId').lean();
+
+          if (requestedUserDoc && requestedUserDoc.employeeId) {
+            const requestedEmployee = await Employee.findById(requestedUserDoc.employeeId)
+              .select('department')
+              .lean();
+
+            // Allow if it's the department head's own history OR if employee is in their department
+            if (requestedUserId !== user._id.toString() &&
+                (!requestedEmployee ||
+                 requestedEmployee.department?.toString() !== headDepartment._id.toString())) {
+              return NextResponse.json(
+                { success: false, error: 'You can only view chat history of employees in your department' },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      }
+
+      targetUserId = requestedUserId;
+    }
+
+    // Fetch chat history for the target user
+    const history = await MayaChatHistory.find({ userId: targetUserId })
       .sort({ lastMessageAt: -1 })
       .limit(50)
       .lean();
@@ -32,7 +93,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching chat history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch chat history', details: error.message },
+      { success: false, error: 'Failed to fetch chat history', details: error.message },
       { status: 500 }
     );
   }

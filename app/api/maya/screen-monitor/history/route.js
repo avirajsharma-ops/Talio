@@ -43,18 +43,6 @@ export async function GET(request) {
       );
     }
 
-    // Check if user is admin or department_head
-    const allowedRoles = ['admin', 'god_admin', 'department_head'];
-    if (!allowedRoles.includes(user.role)) {
-      return NextResponse.json(
-        { 
-          error: 'Access denied',
-          message: 'Only admins and department heads can view screen monitoring history'
-        },
-        { status: 403 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
     const includeScreenshot = searchParams.get('includeScreenshot') === 'true';
@@ -64,7 +52,11 @@ export async function GET(request) {
 
     let query = {};
 
-    // If specific employee requested, verify access
+    // Check user roles
+    const allowedRoles = ['admin', 'god_admin', 'hr', 'department_head'];
+    const isPrivilegedUser = allowedRoles.includes(user.role);
+
+    // If specific employee requested
     if (employeeId) {
       const targetEmployee = await Employee.findById(employeeId).lean();
       if (!targetEmployee) {
@@ -74,8 +66,22 @@ export async function GET(request) {
         );
       }
 
-      // If department_head, verify they manage this employee
-      if (user.role === 'department_head') {
+      // Check if this is the user's own employee record
+      const isOwnRecord = user.employeeId &&
+        (user.employeeId._id?.toString() === employeeId || user.employeeId.toString() === employeeId);
+
+      if (!isPrivilegedUser && !isOwnRecord) {
+        return NextResponse.json(
+          {
+            error: 'Access denied',
+            message: 'You can only view your own monitoring history'
+          },
+          { status: 403 }
+        );
+      }
+
+      // If department_head, verify they manage this employee (unless it's their own)
+      if (user.role === 'department_head' && !isOwnRecord) {
         if (!user.employeeId) {
           return NextResponse.json(
             { error: 'Department head must be linked to an employee record' },
@@ -84,7 +90,7 @@ export async function GET(request) {
         }
 
         const requestingEmployee = await Employee.findById(user.employeeId._id).lean();
-        
+
         if (!requestingEmployee.department || !targetEmployee.department) {
           return NextResponse.json(
             { error: 'Department information missing' },
@@ -94,7 +100,7 @@ export async function GET(request) {
 
         if (requestingEmployee.department.toString() !== targetEmployee.department.toString()) {
           return NextResponse.json(
-            { 
+            {
               error: 'Access denied',
               message: 'Department heads can only view employees in their department'
             },
@@ -105,8 +111,18 @@ export async function GET(request) {
 
       query.targetEmployee = employeeId;
     } else {
-      // If department_head, only show their department's employees
-      if (user.role === 'department_head') {
+      // No specific employee requested
+      if (!isPrivilegedUser) {
+        // Regular employees can only see their own monitoring
+        if (!user.employeeId) {
+          return NextResponse.json(
+            { error: 'User must be linked to an employee record' },
+            { status: 403 }
+          );
+        }
+        query.targetEmployee = user.employeeId._id || user.employeeId;
+      } else if (user.role === 'department_head') {
+        // Department head sees their department's employees
         if (!user.employeeId) {
           return NextResponse.json(
             { error: 'Department head must be linked to an employee record' },
@@ -115,7 +131,7 @@ export async function GET(request) {
         }
 
         const requestingEmployee = await Employee.findById(user.employeeId._id).lean();
-        
+
         if (!requestingEmployee.department) {
           return NextResponse.json(
             { error: 'Department information missing' },
@@ -128,11 +144,11 @@ export async function GET(request) {
           department: requestingEmployee.department
         }).select('_id').lean();
 
-        query.targetEmployee = { 
-          $in: departmentEmployees.map(e => e._id) 
+        query.targetEmployee = {
+          $in: departmentEmployees.map(e => e._id)
         };
       }
-      // Admins can see all
+      // Admins can see all (no filter needed)
     }
 
     // Build projection to exclude screenshot data if not requested

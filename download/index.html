@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Talio - HR that runs itself</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="https://talio.in" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Talio</span>
+      </a>
+      <div class="nav-links">
+        <a href="https://talio.in/#features">Features</a>
+        <a href="https://talio.in/#product">Product</a>
+        <a href="https://talio.in/#pricing">Pricing</a>
+        <a href="https://app.talio.in" class="btn-primary">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <main class="hero">
+    <div class="hero-content">
+      <span class="badge">✦ DESKTOP APPLICATION</span>
+      <h1>Download Talio</h1>
+      <p class="subtitle">
+        Get the native desktop experience for attendance tracking, 
+        productivity monitoring, and seamless HR management.
+      </p>
+
+      <!-- OS Selection -->
+      <div class="os-selector">
+        <button class="os-btn active" data-os="mac" id="macBtn">
+          <svg class="os-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
+          </svg>
+          <span>macOS</span>
+        </button>
+        <button class="os-btn" data-os="windows" id="windowsBtn">
+          <svg class="os-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 12V6.75L9 5.43V11.91L3 12ZM20 3V11.75L10 11.9V5.21L20 3ZM3 13L9 13.09V19.9L3 18.75V13ZM10 13.25L20 13.5V22L10 20.09V13.25Z"/>
+          </svg>
+          <span>Windows</span>
+        </button>
+      </div>
+
+      <!-- Download Cards -->
+      <div class="download-section">
+        <!-- macOS Download -->
+        <div class="download-card" id="macDownload">
+          <div class="card-header">
+            <div class="platform-info">
+              <span class="platform-name">macOS</span>
+              <span class="version">Version 1.0.0</span>
+            </div>
+            <span class="arch-badge">Universal (Intel + Apple Silicon)</span>
+          </div>
+          <a href="releases/mac/Talio-1.0.0.dmg" class="download-btn" download>
+            <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download for macOS
+          </a>
+          <p class="file-info">DMG installer • ~100 MB</p>
+        </div>
+
+        <!-- Windows Download -->
+        <div class="download-card hidden" id="windowsDownload">
+          <div class="card-header">
+            <div class="platform-info">
+              <span class="platform-name">Windows</span>
+              <span class="version">Version 1.0.0</span>
+            </div>
+            <span class="arch-badge" id="archBadge">64-bit (x64)</span>
+          </div>
+          <a href="releases/windows/Talio-Setup-1.0.0-x64.exe" class="download-btn" id="mainDownloadBtn" download>
+            <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span id="downloadText">Download for Windows (64-bit)</span>
+          </a>
+          <p class="file-info" id="fileInfo">Installer • ~84 MB</p>
+          
+          <!-- Architecture Options -->
+          <div class="arch-options">
+            <span class="arch-label">Other versions:</span>
+            <a href="releases/windows/Talio-Setup-1.0.0-ia32.exe" class="arch-link" id="win32Link">32-bit (x86)</a>
+            <a href="releases/windows/Talio-Portable-1.0.0-x64.exe" class="arch-link">Portable (64-bit)</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Requirements -->
+      <div class="requirements" id="requirements">
+        <h3>System Requirements</h3>
+        <div class="req-content" id="macReq">
+          <ul>
+            <li>macOS 10.15 (Catalina) or later</li>
+            <li>Apple Silicon (M1/M2/M3) or Intel processor</li>
+            <li>200 MB available disk space</li>
+            <li>Internet connection for sync features</li>
+          </ul>
+        </div>
+        <div class="req-content hidden" id="windowsReq">
+          <ul>
+            <li>Windows 10 or Windows 11</li>
+            <li>64-bit or 32-bit processor</li>
+            <li>200 MB available disk space</li>
+            <li>Internet connection for sync features</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2025 Talio. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="https://talio.in/privacy">Privacy Policy</a>
+      <a href="https://talio.in/terms">Terms of Service</a>
+      <a href="mailto:support@talio.in">Support</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

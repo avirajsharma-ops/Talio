@@ -73,3 +73,16 @@ SERVER_ENV_CREDENTIALS.txt
 windows-app/node_modules/
 windows-app/dist/
 windows-app/releases/
+windows-app/release/
+
+# Mac app
+mac-app/node_modules/
+mac-app/dist/
+mac-app/release/
+
+# Binary releases (too large for GitHub)
+download/releases/
+public/releases/
+*.dmg
+*.exe
+*.blockmap
