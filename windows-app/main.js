@@ -888,6 +888,7 @@ function createMayaPIPWindow() {
     minWidth: 320,
     minHeight: 400,
     skipTaskbar: true,
+    roundedCorners: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
