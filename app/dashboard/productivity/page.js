@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 
 export default function ProductivityMonitoringPage() {
   const [user, setUser] = useState(null);
@@ -20,6 +22,12 @@ export default function ProductivityMonitoringPage() {
   const [savingInterval, setSavingInterval] = useState(false);
   const [modalData, setModalData] = useState(null); // { type: 'chat' | 'monitoring', title, data, userInfo }
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -306,7 +314,7 @@ export default function ProductivityMonitoringPage() {
           <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
             <span>{records.length} capture{records.length !== 1 ? 's' : ''}</span>
             {records.length > 0 && records[0].createdAt && (
-              <span>{new Date(records[0].createdAt).toLocaleDateString()}</span>
+              <span>{formatLocalDateOnly(records[0].createdAt)}</span>
             )}
           </div>
 
@@ -363,7 +371,14 @@ export default function ProductivityMonitoringPage() {
       const userKey = userId?.toString() || 'unknown';
       if (!userMap.has(userKey)) {
         userMap.set(userKey, {
-          user: session.employeeId || session.userId,
+          user: {
+            _id: userId,
+            name: session.employeeName || session.userId?.name || 'Unknown User',
+            employeeCode: session.employeeCode || session.employeeId?.employeeCode || '',
+            designation: session.designation || session.employeeId?.designation || '',
+            department: session.department || session.employeeId?.department || '',
+            profilePicture: session.userId?.profilePicture || session.employeeId?.profilePicture || null
+          },
           sessions: []
         });
       }
@@ -644,16 +659,16 @@ export default function ProductivityMonitoringPage() {
         </div>
       )}
 
-      {/* Modal for displaying chat/monitoring details */}
-      {isModalOpen && modalData && (
+      {/* Modal for displaying chat/monitoring details - Rendered via Portal */}
+      {isMounted && isModalOpen && modalData && createPortal(
         <>
           {/* Backdrop with blur - covers entire screen including sidebar/header */}
           <div
             className="fixed inset-0"
             style={{
-              backdropFilter: 'blur(5px)',
-              WebkitBackdropFilter: 'blur(5px)',
-              backgroundColor: 'transparent',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
               zIndex: 99999
             }}
             onClick={closeModal}
@@ -699,10 +714,10 @@ export default function ProductivityMonitoringPage() {
                 {/* Close Button */}
                 <button
                   onClick={closeModal}
-                  className="flex-shrink-0 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all"
+                  className="flex-shrink-0  bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-all"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -718,7 +733,7 @@ export default function ProductivityMonitoringPage() {
                       <div key={session._id || idx} className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
                         <div className="flex justify-between items-center mb-4 pb-3 border-b-2 border-gray-300">
                           <span className="text-sm text-gray-600 font-semibold">
-                            📅 {new Date(session.createdAt).toLocaleString()}
+                            📅 {formatLocalDateTime(session.createdAt)}
                           </span>
                           <span className="text-sm bg-blue-500 text-white px-3 py-1 rounded-full font-semibold">
                             {session.messages?.length || 0} messages
@@ -738,7 +753,7 @@ export default function ProductivityMonitoringPage() {
                                 <p className={`text-xs mt-2 ${
                                   msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
                                 }`}>
-                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  {formatLocalTime(msg.timestamp)}
                                 </p>
                               </div>
                             </div>
@@ -765,7 +780,7 @@ export default function ProductivityMonitoringPage() {
                                 Screenshot
                               </span>
                               <span className="text-xs text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-300">
-                                {new Date(record.createdAt).toLocaleString()}
+                                {formatLocalDateTime(record.createdAt)}
                               </span>
                             </div>
                             {record.screenshotUrl ? (
@@ -851,7 +866,8 @@ export default function ProductivityMonitoringPage() {
               </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

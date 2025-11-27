@@ -50,6 +50,7 @@ export async function POST(request) {
 
     // Find or create employee record if missing
     let employeeId = user.employeeId;
+    let employeeData = null;
     if (!employeeId) {
       const Employee = (await import('@/models/Employee')).default;
       let employee = await Employee.findOne({ userId });
@@ -70,20 +71,24 @@ export async function POST(request) {
         await user.save();
       }
       employeeId = employee._id;
+      employeeData = employee;
+    } else {
+      const Employee = (await import('@/models/Employee')).default;
+      employeeData = await Employee.findById(employeeId).select('name employeeCode designation department');
     }
 
-    // Create chat history entry
+    // Create chat history entry with user and employee details
     const chatSession = await MayaChatHistory.create({
       userId,
       employeeId,
+      employeeName: employeeData?.name || user.name || 'User',
+      employeeCode: employeeData?.employeeCode || '',
+      designation: employeeData?.designation || '',
+      department: employeeData?.department || '',
       sessionId: `session_${Date.now()}_${userId}`,
       messages: [
         { role: 'user', content: message, timestamp: new Date() }
-      ],
-      metadata: {
-        source: 'desktop-app',
-        userAgent: request.headers.get('user-agent')
-      }
+      ]
     });
 
     // Call OpenAI API

@@ -12,6 +12,19 @@ const MayaChatHistorySchema = new mongoose.Schema({
     ref: 'Employee',
     required: true,
   },
+  employeeName: {
+    type: String,
+    required: true,
+  },
+  employeeCode: {
+    type: String,
+  },
+  designation: {
+    type: String,
+  },
+  department: {
+    type: String,
+  },
   sessionId: {
     type: String,
     required: true,
