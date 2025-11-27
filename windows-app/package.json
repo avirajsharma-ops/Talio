@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Talio - HR that runs itself. Desktop application for Windows.",
   "main": "main.js",
   "author": {
@@ -12,7 +12,6 @@
     "start": "electron .",
     "build": "electron-builder --win --x64",
     "build:win64": "electron-builder --win --x64",
-    "build:portable": "electron-builder --win portable --x64",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -45,6 +44,7 @@
       "!**/.git/**"
     ],
     "asarUnpack": [],
+    "electronLanguages": ["en-US"],
     "win": {
       "target": [
         {
@@ -70,7 +70,8 @@
       "perMachine": false,
       "allowElevation": true,
       "warningsAsErrors": false,
-      "menuCategory": "Talio"
+      "menuCategory": "Talio",
+      "differentialPackage": false
     },
     "extraResources": [
       {
@@ -78,7 +79,8 @@
         "to": "resources",
         "filter": ["**/*"]
       }
-    ]
+    ],
+    "afterPack": "./scripts/remove-locales.js"
   },
   "dependencies": {
     "axios": "^1.6.0",

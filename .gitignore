@@ -72,20 +72,16 @@ SERVER_ENV_CREDENTIALS.txt
 # Windows app
 windows-app/node_modules/
 windows-app/dist/
-windows-app/release/win-unpacked/
-windows-app/release/*.blockmap
-windows-app/release/builder-*.yml
-windows-app/release/builder-*.yaml
+windows-app/release/
 
 # Mac app
 mac-app/node_modules/
 mac-app/dist/
-mac-app/release/mac-arm64/
-mac-app/release/mac-x64/
-mac-app/release/*.blockmap
-mac-app/release/builder-*.yml
-mac-app/release/builder-*.yaml
+mac-app/release/
 
-# Binary releases (too large for GitHub) - but allow optimized builds
+# Binary releases
 download/releases/
 public/releases/
+*.dmg
+*.exe
+*.blockmap
