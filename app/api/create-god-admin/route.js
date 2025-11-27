@@ -118,7 +118,6 @@ export async function POST(request) {
       access: {
         level: 'UNLIMITED',
         description: 'Full access to ALL data and ALL actions',
-        maya: 'MAYA will give you complete access to everything',
       },
     });
 

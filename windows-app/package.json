@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Talio - HR that runs itself. Desktop application for Windows.",
   "main": "main.js",
   "author": {
@@ -10,12 +10,9 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win --x64 --ia32",
+    "build": "electron-builder --win --x64",
     "build:win64": "electron-builder --win --x64",
-    "build:win32": "electron-builder --win --ia32",
     "build:portable": "electron-builder --win portable --x64",
-    "build:all": "electron-builder --win nsis portable --x64 --ia32",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -23,6 +20,7 @@
     "appId": "com.talio.app",
     "productName": "Talio",
     "copyright": "Copyright © 2025 Talio",
+    "compression": "maximum",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -38,35 +36,30 @@
       "maya-widget.html",
       "dot-matrix-overlay.html",
       "assets/**/*",
-      "node_modules/**/*",
-      "!node_modules/**/test/**",
-      "!node_modules/**/tests/**"
+      "!node_modules/**/*",
+      "!**/*.map",
+      "!**/*.md",
+      "!**/test/**",
+      "!**/tests/**",
+      "!**/docs/**",
+      "!**/.git/**"
     ],
+    "asarUnpack": [],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
       "publisherName": "Talio",
       "signAndEditExecutable": false
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Talio",
@@ -74,39 +67,29 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "perMachine": true,
+      "perMachine": false,
       "allowElevation": true,
-      "include": "installer.nsh",
       "warningsAsErrors": false,
       "menuCategory": "Talio"
-    },
-    "portable": {
-      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}",
-      "requestExecutionLevel": "admin"
     },
     "extraResources": [
       {
         "from": "resources",
         "to": "resources",
-        "filter": [
-          "**/*"
-        ]
+        "filter": ["**/*"]
       }
     ]
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "electron-store": "^8.1.0",
-    "node-global-key-listener": "^0.3.0"
+    "electron-store": "^8.1.0"
   },
   "optionalDependencies": {
     "active-win": "^8.0.0",
-    "node-machine-id": "^1.1.12",
     "screenshot-desktop": "^1.15.0"
   },
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.0",
-    "png-to-ico": "^2.1.8"
+    "electron-builder": "^24.9.0"
   }
 }

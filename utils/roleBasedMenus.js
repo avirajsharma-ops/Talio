@@ -116,14 +116,12 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    {
-      name: 'MAYA',
-      icon: FaRobot,
-      path: '/dashboard/maya',
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
-        { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
   ],
@@ -210,17 +208,14 @@ export const roleBasedMenus = {
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    {
-      name: 'MAYA',
-      icon: FaRobot,
-      path: '/dashboard/maya',
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
-        { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
+        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
-
   ],
 
   // MANAGER - Team management focused
@@ -283,16 +278,14 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    {
-      name: 'MAYA',
-      icon: FaRobot,
-      path: '/dashboard/maya',
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
-        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+        { name: 'Team Monitoring', path: '/dashboard/productivity' },
       ]
     },
-
   ],
 
   // EMPLOYEE - Personal focused
@@ -352,13 +345,12 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    {
-      name: 'MAYA',
-      icon: FaRobot,
-      path: '/dashboard/maya',
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
-        { name: 'Actions Log', path: '/dashboard/maya/actions' },
+        { name: 'My Productivity', path: '/dashboard/productivity' },
       ]
     },
   ],
@@ -470,15 +462,12 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    {
-      name: 'MAYA',
-      icon: FaRobot,
-      path: '/dashboard/maya',
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
       submenu: [
-        { name: 'Chat History', path: '/dashboard/maya/chat-history' },
-        { name: 'Actions Log', path: '/dashboard/maya/actions' },
-        { name: 'Productivity Monitoring', path: '/dashboard/maya/monitoring' },
-        { name: 'Custom Context', path: '/dashboard/maya/context' },
+        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
   ],

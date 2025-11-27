@@ -74,7 +74,8 @@ const UserSchema = new mongoose.Schema({
     lastGreetingDate: { type: String }, // YYYY-MM-DD format to track daily greeting
     autoGreetingEnabled: { type: Boolean, default: true },
     voiceEnabled: { type: Boolean, default: true }
-  }
+  },
+  lastMayaGreeting: { type: Date } // Track last greeting timestamp
 }, {
   timestamps: true,
 });
