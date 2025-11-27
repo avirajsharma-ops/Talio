@@ -2,6 +2,19 @@
 
 Native macOS application for Talio HRMS with screen recording permissions, background running, and Maya PIP overlay.
 
+## ⚠️ Installation Issue on Apple Silicon Macs
+
+If you see **"Talio is damaged and can't be opened"** error on Apple Silicon (M1/M2/M3/M4) Macs:
+
+**Quick Fix:**
+```bash
+xattr -cr /Applications/Talio.app
+```
+
+**📖 Full Installation Guide:** [MAC_INSTALLATION_GUIDE.md](../MAC_INSTALLATION_GUIDE.md)
+
+This happens because the app is not code-signed with an Apple Developer certificate. The app is completely safe - the command above removes the quarantine flag.
+
 ## Features
 
 - **Screen Capture Permission**: Native macOS permission for productivity monitoring

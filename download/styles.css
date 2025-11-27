@@ -289,6 +289,49 @@ h1 {
   text-decoration: underline;
 }
 
+/* Installation Notice */
+.install-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.notice-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notice-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.notice-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.notice-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.notice-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
 /* Requirements */
 .requirements {
   text-align: left;
