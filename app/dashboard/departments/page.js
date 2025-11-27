@@ -25,11 +25,11 @@ export default function DepartmentsPage() {
       setUser(parsedUser)
 
       // Check role-based access
-      if (!['admin', 'hr'].includes(parsedUser.role)) {
+      if (!['god_admin', 'admin', 'hr'].includes(parsedUser.role)) {
         // For employees and managers, show read-only view
         fetchDepartments()
       } else {
-        // For admin and HR, show full management interface
+        // For god_admin, admin and HR, show full management interface
         fetchDepartments()
         fetchEmployees()
       }
@@ -151,7 +151,7 @@ export default function DepartmentsPage() {
   }
 
   const canManageDepartments = () => {
-    return user && ['admin', 'hr'].includes(user.role)
+    return user && ['god_admin', 'admin', 'hr'].includes(user.role)
   }
 
   return (

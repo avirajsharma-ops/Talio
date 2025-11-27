@@ -84,13 +84,25 @@ export async function POST(request) {
       consentTimestamp: new Date(),
     });
 
-    // TODO: Emit Socket.IO event to desktop app to trigger immediate capture
+    // Emit Socket.IO event to desktop app to trigger immediate capture
     if (global.io) {
-      global.io.to(`user:${targetUserId}`).emit('instant-capture-request', {
-        requestId: captureRequest._id,
+      const roomName = `user:${targetUserId}`;
+      const socketsInRoom = await global.io.in(roomName).fetchSockets();
+      console.log(`[Instant Capture] Emitting to room ${roomName}, sockets in room: ${socketsInRoom.length}`);
+      
+      if (socketsInRoom.length === 0) {
+        console.log('[Instant Capture] WARNING: No desktop app connected for this user');
+      }
+      
+      global.io.to(roomName).emit('instant-capture-request', {
+        requestId: captureRequest._id.toString(),
         requestedBy: requester.role,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       });
+      
+      console.log('[Instant Capture] Event emitted successfully');
+    } else {
+      console.log('[Instant Capture] WARNING: Socket.IO not available');
     }
 
     return NextResponse.json({

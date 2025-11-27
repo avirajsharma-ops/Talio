@@ -185,7 +185,7 @@ export default function TasksPage() {
               <p className="text-sm text-green-700">Create new Projects for yourself or others</p>
             </div>
 
-            {(user.role === 'manager' || user.role === 'hr' || user.role === 'admin') && (
+            {(user.role === 'manager' || user.role === 'hr' || user.role === 'admin' || user.role === 'god_admin') && (
               <div
                 onClick={() => router.push('/dashboard/tasks/team-tasks')}
                 className="bg-yellow-50 p-4 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors border border-yellow-200"

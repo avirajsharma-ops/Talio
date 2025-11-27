@@ -4,10 +4,75 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
-import OpenAI from 'openai';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY });
+
+// Gemini API for vision analysis
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+async function analyzeWithGemini(screenshot) {
+  if (!GEMINI_API_KEY) {
+    console.log('[Screenshot] No Gemini API key, skipping analysis');
+    return null;
+  }
+
+  try {
+    // Extract base64 data from data URL
+    const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, '');
+    
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: `Analyze this screenshot from an employee's desktop. Provide a brief JSON response with:
+- summary: One sentence describing what the employee is doing
+- applications: Array of visible application names
+- activity: One of [coding, browsing, email, document, meeting, design, communication, entertainment, other]
+- productivity: One of [highly-productive, productive, neutral, low-productivity, distraction]
+- contentTypes: Array of content types visible [code, text, images, video, spreadsheet, presentation, chat, social-media]
+
+Respond ONLY with valid JSON, no markdown.`
+              },
+              {
+                inlineData: {
+                  mimeType: 'image/png',
+                  data: base64Data
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 300
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error('[Screenshot] Gemini API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error('[Screenshot] Gemini analysis error:', error.message);
+    return null;
+  }
+}
 
 /**
  * POST /api/monitoring/screenshot
@@ -53,7 +118,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Screenshot too large (max 10MB)' }, { status: 400 });
     }
 
-    // Analyze screenshot with OpenAI Vision
+    // Analyze screenshot with Gemini Vision
     let analysis = {
       summary: 'Screenshot captured',
       applications: [],
@@ -62,43 +127,9 @@ export async function POST(request) {
       contentTypes: []
     };
 
-    try {
-      const visionResponse = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Analyze this screenshot from an employee's desktop. Provide a brief JSON response with:
-                - summary: One sentence describing what the employee is doing
-                - applications: Array of visible application names
-                - activity: One of [coding, browsing, email, document, meeting, design, communication, entertainment, other]
-                - productivity: One of [highly-productive, productive, neutral, low-productivity, distraction]
-                - contentTypes: Array of content types visible [code, text, images, video, spreadsheet, presentation, chat, social-media]
-                
-                Respond ONLY with valid JSON, no markdown.`
-              },
-              {
-                type: 'image_url',
-                image_url: { url: screenshot, detail: 'low' }
-              }
-            ]
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.3
-      });
-
-      const content = visionResponse.choices[0]?.message?.content || '';
-      try {
-        analysis = JSON.parse(content.replace(/```json\n?|\n?```/g, '').trim());
-      } catch (e) {
-        console.log('Could not parse vision response, using default analysis');
-      }
-    } catch (visionError) {
-      console.error('Vision API error:', visionError.message);
+    const geminiAnalysis = await analyzeWithGemini(screenshot);
+    if (geminiAnalysis) {
+      analysis = { ...analysis, ...geminiAnalysis };
     }
 
     // Save screenshot with analysis

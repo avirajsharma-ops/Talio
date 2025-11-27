@@ -248,9 +248,9 @@ function CreateTaskContent() {
         return false
       }
 
-      // Admin and HR can assign to anyone
-      if (user.role === 'admin' || user.role === 'hr') {
-        console.log('Admin/HR - including:', emp.firstName, emp.lastName)
+      // God Admin, Admin and HR can assign to anyone
+      if (user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr') {
+        console.log('God Admin/Admin/HR - including:', emp.firstName, emp.lastName)
         return true
       }
 

@@ -50,7 +50,7 @@ export default function SettingsPage() {
     const baseTabs = []
 
     // Admin and HR get company settings
-    if (userRole === 'admin' || userRole === 'hr') {
+    if (userRole === 'god_admin' || userRole === 'admin' || userRole === 'hr') {
       baseTabs.push(
         { id: 'company', name: 'Company Settings', icon: FaBuilding },
         { id: 'geofencing', name: 'Geofencing', icon: FaMapMarkerAlt },
@@ -58,7 +58,7 @@ export default function SettingsPage() {
     }
 
     // Admin, HR, and Department Heads get notifications (check both role and isDepartmentHead flag)
-    if (userRole === 'admin' || userRole === 'hr' || userRole === 'department_head' || isDepartmentHead) {
+    if (userRole === 'god_admin' || userRole === 'admin' || userRole === 'hr' || userRole === 'department_head' || isDepartmentHead) {
       baseTabs.push(
         { id: 'notifications', name: 'Notifications', icon: FaBell }
       )
@@ -76,7 +76,7 @@ export default function SettingsPage() {
 
   // Set default active tab based on role
   useEffect(() => {
-    if (userRole === 'admin' || userRole === 'hr') {
+    if (userRole === 'god_admin' || userRole === 'admin' || userRole === 'hr') {
       setActiveTab('company')
     } else if (userRole === 'department_head' || isDepartmentHead) {
       setActiveTab('notifications')

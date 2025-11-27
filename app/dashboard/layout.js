@@ -19,13 +19,28 @@ export default function DashboardLayout({ children }) {
   const [userId, setUserId] = useState(null)
   const pathname = usePathname()
 
-  // Get user ID from localStorage
+  // Get user ID from localStorage and initialize desktop app
   useEffect(() => {
     const userData = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
+    
     if (userData) {
       try {
         const user = JSON.parse(userData)
         setUserId(user.id || user._id)
+        
+        // Initialize desktop app monitoring if running in Electron
+        if ((window.talioDesktop || window.electronAPI) && token) {
+          const desktopAPI = window.talioDesktop || window.electronAPI
+          console.log('[Dashboard] Initializing desktop app monitoring...')
+          
+          // Set auth to start monitoring
+          if (desktopAPI.setAuth) {
+            desktopAPI.setAuth(token, user).catch(err => {
+              console.error('[Dashboard] Desktop setAuth error:', err)
+            })
+          }
+        }
       } catch (error) {
         console.error('Error parsing user data:', error)
       }

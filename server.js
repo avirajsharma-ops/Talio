@@ -127,7 +127,10 @@ app.prepare().then(() => {
       socket.userId = userId
       socket.join(`user:${userId}`)
       socket.isDesktopApp = true
-      console.log(`📸 [Socket.IO] Desktop app ready for user ${userId}`)
+      console.log(`📸 [Socket.IO] Desktop app ready for user ${userId}, socket: ${socket.id}`)
+      
+      // Confirm to the desktop app that it's registered
+      socket.emit('registration-confirmed', { userId, socketId: socket.id })
     })
 
     // Desktop app sends screenshot data
@@ -152,7 +155,7 @@ app.prepare().then(() => {
 
     // Instant capture completed notification
     socket.on('instant-capture-complete', (data) => {
-      console.log(`⚡ [Socket.IO] Instant capture complete from user ${socket.userId}`)
+      console.log(`⚡ [Socket.IO] Instant capture complete:`, data)
       io.emit('capture-completed', {
         userId: socket.userId,
         captureType: 'instant',
@@ -162,7 +165,7 @@ app.prepare().then(() => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log('❌ [Socket.IO] Client disconnected:', socket.id)
+      console.log('❌ [Socket.IO] Client disconnected:', socket.id, 'userId:', socket.userId)
     })
 
     // Handle errors

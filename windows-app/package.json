@@ -11,6 +11,7 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
+    "build:universal": "electron-builder --win --x64 --ia32",
     "build:x64": "electron-builder --win --x64",
     "build:ia32": "electron-builder --win --ia32",
     "pack": "electron-builder --dir",
@@ -47,10 +48,15 @@
       ],
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "requireAdministrator",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
       "publisherName": "Talio",
       "signAndEditExecutable": false
     },
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/auto-launch/**/*",
+      "node_modules/active-win/**/*",
+      "node_modules/screenshot-desktop/**/*"
+    ],
     "nsis": {
       "oneClick": true,
       "createDesktopShortcut": true,
@@ -64,7 +70,9 @@
       "allowElevation": true,
       "warningsAsErrors": false,
       "menuCategory": "Talio",
-      "differentialPackage": false
+      "differentialPackage": false,
+      "include": "installer.nsh",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "extraResources": [
       {

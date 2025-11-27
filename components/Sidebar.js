@@ -23,6 +23,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [mounted, setMounted] = useState(false)
   const [isDepartmentHead, setIsDepartmentHead] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isDesktopApp, setIsDesktopApp] = useState(false)
   const { unreadCount } = useUnreadMessages()
 
   // Load user only once on mount
@@ -33,6 +34,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
       checkDepartmentHead()
+    }
+    
+    // Detect if running in desktop app (Electron with mayaBridge)
+    if (typeof window !== 'undefined' && window.mayaBridge) {
+      setIsDesktopApp(true)
     }
   }, [])
 
@@ -60,7 +66,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   // Get menu items based on user role (memoized)
   const menuItems = useMemo(() => {
     if (!user) return []
-    const baseMenuItems = getMenuItemsForRole(user.role)
+    let baseMenuItems = getMenuItemsForRole(user.role)
+    
+    // Hide MAYA AI Assistant in desktop app (accessible via floating blob widget)
+    if (isDesktopApp) {
+      baseMenuItems = baseMenuItems.filter(item => item.path !== '/dashboard/maya')
+    }
 
     // Add Team menu item if user is a department head
     if (isDepartmentHead) {
@@ -87,7 +98,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     }
 
     return baseMenuItems
-  }, [user, isDepartmentHead])
+  }, [user, isDepartmentHead, isDesktopApp])
 
   const toggleSubmenu = (menuName) => {
     setExpandedMenus(prev => ({

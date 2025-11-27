@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
-    "build": "electron-builder --mac",
+    "build": "electron-builder --mac --universal",
     "build:arm64": "electron-builder --mac --arm64",
     "build:x64": "electron-builder --mac --x64",
     "build:universal": "electron-builder --mac --universal",
@@ -64,6 +64,14 @@
         "height": 400
       }
     },
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/auto-launch/**/*",
+      "node_modules/active-win/**/*",
+      "node_modules/screenshot-desktop/**/*",
+      "node_modules/node-global-key-listener/**/*",
+      "**/*.node"
+    ],
     "files": [
       "src/**/*",
       "assets/**/*",

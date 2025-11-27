@@ -124,6 +124,7 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // HR - HR management focused
@@ -216,6 +217,7 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // MANAGER - Team management focused
@@ -286,6 +288,7 @@ export const roleBasedMenus = {
         { name: 'Team Monitoring', path: '/dashboard/productivity' },
       ]
     },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // EMPLOYEE - Personal focused
@@ -353,6 +356,77 @@ export const roleBasedMenus = {
         { name: 'My Productivity', path: '/dashboard/productivity' },
       ]
     },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
+  ],
+
+  // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
+  department_head: [
+    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { 
+      name: 'Attendance', 
+      icon: FaClock, 
+      path: '/dashboard/attendance',
+      submenu: [
+        { name: 'Mark Attendance', path: '/dashboard/attendance' },
+        { name: 'Team Attendance', path: '/dashboard/attendance/report' },
+      ]
+    },
+    { 
+      name: 'Leave', 
+      icon: FaCalendarAlt, 
+      path: '/dashboard/leave',
+      submenu: [
+        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
+      ]
+    },
+    {
+      name: 'Performance',
+      icon: FaTrophy,
+      path: '/dashboard/performance',
+      submenu: [
+        { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
+        { name: 'Team Goals', path: '/dashboard/performance/goals' },
+        { name: 'Performance Reports', path: '/dashboard/performance/reports' },
+      ]
+    },
+    {
+      name: 'Project Management',
+      icon: FaTasks,
+      path: '/dashboard/tasks',
+      submenu: [
+        { name: 'Project Dashboard', path: '/dashboard/tasks' },
+        { name: 'Create Project', path: '/dashboard/tasks/create' },
+        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
+      ]
+    },
+    { name: 'My Profile', icon: FaUser, path: '/dashboard/profile' },
+    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
+    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
+    {
+      name: 'Learning',
+      icon: FaGraduationCap,
+      path: '/dashboard/learning',
+      submenu: [
+        { name: 'My Trainings', path: '/dashboard/learning/trainings' },
+        { name: 'Certificates', path: '/dashboard/learning/certificates' },
+      ]
+    },
+    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
+    { 
+      name: 'Productivity', 
+      icon: FaChartLine, 
+      path: '/dashboard/productivity',
+      submenu: [
+        { name: 'Team Monitoring', path: '/dashboard/productivity' },
+      ]
+    },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // GOD ADMIN - Supreme access with MAYA customization
@@ -470,6 +544,7 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
+    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 }
 

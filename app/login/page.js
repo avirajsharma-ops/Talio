@@ -90,6 +90,26 @@ export default function LoginPage() {
         // Also set cookie for middleware
         document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}` // 7 days
 
+        // Notify desktop app if running in Electron
+        if (window.talioDesktop || window.electronAPI) {
+          console.log('[Login] Notifying desktop app of login...')
+          const desktopAPI = window.talioDesktop || window.electronAPI
+          try {
+            // Set auth for activity tracking
+            if (desktopAPI.setAuth) {
+              await desktopAPI.setAuth(data.token, data.user)
+              console.log('[Login] Desktop app auth set')
+            }
+            // Request permissions after login
+            if (desktopAPI.requestAllPermissions) {
+              const permissions = await desktopAPI.requestAllPermissions()
+              console.log('[Login] Desktop permissions:', permissions)
+            }
+          } catch (err) {
+            console.error('[Login] Desktop app notification error:', err)
+          }
+        }
+
         // Check for pending FCM token from Android app
         if (window.checkPendingFCMToken) {
           console.log('[Login] Checking for pending FCM token...')

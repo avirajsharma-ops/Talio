@@ -10,7 +10,6 @@
 const RELEASE_VERSION = '1.0.3';
 
 // Direct download URLs from GitHub Releases
-// IMPORTANT: These are the EXACT URLs that work - do not modify
 const DOWNLOADS = {
   mac: {
     arm64: {
@@ -24,24 +23,16 @@ const DOWNLOADS = {
       url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3-x64.dmg',
       filename: 'Talio-1.0.3-x64.dmg',
       label: 'Intel (x64)',
-      size: '~99 MB',
+      size: '~100 MB',
       altLabel: 'Apple Silicon'
     }
   },
   windows: {
-    x64: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3-x64.exe',
-      filename: 'Talio-Setup-1.0.3-x64.exe',
-      label: '64-bit (x64)',
-      size: '~74 MB',
-      altLabel: '32-bit (x86)'
-    },
-    ia32: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3-ia32.exe',
-      filename: 'Talio-Setup-1.0.3-ia32.exe',
-      label: '32-bit (x86)',
-      size: '~65 MB',
-      altLabel: '64-bit (x64)'
+    universal: {
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3.exe',
+      filename: 'Talio-Setup-1.0.3.exe',
+      label: 'Universal (32 & 64-bit)',
+      size: '~138 MB'
     }
   }
 };
@@ -68,7 +59,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const winDownloadBtn = document.getElementById('winDownloadBtn');
   const winDownloadText = document.getElementById('winDownloadText');
   const winFileInfo = document.getElementById('winFileInfo');
-  const winAltLink = document.getElementById('winAltLink');
   const winVersion = document.getElementById('winVersion');
 
   // Set version numbers
@@ -119,22 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
     return 'arm64';
   }
 
-  // Detect Windows architecture
-  function detectWindowsArch() {
-    const userAgent = navigator.userAgent;
-
-    // Check for 64-bit indicators
-    if (userAgent.includes('Win64') ||
-        userAgent.includes('x64') ||
-        userAgent.includes('WOW64') ||
-        userAgent.includes('AMD64')) {
-      return 'x64';
-    }
-
-    // Default to 32-bit for older systems
-    return 'ia32';
-  }
-
   // Update Mac download UI
   function updateMacDownload(arch) {
     const primary = DOWNLOADS.mac[arch];
@@ -155,24 +129,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Update Windows download UI
-  function updateWindowsDownload(arch) {
-    const primary = DOWNLOADS.windows[arch];
-    const altArch = arch === 'x64' ? 'ia32' : 'x64';
-    const alt = DOWNLOADS.windows[altArch];
+  // Update Windows download UI - single universal installer
+  function updateWindowsDownload() {
+    const installer = DOWNLOADS.windows.universal;
 
-    if (winArchBadge) winArchBadge.textContent = primary.label;
+    if (winArchBadge) winArchBadge.textContent = installer.label;
     if (winDownloadBtn) {
-      winDownloadBtn.href = primary.url;
-      winDownloadBtn.setAttribute('download', primary.filename);
+      winDownloadBtn.href = installer.url;
+      winDownloadBtn.setAttribute('download', installer.filename);
     }
-    if (winDownloadText) winDownloadText.textContent = `Download for Windows (${primary.label})`;
-    if (winFileInfo) winFileInfo.textContent = `Installer • ${primary.size}`;
-    if (winAltLink) {
-      winAltLink.href = alt.url;
-      winAltLink.setAttribute('download', alt.filename);
-      winAltLink.textContent = alt.label;
-    }
+    if (winDownloadText) winDownloadText.textContent = 'Download for Windows';
+    if (winFileInfo) winFileInfo.textContent = `Universal Installer • ${installer.size} • Works on all Windows`;
   }
 
   // Switch to OS
@@ -206,11 +173,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize on page load
   const detectedOS = detectOS();
   const macArch = detectMacArch();
-  const winArch = detectWindowsArch();
 
-  // Update download buttons with detected architecture
+  // Update download buttons
   updateMacDownload(macArch);
-  updateWindowsDownload(winArch);
+  updateWindowsDownload();
 
   // Switch to detected OS
   switchToOS(detectedOS);

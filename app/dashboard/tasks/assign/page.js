@@ -41,7 +41,7 @@ export default function AssignTaskPage() {
       let view = 'personal'
       if (user?.role === 'manager') view = 'team'
       else if (user?.role === 'hr') view = 'department'
-      else if (user?.role === 'admin') view = 'organization'
+      else if (user?.role === 'admin' || user?.role === 'god_admin') view = 'organization'
 
       const response = await fetch(`/api/tasks?view=${view}&limit=100`, {
         headers: {

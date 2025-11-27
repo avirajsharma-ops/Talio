@@ -139,7 +139,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {(user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && (
+        {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && (
           <button
             onClick={() => router.push('/dashboard/projects/create')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
@@ -269,7 +269,7 @@ export default function ProjectsPage() {
           <p className="text-gray-600 mb-4">
             {searchTerm ? 'Try adjusting your search' : 'Get started by creating your first project'}
           </p>
-          {(user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && !searchTerm && (
+          {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && !searchTerm && (
             <button
               onClick={() => router.push('/dashboard/projects/create')}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"

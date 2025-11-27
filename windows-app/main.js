@@ -1,21 +1,24 @@
 const { app, BrowserWindow, systemPreferences, ipcMain, screen, Tray, Menu, nativeImage, Notification, desktopCapturer } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
-const AutoLaunch = require('auto-launch');
 const axios = require('axios');
 const { io } = require('socket.io-client');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Auto-launch - wrap in try-catch as it can fail on some systems
+let AutoLaunch = null;
+try {
+  AutoLaunch = require('auto-launch');
+} catch (err) {
+  console.log('[Talio] auto-launch module not available:', err.message);
+}
 
 // IMPORTANT: Always use app.talio.in - DO NOT change this
 const APP_URL = process.env.APP_SERVER_URL || 'https://app.talio.in';
 const SOCKET_PATH = process.env.SOCKET_IO_PATH || '/api/socketio';
 
-// OpenAI Configuration for MAYA
-const OPENAI_CONFIG = {
-  apiKey: process.env.OPENAI_API_KEY,
-  model: process.env.OPENAI_MODEL || 'gpt-4o',
-  apiUrl: process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions'
-};
+// MAYA uses server-side Gemini API - no local AI keys needed
+// All AI processing happens at APP_URL/api/maya/chat
 
 // Initialize store for app settings
 const store = new Store({
@@ -61,11 +64,18 @@ const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 30 * 60 * 1000; /
 const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute
 const APP_CHECK_INTERVAL = 5000; // 5 seconds
 
-// Auto-launch configuration
-const autoLauncher = new AutoLaunch({
-  name: 'Talio HRMS',
-  path: app.getPath('exe')
-});
+// Auto-launch configuration - only create if module is available
+let autoLauncher = null;
+if (AutoLaunch) {
+  try {
+    autoLauncher = new AutoLaunch({
+      name: 'Talio HRMS',
+      path: app.getPath('exe')
+    });
+  } catch (err) {
+    console.log('[Talio] Failed to create auto-launcher:', err.message);
+  }
+}
 
 // Check and request screen recording permission
 async function checkScreenCapturePermission() {
@@ -602,17 +612,41 @@ function sendNotification(title, body, options = {}) {
 
 // Set authentication
 function setAuth(token, user) {
+  console.log('[Talio] Setting auth - user:', user?.id);
   authToken = token;
   currentUser = user;
   store.set('authToken', token);
   store.set('userId', user?.id);
 
   // Start monitoring when authenticated
-  if (token) {
+  if (token && user?.id) {
+    console.log('[Talio] Starting monitoring services...');
+    
+    // Initialize socket first for real-time capture requests
+    initializeSocketConnection(user.id);
+    
+    // Start activity tracking
     startScreenMonitoring();
     startActivitySync();
-    initializeSocketConnection(user?.id);
-    fetchScreenshotInterval(); // Fetch interval from server
+    fetchScreenshotInterval();
+    
+    // Show notification
+    sendNotification('Talio Active', 'Activity monitoring is now running');
+  } else if (!token) {
+    // User logged out - stop monitoring
+    console.log('[Talio] Auth cleared - stopping monitoring');
+    if (screenshotTimer) {
+      clearInterval(screenshotTimer);
+      screenshotTimer = null;
+    }
+    if (activitySyncTimer) {
+      clearInterval(activitySyncTimer);
+      activitySyncTimer = null;
+    }
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
   }
 
   // Send to Maya widget
@@ -623,9 +657,19 @@ function setAuth(token, user) {
 
 // Initialize Socket.IO connection for real-time screen capture requests
 function initializeSocketConnection(userId) {
-  if (!userId || socket) return;
+  if (!userId) {
+    console.log('[Talio] Cannot initialize socket - no userId');
+    return;
+  }
+  
+  // Disconnect existing socket if any
+  if (socket) {
+    console.log('[Talio] Disconnecting existing socket...');
+    socket.disconnect();
+    socket = null;
+  }
 
-  console.log('[Talio] Connecting to Socket.IO server...');
+  console.log('[Talio] Connecting to Socket.IO server at', APP_URL);
   
   socket = io(APP_URL, {
     path: SOCKET_PATH,
@@ -712,10 +756,23 @@ function updateScreenshotInterval(newInterval) {
 
 // Handle instant screenshot capture request
 async function handleInstantCapture(captureRequest) {
-  try {
-    console.log('[Talio] Processing instant capture...');
+  console.log('📸 [Talio] Processing instant capture request:', captureRequest);
+  
+  if (!authToken) {
+    console.error('[Talio] No auth token - cannot upload screenshot');
+    if (socket) {
+      socket.emit('instant-capture-complete', {
+        requestId: captureRequest.requestId,
+        success: false,
+        error: 'Not authenticated'
+      });
+    }
+    return;
+  }
 
-    // Capture screenshot
+  try {
+    // Capture screenshot using desktopCapturer
+    console.log('[Talio] Capturing screen...');
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 }
@@ -723,21 +780,31 @@ async function handleInstantCapture(captureRequest) {
 
     if (sources.length === 0) {
       console.error('[Talio] No screen sources available');
+      if (socket) {
+        socket.emit('instant-capture-complete', {
+          requestId: captureRequest.requestId,
+          success: false,
+          error: 'No screen sources available'
+        });
+      }
       return;
     }
 
     const screenshot = sources[0].thumbnail.toDataURL();
+    console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
     
     // Upload to server with request ID
+    console.log('[Talio] Uploading to server...');
     const response = await axios.post(`${APP_URL}/api/productivity/instant-capture/upload`, {
       requestId: captureRequest.requestId,
       screenshot: screenshot,
       timestamp: new Date().toISOString()
     }, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      timeout: 30000 // 30 second timeout
     });
 
-    console.log('✅ [Talio] Instant capture uploaded successfully');
+    console.log('✅ [Talio] Instant capture uploaded successfully:', response.data);
     
     // Notify via socket that upload is complete
     if (socket) {
@@ -750,7 +817,8 @@ async function handleInstantCapture(captureRequest) {
 
     sendNotification('Screenshot Captured', 'Your screen has been captured for productivity monitoring');
   } catch (error) {
-    console.error('[Talio] Instant capture error:', error);
+    console.error('❌ [Talio] Instant capture error:', error.message);
+    console.error('[Talio] Error details:', error.response?.data || error);
     
     if (socket) {
       socket.emit('instant-capture-complete', {
@@ -760,6 +828,8 @@ async function handleInstantCapture(captureRequest) {
         error: error.message
       });
     }
+    
+    sendNotification('Screenshot Failed', 'Could not capture screenshot: ' + error.message);
   }
 }
 
@@ -811,10 +881,12 @@ function createTray() {
       checked: store.get('autoLaunch'),
       click: (menuItem) => {
         store.set('autoLaunch', menuItem.checked);
-        if (menuItem.checked) {
-          autoLauncher.enable();
-        } else {
-          autoLauncher.disable();
+        if (autoLauncher) {
+          if (menuItem.checked) {
+            autoLauncher.enable();
+          } else {
+            autoLauncher.disable();
+          }
         }
       }
     },
@@ -998,7 +1070,8 @@ function setupIPC() {
     return {
       token: authToken || store.get('authToken'),
       userId: currentUser?.id || store.get('userId'),
-      openai: OPENAI_CONFIG
+      // MAYA uses server-side Gemini API - no local AI config needed
+      serverUrl: APP_URL
     };
   });
 
@@ -1030,8 +1103,12 @@ app.whenReady().then(async () => {
   // The web app will call 'request-all-permissions' IPC handler after login
 
   // Setup auto-launch
-  if (store.get('autoLaunch')) {
-    autoLauncher.enable();
+  if (store.get('autoLaunch') && autoLauncher) {
+    try {
+      autoLauncher.enable();
+    } catch (err) {
+      console.log('[Talio] Failed to enable auto-launch:', err.message);
+    }
   }
 
   // Load stored auth
