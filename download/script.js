@@ -8,23 +8,21 @@
 // RELEASE CONFIGURATION - Update for new releases
 // ============================================
 const RELEASE_VERSION = '1.0.2';
-const GITHUB_OWNER = 'avirajsharma-ops';
-const GITHUB_REPO = 'Tailo';
 
 // Direct download URLs from GitHub Releases
-// These URLs trigger immediate file download
+// IMPORTANT: These are the EXACT URLs that work - do not modify
 const DOWNLOADS = {
   mac: {
     arm64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
-      filename: `Talio-${RELEASE_VERSION}-arm64.dmg`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-1.0.2-arm64.dmg',
+      filename: 'Talio-1.0.2-arm64.dmg',
       label: 'Apple Silicon (M1/M2/M3/M4)',
       size: '~78 MB',
       altLabel: 'Intel (x64)'
     },
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
-      filename: `Talio-${RELEASE_VERSION}-arm64.dmg`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-1.0.2-arm64.dmg',
+      filename: 'Talio-1.0.2-arm64.dmg',
       label: 'Intel (x64)',
       size: '~78 MB',
       altLabel: 'Apple Silicon'
@@ -32,15 +30,15 @@ const DOWNLOADS = {
   },
   windows: {
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`,
-      filename: `Talio-Setup-${RELEASE_VERSION}.exe`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-Setup-1.0.2.exe',
+      filename: 'Talio-Setup-1.0.2.exe',
       label: '64-bit (x64)',
       size: '~66 MB',
       altLabel: '32-bit (x86)'
     },
     ia32: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`,
-      filename: `Talio-Setup-${RELEASE_VERSION}.exe`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-Setup-1.0.2.exe',
+      filename: 'Talio-Setup-1.0.2.exe',
       label: '32-bit (x86)',
       size: '~66 MB',
       altLabel: '64-bit (x64)'

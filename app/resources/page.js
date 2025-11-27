@@ -6,34 +6,32 @@ import { Download, Monitor, Apple, Check } from 'lucide-react';
 // ============================================
 // RELEASE CONFIGURATION - Update for new releases
 // ============================================
-const RELEASE_VERSION = '1.0.3';
-const GITHUB_OWNER = 'avirajsharma-ops';
-const GITHUB_REPO = 'Tailo';
+const RELEASE_VERSION = '1.0.2';
 
-// Download URLs for all architectures
+// Direct download URLs from GitHub Releases (exact file names)
 const DOWNLOADS = {
   mac: {
     arm64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-1.0.2-arm64.dmg',
       label: 'Apple Silicon',
-      size: '~100 MB'
+      size: '~78 MB'
     },
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-x64.dmg`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-1.0.2-arm64.dmg',
       label: 'Intel (x64)',
-      size: '~100 MB'
+      size: '~78 MB'
     }
   },
   windows: {
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-x64.exe`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-Setup-1.0.2.exe',
       label: '64-bit (x64)',
-      size: '~85 MB'
+      size: '~66 MB'
     },
     ia32: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-ia32.exe`,
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.2/Talio-Setup-1.0.2.exe',
       label: '32-bit (x86)',
-      size: '~80 MB'
+      size: '~66 MB'
     }
   }
 };
