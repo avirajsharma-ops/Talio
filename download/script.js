@@ -7,37 +7,42 @@
 // ============================================
 // RELEASE CONFIGURATION - Update for new releases
 // ============================================
-const RELEASE_VERSION = '1.0.3';
+const RELEASE_VERSION = '1.0.2';
 const GITHUB_OWNER = 'avirajsharma-ops';
 const GITHUB_REPO = 'Tailo';
 
-// Download URLs for all architectures
+// Direct download URLs from GitHub Releases
+// These URLs trigger immediate file download
 const DOWNLOADS = {
   mac: {
     arm64: {
       url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
+      filename: `Talio-${RELEASE_VERSION}-arm64.dmg`,
       label: 'Apple Silicon (M1/M2/M3/M4)',
-      size: '~100 MB',
+      size: '~78 MB',
       altLabel: 'Intel (x64)'
     },
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-x64.dmg`,
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
+      filename: `Talio-${RELEASE_VERSION}-arm64.dmg`,
       label: 'Intel (x64)',
-      size: '~100 MB',
+      size: '~78 MB',
       altLabel: 'Apple Silicon'
     }
   },
   windows: {
     x64: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-x64.exe`,
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`,
+      filename: `Talio-Setup-${RELEASE_VERSION}.exe`,
       label: '64-bit (x64)',
-      size: '~85 MB',
+      size: '~66 MB',
       altLabel: '32-bit (x86)'
     },
     ia32: {
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-ia32.exe`,
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`,
+      filename: `Talio-Setup-${RELEASE_VERSION}.exe`,
       label: '32-bit (x86)',
-      size: '~80 MB',
+      size: '~66 MB',
       altLabel: '64-bit (x64)'
     }
   }
@@ -139,11 +144,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const alt = DOWNLOADS.mac[altArch];
 
     if (macArchBadge) macArchBadge.textContent = primary.label;
-    if (macDownloadBtn) macDownloadBtn.href = primary.url;
+    if (macDownloadBtn) {
+      macDownloadBtn.href = primary.url;
+      macDownloadBtn.setAttribute('download', primary.filename);
+    }
     if (macDownloadText) macDownloadText.textContent = `Download for macOS (${primary.label})`;
     if (macFileInfo) macFileInfo.textContent = `DMG installer • ${primary.size}`;
     if (macAltLink) {
       macAltLink.href = alt.url;
+      macAltLink.setAttribute('download', alt.filename);
       macAltLink.textContent = alt.label;
     }
   }
@@ -155,11 +164,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const alt = DOWNLOADS.windows[altArch];
 
     if (winArchBadge) winArchBadge.textContent = primary.label;
-    if (winDownloadBtn) winDownloadBtn.href = primary.url;
+    if (winDownloadBtn) {
+      winDownloadBtn.href = primary.url;
+      winDownloadBtn.setAttribute('download', primary.filename);
+    }
     if (winDownloadText) winDownloadText.textContent = `Download for Windows (${primary.label})`;
     if (winFileInfo) winFileInfo.textContent = `Installer • ${primary.size}`;
     if (winAltLink) {
       winAltLink.href = alt.url;
+      winAltLink.setAttribute('download', alt.filename);
       winAltLink.textContent = alt.label;
     }
   }
