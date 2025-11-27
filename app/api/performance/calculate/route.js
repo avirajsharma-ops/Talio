@@ -5,6 +5,9 @@ import Employee from '@/models/Employee'
 import Performance from '@/models/Performance'
 import Project from '@/models/Project'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Calculate performance metrics based on reviews and remarks
 export async function GET(request) {
   try {

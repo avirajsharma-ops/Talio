@@ -7,6 +7,9 @@ import Employee from '@/models/Employee'
 import { sendOneSignalNotification } from '@/lib/onesignal'
 import { sendPushToUsers } from '@/lib/pushNotification'
 
+export const dynamic = 'force-dynamic'
+
+
 /**
  * This endpoint should be called by a cron job every minute
  * to process scheduled and recurring notifications

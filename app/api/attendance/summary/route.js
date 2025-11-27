@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get attendance summary for dashboard
 export async function GET(request) {
   try {

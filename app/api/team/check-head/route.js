@@ -4,6 +4,9 @@ import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import User from '@/models/User'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Check if user is a department head
 export async function GET(request) {
   try {

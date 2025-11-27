@@ -6,6 +6,9 @@ import Designation from '@/models/Designation'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Fetch all team members for department head
 export async function GET(request) {
   try {

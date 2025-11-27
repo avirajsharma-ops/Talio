@@ -11,6 +11,9 @@ import User from '@/models/User'
 import Performance from '@/models/Performance'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get employee dashboard statistics
 export async function GET(request) {
   try {

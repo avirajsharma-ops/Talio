@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import CompanySettings from '@/models/CompanySettings'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Fetch company settings
 export async function GET(request) {
   try {

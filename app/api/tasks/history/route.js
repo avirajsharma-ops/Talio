@@ -6,6 +6,9 @@ import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Fetch task history (including deleted tasks)
+
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')

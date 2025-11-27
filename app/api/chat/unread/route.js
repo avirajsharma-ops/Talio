@@ -5,6 +5,9 @@ import Chat from '@/models/Chat'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get unread message count for current user
 export async function GET(request) {
   try {

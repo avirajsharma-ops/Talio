@@ -7,6 +7,9 @@ import Leave from '@/models/Leave'
 import Project from '@/models/Project'
 import User from '@/models/User'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Fetch all pending requests for department head
 export async function GET(request) {
   try {

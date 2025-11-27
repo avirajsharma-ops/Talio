@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(request) {
   try {
     await connectDB()

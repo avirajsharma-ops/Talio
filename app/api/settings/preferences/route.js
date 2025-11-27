@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import SystemPreferences from '@/models/SystemPreferences'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get system preferences
 export async function GET(request) {
   try {

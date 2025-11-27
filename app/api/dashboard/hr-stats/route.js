@@ -8,6 +8,9 @@ import Performance from '@/models/Performance'
 import Payroll from '@/models/Payroll'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get HR dashboard statistics
 export async function GET(request) {
   try {

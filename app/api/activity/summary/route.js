@@ -10,6 +10,9 @@ import ApplicationUsageLog from '@/models/ApplicationUsageLog';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
 import { getCurrentISTDate, getISTStartOfDay, getISTEndOfDay } from '@/lib/timezone';
 
+
+export const dynamic = 'force-dynamic'
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
 
 /**

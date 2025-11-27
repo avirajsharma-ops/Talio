@@ -15,6 +15,9 @@ import Policy from '@/models/Policy'
 import Fuse from 'fuse.js'
 import { getMenuItemsForRole } from '@/utils/roleBasedMenus'
 
+export const dynamic = 'force-dynamic'
+
+
 const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
 
 // Synonym dictionary for better word matching

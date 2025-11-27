@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import { verifyTokenFromRequest } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(request) {
   try {
     // Verify authentication

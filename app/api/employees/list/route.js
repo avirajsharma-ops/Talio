@@ -7,6 +7,9 @@ import Designation from '@/models/Designation'
 import Department from '@/models/Department'
 import queryCache from '@/lib/queryCache'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Fetch all employees for chat
 export async function GET(request) {
   try {

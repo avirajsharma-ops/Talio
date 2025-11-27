@@ -6,6 +6,9 @@ import Attendance from '@/models/Attendance';
 import Leave from '@/models/Leave';
 import Task from '@/models/Task';
 
+
+export const dynamic = 'force-dynamic'
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 export async function GET(request) {

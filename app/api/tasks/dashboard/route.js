@@ -6,6 +6,9 @@ import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Get comprehensive task dashboard data
+
+export const dynamic = 'force-dynamic'
+
 export async function GET(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')

@@ -4,8 +4,7 @@ const ActivitySchema = new mongoose.Schema({
   employee: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
-    required: true,
-    index: true
+    required: true
   },
   type: {
     type: String,

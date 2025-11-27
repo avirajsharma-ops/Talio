@@ -5,6 +5,9 @@ import MayaChatHistory from '@/models/MayaChatHistory';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 
+
+export const dynamic = 'force-dynamic'
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 // Helper function to check if user can view target user's chat history

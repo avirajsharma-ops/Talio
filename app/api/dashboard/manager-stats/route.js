@@ -8,6 +8,9 @@ import User from '@/models/User'
 import Department from '@/models/Department'
 import { verifyToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET - Get Manager dashboard statistics
 export async function GET(request) {
   try {
