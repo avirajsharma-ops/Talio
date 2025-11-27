@@ -3,9 +3,19 @@ const path = require('path');
 const Store = require('electron-store');
 const AutoLaunch = require('auto-launch');
 const axios = require('axios');
+const { io } = require('socket.io-client');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // IMPORTANT: Always use app.talio.in - DO NOT change this
-const APP_URL = 'https://app.talio.in';
+const APP_URL = process.env.APP_SERVER_URL || 'https://app.talio.in';
+const SOCKET_PATH = process.env.SOCKET_IO_PATH || '/api/socketio';
+
+// OpenAI Configuration for MAYA
+const OPENAI_CONFIG = {
+  apiKey: process.env.OPENAI_API_KEY,
+  model: process.env.OPENAI_MODEL || 'gpt-4o',
+  apiUrl: process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions'
+};
 
 // Initialize store for app settings
 const store = new Store({
@@ -15,7 +25,8 @@ const store = new Store({
     pipPosition: { x: null, y: null },
     blobPosition: { x: null, y: null },
     authToken: null,
-    userId: null
+    userId: null,
+    screenshotInterval: 30 * 60 * 1000 // 30 minutes default
   }
 });
 
@@ -42,8 +53,11 @@ let activitySyncTimer = null;
 let keyListener = null;
 let activeWin = null;
 
+// Socket.IO connection
+let socket = null;
+
 // Activity tracking intervals
-const SCREENSHOT_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 30 * 60 * 1000; // 30 minutes default
 const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute
 const APP_CHECK_INTERVAL = 5000; // 5 seconds
 
@@ -480,7 +494,7 @@ function startAppTracking() {
   }, APP_CHECK_INTERVAL);
 }
 
-// Capture screenshot and summarize
+// Capture screenshot and summarize (periodic monitoring)
 async function captureAndSummarize() {
   if (!authToken) return;
 
@@ -497,12 +511,20 @@ async function captureAndSummarize() {
     // Send to API for AI summarization and storage
     await axios.post(`${APP_URL}/api/monitoring/screenshot`, {
       screenshot: screenshot,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      captureType: 'periodic'
     }, {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
 
-    console.log('[Talio] Screenshot captured and saved');
+    console.log('[Talio] Periodic screenshot captured and saved');
+    
+    // Notify via socket
+    if (socket) {
+      socket.emit('periodic-capture-complete', {
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('[Talio] Screenshot error:', error.message);
   }
@@ -512,12 +534,15 @@ async function captureAndSummarize() {
 function startScreenMonitoring() {
   if (screenshotTimer) return;
 
+  // Get current interval (global or from store)
+  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (30 * 60 * 1000);
+
   // Capture immediately
   setTimeout(captureAndSummarize, 5000);
 
-  // Then every 30 minutes
-  screenshotTimer = setInterval(captureAndSummarize, SCREENSHOT_INTERVAL);
-  console.log('[Talio] Screen monitoring started (30 min intervals)');
+  // Then at configured intervals
+  screenshotTimer = setInterval(captureAndSummarize, currentInterval);
+  console.log(`[Talio] Screen monitoring started (${currentInterval / 60000} min intervals)`);
 }
 
 // Sync activity data to server
@@ -586,11 +611,155 @@ function setAuth(token, user) {
   if (token) {
     startScreenMonitoring();
     startActivitySync();
+    initializeSocketConnection(user?.id);
+    fetchScreenshotInterval(); // Fetch interval from server
   }
 
   // Send to Maya widget
   if (mayaWidgetWindow) {
     mayaWidgetWindow.webContents.send('maya-auth', { token, user });
+  }
+}
+
+// Initialize Socket.IO connection for real-time screen capture requests
+function initializeSocketConnection(userId) {
+  if (!userId || socket) return;
+
+  console.log('[Talio] Connecting to Socket.IO server...');
+  
+  socket = io(APP_URL, {
+    path: SOCKET_PATH,
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 10,
+    auth: {
+      userId: userId,
+      token: authToken
+    }
+  });
+
+  socket.on('connect', () => {
+    console.log('✅ [Talio] Socket.IO connected');
+    socket.emit('desktop-app-ready', { userId });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ [Talio] Socket.IO disconnected');
+  });
+
+  socket.on('reconnect', (attemptNumber) => {
+    console.log(`🔄 [Talio] Socket.IO reconnected after ${attemptNumber} attempts`);
+    socket.emit('desktop-app-ready', { userId });
+  });
+
+  // Listen for instant capture requests
+  socket.on('instant-capture-request', async (data) => {
+    console.log('📸 [Talio] Instant capture requested:', data);
+    await handleInstantCapture(data);
+  });
+
+  // Listen for screenshot interval updates
+  socket.on('screenshot-interval-updated', (data) => {
+    console.log('⏱️ [Talio] Screenshot interval updated:', data);
+    updateScreenshotInterval(data.interval);
+  });
+
+  socket.on('error', (error) => {
+    console.error('⚠️ [Talio] Socket.IO error:', error);
+  });
+}
+
+// Fetch screenshot interval from server
+async function fetchScreenshotInterval() {
+  if (!authToken) return;
+
+  try {
+    const response = await axios.get(`${APP_URL}/api/productivity/screenshot-interval`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (response.data.success) {
+      const interval = response.data.data.interval;
+      updateScreenshotInterval(interval);
+      console.log(`[Talio] Screenshot interval fetched: ${response.data.data.intervalMinutes} minutes`);
+    }
+  } catch (error) {
+    console.error('[Talio] Failed to fetch screenshot interval:', error.message);
+  }
+}
+
+// Update screenshot interval and restart monitoring
+function updateScreenshotInterval(newInterval) {
+  if (newInterval && newInterval > 0) {
+    const oldInterval = SCREENSHOT_INTERVAL;
+    
+    // Update the interval
+    global.SCREENSHOT_INTERVAL = newInterval;
+    store.set('screenshotInterval', newInterval);
+    
+    // Restart screenshot timer with new interval
+    if (screenshotTimer) {
+      clearInterval(screenshotTimer);
+      screenshotTimer = null;
+    }
+    
+    startScreenMonitoring();
+    
+    console.log(`[Talio] Screenshot interval updated from ${oldInterval / 60000} to ${newInterval / 60000} minutes`);
+  }
+}
+
+// Handle instant screenshot capture request
+async function handleInstantCapture(captureRequest) {
+  try {
+    console.log('[Talio] Processing instant capture...');
+
+    // Capture screenshot
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    });
+
+    if (sources.length === 0) {
+      console.error('[Talio] No screen sources available');
+      return;
+    }
+
+    const screenshot = sources[0].thumbnail.toDataURL();
+    
+    // Upload to server with request ID
+    const response = await axios.post(`${APP_URL}/api/productivity/instant-capture/upload`, {
+      requestId: captureRequest.requestId,
+      screenshot: screenshot,
+      timestamp: new Date().toISOString()
+    }, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    console.log('✅ [Talio] Instant capture uploaded successfully');
+    
+    // Notify via socket that upload is complete
+    if (socket) {
+      socket.emit('instant-capture-complete', {
+        requestId: captureRequest.requestId,
+        timestamp: new Date().toISOString(),
+        success: true
+      });
+    }
+
+    sendNotification('Screenshot Captured', 'Your screen has been captured for productivity monitoring');
+  } catch (error) {
+    console.error('[Talio] Instant capture error:', error);
+    
+    if (socket) {
+      socket.emit('instant-capture-complete', {
+        requestId: captureRequest.requestId,
+        timestamp: new Date().toISOString(),
+        success: false,
+        error: error.message
+      });
+    }
   }
 }
 
@@ -828,7 +997,8 @@ function setupIPC() {
   ipcMain.handle('maya-get-credentials', () => {
     return {
       token: authToken || store.get('authToken'),
-      userId: currentUser?.id || store.get('userId')
+      userId: currentUser?.id || store.get('userId'),
+      openai: OPENAI_CONFIG
     };
   });
 

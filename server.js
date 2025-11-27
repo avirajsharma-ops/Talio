@@ -117,6 +117,49 @@ app.prepare().then(() => {
       })
     })
 
+    // ========================================
+    // PRODUCTIVITY MONITORING SOCKET HANDLERS
+    // ========================================
+    
+    // Desktop app confirms it's ready to handle screen capture requests
+    socket.on('desktop-app-ready', (data) => {
+      const { userId } = data
+      socket.userId = userId
+      socket.join(`user:${userId}`)
+      socket.isDesktopApp = true
+      console.log(`📸 [Socket.IO] Desktop app ready for user ${userId}`)
+    })
+
+    // Desktop app sends screenshot data
+    socket.on('screenshot-upload', (data) => {
+      console.log(`📤 [Socket.IO] Screenshot upload from user ${socket.userId}`)
+      // Broadcast to admins/dept heads monitoring this user
+      socket.broadcast.emit('screenshot-uploaded', {
+        userId: socket.userId,
+        ...data
+      })
+    })
+
+    // Periodic capture completed notification
+    socket.on('periodic-capture-complete', (data) => {
+      console.log(`⏱️ [Socket.IO] Periodic capture complete from user ${socket.userId}`)
+      io.emit('capture-completed', {
+        userId: socket.userId,
+        captureType: 'periodic',
+        ...data
+      })
+    })
+
+    // Instant capture completed notification
+    socket.on('instant-capture-complete', (data) => {
+      console.log(`⚡ [Socket.IO] Instant capture complete from user ${socket.userId}`)
+      io.emit('capture-completed', {
+        userId: socket.userId,
+        captureType: 'instant',
+        ...data
+      })
+    })
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('❌ [Socket.IO] Client disconnected:', socket.id)

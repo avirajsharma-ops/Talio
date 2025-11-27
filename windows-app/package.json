@@ -35,7 +35,8 @@
       "maya-blob.html",
       "maya-widget.html",
       "dot-matrix-overlay.html",
-      "assets/**/*"
+      "assets/**/*",
+      ".env"
     ],
     "win": {
       "target": [
@@ -74,8 +75,11 @@
     ]
   },
   "dependencies": {
+    "auto-launch": "^5.0.6",
     "axios": "^1.6.0",
-    "electron-store": "^8.1.0"
+    "dotenv": "^16.0.3",
+    "electron-store": "^8.1.0",
+    "socket.io-client": "^4.8.1"
   },
   "optionalDependencies": {
     "active-win": "^8.0.0",
