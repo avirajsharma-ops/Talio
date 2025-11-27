@@ -106,6 +106,10 @@ export async function GET(request) {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
+    // Exclude pending captures (waiting for desktop app upload)
+    // Only show completed captures with actual screenshots
+    query.status = { $ne: 'pending' };
+
     // Select fields based on includeScreenshot
     const selectFields = includeScreenshot 
       ? '-domSnapshot' // Exclude large DOM snapshot

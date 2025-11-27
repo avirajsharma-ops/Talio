@@ -27,6 +27,11 @@ const MayaScreenSummarySchema = new mongoose.Schema({
     enum: ['screenshot', 'screen_share', 'dom_analysis', 'pip_capture'],
     required: true,
   },
+  captureMode: {
+    type: String,
+    enum: ['automatic', 'instant', 'manual'],
+    default: 'automatic',
+  },
   summary: {
     type: String,
     required: true,
@@ -34,6 +39,17 @@ const MayaScreenSummarySchema = new mongoose.Schema({
   detailedAnalysis: {
     type: String,
   },
+  productivityScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+  },
+  productivityTips: {
+    type: String,
+  },
+  productivityInsights: [{
+    type: String,
+  }],
   currentPage: {
     url: String,
     title: String,

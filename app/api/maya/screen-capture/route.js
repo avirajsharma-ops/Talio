@@ -4,6 +4,7 @@ import connectDB from '@/lib/mongodb';
 import MayaScreenSummary from '@/models/MayaScreenSummary';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
+import { analyzeProductivityWithMAYA } from '@/lib/mayaProductivityAnalyzer';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
@@ -54,69 +55,35 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    // Generate AI summary using OpenAI
-    let summary = 'Productivity snapshot captured from desktop';
-    let detailedAnalysis = '';
+    // Get employee details for context
+    const employee = await Employee.findById(user.employeeId)
+      .select('name designation department');
 
-    const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    if (openaiApiKey && (activities?.length || currentPage)) {
-      try {
-        const promptData = {
-          page: currentPage?.title || currentPage?.url || 'Desktop application',
-          activities: activities || ['Screen monitoring active'],
-          apps: applications || []
-        };
-
-        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey}`
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are analyzing employee productivity from their desktop activity. Provide a brief, professional 2-3 sentence summary of what the employee is currently working on. Be positive and constructive.'
-              },
-              {
-                role: 'user',
-                content: `Activity Analysis:
-Page/Application: ${promptData.page}
-Recent Activities: ${promptData.activities.join(', ')}
-Active Applications: ${promptData.apps.map(a => a.name || a).join(', ') || 'Desktop environment'}
-
-Please summarize what the employee appears to be working on.`
-              }
-            ],
-            temperature: 0.6,
-            max_tokens: 200
-          })
-        });
-
-        if (openaiResponse.ok) {
-          const data = await openaiResponse.json();
-          summary = data.choices[0]?.message?.content || summary;
-          
-          // Generate detailed analysis if needed
-          detailedAnalysis = `Activities: ${(activities || []).join(', ')}. Applications: ${(applications || []).map(a => a.name || a).join(', ') || 'Desktop'}`;
-        }
-      } catch (err) {
-        console.error('OpenAI summary error:', err);
-        // Continue with default summary
+    // Perform MAYA AI productivity analysis
+    const analysis = await analyzeProductivityWithMAYA(
+      { currentPage, activities, applications },
+      { 
+        designation: employee?.designation, 
+        department: employee?.department 
       }
-    }
+    );
 
-    // Create screen summary record with screenshot
+    // Determine capture mode from metadata
+    const captureMode = metadata?.captureMode || 'automatic';
+
+    // Create screen summary record with MAYA analysis
     const screenSummary = await MayaScreenSummary.create({
       monitoredUserId: userId,
       monitoredEmployeeId: user.employeeId,
       requestedByUserId: userId, // Self-monitoring from desktop
       requestedByEmployeeId: user.employeeId,
       captureType: 'screenshot',
-      summary,
-      detailedAnalysis,
+      captureMode,
+      summary: analysis.summary,
+      detailedAnalysis: `Activities: ${(activities || []).join(', ')}. Applications: ${(applications || []).map(a => a.name || a).join(', ') || 'Desktop'}`,
+      productivityScore: analysis.productivityScore,
+      productivityTips: analysis.productivityTips,
+      productivityInsights: analysis.productivityInsights,
       currentPage: currentPage || { 
         url: 'desktop-app', 
         title: 'Desktop Application' 

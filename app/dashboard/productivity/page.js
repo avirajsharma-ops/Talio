@@ -23,6 +23,10 @@ export default function ProductivityMonitoringPage() {
   const [modalData, setModalData] = useState(null); // { type: 'chat' | 'monitoring', title, data, userInfo }
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [capturingInstant, setCapturingInstant] = useState(null); // userId being captured
+  const [selectedCaptureTarget, setSelectedCaptureTarget] = useState(''); // Employee ID for instant capture
+  const [showCaptureDropdown, setShowCaptureDropdown] = useState(false);
+  const [accessibleEmployees, setAccessibleEmployees] = useState([]); // Employees user can capture
 
   useEffect(() => {
     setIsMounted(true);
@@ -36,6 +40,7 @@ export default function ProductivityMonitoringPage() {
       setUser(parsedUser);
       fetchEmployees(parsedUser);
       fetchAllData(parsedUser);
+      fetchAccessibleEmployees(parsedUser);
       
       // Load saved screenshot interval
       const savedInterval = localStorage.getItem('screenshotInterval');
@@ -73,6 +78,38 @@ export default function ProductivityMonitoringPage() {
     }
   };
 
+  const fetchAccessibleEmployees = async (currentUser) => {
+    try {
+      const token = localStorage.getItem('token');
+      let url = '/api/employees?status=active';
+      
+      // Department head gets only their department employees
+      if (currentUser.role === 'department_head' && currentUser.department) {
+        url += `&department=${currentUser.department}`;
+      }
+      // Admin and god_admin get all employees
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const emps = data.employees || data.data || [];
+        // Filter out current user from the list
+        const filtered = emps.filter(emp => {
+          // userId is an object with _id, so compare properly
+          const empUserId = emp.userId?._id || emp.userId || emp._id;
+          const currentUserId = currentUser._id || currentUser.userId;
+          return empUserId !== currentUserId;
+        });
+        console.log('Accessible employees loaded:', filtered.length);
+        setAccessibleEmployees(filtered);
+      }
+    } catch (error) {
+      console.error('Failed to fetch accessible employees:', error);
+    }
+  };
+
   const fetchAllData = async (currentUser) => {
     if (activeTab === 'monitoring') {
       await fetchMonitoringData(currentUser);
@@ -98,7 +135,11 @@ export default function ProductivityMonitoringPage() {
       const data = await response.json();
       
       if (data.success) {
-        setMonitoringData(data.data || []);
+        // Filter out pending captures (waiting for desktop app upload)
+        const completedCaptures = (data.data || []).filter(item => 
+          item.status !== 'pending'
+        );
+        setMonitoringData(completedCaptures);
       } else {
         toast.error(data.error || 'Failed to fetch monitoring data');
       }
@@ -178,6 +219,171 @@ export default function ProductivityMonitoringPage() {
       console.error('Failed to save interval:', error);
     } finally {
       setSavingInterval(false);
+    }
+  };
+
+  const handleCaptureFromDropdown = async () => {
+    if (!selectedCaptureTarget) {
+      toast.error('Please select an employee to capture');
+      return;
+    }
+
+    if (selectedCaptureTarget === 'all') {
+      // Capture all accessible employees
+      await captureAllEmployees();
+    } else {
+      // Capture single employee - selectedCaptureTarget is already the user ID
+      const employee = accessibleEmployees.find(emp => {
+        const empUserId = emp.userId?._id || emp.userId || emp._id;
+        return empUserId === selectedCaptureTarget;
+      });
+      if (employee) {
+        const empName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee';
+        // selectedCaptureTarget is already the correct user ID
+        await requestInstantCapture(selectedCaptureTarget, empName);
+      } else {
+        toast.error('Employee not found');
+      }
+    }
+    setSelectedCaptureTarget('');
+  };
+
+  const captureAllEmployees = async () => {
+    const totalEmployees = accessibleEmployees.length;
+    if (totalEmployees === 0) {
+      toast.error('No employees available to capture');
+      return;
+    }
+
+    toast.loading(`Initiating capture for ${totalEmployees} employees...`, { duration: 2000 });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const employee of accessibleEmployees) {
+      try {
+        // userId is an object with _id, email, role
+        const empUserId = employee.userId?._id || employee.userId || employee._id;
+        const empName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee';
+        
+        if (!empUserId) {
+          console.error('No user ID found for employee:', employee);
+          failCount++;
+          continue;
+        }
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/productivity/instant-capture', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ targetUserId: empUserId }),
+        });
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Capture requested for ${successCount} employee${successCount !== 1 ? 's' : ''}!`);
+      // Refresh data after a delay to allow captures to complete
+      setTimeout(() => {
+        fetchAllData(user);
+      }, 3000);
+    }
+    
+    if (failCount > 0) {
+      toast.error(`Failed to capture ${failCount} employee${failCount !== 1 ? 's' : ''}`);
+    }
+  };
+
+  const requestInstantCapture = async (targetUserId, targetUserName) => {
+    if (capturingInstant) {
+      toast.error('Please wait for the current capture to complete');
+      return;
+    }
+
+    if (!targetUserId) {
+      toast.error('Invalid user ID');
+      console.error('Invalid targetUserId:', targetUserId);
+      return;
+    }
+
+    console.log('Requesting instant capture for:', { targetUserId, targetUserName });
+    setCapturingInstant(targetUserId);
+    toast.loading(`Requesting instant capture from ${targetUserName}...`, { id: 'instant-capture' });
+
+    try {
+      const response = await fetch('/api/productivity/instant-capture', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ targetUserId })
+      });
+
+      const data = await response.json();
+      console.log('Instant capture response:', data);
+      
+      if (data.success) {
+        toast.success(`Instant capture requested for ${targetUserName}. Waiting for screenshot...`, { id: 'instant-capture' });
+        
+        // Poll for result
+        let attempts = 0;
+        const maxAttempts = 30; // 30 seconds timeout
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          
+          try {
+            const statusResponse = await fetch(
+              `/api/productivity/instant-capture?requestId=${data.data.requestId}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              }
+            );
+            
+            const statusData = await statusResponse.json();
+            console.log(`Poll attempt ${attempts}:`, statusData);
+            
+            if (statusData.success && statusData.data.status !== 'pending') {
+              clearInterval(pollInterval);
+              setCapturingInstant(null);
+              
+              if (statusData.data.status === 'analyzed' || statusData.data.status === 'captured') {
+                toast.success(`Screenshot captured and analyzed successfully! Score: ${statusData.data.productivityScore || 'N/A'}`, { id: 'instant-capture', duration: 4000 });
+                // Refresh monitoring data
+                await fetchAllData(user);
+              } else {
+                toast.error('Capture failed', { id: 'instant-capture' });
+              }
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              setCapturingInstant(null);
+              toast.error('Capture timeout - desktop app may not be running', { id: 'instant-capture' });
+            }
+          } catch (err) {
+            console.error('Poll error:', err);
+          }
+        }, 1000);
+      } else {
+        toast.error(data.error || 'Failed to request instant capture', { id: 'instant-capture' });
+        setCapturingInstant(null);
+      }
+    } catch (error) {
+      console.error('Error requesting instant capture:', error);
+      toast.error('Failed to request instant capture', { id: 'instant-capture' });
+      setCapturingInstant(null);
     }
   };
 
@@ -280,6 +486,9 @@ export default function ProductivityMonitoringPage() {
   };
 
   const renderMonitoringCard = (title, records, cardId, userInfo = null) => {
+    const isOwnCard = cardId === 'own-monitoring';
+    const targetUserId = userInfo?._id || userInfo?.userId;
+    
     return (
       <div key={cardId} className="bg-white rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300">
         <div className="p-6">
@@ -318,12 +527,15 @@ export default function ProductivityMonitoringPage() {
             )}
           </div>
 
-          <button
-            onClick={() => openModal('monitoring', title, records, userInfo)}
-            className="w-full py-2.5 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg"
-          >
-            Show
-          </button>
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            <button
+              onClick={() => openModal('monitoring', title, records, userInfo)}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              Show Details
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -419,6 +631,82 @@ export default function ProductivityMonitoringPage() {
             : 'View your own productivity tracking and chat history'}
         </p>
       </div>
+
+      {/* Desktop App Info (Admin/Department Head only) */}
+      {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+          <div className="flex items-start gap-3">
+            <div className="text-blue-500 text-xl mt-0.5">ℹ️</div>
+            <div>
+              <h4 className="font-semibold text-blue-900 mb-1">Desktop App Required</h4>
+              <p className="text-sm text-blue-800">
+                Instant capture requires the <strong>MAYA Desktop App</strong> to be running on the employee's computer. 
+                The app listens for capture requests via Socket.IO, captures the screenshot, and uploads it for AI analysis.
+                {' '}<a href="#" className="underline font-medium">Learn more</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instant Capture Dropdown (Admin/Department Head only) */}
+      {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <FaEye className="text-white text-xl" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Instant Screenshot Capture</h3>
+                <p className="text-purple-100 text-sm">Capture screenshots on-demand from employees</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={selectedCaptureTarget}
+                onChange={(e) => setSelectedCaptureTarget(e.target.value)}
+                className="px-4 py-2.5 border-2 border-white bg-white text-gray-800 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-transparent min-w-[250px] font-medium"
+              >
+                <option value="">Select Employee...</option>
+                <option value="all" className="font-bold bg-purple-50">
+                  📸 Capture All ({accessibleEmployees.length} employees)
+                </option>
+                <option disabled>──────────</option>
+                {accessibleEmployees.map((emp) => {
+                  // userId is an object with _id, email, role
+                  const empUserId = emp.userId?._id || emp.userId || emp._id;
+                  const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
+                  const empCode = emp.employeeCode || 'N/A';
+                  const designation = emp.designation?.title || emp.designation?.levelName || 'Employee';
+                  return (
+                    <option key={empUserId} value={empUserId}>
+                      {empName} ({empCode}) - {designation}
+                    </option>
+                  );
+                })}
+              </select>
+              <button
+                onClick={handleCaptureFromDropdown}
+                disabled={!selectedCaptureTarget || capturingInstant}
+                className="px-6 py-2.5 bg-white text-purple-600 rounded-lg font-bold hover:bg-purple-50 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+              >
+                {capturingInstant ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                    Capturing...
+                  </>
+                ) : (
+                  <>
+                    <FaEye />
+                    Capture Now
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Screenshot Interval Configuration (Admin & Department Head only) */}
       {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
@@ -798,11 +1086,23 @@ export default function ProductivityMonitoringPage() {
 
                           {/* Right: AI Summary & Productivity Insights */}
                           <div className="flex flex-col">
-                            <div className="mb-4">
+                            <div className="mb-4 flex justify-between items-center">
                               <span className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <FaChartLine className="text-blue-600" />
                                 AI Analysis & Insights
                               </span>
+                              {record.productivityScore !== undefined && (
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-600">Productivity Score</div>
+                                  <div className={`text-2xl font-bold ${
+                                    record.productivityScore >= 70 ? 'text-green-600' :
+                                    record.productivityScore >= 40 ? 'text-yellow-600' :
+                                    'text-red-600'
+                                  }`}>
+                                    {record.productivityScore}/100
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             
                             <div className="flex-1 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-5 border-2 border-blue-200 shadow-md">
@@ -812,6 +1112,18 @@ export default function ProductivityMonitoringPage() {
                               <p className="text-sm text-gray-700 mb-5 leading-relaxed">
                                 {record.summary || 'No summary available'}
                               </p>
+
+                              {/* Productivity Insights */}
+                              {record.productivityInsights && record.productivityInsights.length > 0 && (
+                                <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl shadow-sm">
+                                  <p className="text-sm font-bold text-blue-800 mb-2">💡 Key Insights</p>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {record.productivityInsights.map((insight, idx) => (
+                                      <li key={idx} className="text-sm text-blue-700">{insight}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
                               {record.currentPage && (
                                 <div className="mb-4 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-sm">
@@ -835,13 +1147,20 @@ export default function ProductivityMonitoringPage() {
                                 </div>
                               )}
 
-                              {/* Productivity Recommendations */}
-                              <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-xl shadow-sm">
-                                <p className="text-sm font-bold text-yellow-800 mb-2">💡 Productivity Tips</p>
-                                <p className="text-sm text-yellow-700 leading-relaxed">
-                                  {record.productivityTips || 'Continue focusing on your current tasks. Regular breaks every 45-60 minutes can help maintain productivity.'}
-                                </p>
-                              </div>
+                              {/* Productivity Tips */}
+                              {record.productivityTips && (
+                                <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-xl shadow-sm">
+                                  <p className="text-sm font-bold text-yellow-800 mb-2 flex items-center gap-2">
+                                    💡 Productivity Tips
+                                    {record.captureMode === 'instant' && (
+                                      <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">Instant Capture</span>
+                                    )}
+                                  </p>
+                                  <p className="text-sm text-yellow-700 leading-relaxed">
+                                    {record.productivityTips}
+                                  </p>
+                                </div>
+                              )}
 
                               <div className="mt-4 flex justify-between items-center">
                                 <span className={`px-4 py-2 rounded-full font-bold text-sm ${
