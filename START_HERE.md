@@ -190,7 +190,7 @@ After login, you'll have access to:
 1. Check the documentation files
 2. Review the code - it's well commented
 3. Check MongoDB connection
-4. Verify environment variables in `.env.local`
+4. Verify environment variables in `.env`
 
 ---
 

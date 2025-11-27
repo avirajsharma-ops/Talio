@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Restore .env.local to Atlas configuration
-const envPath = path.join(process.cwd(), '.env.local');
-const backupPath = path.join(process.cwd(), '.env.local.backup');
+// Restore .env to Atlas configuration
+const envPath = path.join(process.cwd(), '.env');
+const backupPath = path.join(process.cwd(), '.env.backup');
 
 console.log('🔄 Restoring Atlas configuration...\n');
 
@@ -11,7 +11,7 @@ console.log('🔄 Restoring Atlas configuration...\n');
 if (fs.existsSync(backupPath)) {
   fs.copyFileSync(backupPath, envPath);
   fs.unlinkSync(backupPath); // Remove backup file
-  console.log('✅ Restored .env.local from backup');
+  console.log('✅ Restored .env from backup');
 } else {
   // Create Atlas configuration
   const atlasEnvContent = `# MongoDB Atlas Connection
@@ -34,9 +34,9 @@ UPLOAD_DIR=./public/uploads
 `;
 
   fs.writeFileSync(envPath, atlasEnvContent);
-  console.log('✅ Created new .env.local with Atlas configuration');
+  console.log('✅ Created new .env with Atlas configuration');
 }
 
 console.log('☁️  MongoDB URI: mongodb+srv://hrms:satyam@satyam.gied0jg.mongodb.net/hrms_db');
 console.log('🔑 Using secure generated secrets');
-console.log('\n🎯 Ready for Vercel deployment!');
+console.log('\n🎯 Ready for deployment!');

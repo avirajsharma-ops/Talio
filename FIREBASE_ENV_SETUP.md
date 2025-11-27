@@ -173,7 +173,7 @@ The `package.json` build script is updated to:
    - Automatically uses environment variables
 
 4. **`scripts/generate-firebase-sw.js`** - Generator Script
-   - NEW: Reads `.env.local` and generates service worker
+   - NEW: Reads `.env` and generates service worker
    - Includes fallback to default values
 
 ---

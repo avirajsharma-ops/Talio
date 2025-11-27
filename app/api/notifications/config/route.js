@@ -74,7 +74,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Firebase configuration is managed via .env.local file
+// POST - Firebase configuration is managed via .env file
 // This endpoint is kept for compatibility but returns info message
 export async function POST(request) {
   try {
@@ -103,7 +103,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Firebase is configured via environment variables in .env.local file. No UI configuration needed.',
+      message: 'Firebase is configured via environment variables in .env file. No UI configuration needed.',
       configured: true
     })
   } catch (error) {

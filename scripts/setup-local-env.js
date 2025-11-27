@@ -1,19 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
-// Backup current .env.local
-const envPath = path.join(process.cwd(), '.env.local');
-const backupPath = path.join(process.cwd(), '.env.local.backup');
+// Backup current .env
+const envPath = path.join(process.cwd(), '.env');
+const backupPath = path.join(process.cwd(), '.env.backup');
 
 console.log('📋 Setting up environment for local data access...\n');
 
 // Create backup
 if (fs.existsSync(envPath)) {
   fs.copyFileSync(envPath, backupPath);
-  console.log('✅ Backed up .env.local to .env.local.backup');
+  console.log('✅ Backed up .env to .env.backup');
 }
 
-// Create temporary .env.local for local MongoDB access
+// Create temporary .env for local MongoDB access
 const localEnvContent = `# Temporary configuration for data migration
 MONGODB_URI=mongodb://localhost:27017/hrms_db
 
@@ -34,7 +34,7 @@ UPLOAD_DIR=./public/uploads
 `;
 
 fs.writeFileSync(envPath, localEnvContent);
-console.log('✅ Created temporary .env.local pointing to local MongoDB');
+console.log('✅ Created temporary .env pointing to local MongoDB');
 console.log('📍 Local MongoDB URI: mongodb://localhost:27017/hrms_db\n');
 
 console.log('🎯 Next steps:');

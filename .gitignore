@@ -25,6 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+# Use only .env (not .env.local) - but keep it private
 .env*.local
 .env
 
