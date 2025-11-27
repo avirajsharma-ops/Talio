@@ -21,8 +21,8 @@ const DOWNLOADS = {
       altLabel: 'Intel (x64)'
     },
     x64: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3-x64.dmg',
-      filename: 'Talio-1.0.3-x64.dmg',
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3.dmg',
+      filename: 'Talio-1.0.3.dmg',
       label: 'Intel (x64)',
       size: '~99 MB',
       altLabel: 'Apple Silicon'
