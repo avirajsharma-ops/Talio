@@ -200,10 +200,21 @@ export default function OfflinePage() {
           {/* Action Buttons */}
           <div className="space-y-3">
             {isOnline ? (
-              <div className="flex items-center justify-center space-x-3 text-green-600 py-4">
-                <div className="w-5 h-5 border-3 border-green-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-base font-medium">Redirecting to dashboard...</span>
-              </div>
+              <>
+                <div className="flex items-center justify-center space-x-3 text-green-600 py-2">
+                  <div className="w-5 h-5 border-3 border-green-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-base font-medium">Redirecting to dashboard...</span>
+                </div>
+                
+                {/* Fallback Button */}
+                <button
+                  onClick={handleGoHome}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 px-6 rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 font-semibold"
+                >
+                  <FaHome className="w-4 h-4" />
+                  <span>Continue to Dashboard</span>
+                </button>
+              </>
             ) : (
               <>
                 <button
