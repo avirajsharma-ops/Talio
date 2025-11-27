@@ -3,9 +3,15 @@
 import { useState, useEffect } from 'react';
 import { Download, Monitor, Apple, Check } from 'lucide-react';
 
+// GitHub Release URLs - Update these when releasing new versions
+const RELEASE_VERSION = '1.0.2';
+const GITHUB_RELEASES = {
+  mac: `https://github.com/avirajsharma-ops/Tailo/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
+  windows: `https://github.com/avirajsharma-ops/Tailo/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`
+};
+
 export default function ResourcesPage() {
   const [selectedOS, setSelectedOS] = useState('mac');
-  const [arch, setArch] = useState('x64');
 
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
@@ -13,12 +19,6 @@ export default function ResourcesPage() {
 
     if (platform.includes('win') || userAgent.includes('win')) {
       setSelectedOS('windows');
-      if (userAgent.includes('win64') || userAgent.includes('x64') ||
-          userAgent.includes('wow64') || userAgent.includes('amd64')) {
-        setArch('x64');
-      } else {
-        setArch('ia32');
-      }
     } else {
       setSelectedOS('mac');
     }
@@ -75,43 +75,41 @@ export default function ResourcesPage() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="font-semibold text-lg">macOS</h3>
-                  <p className="text-gray-500 text-sm">Version 1.0.0</p>
+                  <p className="text-gray-500 text-sm">Version {RELEASE_VERSION}</p>
                 </div>
                 <span className="bg-blue-600/15 text-blue-500 px-3 py-1.5 rounded-full text-xs font-medium">
-                  Universal
+                  Apple Silicon
                 </span>
               </div>
               <a
-                href="/releases/mac/Talio-1.0.0.dmg"
-                download
+                href={GITHUB_RELEASES.mac}
                 className="flex items-center justify-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold transition"
               >
                 <Download className="w-5 h-5" />
                 Download for macOS
               </a>
-              <p className="text-center text-gray-500 text-sm mt-3">DMG installer - 100 MB</p>
+              <p className="text-center text-gray-500 text-sm mt-3">DMG installer • 78 MB</p>
             </div>
           ) : (
             <div>
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="font-semibold text-lg">Windows</h3>
-                  <p className="text-gray-500 text-sm">Version 1.0.0</p>
+                  <p className="text-gray-500 text-sm">Version {RELEASE_VERSION}</p>
                 </div>
                 <span className="bg-blue-600/15 text-blue-500 px-3 py-1.5 rounded-full text-xs font-medium">
-                  {arch === 'x64' ? '64-bit' : '32-bit'}
+                  64-bit
                 </span>
               </div>
               <a
-                href={`/releases/windows/Talio-Setup-1.0.0-${arch}.exe`}
-                download
+                href={GITHUB_RELEASES.windows}
                 className="flex items-center justify-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold transition"
               >
                 <Download className="w-5 h-5" />
                 Download for Windows
               </a>
               <p className="text-center text-gray-500 text-sm mt-3">
-                Installer - {arch === 'x64' ? '84' : '74'} MB
+                Installer • 66 MB
               </p>
             </div>
           )}
@@ -127,11 +125,11 @@ export default function ResourcesPage() {
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                Apple Silicon or Intel
+                Apple Silicon (M1/M2/M3/M4)
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                200 MB disk space
+                150 MB disk space
               </li>
             </ul>
           ) : (
@@ -142,17 +140,17 @@ export default function ResourcesPage() {
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                64-bit or 32-bit
+                64-bit (x64)
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                200 MB disk space
+                150 MB disk space
               </li>
             </ul>
           )}
         </div>
 
-        <p className="text-gray-600 text-xs mt-10">2025 Talio</p>
+        <p className="text-gray-600 text-xs mt-10">© 2025 Talio</p>
       </div>
     </div>
   );
