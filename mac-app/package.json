@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Talio - HR that runs itself. Desktop application for macOS.",
   "main": "src/main.js",
   "author": "Talio",
@@ -8,17 +8,17 @@
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
-    "build": "electron-builder --mac --arm64",
+    "build": "electron-builder --mac",
+    "build:arm64": "electron-builder --mac --arm64",
     "build:x64": "electron-builder --mac --x64",
-    "build:dmg": "electron-builder --mac dmg --arm64",
+    "build:universal": "electron-builder --mac --universal",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.talio.app",
     "productName": "Talio",
     "copyright": "Copyright © 2025 Talio",
-    "compression": "maximum",
-    "electronLanguages": ["en-US"],
+    "compression": "normal",
     "mac": {
       "category": "public.app-category.business",
       "icon": "assets/icon.icns",
@@ -29,7 +29,7 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": ["x64", "arm64"]
         }
       ],
       "extendInfo": {
@@ -71,19 +71,12 @@
       "maya-preload.js",
       "maya-blob.html",
       "maya-widget.html",
-      "dot-matrix-overlay.html",
-      "!**/*.map",
-      "!**/*.md",
-      "!**/test/**",
-      "!**/tests/**",
-      "!**/docs/**"
+      "dot-matrix-overlay.html"
     ],
-    "asarUnpack": [],
     "directories": {
       "output": "release",
       "buildResources": "assets"
-    },
-    "afterPack": "./scripts/remove-locales.js"
+    }
   },
   "dependencies": {
     "active-win": "^8.2.1",

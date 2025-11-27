@@ -3,26 +3,94 @@
 import { useState, useEffect } from 'react';
 import { Download, Monitor, Apple, Check } from 'lucide-react';
 
-// GitHub Release URLs - Update these when releasing new versions
-const RELEASE_VERSION = '1.0.2';
-const GITHUB_RELEASES = {
-  mac: `https://github.com/avirajsharma-ops/Tailo/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
-  windows: `https://github.com/avirajsharma-ops/Tailo/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}.exe`
+// ============================================
+// RELEASE CONFIGURATION - Update for new releases
+// ============================================
+const RELEASE_VERSION = '1.0.3';
+const GITHUB_OWNER = 'avirajsharma-ops';
+const GITHUB_REPO = 'Tailo';
+
+// Download URLs for all architectures
+const DOWNLOADS = {
+  mac: {
+    arm64: {
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-arm64.dmg`,
+      label: 'Apple Silicon',
+      size: '~100 MB'
+    },
+    x64: {
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-${RELEASE_VERSION}-x64.dmg`,
+      label: 'Intel (x64)',
+      size: '~100 MB'
+    }
+  },
+  windows: {
+    x64: {
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-x64.exe`,
+      label: '64-bit (x64)',
+      size: '~85 MB'
+    },
+    ia32: {
+      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/v${RELEASE_VERSION}/Talio-Setup-${RELEASE_VERSION}-ia32.exe`,
+      label: '32-bit (x86)',
+      size: '~80 MB'
+    }
+  }
 };
 
 export default function ResourcesPage() {
   const [selectedOS, setSelectedOS] = useState('mac');
+  const [macArch, setMacArch] = useState('arm64');
+  const [winArch, setWinArch] = useState('x64');
 
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
     const platform = navigator.platform.toLowerCase();
 
+    // Detect OS
     if (platform.includes('win') || userAgent.includes('win')) {
       setSelectedOS('windows');
+
+      // Detect Windows architecture
+      if (userAgent.includes('win64') || userAgent.includes('x64') ||
+          userAgent.includes('wow64') || userAgent.includes('amd64')) {
+        setWinArch('x64');
+      } else {
+        setWinArch('ia32');
+      }
     } else {
       setSelectedOS('mac');
+
+      // Detect Mac architecture (Apple Silicon vs Intel)
+      // Check for Apple GPU which indicates Apple Silicon
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl');
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            if (renderer && renderer.includes('Apple')) {
+              setMacArch('arm64');
+            } else {
+              setMacArch('x64');
+            }
+          }
+        }
+      } catch (e) {
+        // Default to arm64 for newer Macs
+        setMacArch('arm64');
+      }
     }
   }, []);
+
+  const currentMacDownload = DOWNLOADS.mac[macArch];
+  const altMacArch = macArch === 'arm64' ? 'x64' : 'arm64';
+  const altMacDownload = DOWNLOADS.mac[altMacArch];
+
+  const currentWinDownload = DOWNLOADS.windows[winArch];
+  const altWinArch = winArch === 'x64' ? 'ia32' : 'x64';
+  const altWinDownload = DOWNLOADS.windows[altWinArch];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center px-6">
@@ -78,17 +146,23 @@ export default function ResourcesPage() {
                   <p className="text-gray-500 text-sm">Version {RELEASE_VERSION}</p>
                 </div>
                 <span className="bg-blue-600/15 text-blue-500 px-3 py-1.5 rounded-full text-xs font-medium">
-                  Apple Silicon
+                  {currentMacDownload.label}
                 </span>
               </div>
               <a
-                href={GITHUB_RELEASES.mac}
+                href={currentMacDownload.url}
                 className="flex items-center justify-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold transition"
               >
                 <Download className="w-5 h-5" />
-                Download for macOS
+                Download for macOS ({currentMacDownload.label})
               </a>
-              <p className="text-center text-gray-500 text-sm mt-3">DMG installer • 78 MB</p>
+              <p className="text-center text-gray-500 text-sm mt-3">DMG installer • {currentMacDownload.size}</p>
+              <div className="mt-4 text-center">
+                <span className="text-gray-600 text-xs">Other version: </span>
+                <a href={altMacDownload.url} className="text-blue-500 text-xs hover:underline">
+                  {altMacDownload.label}
+                </a>
+              </div>
             </div>
           ) : (
             <div>
@@ -98,19 +172,25 @@ export default function ResourcesPage() {
                   <p className="text-gray-500 text-sm">Version {RELEASE_VERSION}</p>
                 </div>
                 <span className="bg-blue-600/15 text-blue-500 px-3 py-1.5 rounded-full text-xs font-medium">
-                  64-bit
+                  {currentWinDownload.label}
                 </span>
               </div>
               <a
-                href={GITHUB_RELEASES.windows}
+                href={currentWinDownload.url}
                 className="flex items-center justify-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold transition"
               >
                 <Download className="w-5 h-5" />
-                Download for Windows
+                Download for Windows ({currentWinDownload.label})
               </a>
               <p className="text-center text-gray-500 text-sm mt-3">
-                Installer • 66 MB
+                Installer • {currentWinDownload.size}
               </p>
+              <div className="mt-4 text-center">
+                <span className="text-gray-600 text-xs">Other version: </span>
+                <a href={altWinDownload.url} className="text-blue-500 text-xs hover:underline">
+                  {altWinDownload.label}
+                </a>
+              </div>
             </div>
           )}
         </div>
@@ -125,11 +205,11 @@ export default function ResourcesPage() {
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                Apple Silicon (M1/M2/M3/M4)
+                Apple Silicon or Intel processor
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                150 MB disk space
+                200 MB disk space
               </li>
             </ul>
           ) : (
@@ -140,11 +220,11 @@ export default function ResourcesPage() {
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                64-bit (x64)
+                64-bit or 32-bit processor
               </li>
               <li className="flex items-center gap-2 text-gray-500 text-sm">
                 <Check className="w-4 h-4 text-teal-500" />
-                150 MB disk space
+                200 MB disk space
               </li>
             </ul>
           )}

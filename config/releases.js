@@ -1,48 +1,79 @@
 /**
  * Talio Desktop App Release Configuration
- * 
+ *
  * Update this file when releasing new versions.
  * All download pages will automatically use these URLs.
  */
 
 const RELEASE_CONFIG = {
-  version: '1.0.2',
+  version: '1.0.3',
   github: {
     owner: 'avirajsharma-ops',
     repo: 'Tailo'
   },
   downloads: {
     mac: {
-      filename: 'Talio-1.0.2-arm64.dmg',
-      size: '78 MB',
-      arch: 'Apple Silicon (M1/M2/M3/M4)'
+      arm64: {
+        filename: 'Talio-1.0.3-arm64.dmg',
+        size: '~100 MB',
+        label: 'Apple Silicon (M1/M2/M3/M4)'
+      },
+      x64: {
+        filename: 'Talio-1.0.3-x64.dmg',
+        size: '~100 MB',
+        label: 'Intel (x64)'
+      }
     },
     windows: {
-      filename: 'Talio-Setup-1.0.2.exe', 
-      size: '66 MB',
-      arch: '64-bit (x64)'
+      x64: {
+        filename: 'Talio-Setup-1.0.3-x64.exe',
+        size: '~85 MB',
+        label: '64-bit (x64)'
+      },
+      ia32: {
+        filename: 'Talio-Setup-1.0.3-ia32.exe',
+        size: '~80 MB',
+        label: '32-bit (x86)'
+      }
     }
   }
 };
 
 // Generate download URLs from config
-const getDownloadUrl = (platform) => {
+const getDownloadUrl = (platform, arch) => {
   const { github, version, downloads } = RELEASE_CONFIG;
-  const filename = downloads[platform]?.filename;
-  if (!filename) return null;
-  return `https://github.com/${github.owner}/${github.repo}/releases/download/v${version}/${filename}`;
+  const download = downloads[platform]?.[arch];
+  if (!download) return null;
+  return `https://github.com/${github.owner}/${github.repo}/releases/download/v${version}/${download.filename}`;
+};
+
+// Get all download URLs for a platform
+const getPlatformDownloads = (platform) => {
+  const { downloads } = RELEASE_CONFIG;
+  const platformDownloads = downloads[platform];
+  if (!platformDownloads) return null;
+
+  const result = {};
+  for (const [arch, config] of Object.entries(platformDownloads)) {
+    result[arch] = {
+      ...config,
+      url: getDownloadUrl(platform, arch)
+    };
+  }
+  return result;
 };
 
 // Export for use in both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { RELEASE_CONFIG, getDownloadUrl };
+  module.exports = { RELEASE_CONFIG, getDownloadUrl, getPlatformDownloads };
 }
 
 // For browser/ES modules
 if (typeof window !== 'undefined') {
   window.RELEASE_CONFIG = RELEASE_CONFIG;
   window.getDownloadUrl = getDownloadUrl;
+  window.getPlatformDownloads = getPlatformDownloads;
 }
 
-export { RELEASE_CONFIG, getDownloadUrl };
+export { RELEASE_CONFIG, getDownloadUrl, getPlatformDownloads };
 
