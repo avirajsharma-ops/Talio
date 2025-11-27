@@ -75,7 +75,12 @@ const UserSchema = new mongoose.Schema({
     autoGreetingEnabled: { type: Boolean, default: true },
     voiceEnabled: { type: Boolean, default: true }
   },
-  lastMayaGreeting: { type: Date } // Track last greeting timestamp
+  lastMayaGreeting: { type: Date }, // Track last greeting timestamp
+  // General settings
+  settings: {
+    screenshotInterval: { type: Number, default: 5 }, // minutes
+    screenshotIntervalUpdatedAt: { type: Date }
+  }
 }, {
   timestamps: true,
 });

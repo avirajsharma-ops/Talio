@@ -15,6 +15,7 @@
       font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
       overflow: hidden;
       user-select: none;
+      border-radius: 40px;
     }
 
     .maya-container {
@@ -491,6 +492,7 @@
     let onboardingInProgress = false;
     let currentSlideIndex = 0;
     let blobAnimationId = null;
+    let isWidgetMinimized = false; // Track widget state
     let isListening = false;
     let recognition = null;
     let audioContext = null;
@@ -664,8 +666,14 @@
       }
       window.speechSynthesis?.cancel();
 
-      // Set blob speaking state
+      // Set speaking state and pause mic listening
+      isSpeaking = true;
       setBlobSpeaking(true);
+      if (recognition && isListening && !isWidgetMinimized) {
+        try {
+          recognition.stop();
+        } catch (e) {}
+      }
 
       // Try ElevenLabs first for high-quality voice
       try {
@@ -693,7 +701,12 @@
           currentAudio.onended = () => {
             URL.revokeObjectURL(audioUrl);
             currentAudio = null;
+            isSpeaking = false;
             setBlobSpeaking(false);
+            // Resume listening when expanded
+            if (!isWidgetMinimized && isMicMode) {
+              setTimeout(() => startListening(), 500);
+            }
             if (callback) callback();
           };
           currentAudio.onerror = () => {
@@ -714,6 +727,7 @@
 
     function speakWithWebSpeech(text, callback) {
       if (!window.speechSynthesis) {
+        isSpeaking = false;
         setBlobSpeaking(false);
         if (callback) setTimeout(callback, 2000);
         return;
@@ -722,7 +736,12 @@
       utterance.rate = 0.95;
       utterance.pitch = 1.1;
       utterance.onend = () => {
+        isSpeaking = false;
         setBlobSpeaking(false);
+        // Resume listening when expanded
+        if (!isWidgetMinimized && isMicMode) {
+          setTimeout(() => startListening(), 500);
+        }
         if (callback) callback();
       };
       window.speechSynthesis.speak(utterance);
@@ -974,7 +993,7 @@
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true; // Enable continuous listening
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
@@ -982,42 +1001,95 @@
         isListening = true;
         micBtnLarge?.classList.add('listening');
         micBtn?.classList.add('listening');
-        listeningStatus.textContent = 'Listening...';
+        listeningStatus.textContent = isWidgetMinimized ? 'Say "Hey Maya"...' : 'Listening...';
       };
 
       recognition.onresult = (event) => {
         const last = event.results.length - 1;
-        const transcript = event.results[last][0].transcript;
+        const transcript = event.results[last][0].transcript.toLowerCase().trim();
 
         if (event.results[last].isFinal) {
-          stopListening();
-          if (transcript.trim()) {
-            addMessage(transcript, 'user');
-            sendToMaya(transcript);
+          // Wake word detection ONLY when widget is minimized
+          if (isWidgetMinimized) {
+            if (transcript.includes('hey maya') || transcript.includes('hi maya') || transcript.includes('hey mia')) {
+              // Expand widget and acknowledge
+              if (window.mayaBridge?.expandWidget) {
+                window.mayaBridge.expandWidget();
+              }
+              isWidgetMinimized = false;
+              setMicMode(true); // Ensure mic mode is active
+              listeningStatus.textContent = 'Yes? I\'m listening...';
+              addMessage('👂 Listening...', 'system');
+              
+              // Play acknowledgment
+              if (window.speechSynthesis) {
+                const ack = new SpeechSynthesisUtterance('Yes?');
+                ack.rate = 1.2;
+                ack.volume = 0.5;
+                window.speechSynthesis.speak(ack);
+              }
+              return;
+            }
+            // Ignore other speech when minimized
+            return;
+          }
+          
+          // When expanded, process all speech normally (no wake word needed)
+          if (transcript && transcript.length > 3) {
+            const recentMessages = Array.from(document.querySelectorAll('.message')).slice(-2);
+            const hasRecentWakeWord = recentMessages.some(msg => 
+              msg.textContent.includes('Listening...') || msg.textContent.includes('Yes?')
+            );
+            
+            // Process the message if it's after wake word or seems like a command
+            if (hasRecentWakeWord || transcript.length > 10) {
+              addMessage(transcript, 'user');
+              sendToMaya(transcript);
+              listeningStatus.textContent = 'Listening...';
+            }
           }
         } else {
-          listeningStatus.textContent = transcript || 'Listening...';
+          // Show interim results only when expanded
+          if (!isWidgetMinimized) {
+            listeningStatus.textContent = transcript || 'Listening...';
+          }
         }
       };
 
       recognition.onerror = (e) => {
         console.log('[Maya] Speech recognition error:', e.error);
-        stopListening();
         if (e.error === 'not-allowed') {
           addMessage('Microphone access denied. Please enable microphone permissions.', 'system');
           listeningStatus.textContent = 'Mic permission denied';
+          isListening = false;
+        } else if (e.error === 'aborted') {
+          // Silently restart
+          setTimeout(() => {
+            if (!onboardingInProgress) startListening();
+          }, 100);
         } else {
-          listeningStatus.textContent = 'Tap mic to speak';
+          // Auto-restart on other errors
+          setTimeout(() => {
+            if (!onboardingInProgress) startListening();
+          }, 500);
         }
       };
 
       recognition.onend = () => {
-        stopListening();
+        // Auto-restart to maintain continuous listening (only when minimized)
+        if (isListening && !onboardingInProgress && isWidgetMinimized) {
+          setTimeout(() => startListening(), 300);
+        } else {
+          isListening = false;
+          micBtnLarge?.classList.remove('listening');
+          micBtn?.classList.remove('listening');
+          listeningStatus.textContent = isWidgetMinimized ? 'Say "Hey Maya"...' : 'Tap mic to speak';
+        }
       };
     }
 
     function startListening() {
-      if (recognition && !isListening) {
+      if (recognition && !isListening && !isSpeaking) {
         try {
           recognition.start();
         } catch (e) {
@@ -1027,10 +1099,11 @@
     }
 
     function stopListening() {
+      // Only truly stop if user manually requests it
       isListening = false;
       micBtnLarge?.classList.remove('listening');
       micBtn?.classList.remove('listening');
-      listeningStatus.textContent = 'Tap mic to speak';
+      listeningStatus.textContent = 'Say "Hey Maya"...';
       try {
         recognition?.stop();
       } catch (e) {}
@@ -1043,10 +1116,15 @@
         micModeWrapper.classList.remove('hidden');
         inputWrapper.classList.remove('active');
         listeningStatus.style.display = 'block';
+        // Auto-start listening when in mic mode and widget is expanded
+        if (!isWidgetMinimized && !isSpeaking) {
+          setTimeout(() => startListening(), 300);
+        }
       } else {
         micModeWrapper.classList.add('hidden');
         inputWrapper.classList.add('active');
         listeningStatus.style.display = 'none';
+        stopListening();
         messageInput.focus();
       }
     }
@@ -1098,7 +1176,10 @@
     });
 
     closeBtn.addEventListener('click', () => {
+      isWidgetMinimized = true;
       stopListening();
+      // Restart listening in wake word mode
+      setTimeout(() => startListening(), 500);
       if (window.mayaBridge?.minimizeWidget) window.mayaBridge.minimizeWidget();
     });
 
@@ -1146,12 +1227,30 @@
       initBlobAnimation();
       initVoiceRecognition();
 
-      // Auto-start listening mode on widget open
-      setTimeout(() => {
-        if (recognition && !onboardingInProgress) {
-          startListening();
-        }
-      }, 1500);
+      // Check initial state from Electron bridge
+      if (window.mayaBridge?.getWidgetState) {
+        window.mayaBridge.getWidgetState().then(state => {
+          isWidgetMinimized = state?.minimized || false;
+          
+          // Auto-start wake word listening if minimized
+          if (isWidgetMinimized && recognition && !onboardingInProgress) {
+            console.log('[Maya] Starting wake word detection (minimized mode)');
+            startListening();
+          }
+        });
+      } else {
+        // Fallback: assume minimized on startup
+        isWidgetMinimized = true;
+        setTimeout(() => {
+          if (recognition && !onboardingInProgress) {
+            console.log('[Maya] Starting wake word detection (minimized mode)');
+            startListening();
+          }
+        }, 500);
+      }
+
+      // Ensure mic mode is set as default
+      setMicMode(true);
     }
 
     // Receive auth from main process

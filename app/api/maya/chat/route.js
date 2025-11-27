@@ -34,7 +34,7 @@ export async function POST(request) {
 
     // Get user to retrieve employeeId
     const User = (await import('@/models/User')).default;
-    const user = await User.findById(userId).select('employeeId');
+    const user = await User.findById(userId).select('employeeId name email');
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
@@ -48,10 +48,34 @@ export async function POST(request) {
       }, { status: 503 });
     }
 
+    // Find or create employee record if missing
+    let employeeId = user.employeeId;
+    if (!employeeId) {
+      const Employee = (await import('@/models/Employee')).default;
+      let employee = await Employee.findOne({ userId });
+      
+      if (!employee) {
+        // Create a basic employee record for MAYA functionality
+        employee = await Employee.create({
+          userId,
+          name: user.name || 'User',
+          email: user.email,
+          employeeCode: `EMP${Date.now()}`,
+          joiningDate: new Date(),
+          status: 'active'
+        });
+        
+        // Update user with employeeId
+        user.employeeId = employee._id;
+        await user.save();
+      }
+      employeeId = employee._id;
+    }
+
     // Create chat history entry
     const chatSession = await MayaChatHistory.create({
       userId,
-      employeeId: user.employeeId,
+      employeeId,
       sessionId: `session_${Date.now()}_${userId}`,
       messages: [
         { role: 'user', content: message, timestamp: new Date() }
