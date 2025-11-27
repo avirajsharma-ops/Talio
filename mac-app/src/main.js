@@ -1160,6 +1160,18 @@ app.whenReady().then(async () => {
   if (storedToken) {
     authToken = storedToken;
     console.log('[Talio] Loaded stored auth token');
+    // If we have a stored userId, initialize auth and monitoring now so the
+    // desktop app will register to Socket.IO rooms and receive instant-capture
+    // requests even after app restart.
+    const storedUserId = store.get('userId');
+    if (storedUserId) {
+      try {
+        console.log('[Talio] Restoring auth for userId:', storedUserId);
+        setAuth(storedToken, { id: storedUserId });
+      } catch (e) {
+        console.error('[Talio] Failed to restore auth on startup:', e);
+      }
+    }
   }
 
   // Create windows and tray

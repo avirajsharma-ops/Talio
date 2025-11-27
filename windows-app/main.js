@@ -1116,6 +1116,16 @@ app.whenReady().then(async () => {
   if (storedToken) {
     authToken = storedToken;
     console.log('[Talio] Loaded stored auth token');
+    // Restore auth on startup if we have stored userId so socket connects
+    const storedUserId = store.get('userId');
+    if (storedUserId) {
+      try {
+        console.log('[Talio] Restoring auth for userId:', storedUserId);
+        setAuth(storedToken, { id: storedUserId });
+      } catch (e) {
+        console.error('[Talio] Failed to restore auth on startup:', e);
+      }
+    }
   }
 
   // Create windows and tray

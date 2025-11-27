@@ -652,8 +652,31 @@
       }
     }
 
-    // Speak text using ElevenLabs API (high-quality) or Web Speech API (fallback)
+    // Speech queue system to prevent overlapping TTS
+    const speechQueue = [];
+    let speechActive = false;
+
+    function enqueueSpeech(text, callback) {
+      speechQueue.push({ text, callback });
+      processSpeechQueue();
+    }
+
+    async function processSpeechQueue() {
+      if (speechActive || speechQueue.length === 0) return;
+      speechActive = true;
+      const { text, callback } = speechQueue.shift();
+      await speakInternal(text, () => {
+        if (callback) callback();
+        speechActive = false;
+        processSpeechQueue();
+      });
+    }
+
     async function speak(text, callback) {
+      enqueueSpeech(text, callback);
+    }
+
+    async function speakInternal(text, callback) {
       if (!voiceEnabled) {
         if (callback) setTimeout(callback, 2000);
         return;
@@ -757,12 +780,25 @@
       return `${hours}:${minutes} ${ampm}`;
     }
 
-    // Add message to chat
+    // Add message to chat (supports screenshot images)
     function addMessage(text, role) {
+      let imageUrl = null;
+      let displayText = text;
+      try {
+        if (typeof text === 'string' && text.startsWith('{') && text.includes('screenshot')) {
+          const obj = JSON.parse(text);
+          if (obj.screenshot) {
+            imageUrl = obj.screenshot;
+            displayText = obj.content || '';
+          }
+        }
+      } catch (e) {}
+
       const msgDiv = document.createElement('div');
       msgDiv.className = `message ${role}`;
       msgDiv.innerHTML = `
-        <span>${text}</span>
+        <span>${displayText}</span>
+        ${imageUrl ? `<div style='margin-top:8px;'><img src='${imageUrl}' style='max-width:220px;max-height:160px;border-radius:12px;border:1px solid #4da3ff;box-shadow:0 2px 8px rgba(77,163,255,0.12);' /></div>` : ''}
         <div class="timestamp">${getTimestamp()}</div>
       `;
       messagesContainer.appendChild(msgDiv);
@@ -1286,6 +1322,25 @@
 
     // Initialize on load
     initialize();
+
+    // Ensure mic auto-starts when widget becomes visible/focused
+    window.addEventListener('focus', () => {
+      if (!isWidgetMinimized) {
+        setMicMode(true);
+        startListening();
+      }
+    });
+
+    // When visibility changes (window hidden/shown), manage listening
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !isWidgetMinimized) {
+        setMicMode(true);
+        startListening();
+      } else if (document.visibilityState !== 'visible') {
+        // If widget hidden, stop regular listening; blob will handle wake-word
+        stopListening();
+      }
+    });
   </script>
 </body>
 </html>
