@@ -1380,15 +1380,71 @@ function setupIPC() {
     minimizeMayaToBob();
   });
 
+  // Maya screen capture with auto-hide widget for clean capture
   ipcMain.handle('maya-capture-screen', async () => {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    });
-    if (sources.length > 0) {
-      return sources[0].thumbnail.toDataURL();
+    try {
+      // Check permission first (uses cached result)
+      const hasPermission = checkScreenCapturePermission();
+      if (!hasPermission) {
+        console.log('[Maya] Screen capture permission not granted');
+        return null;
+      }
+
+      // Hide Maya widget and blob before capture for clean screenshot
+      const wasWidgetVisible = mayaWidgetWindow && mayaWidgetWindow.isVisible();
+      const wasBlobVisible = mayaBlobWindow && mayaBlobWindow.isVisible();
+      
+      if (wasWidgetVisible) {
+        mayaWidgetWindow.hide();
+      }
+      if (wasBlobVisible) {
+        mayaBlobWindow.hide();
+      }
+      
+      // Small delay to ensure windows are hidden
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Capture the ENTIRE screen (not just app window)
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      });
+      
+      let screenshot = null;
+      if (sources.length > 0) {
+        // Get the primary display's screen source
+        const primaryDisplay = screen.getPrimaryDisplay();
+        // Try to find the primary screen source, fallback to first
+        const primarySource = sources.find(s => 
+          s.display_id === String(primaryDisplay.id)
+        ) || sources[0];
+        
+        screenshot = primarySource.thumbnail.toDataURL();
+        console.log('[Maya] Screen captured successfully, size:', Math.round(screenshot.length / 1024), 'KB');
+      }
+      
+      // Small delay before restoring windows
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Restore Maya widget after capture
+      if (wasWidgetVisible && mayaWidgetWindow) {
+        mayaWidgetWindow.show();
+      } else if (wasBlobVisible && mayaBlobWindow) {
+        mayaBlobWindow.show();
+      }
+      
+      return screenshot;
+    } catch (error) {
+      console.error('[Maya] Screen capture error:', error);
+      // Try to restore windows even on error
+      if (mayaBlobWindow) mayaBlobWindow.show();
+      return null;
     }
-    return null;
+  });
+
+  // Check screen permission without triggering capture (uses cached status)
+  ipcMain.handle('maya-check-screen-permission', () => {
+    return checkScreenCapturePermission();
   });
 
   ipcMain.handle('maya-notification', (event, { title, body }) => {

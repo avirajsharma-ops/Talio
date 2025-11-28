@@ -984,7 +984,17 @@
           return;
         }
 
-        addMessage("📸 Capturing your screen...", 'system');
+        // Check permission first without triggering a capture
+        if (window.mayaBridge?.checkScreenPermission) {
+          const hasPermission = await window.mayaBridge.checkScreenPermission();
+          if (!hasPermission) {
+            addMessage("⚠️ Screen recording permission is required. Please grant permission in System Preferences → Privacy & Security → Screen Recording, add Talio to the list, then restart the app.", 'assistant');
+            speak("Screen recording permission is required. Please grant permission in System Preferences, Privacy and Security, Screen Recording.");
+            return;
+          }
+        }
+
+        addMessage("📸 Analyzing your screen... (I'll hide briefly to capture)", 'system');
         showThinking();
         
         // Show dot matrix scanning animation
@@ -992,33 +1002,33 @@
           window.mayaBridge.showDotMatrix();
         }
 
-        // Capture the screen with timeout
+        // Capture the screen with timeout - widget will auto-hide during capture
         let screenshot = null;
         try {
           console.log('[Maya] Requesting screen capture...');
           screenshot = await Promise.race([
             window.mayaBridge.captureScreen(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Screen capture timeout')), 10000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Screen capture timeout')), 15000))
           ]);
           console.log('[Maya] Screen capture result:', screenshot ? `Got ${Math.round(screenshot.length / 1024)}KB` : 'null');
         } catch (captureErr) {
           console.error('[Maya] Screen capture failed:', captureErr);
           hideThinking();
           if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
-          addMessage("Sorry, screen capture timed out or failed. Please check screen recording permissions in System Preferences → Privacy & Security → Screen Recording, then restart the app.", 'assistant');
-          speak("Sorry, screen capture timed out or failed. Please check screen recording permissions.");
+          addMessage("Sorry, screen capture failed. Please check screen recording permissions in System Preferences → Privacy & Security → Screen Recording, then restart the app.", 'assistant');
+          speak("Sorry, screen capture failed. Please check screen recording permissions.");
           return;
         }
         
         if (!screenshot || screenshot.length < 1000) {
           hideThinking();
           if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
-          addMessage("Sorry, I couldn't capture your screen. Please check screen recording permissions in System Preferences → Privacy & Security → Screen Recording, then restart the app.", 'assistant');
-          speak("Sorry, I couldn't capture your screen. Please check screen recording permissions in System Preferences.");
+          addMessage("Sorry, I couldn't capture your screen. Please ensure screen recording permission is granted in System Preferences → Privacy & Security → Screen Recording.", 'assistant');
+          speak("Sorry, I couldn't capture your screen. Please check screen recording permissions.");
           return;
         }
 
-        addMessage("🔍 Analyzing your screen...", 'system');
+        addMessage("🔍 Analyzing what's on your screen...", 'system');
         console.log('[Maya] Sending screenshot to API for analysis...');
 
         // Send to Maya API with the screenshot

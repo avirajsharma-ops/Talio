@@ -10,8 +10,11 @@ contextBridge.exposeInMainWorld('mayaBridge', {
   showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
   hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
 
-  // Screenshot for screen analysis
+  // Screenshot for screen analysis - now handles widget hiding automatically
   captureScreen: () => ipcRenderer.invoke('maya-capture-screen'),
+  
+  // Check if screen capture permission is granted (always true on Windows)
+  checkScreenPermission: () => ipcRenderer.invoke('maya-check-screen-permission'),
 
   // Authentication
   onAuth: (callback) => {
