@@ -4,7 +4,6 @@ import connectDB from '@/lib/mongodb';
 import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
-import { uploadBase64ToCloudinary } from '@/lib/cloudinary';
 import { analyzeProductivityData } from '@/lib/productivityAnalyzer';
 
 export const dynamic = 'force-dynamic';
@@ -354,26 +353,18 @@ export async function GET(request) {
   }
 }
 
-// Process screenshot upload in background
+// Process screenshot in background (stores in DB, no external upload)
 async function processScreenshotAsync(dataId, screenshotData) {
   try {
-    await connectDB();
+    // Screenshot is already stored as base64 in the database
+    // This function is kept for potential future cloud storage integration
+    console.log(`[Productivity] Screenshot stored for ${dataId}`);
     
-    // Upload to Cloudinary
-    const uploadResult = await uploadBase64ToCloudinary(screenshotData, {
-      folder: 'productivity-screenshots',
-      resource_type: 'image'
-    });
-
-    if (uploadResult?.secure_url) {
-      await ProductivityData.findByIdAndUpdate(dataId, {
-        'screenshot.url': uploadResult.secure_url,
-        'screenshot.data': null // Clear base64 data after upload
-      });
-      console.log(`[Productivity] Screenshot uploaded for ${dataId}`);
-    }
+    // Optional: If you want to upload to external storage (S3, Cloudinary, etc.)
+    // you can add that integration here. For now, base64 in MongoDB is sufficient
+    // for the screenshot viewing functionality.
   } catch (error) {
-    console.error('[Productivity] Screenshot upload error:', error);
+    console.error('[Productivity] Screenshot processing error:', error);
   }
 }
 
