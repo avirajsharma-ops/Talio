@@ -572,14 +572,24 @@ export default function ProductivityMonitoringPage() {
         const employeeInfo = record.monitoredEmployeeId || {};
         const userInfo = record.monitoredUserId || {};
         
+        // Build name from firstName + lastName if available, otherwise use name field
+        let userName = 'Unknown User';
+        if (employeeInfo.firstName) {
+          userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
+        } else if (employeeInfo.name) {
+          userName = employeeInfo.name;
+        } else if (userInfo.name) {
+          userName = userInfo.name;
+        }
+        
         userMap.set(userKey, {
           user: {
             _id: userId,
             userId: userId,
-            name: employeeInfo.name || userInfo.name || 'Unknown User',
+            name: userName,
             employeeCode: employeeInfo.employeeCode || '',
-            designation: employeeInfo.designation || '',
-            department: employeeInfo.department || '',
+            designation: employeeInfo.designation?.title || employeeInfo.designation || '',
+            department: employeeInfo.department?.name || employeeInfo.department || '',
             profilePicture: employeeInfo.profilePicture || userInfo.profilePicture || null
           },
           records: [],
@@ -1048,7 +1058,10 @@ export default function ProductivityMonitoringPage() {
                   <h2 className="text-2xl font-bold text-white">{modalData.title}</h2>
                   {modalData.userInfo && (
                     <p className="text-sm text-white text-opacity-90 mt-1">
-                      {modalData.userInfo.employeeCode} - {modalData.userInfo.designation}
+                      {modalData.userInfo.employeeCode || ''}{modalData.userInfo.employeeCode && modalData.userInfo.designation ? ' - ' : ''}
+                      {typeof modalData.userInfo.designation === 'object' 
+                        ? modalData.userInfo.designation?.title || modalData.userInfo.designation?.levelName || ''
+                        : modalData.userInfo.designation || ''}
                     </p>
                   )}
                 </div>

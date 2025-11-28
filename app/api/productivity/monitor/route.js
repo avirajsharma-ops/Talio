@@ -168,45 +168,99 @@ export async function GET(request) {
         .populate('requestedByUserId', 'name email')
         .sort({ createdAt: -1 })
         .limit(Math.floor(limit / 2)),
-      // New ProductivityData
+      // New ProductivityData - also populate userId as User to get name
       ProductivityData.find(productivityQuery)
+        .populate('userId', 'name email profilePicture')
         .populate('employeeId', 'firstName lastName name employeeCode department designation profilePicture')
         .sort({ createdAt: -1 })
         .limit(Math.floor(limit / 2))
     ]);
 
     // Transform ProductivityData to match the expected format
-    const transformedProductivityData = productivityData.map(pd => ({
-      _id: pd._id,
-      monitoredUserId: { _id: pd.userId, name: pd.employeeId?.firstName ? `${pd.employeeId.firstName} ${pd.employeeId.lastName || ''}`.trim() : 'Unknown' },
-      monitoredEmployeeId: pd.employeeId,
-      captureType: 'screenshot',
-      captureMode: pd.isInstantCapture ? 'instant' : 'automatic',
-      summary: pd.aiAnalysis?.summary || 'Productivity data captured',
-      productivityScore: pd.aiAnalysis?.productivityScore,
-      productivityTips: pd.aiAnalysis?.recommendations?.join('. ') || '',
-      productivityInsights: pd.aiAnalysis?.insights || [],
-      screenshotUrl: pd.screenshot?.url,
-      status: pd.status,
-      createdAt: pd.createdAt,
-      // Rich productivity data
-      appUsage: pd.appUsage,
-      topApps: pd.topApps,
-      websiteVisits: pd.websiteVisits,
-      topWebsites: pd.topWebsites,
-      keystrokes: pd.keystrokes,
-      mouseActivity: pd.mouseActivity,
-      productiveTime: pd.productiveTime,
-      neutralTime: pd.neutralTime,
-      unproductiveTime: pd.unproductiveTime,
-      totalActiveTime: pd.totalActiveTime,
-      focusScore: pd.aiAnalysis?.focusScore,
-      efficiencyScore: pd.aiAnalysis?.efficiencyScore,
-      areasOfImprovement: pd.aiAnalysis?.areasOfImprovement,
-      topAchievements: pd.aiAnalysis?.topAchievements,
-      periodStart: pd.periodStart,
-      periodEnd: pd.periodEnd
-    }));
+    const transformedProductivityData = productivityData.map(pd => {
+      // Build user name from multiple sources
+      let userName = 'Unknown User';
+      let userEmail = '';
+      let userProfilePic = '';
+      
+      // Priority 1: Employee data (firstName + lastName)
+      if (pd.employeeId?.firstName) {
+        userName = `${pd.employeeId.firstName} ${pd.employeeId.lastName || ''}`.trim();
+        userProfilePic = pd.employeeId.profilePicture || '';
+      }
+      // Priority 2: User model name
+      else if (pd.userId?.name) {
+        userName = pd.userId.name;
+        userEmail = pd.userId.email || '';
+        userProfilePic = pd.userId.profilePicture || '';
+      }
+      
+      // Get screenshot - prefer url, fallback to base64 data
+      let screenshotData = null;
+      if (pd.screenshot?.url) {
+        screenshotData = pd.screenshot.url;
+      } else if (pd.screenshot?.data) {
+        // Ensure base64 data has proper data URI prefix
+        const data = pd.screenshot.data;
+        screenshotData = data.startsWith('data:') ? data : `data:image/png;base64,${data}`;
+      }
+      
+      // Generate dynamic summary if AI analysis is missing
+      let summary = pd.aiAnalysis?.summary;
+      if (!summary || summary === 'Productivity data captured') {
+        // Create a meaningful summary from the data
+        const topApp = pd.topApps?.[0];
+        const totalMins = Math.round((pd.totalActiveTime || 0) / 60000);
+        const productivePercent = pd.totalActiveTime > 0 
+          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100) 
+          : 0;
+        
+        if (topApp) {
+          summary = `Worked for ${totalMins} minutes with ${productivePercent}% productive time. Primary focus: ${topApp.appName} (${topApp.percentage || 0}% of time).`;
+        } else {
+          summary = `Activity captured for ${totalMins} minutes with ${productivePercent}% productive time.`;
+        }
+      }
+      
+      return {
+        _id: pd._id,
+        monitoredUserId: { 
+          _id: pd.userId?._id || pd.userId, 
+          name: userName,
+          email: userEmail,
+          profilePicture: userProfilePic
+        },
+        monitoredEmployeeId: pd.employeeId,
+        captureType: 'screenshot',
+        captureMode: pd.isInstantCapture ? 'instant' : 'automatic',
+        summary: summary,
+        productivityScore: pd.aiAnalysis?.productivityScore || (pd.totalActiveTime > 0 
+          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100) 
+          : 0),
+        productivityTips: pd.aiAnalysis?.recommendations?.join('. ') || '',
+        productivityInsights: pd.aiAnalysis?.insights || [],
+        screenshotUrl: screenshotData,
+        status: pd.status,
+        createdAt: pd.createdAt,
+        // Rich productivity data
+        appUsage: pd.appUsage,
+        topApps: pd.topApps,
+        websiteVisits: pd.websiteVisits,
+        topWebsites: pd.topWebsites,
+        keystrokes: pd.keystrokes,
+        mouseActivity: pd.mouseActivity,
+        productiveTime: pd.productiveTime,
+        neutralTime: pd.neutralTime,
+        unproductiveTime: pd.unproductiveTime,
+        totalActiveTime: pd.totalActiveTime,
+        focusScore: pd.aiAnalysis?.focusScore,
+        efficiencyScore: pd.aiAnalysis?.efficiencyScore,
+        areasOfImprovement: pd.aiAnalysis?.areasOfImprovement || [],
+        topAchievements: pd.aiAnalysis?.topAchievements || [],
+        periodStart: pd.periodStart,
+        periodEnd: pd.periodEnd
+      };
+    });
 
     // Combine and sort by date
     const allData = [...legacyData, ...transformedProductivityData]

@@ -374,9 +374,21 @@ async function analyzeProductivityAsync(dataId) {
     await connectDB();
     
     const data = await ProductivityData.findById(dataId);
-    if (!data) return;
+    if (!data) {
+      console.error('[Productivity] AI analysis: Data not found for', dataId);
+      return;
+    }
 
-    const analysis = await analyzeProductivityData(data);
+    console.log(`[Productivity] Starting AI analysis for ${dataId}...`);
+    
+    let analysis;
+    try {
+      analysis = await analyzeProductivityData(data);
+    } catch (aiError) {
+      console.error('[Productivity] AI analysis API error:', aiError.message);
+      // Generate fallback analysis if AI fails
+      analysis = generateFallbackAnalysis(data);
+    }
 
     await ProductivityData.findByIdAndUpdate(dataId, {
       aiAnalysis: {
@@ -384,10 +396,10 @@ async function analyzeProductivityAsync(dataId) {
         productivityScore: analysis.productivityScore,
         focusScore: analysis.focusScore,
         efficiencyScore: analysis.efficiencyScore,
-        insights: analysis.insights,
-        recommendations: analysis.recommendations,
-        areasOfImprovement: analysis.areasOfImprovement,
-        topAchievements: analysis.topAchievements,
+        insights: analysis.insights || [],
+        recommendations: analysis.recommendations || [],
+        areasOfImprovement: analysis.areasOfImprovement || [],
+        topAchievements: analysis.topAchievements || [],
         analyzedAt: new Date()
       },
       status: 'analyzed'
@@ -405,5 +417,106 @@ async function analyzeProductivityAsync(dataId) {
     }
   } catch (error) {
     console.error('[Productivity] AI analysis error:', error);
+    // Try to at least save a basic analysis so the record isn't stuck
+    try {
+      const data = await ProductivityData.findById(dataId);
+      if (data && data.status !== 'analyzed') {
+        const fallback = generateFallbackAnalysis(data);
+        await ProductivityData.findByIdAndUpdate(dataId, {
+          aiAnalysis: fallback,
+          status: 'analyzed'
+        });
+        console.log(`[Productivity] Saved fallback analysis for ${dataId}`);
+      }
+    } catch (fallbackError) {
+      console.error('[Productivity] Fallback analysis also failed:', fallbackError);
+    }
   }
+}
+
+// Generate fallback analysis when AI is unavailable
+function generateFallbackAnalysis(data) {
+  const totalTime = data.totalActiveTime || 1;
+  const productivePercent = Math.round((data.productiveTime / totalTime) * 100);
+  const unproductivePercent = Math.round((data.unproductiveTime / totalTime) * 100);
+  
+  // Calculate scores
+  const productivityScore = productivePercent;
+  const focusScore = data.topApps?.length <= 3 ? 85 : data.topApps?.length <= 5 ? 70 : 55;
+  const efficiencyScore = data.keystrokes?.totalCount > 500 ? 80 : data.keystrokes?.totalCount > 100 ? 65 : 50;
+  
+  // Generate dynamic summary
+  const topApp = data.topApps?.[0];
+  const totalMins = Math.round(totalTime / 60000);
+  let summary = '';
+  
+  if (topApp && totalMins > 0) {
+    summary = `Active session of ${totalMins} minutes with ${productivePercent}% productive time. `;
+    summary += `Primary application: ${topApp.appName} (${topApp.percentage}% of session). `;
+    if (productivePercent >= 70) {
+      summary += 'Excellent focus on work-related activities.';
+    } else if (productivePercent >= 50) {
+      summary += 'Good balance of productive and neutral activities.';
+    } else {
+      summary += 'Consider reducing time on non-work applications.';
+    }
+  } else {
+    summary = `Activity captured for ${totalMins} minutes. ${productivePercent}% of time was spent on productive applications.`;
+  }
+  
+  // Generate insights based on actual data
+  const insights = [];
+  if (topApp) {
+    insights.push(`Most used application: ${topApp.appName} (${topApp.percentage}% of time)`);
+  }
+  if (data.topWebsites?.[0]) {
+    insights.push(`Top website: ${data.topWebsites[0].domain} (${data.topWebsites[0].visits} visits)`);
+  }
+  if (data.keystrokes?.totalCount > 0) {
+    insights.push(`Keyboard activity: ${data.keystrokes.totalCount} keystrokes logged`);
+  }
+  if (productivePercent >= 70) {
+    insights.push('High productivity session - excellent work focus');
+  }
+  
+  // Generate recommendations
+  const recommendations = [];
+  if (productivePercent < 50) {
+    recommendations.push('Try using focus mode or website blockers during work hours');
+  }
+  if (data.topApps?.length > 5) {
+    recommendations.push('Consider reducing app switching to maintain focus');
+  }
+  recommendations.push('Take regular breaks every 90 minutes to maintain peak performance');
+  
+  // Areas of improvement
+  const areasOfImprovement = [];
+  if (unproductivePercent > 30) {
+    areasOfImprovement.push('Reduce time on entertainment and social media apps');
+  }
+  if (data.topApps?.length > 7) {
+    areasOfImprovement.push('Focus on fewer applications at a time');
+  }
+  
+  // Achievements
+  const topAchievements = [];
+  if (productivePercent >= 80) {
+    topAchievements.push('Exceptional productivity - over 80% focused work time');
+  } else if (productivePercent >= 60) {
+    topAchievements.push('Good productivity maintained throughout the session');
+  }
+  if (data.keystrokes?.totalCount > 1000) {
+    topAchievements.push('High engagement with keyboard-intensive work');
+  }
+  
+  return {
+    summary,
+    productivityScore,
+    focusScore,
+    efficiencyScore,
+    insights: insights.length > 0 ? insights : ['Activity data captured successfully'],
+    recommendations,
+    areasOfImprovement: areasOfImprovement.length > 0 ? areasOfImprovement : ['Continue current work patterns'],
+    topAchievements: topAchievements.length > 0 ? topAchievements : ['Consistent activity tracking maintained']
+  };
 }
