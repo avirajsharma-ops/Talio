@@ -1216,21 +1216,199 @@ export default function ProductivityMonitoringPage() {
                                 </div>
                               )}
 
+                              {/* Areas of Improvement */}
+                              {record.areasOfImprovement && record.areasOfImprovement.length > 0 && (
+                                <div className="mt-4 p-4 bg-orange-50 border-2 border-orange-300 rounded-xl shadow-sm">
+                                  <p className="text-sm font-bold text-orange-800 mb-2">📈 Areas for Improvement</p>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {record.areasOfImprovement.map((area, idx) => (
+                                      <li key={idx} className="text-sm text-orange-700">{area}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Top Achievements */}
+                              {record.topAchievements && record.topAchievements.length > 0 && (
+                                <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-xl shadow-sm">
+                                  <p className="text-sm font-bold text-green-800 mb-2">🏆 Achievements</p>
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {record.topAchievements.map((achievement, idx) => (
+                                      <li key={idx} className="text-sm text-green-700">{achievement}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
                               <div className="mt-4 flex justify-between items-center">
                                 <span className={`px-4 py-2 rounded-full font-bold text-sm ${
-                                  record.status === 'captured' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                  record.status === 'captured' || record.status === 'analyzed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                                 }`}>
                                   {record.status}
                                 </span>
-                                {record.confidenceScore && (
+                                {record.focusScore !== undefined && (
                                   <span className="text-sm text-gray-700 font-semibold">
-                                    Confidence: {Math.round(record.confidenceScore * 100)}%
+                                    Focus: {record.focusScore}%
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
                         </div>
+
+                        {/* Rich Productivity Data - Full Width Section */}
+                        {(record.topApps?.length > 0 || record.topWebsites?.length > 0 || record.keystrokes?.totalCount > 0 || record.totalActiveTime > 0) && (
+                          <div className="border-t-2 border-gray-200 p-6 bg-white">
+                            <h4 className="text-lg font-bold text-gray-800 mb-4">📊 Detailed Activity Breakdown</h4>
+                            
+                            {/* Time Distribution */}
+                            {record.totalActiveTime > 0 && (
+                              <div className="mb-6">
+                                <h5 className="text-sm font-semibold text-gray-700 mb-3">Time Distribution</h5>
+                                <div className="flex gap-4 flex-wrap">
+                                  <div className="flex-1 min-w-[120px] bg-green-50 rounded-lg p-3 border border-green-200">
+                                    <div className="text-xs text-green-600 font-medium">Productive</div>
+                                    <div className="text-lg font-bold text-green-700">
+                                      {Math.round((record.productiveTime || 0) / 60000)} min
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-[120px] bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                    <div className="text-xs text-gray-600 font-medium">Neutral</div>
+                                    <div className="text-lg font-bold text-gray-700">
+                                      {Math.round((record.neutralTime || 0) / 60000)} min
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-[120px] bg-red-50 rounded-lg p-3 border border-red-200">
+                                    <div className="text-xs text-red-600 font-medium">Unproductive</div>
+                                    <div className="text-lg font-bold text-red-700">
+                                      {Math.round((record.unproductiveTime || 0) / 60000)} min
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-[120px] bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                    <div className="text-xs text-blue-600 font-medium">Total Active</div>
+                                    <div className="text-lg font-bold text-blue-700">
+                                      {Math.round((record.totalActiveTime || 0) / 60000)} min
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              {/* Top Apps */}
+                              {record.topApps && record.topApps.length > 0 && (
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                  <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    💻 Top Applications
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {record.topApps.slice(0, 5).map((app, idx) => (
+                                      <div key={idx} className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-800 truncate flex-1">{app.appName}</span>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div 
+                                              className="h-full bg-blue-500 rounded-full"
+                                              style={{ width: `${app.percentage || 0}%` }}
+                                            />
+                                          </div>
+                                          <span className="text-xs text-gray-600 w-12 text-right">
+                                            {Math.round((app.duration || 0) / 60000)}m
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Top Websites */}
+                              {record.topWebsites && record.topWebsites.length > 0 && (
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                  <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    🌐 Top Websites
+                                  </h5>
+                                  <div className="space-y-2">
+                                    {record.topWebsites.slice(0, 5).map((site, idx) => (
+                                      <div key={idx} className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-800 truncate flex-1">{site.domain}</span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-gray-500">{site.visits} visits</span>
+                                          <span className="text-xs text-gray-600 w-12 text-right">
+                                            {Math.round((site.duration || 0) / 60000)}m
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Activity Stats */}
+                              {(record.keystrokes?.totalCount > 0 || record.mouseActivity?.clicks > 0) && (
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                  <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    ⌨️ Activity Stats
+                                  </h5>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {record.keystrokes?.totalCount > 0 && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                        <div className="text-xs text-gray-500">Keystrokes</div>
+                                        <div className="text-lg font-bold text-gray-800">
+                                          {record.keystrokes.totalCount.toLocaleString()}
+                                        </div>
+                                        {record.keystrokes.averagePerMinute > 0 && (
+                                          <div className="text-xs text-gray-500">{record.keystrokes.averagePerMinute}/min avg</div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {record.mouseActivity?.clicks > 0 && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                        <div className="text-xs text-gray-500">Mouse Clicks</div>
+                                        <div className="text-lg font-bold text-gray-800">
+                                          {record.mouseActivity.clicks.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Efficiency Scores */}
+                              {(record.focusScore !== undefined || record.efficiencyScore !== undefined) && (
+                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                  <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    🎯 Performance Scores
+                                  </h5>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {record.focusScore !== undefined && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                        <div className="text-xs text-gray-500">Focus Score</div>
+                                        <div className={`text-lg font-bold ${
+                                          record.focusScore >= 70 ? 'text-green-600' :
+                                          record.focusScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                        }`}>
+                                          {record.focusScore}/100
+                                        </div>
+                                      </div>
+                                    )}
+                                    {record.efficiencyScore !== undefined && (
+                                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                        <div className="text-xs text-gray-500">Efficiency Score</div>
+                                        <div className={`text-lg font-bold ${
+                                          record.efficiencyScore >= 70 ? 'text-green-600' :
+                                          record.efficiencyScore >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                        }`}>
+                                          {record.efficiencyScore}/100
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

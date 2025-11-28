@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import MayaScreenSummary from '@/models/MayaScreenSummary';
+import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
@@ -147,23 +148,75 @@ export async function GET(request) {
     // Only show completed captures with actual screenshots
     query.status = { $ne: 'pending' };
 
-    // Select fields based on includeScreenshot
-    const selectFields = includeScreenshot 
-      ? '-domSnapshot' // Exclude large DOM snapshot
-      : '-domSnapshot -screenshotUrl'; // Exclude both for performance
+    // Build query for new ProductivityData model
+    const productivityQuery = {};
+    if (query.monitoredUserId) {
+      productivityQuery.userId = query.monitoredUserId;
+    }
+    if (query.createdAt) {
+      productivityQuery.createdAt = query.createdAt;
+    }
+    productivityQuery.status = { $in: ['synced', 'analyzed'] };
 
-    const screenData = await MayaScreenSummary.find(query)
-      .select(selectFields)
-      .populate('monitoredUserId', 'name email')
-      .populate('monitoredEmployeeId', 'name employeeCode department designation')
-      .populate('requestedByUserId', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(limit);
+    // Fetch from both old MayaScreenSummary and new ProductivityData
+    const [legacyData, productivityData] = await Promise.all([
+      // Legacy data
+      MayaScreenSummary.find(query)
+        .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
+        .populate('monitoredUserId', 'name email profilePicture')
+        .populate('monitoredEmployeeId', 'firstName lastName name employeeCode department designation profilePicture')
+        .populate('requestedByUserId', 'name email')
+        .sort({ createdAt: -1 })
+        .limit(Math.floor(limit / 2)),
+      // New ProductivityData
+      ProductivityData.find(productivityQuery)
+        .populate('employeeId', 'firstName lastName name employeeCode department designation profilePicture')
+        .sort({ createdAt: -1 })
+        .limit(Math.floor(limit / 2))
+    ]);
+
+    // Transform ProductivityData to match the expected format
+    const transformedProductivityData = productivityData.map(pd => ({
+      _id: pd._id,
+      monitoredUserId: { _id: pd.userId, name: pd.employeeId?.firstName ? `${pd.employeeId.firstName} ${pd.employeeId.lastName || ''}`.trim() : 'Unknown' },
+      monitoredEmployeeId: pd.employeeId,
+      captureType: 'screenshot',
+      captureMode: pd.isInstantCapture ? 'instant' : 'automatic',
+      summary: pd.aiAnalysis?.summary || 'Productivity data captured',
+      productivityScore: pd.aiAnalysis?.productivityScore,
+      productivityTips: pd.aiAnalysis?.recommendations?.join('. ') || '',
+      productivityInsights: pd.aiAnalysis?.insights || [],
+      screenshotUrl: pd.screenshot?.url,
+      status: pd.status,
+      createdAt: pd.createdAt,
+      // Rich productivity data
+      appUsage: pd.appUsage,
+      topApps: pd.topApps,
+      websiteVisits: pd.websiteVisits,
+      topWebsites: pd.topWebsites,
+      keystrokes: pd.keystrokes,
+      mouseActivity: pd.mouseActivity,
+      productiveTime: pd.productiveTime,
+      neutralTime: pd.neutralTime,
+      unproductiveTime: pd.unproductiveTime,
+      totalActiveTime: pd.totalActiveTime,
+      focusScore: pd.aiAnalysis?.focusScore,
+      efficiencyScore: pd.aiAnalysis?.efficiencyScore,
+      areasOfImprovement: pd.aiAnalysis?.areasOfImprovement,
+      topAchievements: pd.aiAnalysis?.topAchievements,
+      periodStart: pd.periodStart,
+      periodEnd: pd.periodEnd
+    }));
+
+    // Combine and sort by date
+    const allData = [...legacyData, ...transformedProductivityData]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, limit);
 
     return NextResponse.json({
       success: true,
-      data: screenData,
-      count: screenData.length
+      data: allData,
+      count: allData.length
     });
 
   } catch (error) {

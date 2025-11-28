@@ -3,6 +3,7 @@ const path = require('path');
 const Store = require('electron-store');
 const axios = require('axios');
 const { io } = require('socket.io-client');
+const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Remove default application menu on Windows
@@ -23,7 +24,7 @@ const SOCKET_PATH = process.env.SOCKET_IO_PATH || '/api/socketio';
 // MAYA uses server-side Gemini API - no local AI keys needed
 // All AI processing happens at APP_URL/api/maya/chat
 
-// Initialize store for app settings
+// Initialize store for app settings AND local productivity data
 const store = new Store({
   defaults: {
     autoLaunch: true,
@@ -32,7 +33,12 @@ const store = new Store({
     blobPosition: { x: null, y: null },
     authToken: null,
     userId: null,
-    screenshotInterval: 30 * 60 * 1000 // 30 minutes default
+    screenshotInterval: 5 * 60 * 1000, // 5 minutes default
+    // Local productivity data storage
+    pendingProductivityData: [],
+    lastSyncTimestamp: null,
+    instantFetchPending: false,
+    instantFetchRequestId: null
   }
 });
 
@@ -53,23 +59,31 @@ let authToken = null;
 let currentUser = null;
 let keystrokeBuffer = [];
 let appUsageBuffer = [];
-let currentActiveApp = { name: '', startTime: null };
+let websiteBuffer = [];
+let mouseActivityBuffer = { clicks: 0, scrollDistance: 0, movementDistance: 0 };
+let currentActiveApp = { name: '', title: '', startTime: null };
+let lastActiveWindow = null;
 let screenshotTimer = null;
 let activitySyncTimer = null;
+let periodicSyncTimer = null;
 let keyListener = null;
 let activeWin = null;
+let periodStartTime = null;
 
-// Socket.IO connection
+// Socket.IO connection (for real-time instant fetch requests)
 let socket = null;
 
 // Activity tracking intervals
-const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 30 * 60 * 1000; // 30 minutes default
-const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute
-const APP_CHECK_INTERVAL = 5000; // 5 seconds
+const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 5 * 60 * 1000; // 5 minutes default
+const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute for local buffer
+const PERIODIC_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes for API sync
+const APP_CHECK_INTERVAL = 3000; // 3 seconds
+const INSTANT_FETCH_POLL_INTERVAL = 5000; // 5 seconds
 
 // Permission cache to avoid repeated checks
 let screenPermissionChecked = false;
 let screenPermissionGranted = true; // Windows doesn't require special permissions
+let accessibilityGranted = true; // Windows doesn't need this
 
 // Auto-launch configuration - only create if module is available
 let autoLauncher = null;
@@ -503,7 +517,7 @@ function recordKeystroke() {
   if (existing) {
     existing.count++;
   } else {
-    keystrokeBuffer.push({ hourKey, count: 1, timestamp: now.toISOString() });
+    keystrokeBuffer.push({ hour: hourKey, count: 1 });
   }
 
   // Keep buffer size manageable
@@ -512,7 +526,7 @@ function recordKeystroke() {
   }
 }
 
-// Track active application
+// Track active application with enhanced data
 function startAppTracking() {
   setInterval(async () => {
     if (!authToken || !activeWin) return;
@@ -521,49 +535,244 @@ function startAppTracking() {
       const win = await (activeWin.default || activeWin)();
       if (win) {
         const now = Date.now();
+        const appName = win.owner?.name || 'Unknown';
+        const windowTitle = win.title || '';
 
-        if (currentActiveApp.name !== win.owner.name) {
-          // App changed - save previous
+        // Check if this is a browser with URL
+        const browserApps = ['Google Chrome', 'Mozilla Firefox', 'Microsoft Edge', 'Brave Browser', 'Opera'];
+        const isBrowser = browserApps.some(b => appName.includes(b));
+
+        if (currentActiveApp.name !== appName || currentActiveApp.title !== windowTitle) {
+          // App/window changed - save previous
           if (currentActiveApp.name && currentActiveApp.startTime) {
+            const duration = now - currentActiveApp.startTime;
+            
             appUsageBuffer.push({
-              app: currentActiveApp.name,
-              title: currentActiveApp.title,
-              duration: now - currentActiveApp.startTime,
-              timestamp: new Date(currentActiveApp.startTime).toISOString()
+              appName: currentActiveApp.name,
+              windowTitle: currentActiveApp.title,
+              duration: duration,
+              startTime: new Date(currentActiveApp.startTime).toISOString(),
+              endTime: new Date(now).toISOString()
             });
+
+            // If previous was a browser, try to extract URL from title
+            if (currentActiveApp.isBrowser && currentActiveApp.title) {
+              const domain = extractDomainFromTitle(currentActiveApp.title);
+              if (domain) {
+                websiteBuffer.push({
+                  url: `https://${domain}`,
+                  title: currentActiveApp.title,
+                  domain: domain,
+                  duration: duration,
+                  visitTime: new Date(currentActiveApp.startTime).toISOString()
+                });
+              }
+            }
           }
 
           // Start tracking new app
           currentActiveApp = {
-            name: win.owner.name,
-            title: win.title,
-            startTime: now
+            name: appName,
+            title: windowTitle,
+            startTime: now,
+            isBrowser: isBrowser
           };
         }
 
-        // Keep buffer manageable
-        if (appUsageBuffer.length > 100) {
-          appUsageBuffer = appUsageBuffer.slice(-100);
+        // Keep buffers manageable
+        if (appUsageBuffer.length > 200) {
+          appUsageBuffer = appUsageBuffer.slice(-200);
+        }
+        if (websiteBuffer.length > 100) {
+          websiteBuffer = websiteBuffer.slice(-100);
         }
       }
     } catch (err) {
-      // Ignore errors
+      // Ignore errors silently
     }
   }, APP_CHECK_INTERVAL);
 }
 
-// Capture screenshot and summarize (periodic monitoring)
-async function captureAndSummarize() {
+// Extract domain from browser title
+function extractDomainFromTitle(title) {
+  if (!title) return null;
+  
+  const domainPatterns = [
+    /github\.com/i, /gitlab\.com/i, /stackoverflow\.com/i,
+    /google\.com/i, /youtube\.com/i, /facebook\.com/i,
+    /twitter\.com/i, /linkedin\.com/i, /reddit\.com/i,
+    /slack\.com/i, /notion\.so/i, /figma\.com/i,
+    /vercel\.com/i, /netlify\.com/i, /aws\.amazon\.com/i,
+    /docs\.google\.com/i, /drive\.google\.com/i
+  ];
+  
+  for (const pattern of domainPatterns) {
+    const match = title.match(pattern);
+    if (match) return match[0].toLowerCase();
+  }
+  
+  const parts = title.split(/\s[-–|]\s/);
+  if (parts.length > 1) {
+    const lastPart = parts[parts.length - 1].toLowerCase().trim();
+    if (lastPart.includes('.') && !lastPart.includes(' ')) {
+      return lastPart;
+    }
+  }
+  
+  return null;
+}
+
+// Sync all productivity data to server via API
+async function syncProductivityData(screenshot = null, isInstantCapture = false, instantRequestId = null) {
   if (!authToken) {
-    console.log('[Talio] Skipping periodic capture - not authenticated');
+    console.log('[Talio] Skipping sync - not authenticated');
+    return { success: false, error: 'Not authenticated' };
+  }
+
+  const now = Date.now();
+  const totalKeystrokes = keystrokeBuffer.reduce((sum, k) => sum + k.count, 0);
+  const periodDuration = now - (periodStartTime || now);
+  const avgKeystrokesPerMin = periodDuration > 0 ? Math.round(totalKeystrokes / (periodDuration / 60000)) : 0;
+
+  const payload = {
+    screenshot: screenshot,
+    appUsage: appUsageBuffer.map(app => ({
+      appName: app.appName,
+      windowTitle: app.windowTitle,
+      duration: app.duration,
+      startTime: app.startTime,
+      endTime: app.endTime
+    })),
+    websiteVisits: websiteBuffer.map(site => ({
+      url: site.url,
+      title: site.title,
+      domain: site.domain,
+      duration: site.duration,
+      visitTime: site.visitTime
+    })),
+    keystrokes: {
+      totalCount: totalKeystrokes,
+      hourlyBreakdown: keystrokeBuffer,
+      averagePerMinute: avgKeystrokesPerMin
+    },
+    mouseActivity: mouseActivityBuffer,
+    periodStart: periodStartTime ? new Date(periodStartTime).toISOString() : new Date(now - 5 * 60 * 1000).toISOString(),
+    periodEnd: new Date(now).toISOString(),
+    deviceInfo: {
+      platform: process.platform,
+      hostname: os.hostname(),
+      osVersion: os.release()
+    },
+    isInstantCapture: isInstantCapture,
+    instantRequestId: instantRequestId
+  };
+
+  console.log(`[Talio] Syncing productivity data: ${appUsageBuffer.length} apps, ${websiteBuffer.length} sites, ${totalKeystrokes} keystrokes`);
+
+  try {
+    const response = await axios.post(`${APP_URL}/api/productivity/sync`, payload, {
+      headers: { 
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    });
+
+    if (response.data.success) {
+      console.log('[Talio] ✅ Productivity data synced successfully:', response.data.data);
+      
+      // Clear buffers after successful sync
+      appUsageBuffer = [];
+      websiteBuffer = [];
+      keystrokeBuffer = [];
+      mouseActivityBuffer = { clicks: 0, scrollDistance: 0, movementDistance: 0 };
+      periodStartTime = Date.now();
+      
+      return { success: true, data: response.data.data };
+    } else {
+      console.error('[Talio] Sync failed:', response.data.error);
+      storeProductivityDataLocally(payload);
+      return { success: false, error: response.data.error };
+    }
+  } catch (error) {
+    console.error('[Talio] Sync error:', error.message);
+    storeProductivityDataLocally(payload);
+    return { success: false, error: error.message };
+  }
+}
+
+// Store productivity data locally for later sync
+function storeProductivityDataLocally(data) {
+  try {
+    const pending = store.get('pendingProductivityData') || [];
+    pending.push({
+      ...data,
+      storedAt: new Date().toISOString()
+    });
+    
+    if (pending.length > 50) {
+      pending.splice(0, pending.length - 50);
+    }
+    
+    store.set('pendingProductivityData', pending);
+    console.log(`[Talio] Stored data locally for retry (${pending.length} pending)`);
+  } catch (err) {
+    console.error('[Talio] Failed to store data locally:', err.message);
+  }
+}
+
+// Retry syncing locally stored data
+async function retryPendingSync() {
+  if (!authToken) return;
+  
+  const pending = store.get('pendingProductivityData') || [];
+  if (pending.length === 0) return;
+  
+  console.log(`[Talio] Retrying ${pending.length} pending syncs...`);
+  
+  const stillPending = [];
+  
+  for (const data of pending) {
+    try {
+      const response = await axios.post(`${APP_URL}/api/productivity/sync`, {
+        ...data,
+        isBackfill: true
+      }, {
+        headers: { 
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      });
+      
+      if (!response.data.success) {
+        stillPending.push(data);
+      }
+    } catch (err) {
+      stillPending.push(data);
+    }
+  }
+  
+  store.set('pendingProductivityData', stillPending);
+  
+  if (stillPending.length < pending.length) {
+    console.log(`[Talio] Retry complete: ${pending.length - stillPending.length} synced, ${stillPending.length} still pending`);
+  }
+}
+
+// Capture screenshot and sync all productivity data
+async function captureAndSyncProductivity(isInstant = false, instantRequestId = null) {
+  if (!authToken) {
+    console.log('[Talio] Skipping capture - not authenticated');
     return;
   }
 
-  console.log('[Talio] Starting periodic screenshot capture...');
+  console.log('[Talio] Starting productivity capture...');
 
-  // Hide Maya windows so they don't appear in screenshot
   const mayaState = hideMayaWindowsForCapture();
   await new Promise(resolve => setTimeout(resolve, 100));
+
+  let screenshot = null;
 
   try {
     const sources = await desktopCapturer.getSources({
@@ -571,89 +780,86 @@ async function captureAndSummarize() {
       thumbnailSize: { width: 1920, height: 1080 }
     });
 
-    if (sources.length === 0) {
-      console.log('[Talio] No screen sources available for periodic capture');
-      restoreMayaWindowsAfterCapture(mayaState);
-      return;
+    if (sources.length > 0) {
+      screenshot = sources[0].thumbnail.toDataURL();
+      console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
     }
-
-    const screenshot = sources[0].thumbnail.toDataURL();
     
-    // Restore Maya windows after capture
     restoreMayaWindowsAfterCapture(mayaState);
-    console.log('[Talio] Periodic screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
-
-    // Send to API for AI summarization and storage
-    const response = await axios.post(`${APP_URL}/api/monitoring/screenshot`, {
-      screenshot: screenshot,
-      timestamp: new Date().toISOString(),
-      captureType: 'periodic'
-    }, {
-      headers: { 'Authorization': `Bearer ${authToken}` },
-      timeout: 60000 // 60 second timeout for upload
-    });
-
-    console.log('[Talio] Periodic screenshot uploaded successfully:', response.data?.captureId || 'OK');
     
-    // Notify via socket
-    if (socket && socket.connected) {
-      socket.emit('periodic-capture-complete', {
-        userId: currentUser?.id,
-        timestamp: new Date().toISOString()
-      });
+    const syncResult = await syncProductivityData(screenshot, isInstant, instantRequestId);
+    
+    if (syncResult.success) {
+      console.log('[Talio] ✅ Productivity sync complete');
+    } else {
+      console.log('[Talio] ⚠️ Productivity sync failed, stored locally for retry');
     }
   } catch (error) {
-    console.error('[Talio] Periodic screenshot error:', error.message);
+    console.error('[Talio] Capture error:', error.message);
     restoreMayaWindowsAfterCapture(mayaState);
-    if (error.response) {
-      console.error('[Talio] Server response:', error.response.status, error.response.data);
-    }
+    await syncProductivityData(null, isInstant, instantRequestId);
   }
 }
 
-// Start periodic screenshot monitoring
+// Legacy function for backwards compatibility
+async function captureAndSummarize() {
+  await captureAndSyncProductivity(false);
+}
+
+// Start periodic screenshot and data sync
 function startScreenMonitoring() {
   if (screenshotTimer) return;
 
-  // Get current interval (global or from store)
-  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (30 * 60 * 1000);
+  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (5 * 60 * 1000);
 
-  // Capture immediately
-  setTimeout(captureAndSummarize, 5000);
-
-  // Then at configured intervals
-  screenshotTimer = setInterval(captureAndSummarize, currentInterval);
+  setTimeout(() => captureAndSyncProductivity(false), 5000);
+  screenshotTimer = setInterval(() => captureAndSyncProductivity(false), currentInterval);
   console.log(`[Talio] Screen monitoring started (${currentInterval / 60000} min intervals)`);
 }
 
-// Sync activity data to server
-async function syncActivityData() {
-  if (!authToken) return;
-  if (keystrokeBuffer.length === 0 && appUsageBuffer.length === 0) return;
-
-  try {
-    await axios.post(`${APP_URL}/api/monitoring/activity`, {
-      keystrokes: keystrokeBuffer,
-      appUsage: appUsageBuffer,
-      timestamp: new Date().toISOString()
-    }, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-
-    // Clear buffers after successful sync
-    keystrokeBuffer = [];
-    appUsageBuffer = [];
-    console.log('[Talio] Activity data synced');
-  } catch (error) {
-    console.error('[Talio] Activity sync error:', error.message);
-  }
-}
-
-// Start activity sync interval
+// Start activity sync interval (now retries pending data)
 function startActivitySync() {
   if (activitySyncTimer) return;
-  activitySyncTimer = setInterval(syncActivityData, ACTIVITY_SYNC_INTERVAL);
+  
+  activitySyncTimer = setInterval(() => {
+    retryPendingSync();
+  }, PERIODIC_SYNC_INTERVAL);
+  
   console.log('[Talio] Activity sync started');
+}
+
+// Poll for instant fetch requests (fallback when Socket.IO is unreliable)
+let instantFetchPoller = null;
+
+function startInstantFetchPolling() {
+  if (instantFetchPoller) return;
+  
+  instantFetchPoller = setInterval(async () => {
+    if (!authToken || !currentUser?.id) return;
+    
+    try {
+      const response = await axios.get(`${APP_URL}/api/productivity/instant-fetch/pending`, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        timeout: 10000
+      });
+      
+      if (response.data.success && response.data.pendingRequest) {
+        console.log('[Talio] 📸 Found pending instant fetch request via polling');
+        await handleInstantCapture(response.data.pendingRequest);
+      }
+    } catch (error) {
+      // Silently ignore polling errors
+    }
+  }, INSTANT_FETCH_POLL_INTERVAL);
+  
+  console.log('[Talio] Instant fetch polling started');
+}
+
+function stopInstantFetchPolling() {
+  if (instantFetchPoller) {
+    clearInterval(instantFetchPoller);
+    instantFetchPoller = null;
+  }
 }
 
 // Send native push notification
@@ -693,13 +899,19 @@ function setAuth(token, user) {
   if (token && user?.id) {
     console.log('[Talio] Starting monitoring services...');
     
-    // Initialize socket first for real-time capture requests
+    // Initialize socket for real-time capture requests (best effort)
     initializeSocketConnection(user.id);
     
-    // Start activity tracking
+    // Start instant fetch polling as backup to Socket.IO
+    startInstantFetchPolling();
+    
+    // Start activity tracking and sync
     startScreenMonitoring();
     startActivitySync();
     fetchScreenshotInterval();
+    
+    // Initialize period tracking
+    periodStartTime = Date.now();
     
     // Show notification
     sendNotification('Talio Active', 'Activity monitoring is now running');
@@ -855,19 +1067,13 @@ function restoreMayaWindowsAfterCapture(state) {
   }
 }
 
-// Handle instant screenshot capture request
+// Handle instant screenshot capture request (via Socket.IO or API polling)
 async function handleInstantCapture(captureRequest) {
   console.log('📸 [Talio] Processing instant capture request:', captureRequest);
   
   if (!authToken) {
     console.error('[Talio] No auth token - cannot upload screenshot');
-    if (socket) {
-      socket.emit('instant-capture-complete', {
-        requestId: captureRequest.requestId,
-        success: false,
-        error: 'Not authenticated'
-      });
-    }
+    notifyInstantCaptureResult(captureRequest.requestId, false, 'Not authenticated');
     return;
   }
 
@@ -878,6 +1084,8 @@ async function handleInstantCapture(captureRequest) {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   try {
+    let screenshot = null;
+    
     // Capture screenshot using desktopCapturer
     console.log('[Talio] Capturing screen...');
     const sources = await desktopCapturer.getSources({
@@ -885,65 +1093,46 @@ async function handleInstantCapture(captureRequest) {
       thumbnailSize: { width: 1920, height: 1080 }
     });
 
-    if (sources.length === 0) {
-      console.error('[Talio] No screen sources available');
-      restoreMayaWindowsAfterCapture(mayaState);
-      if (socket) {
-        socket.emit('instant-capture-complete', {
-          requestId: captureRequest.requestId,
-          success: false,
-          error: 'No screen sources available'
-        });
-      }
-      return;
+    if (sources.length > 0) {
+      screenshot = sources[0].thumbnail.toDataURL();
+      console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+    } else {
+      console.log('[Talio] No screen sources available');
     }
 
-    const screenshot = sources[0].thumbnail.toDataURL();
-    console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
-    
     // Restore Maya windows after capture
     restoreMayaWindowsAfterCapture(mayaState);
     
-    // Upload to server with request ID
-    console.log('[Talio] Uploading to server...');
-    const response = await axios.post(`${APP_URL}/api/productivity/instant-capture/upload`, {
-      requestId: captureRequest.requestId,
-      screenshot: screenshot,
-      timestamp: new Date().toISOString()
-    }, {
-      headers: { 'Authorization': `Bearer ${authToken}` },
-      timeout: 30000 // 30 second timeout
-    });
+    // Sync ALL productivity data (with or without screenshot) via API
+    console.log('[Talio] Syncing productivity data for instant capture...');
+    const syncResult = await syncProductivityData(screenshot, true, captureRequest.requestId);
 
-    console.log('✅ [Talio] Instant capture uploaded successfully:', response.data);
-    
-    // Notify via socket that upload is complete
-    if (socket) {
-      socket.emit('instant-capture-complete', {
-        requestId: captureRequest.requestId,
-        timestamp: new Date().toISOString(),
-        success: true
-      });
+    if (syncResult.success) {
+      console.log('✅ [Talio] Instant capture synced successfully');
+      notifyInstantCaptureResult(captureRequest.requestId, true);
+      sendNotification('Data Captured', 'Your productivity data has been synced');
+    } else {
+      console.log('⚠️ [Talio] Instant capture sync failed, data stored locally');
+      notifyInstantCaptureResult(captureRequest.requestId, false, syncResult.error);
+      sendNotification('Sync Pending', 'Data will be synced when connection is restored');
     }
-
-    sendNotification('Screenshot Captured', 'Your screen has been captured for productivity monitoring');
   } catch (error) {
     console.error('❌ [Talio] Instant capture error:', error.message);
-    console.error('[Talio] Error details:', error.response?.data || error);
-    
-    // Make sure to restore Maya windows on error
     restoreMayaWindowsAfterCapture(mayaState);
-    
-    if (socket) {
-      socket.emit('instant-capture-complete', {
-        requestId: captureRequest.requestId,
-        timestamp: new Date().toISOString(),
-        success: false,
-        error: error.message
-      });
-    }
-    
-    sendNotification('Screenshot Failed', 'Could not capture screenshot: ' + error.message);
+    notifyInstantCaptureResult(captureRequest.requestId, false, error.message);
+    sendNotification('Capture Error', error.message);
+  }
+}
+
+// Notify server about instant capture result
+function notifyInstantCaptureResult(requestId, success, error = null) {
+  if (socket && socket.connected) {
+    socket.emit('instant-capture-complete', {
+      requestId: requestId,
+      timestamp: new Date().toISOString(),
+      success: success,
+      error: error
+    });
   }
 }
 
