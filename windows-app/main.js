@@ -5,6 +5,9 @@ const axios = require('axios');
 const { io } = require('socket.io-client');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Remove default application menu on Windows
+Menu.setApplicationMenu(null);
+
 // Auto-launch - wrap in try-catch as it can fail on some systems
 let AutoLaunch = null;
 try {
@@ -119,24 +122,70 @@ function createMainWindow() {
     minWidth: 1024,
     minHeight: 768,
     title: 'Talio HRMS',
-    icon: path.join(__dirname, 'assets/icon.png'),
+    icon: path.join(__dirname, 'build/icon.ico'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true
     },
-    backgroundColor: '#f8fafc',
+    // Custom frameless window with white title bar
+    frame: false,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#ffffff',
+      symbolColor: '#374151',
+      height: 40
+    },
+    backgroundColor: '#ffffff',
     show: false
   });
 
   // Load the Talio web app - ALWAYS use APP_URL
   mainWindow.loadURL(APP_URL);
 
-  // No special CSS needed for Windows (standard title bar)
+  // Inject CSS for Windows custom title bar spacing
   mainWindow.webContents.on('did-finish-load', () => {
-    // Windows has standard title bar, no offset needed
-    console.log('[Talio] Main window loaded');
+    mainWindow.webContents.insertCSS(`
+      /* Add top padding for Windows title bar overlay */
+      body {
+        padding-top: 40px !important;
+      }
+      /* Ensure sidebar also has top padding */
+      .sidebar, [class*="sidebar"], nav, aside {
+        padding-top: 40px !important;
+      }
+      /* Adjust ALL fixed positioned headers */
+      header.fixed, header[class*="fixed"], .fixed-header, [class*="sticky"] {
+        top: 40px !important;
+      }
+      /* Target Tailwind fixed class specifically */
+      .fixed.top-0 {
+        top: 40px !important;
+      }
+      /* Title bar drag region - white Talio branding bar */
+      body::before {
+        content: 'Talio';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background-color: #ffffff;
+        -webkit-app-region: drag;
+        z-index: 9998;
+        pointer-events: none;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        padding-left: 16px;
+        font-weight: 600;
+        font-size: 14px;
+        color: #374151;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+    `);
+    console.log('[Talio] Main window loaded with custom title bar');
   });
 
   // Show window when ready
@@ -219,13 +268,13 @@ function createMayaBlobWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../maya-preload.js')
+      preload: path.join(__dirname, 'maya-preload.js')
     },
     show: false
   });
 
   // Load Maya blob HTML
-  mayaBlobWindow.loadFile(path.join(__dirname, '../maya-blob.html'));
+  mayaBlobWindow.loadFile(path.join(__dirname, 'maya-blob.html'));
 
   mayaBlobWindow.once('ready-to-show', () => {
     mayaBlobWindow.show();
@@ -275,7 +324,7 @@ function createDotMatrixOverlayWindow() {
 
   dotMatrixOverlay.setIgnoreMouseEvents(true);
   dotMatrixOverlay.setVisibleOnAllWorkspaces(true);
-  dotMatrixOverlay.loadFile(path.join(__dirname, '..', 'dot-matrix-overlay.html'));
+  dotMatrixOverlay.loadFile(path.join(__dirname, 'dot-matrix-overlay.html'));
 
   dotMatrixOverlay.on('closed', () => {
     dotMatrixOverlay = null;
@@ -325,8 +374,6 @@ function createMayaWidgetWindow() {
     y: savedPosition.y ?? height - widgetHeight - 80,
     frame: false,
     roundedCorners: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
     transparent: true,
     alwaysOnTop: true,
     resizable: true,
@@ -334,19 +381,16 @@ function createMayaWidgetWindow() {
     minHeight: 400,
     skipTaskbar: true,
     hasShadow: true,
-    vibrancy: 'popover',
-    visualEffectState: 'active',
-    roundedCorners: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../maya-preload.js')
+      preload: path.join(__dirname, 'maya-preload.js')
     },
     show: false
   });
 
   // Load native Maya widget HTML
-  mayaWidgetWindow.loadFile(path.join(__dirname, '..', 'maya-widget.html'));
+  mayaWidgetWindow.loadFile(path.join(__dirname, 'maya-widget.html'));
 
   mayaWidgetWindow.once('ready-to-show', () => {
     mayaWidgetWindow.show();
@@ -592,7 +636,7 @@ function sendNotification(title, body, options = {}) {
   const notification = new Notification({
     title: title,
     body: body,
-    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    icon: path.join(__dirname, 'build', 'icon.png'),
     urgency: 'critical',
     timeoutType: 'default',
     silent: false
@@ -835,7 +879,7 @@ async function handleInstantCapture(captureRequest) {
 
 // Create system tray
 function createTray() {
-  const iconPath = path.join(__dirname, '../assets/tray-icon.png');
+  const iconPath = path.join(__dirname, 'build/icon.ico');
   const trayIcon = nativeImage.createFromPath(iconPath);
   tray = new Tray(trayIcon.resize({ width: 18, height: 18 }));
 

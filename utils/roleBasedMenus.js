@@ -3,11 +3,12 @@ import {
   FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
   FaBox, FaReceipt, FaPlane, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
-  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
-  FaRobot
+  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends
 } from 'react-icons/fa'
 
 // Define menu items for each role
+// NOTE: MAYA AI Assistant is only available in the desktop apps (Mac/Windows) via floating widget
+// It has been removed from the web version entirely
 export const roleBasedMenus = {
   // ADMIN - Full access to everything
   admin: [
@@ -124,7 +125,6 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // HR - HR management focused
@@ -217,7 +217,6 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // MANAGER - Team management focused
@@ -288,7 +287,6 @@ export const roleBasedMenus = {
         { name: 'Team Monitoring', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // EMPLOYEE - Personal focused
@@ -356,7 +354,6 @@ export const roleBasedMenus = {
         { name: 'My Productivity', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
   // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
@@ -426,10 +423,9 @@ export const roleBasedMenus = {
         { name: 'Team Monitoring', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 
-  // GOD ADMIN - Supreme access with MAYA customization
+  // GOD ADMIN - Supreme access
   god_admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     {
@@ -544,7 +540,6 @@ export const roleBasedMenus = {
         { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
       ]
     },
-    { name: 'MAYA AI Assistant', icon: FaRobot, path: '/dashboard/maya' },
   ],
 }
 

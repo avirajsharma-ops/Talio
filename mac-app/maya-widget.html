@@ -499,6 +499,9 @@
     let currentAudio = null;
     let isMicMode = true; // Default to mic mode
     let isSpeaking = false;
+    let recognitionLock = false; // Prevent rapid start/stop cycles
+    let lastRecognitionAttempt = 0; // Debounce timer
+    const RECOGNITION_DEBOUNCE_MS = 500; // Minimum time between start attempts
 
     // API Keys - MAYA uses server-side Gemini API (no local AI keys needed)
     // ElevenLabs for high-quality voice synthesis
@@ -531,6 +534,31 @@
       'my schedule': 'schedule',
       'show schedule': 'schedule'
     };
+
+    // Screen analysis phrases
+    const SCREEN_ANALYSIS_PHRASES = [
+      'study my screen',
+      'study the screen',
+      'analyze my screen',
+      'analyze the screen',
+      'look at my screen',
+      'look at the screen',
+      'see my screen',
+      'see the screen',
+      'what\'s on my screen',
+      'what is on my screen',
+      'check my screen',
+      'read my screen',
+      'read the screen',
+      'screen capture',
+      'capture screen',
+      'take a screenshot',
+      'screenshot',
+      'what am i looking at',
+      'what do you see',
+      'help me with this',
+      'can you see this'
+    ];
 
     // DOM Elements
     const messagesContainer = document.getElementById('messagesContainer');
@@ -728,9 +756,9 @@
             currentAudio = null;
             isSpeaking = false;
             setBlobSpeaking(false);
-            // Resume listening when expanded
+            // Resume listening when expanded (use debounced restart)
             if (!isWidgetMinimized && isMicMode) {
-              setTimeout(() => startListening(), 500);
+              scheduleRecognitionRestart();
             }
             if (callback) callback();
           };
@@ -763,9 +791,9 @@
       utterance.onend = () => {
         isSpeaking = false;
         setBlobSpeaking(false);
-        // Resume listening when expanded
+        // Resume listening when expanded (use debounced restart)
         if (!isWidgetMinimized && isMicMode) {
-          setTimeout(() => startListening(), 500);
+          scheduleRecognitionRestart();
         }
         if (callback) callback();
       };
@@ -942,6 +970,89 @@
       return null;
     }
 
+    // Check if message is requesting screen analysis
+    function isScreenAnalysisRequest(message) {
+      const lowerMsg = message.toLowerCase();
+      return SCREEN_ANALYSIS_PHRASES.some(phrase => lowerMsg.includes(phrase));
+    }
+
+    // Capture screen and send to Maya for analysis
+    async function captureAndAnalyzeScreen(userMessage) {
+      try {
+        // Check if mayaBridge is available (Electron only)
+        if (!window.mayaBridge?.captureScreen) {
+          addMessage("Screen capture is only available in the desktop app.", 'assistant');
+          speak("Screen capture is only available in the desktop app.");
+          return;
+        }
+
+        addMessage("📸 Capturing your screen...", 'system');
+        
+        // Show dot matrix scanning animation
+        if (window.mayaBridge?.showDotMatrix) {
+          window.mayaBridge.showDotMatrix();
+        }
+
+        // Capture the screen
+        const screenshot = await window.mayaBridge.captureScreen();
+        
+        if (!screenshot) {
+          hideThinking();
+          if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
+          addMessage("Sorry, I couldn't capture your screen. Please check screen recording permissions in System Preferences → Privacy & Security → Screen Recording.", 'assistant');
+          speak("Sorry, I couldn't capture your screen. Please check screen recording permissions in System Preferences.");
+          return;
+        }
+
+        addMessage("🔍 Analyzing your screen...", 'system');
+
+        // Send to Maya API with the screenshot
+        const res = await fetch(`${API_URL}/api/maya/chat`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${authToken}` 
+          },
+          body: JSON.stringify({ 
+            message: userMessage,
+            screenshot: screenshot,
+            isScreenAnalysis: true
+          })
+        });
+
+        const data = await res.json();
+        hideThinking();
+        if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
+
+        if (data.success && data.response) {
+          addMessage(data.response, 'assistant');
+          speak(data.response);
+
+          // Log to history
+          await fetch(`${API_URL}/api/maya/history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body: JSON.stringify({ 
+              type: 'screen-analysis', 
+              message: userMessage, 
+              response: data.response,
+              hasScreenshot: true
+            })
+          }).catch(() => {});
+        } else {
+          const errorMsg = data.error || 'Sorry, I encountered an error analyzing your screen.';
+          addMessage(errorMsg, 'assistant');
+          speak(errorMsg);
+        }
+      } catch (e) {
+        hideThinking();
+        if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
+        console.error('[Maya] Screen analysis error:', e);
+        addMessage('Sorry, I encountered an error while trying to analyze your screen.', 'assistant');
+        speak('Sorry, I encountered an error while trying to analyze your screen.');
+      }
+    }
+
     // Perform action via API
     async function performAction(action, message) {
       try {
@@ -961,9 +1072,17 @@
     // Send message to Maya API
     async function sendToMaya(message) {
       showThinking();
-      if (window.mayaBridge?.showDotMatrix) window.mayaBridge.showDotMatrix();
 
       try {
+        // Check for screen analysis request first
+        if (isScreenAnalysisRequest(message)) {
+          hideThinking();
+          await captureAndAnalyzeScreen(message);
+          return;
+        }
+
+        if (window.mayaBridge?.showDotMatrix) window.mayaBridge.showDotMatrix();
+
         // Check for action commands first
         const action = checkForAction(message);
 
@@ -1102,25 +1221,27 @@
           addMessage('Microphone access denied. Please enable microphone permissions.', 'system');
           listeningStatus.textContent = 'Mic permission denied';
           isListening = false;
-        } else if (e.error === 'aborted') {
-          // Silently restart
-          setTimeout(() => {
-            if (!onboardingInProgress) startListening();
-          }, 100);
+          recognitionLock = false;
+        } else if (e.error === 'aborted' || e.error === 'no-speech') {
+          // These are normal - don't spam restart, just let onend handle it
+          console.log('[Maya] Recognition aborted/no-speech, will restart via onend');
         } else {
-          // Auto-restart on other errors
-          setTimeout(() => {
-            if (!onboardingInProgress) startListening();
-          }, 500);
+          // For other errors, schedule a restart with debounce
+          isListening = false;
+          recognitionLock = false;
         }
       };
 
       recognition.onend = () => {
-        // Auto-restart to maintain continuous listening (only when minimized)
-        if (isListening && !onboardingInProgress && isWidgetMinimized) {
-          setTimeout(() => startListening(), 300);
+        console.log('[Maya] Recognition ended, isListening:', isListening, 'minimized:', isWidgetMinimized);
+        isListening = false;
+        recognitionLock = false;
+        
+        // Only auto-restart if we're in mic mode and not speaking
+        if (!onboardingInProgress && !isSpeaking && isMicMode) {
+          // Use debounced restart
+          scheduleRecognitionRestart();
         } else {
-          isListening = false;
           micBtnLarge?.classList.remove('listening');
           micBtn?.classList.remove('listening');
           listeningStatus.textContent = isWidgetMinimized ? 'Say "Hey Maya"...' : 'Tap mic to speak';
@@ -1128,12 +1249,39 @@
       };
     }
 
+    // Debounced recognition restart to prevent flickering
+    function scheduleRecognitionRestart() {
+      const now = Date.now();
+      const timeSinceLastAttempt = now - lastRecognitionAttempt;
+      const delay = Math.max(RECOGNITION_DEBOUNCE_MS - timeSinceLastAttempt, 300);
+      
+      setTimeout(() => {
+        if (!isSpeaking && !onboardingInProgress && isMicMode && !recognitionLock) {
+          startListening();
+        }
+      }, delay);
+    }
+
     function startListening() {
-      if (recognition && !isListening && !isSpeaking) {
+      // Prevent rapid start attempts
+      const now = Date.now();
+      if (now - lastRecognitionAttempt < RECOGNITION_DEBOUNCE_MS) {
+        console.log('[Maya] Debouncing recognition start');
+        return;
+      }
+      
+      if (recognition && !isListening && !isSpeaking && !recognitionLock) {
+        recognitionLock = true;
+        lastRecognitionAttempt = now;
         try {
           recognition.start();
         } catch (e) {
           console.log('[Maya] Could not start listening:', e);
+          recognitionLock = false;
+          // If already running, that's fine
+          if (e.message && e.message.includes('already started')) {
+            isListening = true;
+          }
         }
       }
     }
@@ -1141,6 +1289,7 @@
     function stopListening() {
       // Only truly stop if user manually requests it
       isListening = false;
+      recognitionLock = false;
       micBtnLarge?.classList.remove('listening');
       micBtn?.classList.remove('listening');
       listeningStatus.textContent = 'Say "Hey Maya"...';
@@ -1158,7 +1307,8 @@
         listeningStatus.style.display = 'block';
         // Auto-start listening when in mic mode and widget is expanded
         if (!isWidgetMinimized && !isSpeaking) {
-          setTimeout(() => startListening(), 300);
+          // Use debounced start
+          scheduleRecognitionRestart();
         }
       } else {
         micModeWrapper.classList.add('hidden');
@@ -1203,7 +1353,7 @@
     // Small mic button in text mode - switch to mic mode
     micBtn?.addEventListener('click', () => {
       setMicMode(true);
-      setTimeout(() => startListening(), 300);
+      // setMicMode already schedules restart
     });
 
     // Mic button in text mode - toggle listening (for switching back)
@@ -1218,8 +1368,8 @@
     closeBtn.addEventListener('click', () => {
       isWidgetMinimized = true;
       stopListening();
-      // Restart listening in wake word mode
-      setTimeout(() => startListening(), 500);
+      // Restart listening in wake word mode after a delay
+      scheduleRecognitionRestart();
       if (window.mayaBridge?.minimizeWidget) window.mayaBridge.minimizeWidget();
     });
 

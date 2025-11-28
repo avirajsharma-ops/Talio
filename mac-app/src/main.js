@@ -36,6 +36,11 @@ const store = new Store({
 // Force update any cached wrong URL
 store.delete('serverUrl');
 
+// Track if we've already prompted for permissions (to avoid dialog loop)
+let hasPromptedForScreenCapture = false;
+let hasPromptedForCamera = false;
+let hasPromptedForMicrophone = false;
+
 // Windows
 let mainWindow = null;
 let mayaWidgetWindow = null;
@@ -78,15 +83,18 @@ if (AutoLaunch) {
 }
 
 // Check and request screen recording permission
-async function checkScreenCapturePermission() {
+async function checkScreenCapturePermission(forcePrompt = false) {
   if (process.platform === 'darwin') {
     const status = systemPreferences.getMediaAccessStatus('screen');
     console.log('[Talio] Screen capture permission status:', status);
 
     if (status !== 'granted') {
-      // Open System Preferences to grant permission
-      const { shell } = require('electron');
-      shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+      // Only open System Preferences once per session unless forced
+      if (!hasPromptedForScreenCapture || forcePrompt) {
+        hasPromptedForScreenCapture = true;
+        const { shell } = require('electron');
+        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+      }
       return false;
     }
     return true;
@@ -100,10 +108,12 @@ async function checkMediaPermissions() {
     const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
     const micStatus = systemPreferences.getMediaAccessStatus('microphone');
 
-    if (cameraStatus !== 'granted') {
+    if (cameraStatus !== 'granted' && !hasPromptedForCamera) {
+      hasPromptedForCamera = true;
       await systemPreferences.askForMediaAccess('camera');
     }
-    if (micStatus !== 'granted') {
+    if (micStatus !== 'granted' && !hasPromptedForMicrophone) {
+      hasPromptedForMicrophone = true;
       await systemPreferences.askForMediaAccess('microphone');
     }
   }
@@ -143,14 +153,18 @@ function createMainWindow() {
         padding-top: 38px !important;
       }
       /* Ensure sidebar also has top padding */
-      .sidebar, [class*="sidebar"], nav {
+      .sidebar, [class*="sidebar"], nav, aside {
         padding-top: 38px !important;
       }
-      /* Adjust fixed headers */
-      header[class*="fixed"], .fixed-header, [class*="sticky"] {
+      /* Adjust ALL fixed positioned headers */
+      header.fixed, header[class*="fixed"], .fixed-header, [class*="sticky"] {
         top: 38px !important;
       }
-      /* Title bar drag region */
+      /* Target Tailwind fixed class specifically */
+      .fixed.top-0 {
+        top: 38px !important;
+      }
+      /* Title bar drag region - displays Talio branding area */
       body::before {
         content: '';
         position: fixed;
@@ -158,9 +172,11 @@ function createMainWindow() {
         left: 0;
         right: 0;
         height: 38px;
+        background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
         -webkit-app-region: drag;
-        z-index: 9999;
+        z-index: 9998;
         pointer-events: none;
+        border-bottom: 1px solid #e5e7eb;
       }
     `);
   });
@@ -915,7 +931,7 @@ function createTray() {
     {
       label: 'Screen Capture Permission',
       click: async () => {
-        await checkScreenCapturePermission();
+        await checkScreenCapturePermission(true); // Force prompt when user clicks this
       }
     },
     { type: 'separator' },
@@ -990,7 +1006,7 @@ function setupIPC() {
 
   // Request screen capture permission
   ipcMain.handle('request-screen-permission', async () => {
-    return await checkScreenCapturePermission();
+    return await checkScreenCapturePermission(true); // Force prompt when user explicitly requests
   });
 
   // Request all permissions at once (called after user logs in)
@@ -1003,16 +1019,26 @@ function setupIPC() {
     };
 
     if (process.platform === 'darwin') {
-      // Request camera permission (native dialog)
+      // Request camera permission (native dialog) - only once per session
       try {
-        results.camera = await systemPreferences.askForMediaAccess('camera');
+        if (!hasPromptedForCamera) {
+          hasPromptedForCamera = true;
+          results.camera = await systemPreferences.askForMediaAccess('camera');
+        } else {
+          results.camera = systemPreferences.getMediaAccessStatus('camera') === 'granted';
+        }
       } catch (e) {
         console.error('[Talio] Camera permission error:', e);
       }
 
-      // Request microphone permission (native dialog)
+      // Request microphone permission (native dialog) - only once per session
       try {
-        results.microphone = await systemPreferences.askForMediaAccess('microphone');
+        if (!hasPromptedForMicrophone) {
+          hasPromptedForMicrophone = true;
+          results.microphone = await systemPreferences.askForMediaAccess('microphone');
+        } else {
+          results.microphone = systemPreferences.getMediaAccessStatus('microphone') === 'granted';
+        }
       } catch (e) {
         console.error('[Talio] Microphone permission error:', e);
       }
@@ -1021,8 +1047,9 @@ function setupIPC() {
       const screenStatus = systemPreferences.getMediaAccessStatus('screen');
       results.screen = screenStatus === 'granted';
 
-      // If screen not granted, open System Preferences
-      if (!results.screen) {
+      // If screen not granted and haven't prompted yet, open System Preferences
+      if (!results.screen && !hasPromptedForScreenCapture) {
+        hasPromptedForScreenCapture = true;
         const { shell } = require('electron');
         shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
       }
