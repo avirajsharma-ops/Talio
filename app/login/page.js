@@ -137,14 +137,31 @@ export default function LoginPage() {
       // Check if running in TWA (Trusted Web Activity) / Android app
       const isInApp = window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone ||
-        document.referrer.includes('android-app://')
+        document.referrer.includes('android-app://') ||
+        window.navigator.userAgent.includes('wv') || // Android WebView
+        window.navigator.userAgent.includes('Android')
 
-      // Determine the correct origin based on environment
-      // If in Android app, use the production URL, otherwise use current origin
-      const appOrigin = isInApp ? 'https://app.talio.in' : window.location.origin
+      // Check if current URL is production
+      const isProduction = window.location.hostname === 'app.talio.in' || 
+        window.location.hostname.includes('talio.in')
+
+      // Always use production URL for redirect to avoid localhost issues
+      // The redirect URI must match what's configured in Google Cloud Console
+      const productionUrl = 'https://app.talio.in'
+      
+      // Use production URL if:
+      // 1. Running in Android app (TWA/WebView)
+      // 2. Already on production domain
+      // 3. URL contains localhost but we want to redirect to production
+      const useProductionUrl = isInApp || isProduction || window.location.hostname === 'localhost'
+      
+      const appOrigin = useProductionUrl ? productionUrl : window.location.origin
       const redirectUri = `${appOrigin}/api/auth/google/callback`
 
       console.log('[Google OAuth] Is in app:', isInApp)
+      console.log('[Google OAuth] Is production:', isProduction)
+      console.log('[Google OAuth] Use production URL:', useProductionUrl)
+      console.log('[Google OAuth] App origin:', appOrigin)
       console.log('[Google OAuth] Redirect URI:', redirectUri)
 
       // Redirect to Google OAuth

@@ -19,13 +19,24 @@ export async function GET(request) {
     console.log('Request origin:', request.nextUrl.origin)
     console.log('Request URL:', request.url)
 
-    // Use production URL for Android app, otherwise use current origin
-    // Check if request is from app.talio.in (production/Android app)
-    const isProduction = request.nextUrl.origin.includes('app.talio.in')
-    const baseUrl = isProduction ? 'https://app.talio.in' : (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin)
+    // Always use production URL for Google OAuth to avoid localhost issues
+    // The redirect URI must match what's configured in Google Cloud Console
+    const productionUrl = 'https://app.talio.in'
+    
+    // Check if request is from production domain or localhost
+    const isProduction = request.nextUrl.origin.includes('app.talio.in') || 
+      request.nextUrl.origin.includes('talio.in')
+    const isLocalhost = request.nextUrl.origin.includes('localhost')
+    
+    // Use production URL for:
+    // 1. Production requests
+    // 2. Localhost requests (to ensure redirect goes to production)
+    // 3. Any request without proper NEXT_PUBLIC_APP_URL set
+    const baseUrl = (isProduction || isLocalhost) ? productionUrl : (process.env.NEXT_PUBLIC_APP_URL || productionUrl)
 
     console.log('Base URL:', baseUrl)
     console.log('Is Production:', isProduction)
+    console.log('Is Localhost:', isLocalhost)
 
     if (error) {
       console.error('Google OAuth error:', error)
@@ -198,7 +209,8 @@ export async function GET(request) {
   } catch (error) {
     console.error('❌ Google OAuth callback error:', error)
     console.error('Error stack:', error.stack)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    // Always redirect to production URL to avoid localhost issues
+    const baseUrl = 'https://app.talio.in'
     return NextResponse.redirect(new URL('/login?error=authentication_failed', baseUrl))
   }
 }

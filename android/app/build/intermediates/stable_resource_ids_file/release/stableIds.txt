@@ -2655,6 +2655,7 @@ sbs.zenova.twa:id/month_title = 0x7f08011c
 sbs.zenova.twa:attr/clockHandColor = 0x7f0300de
 sbs.zenova.twa:color/m3_sys_color_dark_on_tertiary_container = 0x7f050178
 sbs.zenova.twa:color/material_personalized_color_on_background = 0x7f05028e
+sbs.zenova.twa:mipmap/ic_notification = 0x7f0d0002
 sbs.zenova.twa:color/m3_tabs_ripple_color_secondary = 0x7f05020b
 sbs.zenova.twa:dimen/material_divider_thickness = 0x7f06022e
 sbs.zenova.twa:macro/m3_comp_search_view_header_trailing_icon_color = 0x7f0c00fa

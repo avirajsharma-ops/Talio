@@ -4,7 +4,7 @@
             "outputFile": "sbs.zenova.twa.app-mergeReleaseResources-41:/values-v23/values-v23.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\adilk\\.gradle\\caches\\transforms-3\\f4f0a3d0e0128a3fac2256c5355c795a\\transformed\\material-1.11.0\\res\\values-v23\\values-v23.xml",
+                    "source": "/Users/avirajsharma/.gradle/caches/transforms-3/f4f0a3d0e0128a3fac2256c5355c795a/transformed/material-1.11.0/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2,5,9,13,16,19,22,25,28,32",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",
@@ -23,7 +23,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\adilk\\.gradle\\caches\\transforms-3\\6dd3928698ed48983e4f5945e1c79a42\\transformed\\cardview-1.0.0\\res\\values-v23\\values-v23.xml",
+                    "source": "/Users/avirajsharma/.gradle/caches/transforms-3/6dd3928698ed48983e4f5945e1c79a42/transformed/cardview-1.0.0/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
@@ -42,7 +42,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\adilk\\.gradle\\caches\\transforms-3\\e8b7fa243aa043d8941c2baf1b8bd6b9\\transformed\\appcompat-1.6.1\\res\\values-v23\\values-v23.xml",
+                    "source": "/Users/avirajsharma/.gradle/caches/transforms-3/e8b7fa243aa043d8941c2baf1b8bd6b9/transformed/appcompat-1.6.1/res/values-v23/values-v23.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,20,34,35,36,39,43,44,45,46",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4",

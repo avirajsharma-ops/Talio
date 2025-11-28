@@ -12,6 +12,7 @@ id webView
 layout activity_main
 mipmap ic_launcher
 mipmap ic_launcher_round
+mipmap ic_notification
 string app_name
 string gcm_defaultSenderId
 string google_api_key

@@ -3833,6 +3833,7 @@ layout select_dialog_singlechoice_material
 layout support_simple_spinner_dropdown_item
 mipmap ic_launcher
 mipmap ic_launcher_round
+mipmap ic_notification
 plurals mtrl_badge_content_description
 raw firebase_common_keep
 string abc_action_bar_home_description
