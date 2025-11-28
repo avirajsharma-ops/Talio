@@ -4,16 +4,7 @@ import connectDB from '@/lib/mongodb';
 import MayaChatHistory from '@/models/MayaChatHistory';
 import { getUserAccessScope, getAccessibleEmployees, getFormattedCollectionData } from '@/lib/mayaDataAccess';
 
-// Allow larger body sizes for screenshot uploads (up to 10MB)
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-// For App Router, use dynamic = 'force-dynamic' and maxDuration
+// For App Router, use route segment config exports
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds for AI processing
 
