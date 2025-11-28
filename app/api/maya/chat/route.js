@@ -184,7 +184,7 @@ export async function POST(request) {
     }
 
     const userId = decoded.userId;
-    const { message, screenCapture, screenshot, isScreenAnalysis } = await request.json();
+    const { message, screenCapture, screenshot, isScreenAnalysis, sessionId: existingSessionId } = await request.json();
     
     // Support both screenCapture and screenshot parameter names
     const imageData = screenCapture || screenshot;
@@ -252,18 +252,56 @@ export async function POST(request) {
       employeeData = await Employee.findById(employeeId).select('firstName lastName name employeeCode designation department');
     }
 
-    // Create chat history entry with user and employee details
-    const chatSession = await MayaChatHistory.create({
-      userId,
-      employeeId,
-      employeeName: employeeData?.name || `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim() || user.name || 'User',
-      employeeCode: employeeData?.employeeCode || '',
-      designation: employeeData?.designation || '',
-      department: employeeData?.department || '',
-      sessionId: `session_${Date.now()}_${userId}`,
-      messages: [
-        { role: 'user', content: message, timestamp: new Date() }
-      ]
+    // ========== CONVERSATION CONTEXT ENGINE ==========
+    // Fetch recent conversation history for context continuity
+    let conversationHistory = [];
+    let chatSession = null;
+    
+    // Try to find existing session from last 30 minutes or use provided sessionId
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    
+    if (existingSessionId) {
+      // Use provided session ID
+      chatSession = await MayaChatHistory.findOne({
+        _id: existingSessionId,
+        userId
+      });
+    }
+    
+    if (!chatSession) {
+      // Find most recent session within last 30 minutes
+      chatSession = await MayaChatHistory.findOne({
+        userId,
+        createdAt: { $gte: thirtyMinutesAgo }
+      }).sort({ createdAt: -1 });
+    }
+    
+    if (chatSession && chatSession.messages && chatSession.messages.length > 0) {
+      // Get last 10 messages for context (5 exchanges)
+      conversationHistory = chatSession.messages.slice(-10).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      console.log(`📜 Loaded ${conversationHistory.length} messages from conversation history`);
+    } else {
+      // Create new session
+      chatSession = await MayaChatHistory.create({
+        userId,
+        employeeId,
+        employeeName: employeeData?.name || `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim() || user.name || 'User',
+        employeeCode: employeeData?.employeeCode || '',
+        designation: employeeData?.designation || '',
+        department: employeeData?.department || '',
+        sessionId: `session_${Date.now()}_${userId}`,
+        messages: []
+      });
+    }
+
+    // Add current user message to session
+    chatSession.messages.push({
+      role: 'user',
+      content: message,
+      timestamp: new Date()
     });
 
     // Fetch user context data from database for MAYA
@@ -340,6 +378,17 @@ export async function POST(request) {
         }
       }
 
+      // Build conversation history context
+      let conversationContext = '';
+      if (conversationHistory.length > 0) {
+        conversationContext = '\n\n=== RECENT CONVERSATION HISTORY ===\n';
+        conversationHistory.forEach(msg => {
+          const speaker = msg.role === 'user' ? 'User' : 'Maya';
+          conversationContext += `${speaker}: ${msg.content}\n`;
+        });
+        conversationContext += '=== END OF HISTORY ===\n';
+      }
+
       // Build the prompt based on whether we have a screen capture
       const systemPrompt = `You are MAYA, a versatile and intelligent AI assistant integrated into the Talio HRMS platform. While you specialize in HR related tasks like attendance, leave management, payroll and workplace queries, you are also a capable personal office assistant.
 
@@ -353,6 +402,13 @@ CRITICAL RESPONSE FORMAT RULES:
 - Maximum 2 to 3 sentences for simple queries
 - For longer responses, use short natural paragraphs without any formatting
 
+CONVERSATION CONTINUITY:
+- You have access to the recent conversation history below
+- Always maintain context from previous messages in the conversation
+- If the user refers to something mentioned earlier or says things like "what about", "and", "also", "tell me more", understand they are continuing the previous topic
+- Provide follow-up responses that build on what was discussed before
+- Remember details the user shared earlier in the conversation
+
 What you can help with:
 HR data access where you have direct access to the users data so provide it directly without asking questions. General knowledge and questions on any topic. Creative tasks like writing emails and brainstorming. Productivity and planning. Research and analysis. Communication and drafting messages. Problem solving. Learning and education. Screen analysis when shown screenshots.
 
@@ -361,7 +417,25 @@ The users role is ${userRole.toUpperCase()}. When users ask about their own data
 
 Your personality:
 Be warm, helpful, and professional. You are like a smart friendly colleague. Keep responses concise and conversational. When you dont know something say so honestly.
-${userDataContext}`;
+${userDataContext}
+${conversationContext}`;
+
+      // Screen analysis specific instructions
+      const screenAnalysisPrompt = `SCREEN ANALYSIS INSTRUCTIONS:
+You are viewing the users screen. Your job is to be HELPFUL not just descriptive.
+
+DO NOT just describe what you see like "I can see a diagram" or "There is a chart on screen".
+
+INSTEAD, actually help the user by:
+1. Summarizing the KEY INFORMATION shown in simple language anyone can understand
+2. Extracting important data points, numbers, or conclusions
+3. If its a diagram or flowchart, explain what it represents and the key takeaways
+4. If its code, explain what it does and identify any issues
+5. If its a document, summarize the main points
+6. If its a chart or graph, tell them what the data shows and any trends
+7. Provide actionable insights based on what you see
+
+Be like a helpful colleague looking over their shoulder, not a robot describing pixels.`;
 
       let payload;
       
@@ -378,7 +452,9 @@ ${userDataContext}`;
               {
                 text: `${systemPrompt}
 
-The user has shared their screen with you. Please analyze what you see and respond to their query.
+${screenAnalysisPrompt}
+
+The user has shared their screen with you. Analyze what you see and provide genuinely helpful insights based on their query. Remember the conversation history if they are following up on something.
 
 User Query: ${message}`
               },
@@ -392,7 +468,7 @@ User Query: ${message}`
           }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1500,
+            maxOutputTokens: 2000,
           }
         };
       } else {
@@ -402,7 +478,9 @@ User Query: ${message}`
             parts: [{
               text: `${systemPrompt}
 
-User Query: ${message}`
+Current User Message: ${message}
+
+Remember to maintain conversation continuity. If this appears to be a follow-up question, reference the previous context appropriately.`
             }]
           }],
           generationConfig: {

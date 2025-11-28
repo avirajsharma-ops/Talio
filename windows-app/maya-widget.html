@@ -499,6 +499,9 @@
     let recognitionLock = false; // Prevent rapid start/stop cycles
     let lastRecognitionAttempt = 0; // Debounce timer
     const RECOGNITION_DEBOUNCE_MS = 500; // Minimum time between start attempts
+    
+    // Session ID for conversation context continuity
+    let currentSessionId = null;
 
     // API Keys - MAYA uses server-side Gemini API (no local AI keys needed)
     // ElevenLabs for high-quality voice synthesis
@@ -1041,7 +1044,8 @@
           body: JSON.stringify({ 
             message: userMessage,
             screenshot: screenshot,
-            isScreenAnalysis: true
+            isScreenAnalysis: true,
+            sessionId: currentSessionId // Include session for context
           })
         });
 
@@ -1063,6 +1067,10 @@
         if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
 
         if (data.success && data.response) {
+          // Store session ID for future messages
+          if (data.sessionId) {
+            currentSessionId = data.sessionId;
+          }
           addMessage(data.response, 'assistant');
           speak(data.response);
 
@@ -1146,17 +1154,24 @@
           return;
         }
 
-        // Regular chat message
+        // Regular chat message - include sessionId for conversation continuity
         const res = await fetch(`${API_URL}/api/maya/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ 
+            message,
+            sessionId: currentSessionId // Pass session ID for context
+          })
         });
         const data = await res.json();
         hideThinking();
         if (window.mayaBridge?.hideDotMatrix) window.mayaBridge.hideDotMatrix();
 
         if (data.success && data.response) {
+          // Store session ID for future messages
+          if (data.sessionId) {
+            currentSessionId = data.sessionId;
+          }
           addMessage(data.response, 'assistant');
           speak(data.response);
 
