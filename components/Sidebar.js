@@ -88,7 +88,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     }
 
     return baseMenuItems
-  }, [user, isDepartmentHead, isDesktopApp])
+  }, [user, isDepartmentHead])
 
   const toggleSubmenu = (menuName) => {
     setExpandedMenus(prev => ({

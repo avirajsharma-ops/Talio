@@ -4,6 +4,19 @@ import connectDB from '@/lib/mongodb';
 import MayaChatHistory from '@/models/MayaChatHistory';
 import { getUserAccessScope, getAccessibleEmployees, getFormattedCollectionData } from '@/lib/mayaDataAccess';
 
+// Allow larger body sizes for screenshot uploads (up to 10MB)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
+// For App Router, use dynamic = 'force-dynamic' and maxDuration
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds for AI processing
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 /**
@@ -273,12 +286,12 @@ export async function POST(request) {
     try {
       console.log('🤖 Using Gemini API...', imageData ? 'with screen capture' : '');
 
-      // Use models available on this API key (discovered via ListModels)
+      // Use stable Gemini models that are currently available (from ListModels API)
       // For vision tasks, use models that support images
       const candidates = imageData ? [
         { version: 'v1beta', model: 'gemini-2.0-flash' },
-        { version: 'v1beta', model: 'gemini-1.5-flash' },
-        { version: 'v1beta', model: 'gemini-1.5-pro' },
+        { version: 'v1beta', model: 'gemini-2.5-flash' },
+        { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
       ] : [
         { version: 'v1beta', model: 'gemini-2.0-flash' },
         { version: 'v1beta', model: 'gemini-2.5-flash' },
@@ -337,29 +350,26 @@ export async function POST(request) {
       }
 
       // Build the prompt based on whether we have a screen capture
-      const systemPrompt = `You are MAYA, a versatile and intelligent AI assistant integrated into the Talio HRMS platform. While you specialize in HR-related tasks like attendance, leave management, payroll, and workplace queries, you are also a capable personal office assistant who can help with:
+      const systemPrompt = `You are MAYA, a versatile and intelligent AI assistant integrated into the Talio HRMS platform. While you specialize in HR related tasks like attendance, leave management, payroll and workplace queries, you are also a capable personal office assistant.
 
-1. **HR Data Access**: You have direct access to the user's HR data. When they ask about their details, attendance, leaves, tasks, etc., provide the information directly from the data below - NO NEED TO ASK QUESTIONS.
-2. **General Knowledge & Questions**: Answer any question on any topic - science, history, technology, current events, etc.
-3. **Creative Tasks**: Help with writing, brainstorming ideas, drafting emails, creating presentations, storytelling, poetry, etc.
-4. **Productivity & Planning**: Help organize schedules, set reminders, plan meetings, create to-do lists, time management tips.
-5. **Research & Analysis**: Summarize topics, explain concepts, compare options, provide insights.
-6. **Communication**: Draft professional emails, messages, reports, and other business communications.
-7. **Problem Solving**: Help troubleshoot issues, provide solutions, offer advice on various challenges.
-8. **Learning & Education**: Explain complex topics simply, help with learning new skills, provide study tips.
-9. **Screen Analysis**: When shown a screenshot, analyze what's on screen and provide helpful insights, explanations, or assistance.
+CRITICAL RESPONSE FORMAT RULES:
+- NEVER use asterisks, dashes, bullet points, numbered lists, or any special formatting symbols
+- NEVER use markdown formatting like bold or italics
+- Write in plain, natural conversational English only
+- Keep responses short, warm and human like
+- Respond as if you are speaking to a friend or colleague
+- Use simple sentences and paragraphs
+- Maximum 2 to 3 sentences for simple queries
+- For longer responses, use short natural paragraphs without any formatting
 
-IMPORTANT DATA ACCESS RULES:
-- The user's role is: ${userRole.toUpperCase()}
-- When users ask about THEIR OWN data (name, email, attendance, leaves, tasks, etc.) - PROVIDE IT DIRECTLY without asking questions.
-- Admins, HR, and God Admins can see ALL employee data - provide requested information directly.
-- Department Heads can see ALL employees in their department - provide requested information directly.
-- Managers can see their direct reports' data - provide requested information directly.
-- Never ask unnecessary clarifying questions when the data is available below.
+What you can help with:
+HR data access where you have direct access to the users data so provide it directly without asking questions. General knowledge and questions on any topic. Creative tasks like writing emails and brainstorming. Productivity and planning. Research and analysis. Communication and drafting messages. Problem solving. Learning and education. Screen analysis when shown screenshots.
 
-Your personality: Be warm, helpful, witty when appropriate, and professional. You're like a smart, friendly colleague who's always ready to help. Keep responses concise but comprehensive. Use bullet points or numbered lists when helpful.
+Data access rules:
+The users role is ${userRole.toUpperCase()}. When users ask about their own data provide it directly. Admins and HR can see all employee data. Department heads can see their departments data. Managers can see their reports data. Never ask unnecessary clarifying questions.
 
-When you don't know something with certainty, say so honestly. For real-time information like weather, stock prices, or current news, acknowledge that you may not have the latest data.
+Your personality:
+Be warm, helpful, and professional. You are like a smart friendly colleague. Keep responses concise and conversational. When you dont know something say so honestly.
 ${userDataContext}`;
 
       let payload;

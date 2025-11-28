@@ -36,10 +36,10 @@ const store = new Store({
 // Force update any cached wrong URL
 store.delete('serverUrl');
 
-// Track if we've already prompted for permissions (to avoid dialog loop)
-let hasPromptedForScreenCapture = false;
-let hasPromptedForCamera = false;
-let hasPromptedForMicrophone = false;
+// Track permission states - cached to avoid repeated prompts
+let accessibilityGranted = false;
+let screenPermissionChecked = false;
+let screenPermissionGranted = false;
 
 // Windows
 let mainWindow = null;
@@ -82,42 +82,31 @@ if (AutoLaunch) {
   }
 }
 
-// Check and request screen recording permission
-async function checkScreenCapturePermission(forcePrompt = false) {
+// Check screen recording permission - caches result to avoid repeated checks
+// Only checks once per app session, unless permission was previously denied
+function checkScreenCapturePermission() {
   if (process.platform === 'darwin') {
+    // If already granted in this session, don't check again
+    if (screenPermissionChecked && screenPermissionGranted) {
+      return true;
+    }
+    
     const status = systemPreferences.getMediaAccessStatus('screen');
     console.log('[Talio] Screen capture permission status:', status);
-
-    if (status !== 'granted') {
-      // Only open System Preferences once per session unless forced
-      if (!hasPromptedForScreenCapture || forcePrompt) {
-        hasPromptedForScreenCapture = true;
-        const { shell } = require('electron');
-        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
-      }
-      return false;
-    }
-    return true;
+    
+    screenPermissionChecked = true;
+    screenPermissionGranted = status === 'granted';
+    
+    return screenPermissionGranted;
   }
+  // Windows/Linux always has permission
+  screenPermissionGranted = true;
+  screenPermissionChecked = true;
   return true;
 }
 
-// Check camera/microphone permissions
-async function checkMediaPermissions() {
-  if (process.platform === 'darwin') {
-    const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
-    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
-
-    if (cameraStatus !== 'granted' && !hasPromptedForCamera) {
-      hasPromptedForCamera = true;
-      await systemPreferences.askForMediaAccess('camera');
-    }
-    if (micStatus !== 'granted' && !hasPromptedForMicrophone) {
-      hasPromptedForMicrophone = true;
-      await systemPreferences.askForMediaAccess('microphone');
-    }
-  }
-}
+// NOTE: Camera/microphone/accessibility permissions are NOT needed for basic screenshot functionality
+// We only need screen recording permission, which is checked via checkScreenCapturePermission()
 
 // Create the main application window
 function createMainWindow() {
@@ -354,6 +343,9 @@ function createMayaWidgetWindow() {
     return;
   }
 
+  // NOTE: We only need screen recording permission for screenshots
+  // Mic/camera/accessibility permissions are NOT needed for basic Maya functionality
+
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const savedPosition = store.get('pipPosition');
 
@@ -367,8 +359,6 @@ function createMayaWidgetWindow() {
     y: savedPosition.y ?? height - widgetHeight - 80,
     frame: false,
     roundedCorners: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
     transparent: true,
     alwaysOnTop: true,
     resizable: true,
@@ -376,9 +366,9 @@ function createMayaWidgetWindow() {
     minHeight: 400,
     skipTaskbar: true,
     hasShadow: true,
-    vibrancy: 'popover',
+    vibrancy: 'under-window',
     visualEffectState: 'active',
-    roundedCorners: true,
+    backgroundColor: '#00000000', // Fully transparent background
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -462,8 +452,34 @@ function minimizeMayaToBob() {
 
 // ============= ACTIVITY TRACKING =============
 
+// Check if accessibility permission is granted (without prompting)
+// NOTE: This is OPTIONAL - only used for advanced app tracking features
+// Basic screenshot functionality works WITHOUT accessibility permission
+function checkAccessibilityPermission() {
+  if (process.platform !== 'darwin') {
+    return true; // Not needed on Windows/Linux
+  }
+  
+  try {
+    // Check WITHOUT prompting (pass false) - NEVER prompt for accessibility
+    const isTrusted = systemPreferences.isTrustedAccessibilityClient(false);
+    accessibilityGranted = isTrusted;
+    // Don't log this to avoid confusion - it's optional
+    return isTrusted;
+  } catch (err) {
+    return false;
+  }
+}
+
+// NOTE: We no longer prompt for accessibility permission
+// It's optional and only enables advanced app tracking
+// Screenshot functionality works without it
+
 // Initialize activity tracking modules
 async function initializeActivityTracking() {
+  // First check if accessibility is already granted (without prompting)
+  const hasAccessibility = checkAccessibilityPermission();
+  
   try {
     // Try to load native modules
     const { GlobalKeyboardListener } = require('node-global-key-listener');
@@ -479,12 +495,19 @@ async function initializeActivityTracking() {
     console.log('[Talio] Keyboard tracking not available:', err.message);
   }
 
-  try {
-    activeWin = await import('active-win');
-    startAppTracking();
-    console.log('[Talio] App tracking initialized');
-  } catch (err) {
-    console.log('[Talio] Active window tracking not available:', err.message);
+  // Only initialize active-win if accessibility is already granted
+  // This prevents the repeated permission popup
+  if (hasAccessibility) {
+    try {
+      activeWin = await import('active-win');
+      startAppTracking();
+      console.log('[Talio] App tracking initialized');
+    } catch (err) {
+      console.log('[Talio] Active window tracking not available:', err.message);
+    }
+  } else {
+    console.log('[Talio] Skipping app tracking - accessibility permission not granted');
+    // We'll prompt once when user requests permissions
   }
 }
 
@@ -509,7 +532,8 @@ function recordKeystroke() {
 // Track active application
 function startAppTracking() {
   setInterval(async () => {
-    if (!authToken || !activeWin) return;
+    // Skip if no auth, no activeWin module, or no accessibility permission
+    if (!authToken || !activeWin || !accessibilityGranted) return;
 
     try {
       const win = await (activeWin.default || activeWin)();
@@ -675,7 +699,7 @@ function initializeSocketConnection(userId) {
     socket = null;
   }
 
-  console.log('[Talio] Connecting to Socket.IO server at', APP_URL);
+  console.log('[Talio] Connecting to Socket.IO server at', APP_URL, 'for user:', userId);
   
   socket = io(APP_URL, {
     path: SOCKET_PATH,
@@ -690,12 +714,17 @@ function initializeSocketConnection(userId) {
   });
 
   socket.on('connect', () => {
-    console.log('✅ [Talio] Socket.IO connected');
+    console.log('✅ [Talio] Socket.IO connected, socket ID:', socket.id);
+    console.log('✅ [Talio] Registering desktop app for user:', userId);
     socket.emit('desktop-app-ready', { userId });
   });
 
-  socket.on('disconnect', () => {
-    console.log('❌ [Talio] Socket.IO disconnected');
+  socket.on('registration-confirmed', (data) => {
+    console.log('✅ [Talio] Desktop app registration confirmed:', data);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('❌ [Talio] Socket.IO disconnected, reason:', reason);
   });
 
   socket.on('reconnect', (attemptNumber) => {
@@ -760,6 +789,31 @@ function updateScreenshotInterval(newInterval) {
   }
 }
 
+// Hide Maya windows temporarily for screenshot
+function hideMayaWindowsForCapture() {
+  const wasWidgetVisible = mayaWidgetWindow && mayaWidgetWindow.isVisible();
+  const wasBlobVisible = mayaBlobWindow && mayaBlobWindow.isVisible();
+  
+  if (mayaWidgetWindow && mayaWidgetWindow.isVisible()) {
+    mayaWidgetWindow.setOpacity(0);
+  }
+  if (mayaBlobWindow && mayaBlobWindow.isVisible()) {
+    mayaBlobWindow.setOpacity(0);
+  }
+  
+  return { wasWidgetVisible, wasBlobVisible };
+}
+
+// Restore Maya windows after screenshot
+function restoreMayaWindowsAfterCapture(state) {
+  if (mayaWidgetWindow && state.wasWidgetVisible) {
+    mayaWidgetWindow.setOpacity(1);
+  }
+  if (mayaBlobWindow && state.wasBlobVisible) {
+    mayaBlobWindow.setOpacity(1);
+  }
+}
+
 // Handle instant screenshot capture request
 async function handleInstantCapture(captureRequest) {
   console.log('📸 [Talio] Processing instant capture request:', captureRequest);
@@ -776,11 +830,18 @@ async function handleInstantCapture(captureRequest) {
     return;
   }
 
+  // Hide Maya windows so they don't appear in screenshot
+  const mayaState = hideMayaWindowsForCapture();
+  
+  // Small delay to ensure windows are hidden before capture
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   try {
-    // Ensure screen capture permission on macOS
-    const hasPermission = await checkScreenCapturePermission();
+    // Ensure screen capture permission on macOS (uses cached result)
+    const hasPermission = checkScreenCapturePermission();
     if (!hasPermission) {
       console.error('[Talio] Screen capture permission denied');
+      restoreMayaWindowsAfterCapture(mayaState);
       sendNotification('Screen Capture Required', 'Please grant screen recording permission in System Preferences');
       if (socket) {
         socket.emit('instant-capture-complete', {
@@ -801,6 +862,7 @@ async function handleInstantCapture(captureRequest) {
 
     if (sources.length === 0) {
       console.error('[Talio] No screen sources available');
+      restoreMayaWindowsAfterCapture(mayaState);
       if (socket) {
         socket.emit('instant-capture-complete', {
           requestId: captureRequest.requestId,
@@ -813,6 +875,9 @@ async function handleInstantCapture(captureRequest) {
 
     const screenshot = sources[0].thumbnail.toDataURL();
     console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+    
+    // Restore Maya windows after capture
+    restoreMayaWindowsAfterCapture(mayaState);
     
     // Upload to server with request ID
     console.log('[Talio] Uploading to server...');
@@ -841,6 +906,9 @@ async function handleInstantCapture(captureRequest) {
     console.error('❌ [Talio] Instant capture error:', error.message);
     console.error('[Talio] Error details:', error.response?.data || error);
     
+    // Make sure to restore Maya windows on error
+    restoreMayaWindowsAfterCapture(mayaState);
+    
     if (socket) {
       socket.emit('instant-capture-complete', {
         requestId: captureRequest.requestId,
@@ -856,40 +924,67 @@ async function handleInstantCapture(captureRequest) {
 
 // Capture screenshot and summarize (periodic monitoring)
 async function captureAndSummarize() {
-  if (!authToken) return;
+  if (!authToken) {
+    console.log('[Talio] Skipping periodic capture - not authenticated');
+    return;
+  }
+
+  console.log('[Talio] Starting periodic screenshot capture...');
+
+  // Hide Maya windows so they don't appear in screenshot
+  const mayaState = hideMayaWindowsForCapture();
+  await new Promise(resolve => setTimeout(resolve, 100));
 
   try {
-    const hasPermission = await checkScreenCapturePermission();
-    if (!hasPermission) return;
+    const hasPermission = checkScreenCapturePermission();
+    if (!hasPermission) {
+      console.log('[Talio] Skipping periodic capture - no screen permission');
+      restoreMayaWindowsAfterCapture(mayaState);
+      return;
+    }
 
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 }
     });
 
-    if (sources.length === 0) return;
+    if (sources.length === 0) {
+      console.log('[Talio] No screen sources available for periodic capture');
+      restoreMayaWindowsAfterCapture(mayaState);
+      return;
+    }
 
     const screenshot = sources[0].thumbnail.toDataURL();
+    
+    // Restore Maya windows after capture
+    restoreMayaWindowsAfterCapture(mayaState);
+    console.log('[Talio] Periodic screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
 
     // Send to API for AI summarization and storage
-    await axios.post(`${APP_URL}/api/monitoring/screenshot`, {
+    const response = await axios.post(`${APP_URL}/api/monitoring/screenshot`, {
       screenshot: screenshot,
       timestamp: new Date().toISOString(),
       captureType: 'periodic'
     }, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      timeout: 60000 // 60 second timeout for upload
     });
 
-    console.log('[Talio] Periodic screenshot captured and saved');
+    console.log('[Talio] Periodic screenshot uploaded successfully:', response.data?.captureId || 'OK');
     
     // Notify via socket
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit('periodic-capture-complete', {
+        userId: currentUser?.id,
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
-    console.error('[Talio] Screenshot error:', error.message);
+    console.error('[Talio] Periodic screenshot error:', error.message);
+    restoreMayaWindowsAfterCapture(mayaState);
+    if (error.response) {
+      console.error('[Talio] Server response:', error.response.status, error.response.data);
+    }
   }
 }
 
@@ -1010,73 +1105,40 @@ function setupIPC() {
   });
 
   // Request all permissions at once (called after user logs in)
+  // SIMPLIFIED: Only screen recording permission is needed for screenshots
   ipcMain.handle('request-all-permissions', async () => {
-    console.log('[Talio] Requesting all permissions after login...');
+    console.log('[Talio] Checking screen recording permission...');
     const results = {
-      screen: false,
-      camera: false,
-      microphone: false
+      screen: false
     };
 
     if (process.platform === 'darwin') {
-      // Request camera permission (native dialog) - only once per session
-      try {
-        if (!hasPromptedForCamera) {
-          hasPromptedForCamera = true;
-          results.camera = await systemPreferences.askForMediaAccess('camera');
-        } else {
-          results.camera = systemPreferences.getMediaAccessStatus('camera') === 'granted';
-        }
-      } catch (e) {
-        console.error('[Talio] Camera permission error:', e);
-      }
-
-      // Request microphone permission (native dialog) - only once per session
-      try {
-        if (!hasPromptedForMicrophone) {
-          hasPromptedForMicrophone = true;
-          results.microphone = await systemPreferences.askForMediaAccess('microphone');
-        } else {
-          results.microphone = systemPreferences.getMediaAccessStatus('microphone') === 'granted';
-        }
-      } catch (e) {
-        console.error('[Talio] Microphone permission error:', e);
-      }
-
-      // Check screen capture status (requires manual grant in System Preferences)
+      // Only check screen capture status - this is ALL we need for screenshots
       const screenStatus = systemPreferences.getMediaAccessStatus('screen');
       results.screen = screenStatus === 'granted';
+      console.log('[Talio] Screen recording permission:', screenStatus);
 
-      // If screen not granted and haven't prompted yet, open System Preferences
-      if (!results.screen && !hasPromptedForScreenCapture) {
-        hasPromptedForScreenCapture = true;
-        const { shell } = require('electron');
-        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
-      }
+      // NOTE: We do NOT prompt automatically on login
+      // User will be prompted when they first try to capture screen
+      // This avoids annoying permission dialogs on every app launch
     } else {
       // Windows - permissions are typically granted automatically
       results.screen = true;
-      results.camera = true;
-      results.microphone = true;
     }
 
     console.log('[Talio] Permission results:', results);
     return results;
   });
 
-  // Get all permission statuses
+  // Get all permission statuses - simplified to only what we need
   ipcMain.handle('get-permission-status', () => {
     if (process.platform === 'darwin') {
       return {
-        screen: systemPreferences.getMediaAccessStatus('screen'),
-        camera: systemPreferences.getMediaAccessStatus('camera'),
-        microphone: systemPreferences.getMediaAccessStatus('microphone')
+        screen: systemPreferences.getMediaAccessStatus('screen')
       };
     }
     return {
-      screen: 'granted',
-      camera: 'granted',
-      microphone: 'granted'
+      screen: 'granted'
     };
   });
 

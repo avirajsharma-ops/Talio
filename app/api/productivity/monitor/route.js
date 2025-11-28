@@ -4,8 +4,32 @@ import connectDB from '@/lib/mongodb';
 import MayaScreenSummary from '@/models/MayaScreenSummary';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
+import Department from '@/models/Department';
+
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
+
+// Helper function to check if user is a department head (via Department.head field)
+async function getDepartmentIfHead(userId) {
+  // First get the employee ID for this user
+  const user = await User.findById(userId).select('employeeId');
+  if (!user || !user.employeeId) {
+    // Try to find employee by userId
+    const employee = await Employee.findOne({ userId }).select('_id');
+    if (!employee) return null;
+    
+    // Check if this employee is head of any department
+    const department = await Department.findOne({ head: employee._id, isActive: true });
+    return department;
+  }
+  
+  // Check if this employee is head of any department
+  const department = await Department.findOne({ head: user.employeeId, isActive: true });
+  return department;
+}
 
 // Helper function to check if user can monitor target user
 async function canMonitorUser(requesterId, requesterRole, targetUserId) {
@@ -14,19 +38,21 @@ async function canMonitorUser(requesterId, requesterRole, targetUserId) {
     return true;
   }
 
-  // Department head can monitor their department members
-  if (requesterRole === 'department_head') {
-    const requester = await Employee.findOne({ userId: requesterId }).select('department');
-    const target = await Employee.findOne({ userId: targetUserId }).select('department');
+  // Check if user is department head via Department model
+  const department = await getDepartmentIfHead(requesterId);
+  
+  if (department) {
+    // Get target employee's department
+    const targetEmployee = await Employee.findOne({ userId: targetUserId }).select('department');
     
-    if (requester && target && requester.department && 
-        requester.department.toString() === target.department.toString()) {
+    if (targetEmployee && targetEmployee.department && 
+        targetEmployee.department.toString() === department._id.toString()) {
       return true;
     }
   }
 
   // User can always monitor themselves
-  if (requesterId === targetUserId) {
+  if (requesterId.toString() === targetUserId.toString()) {
     return true;
   }
 
@@ -67,6 +93,11 @@ export async function GET(request) {
 
     let query = {};
     
+    // Check if user is a department head (via Department.head field)
+    const headOfDepartment = await getDepartmentIfHead(userId);
+    
+    console.log('[Monitor API] User check:', { userId, role: user.role, isHead: !!headOfDepartment, departmentId: headOfDepartment?._id });
+    
     // Determine which users' data to fetch based on role and permissions
     if (targetUserId) {
       // Specific user requested - check permission
@@ -79,20 +110,26 @@ export async function GET(request) {
       }
       query.monitoredUserId = targetUserId;
     } else {
-      // No specific user - return based on role
+      // No specific user - return based on role/department head status
       if (user.role === 'god_admin' || user.role === 'admin') {
         // Admin/god_admin can see all
         // No filter needed
-      } else if (user.role === 'department_head') {
-        // Department head sees their department
-        const employee = await Employee.findOne({ userId }).select('department');
-        if (employee && employee.department) {
-          const departmentEmployees = await Employee.find({ 
-            department: employee.department 
-          }).select('userId');
-          const departmentUserIds = departmentEmployees.map(e => e.userId);
-          query.monitoredUserId = { $in: departmentUserIds };
+      } else if (headOfDepartment) {
+        // User is head of a department - get all employees in that department
+        const departmentEmployees = await Employee.find({ 
+          department: headOfDepartment._id 
+        }).select('userId');
+        const departmentUserIds = departmentEmployees
+          .filter(e => e.userId)
+          .map(e => e.userId);
+        
+        // Always include the head's own userId
+        if (!departmentUserIds.some(id => id?.toString() === userId)) {
+          departmentUserIds.push(userId);
         }
+        
+        query.monitoredUserId = { $in: departmentUserIds };
+        console.log('[Monitor API] Department head query - department:', headOfDepartment.name, 'users:', departmentUserIds.length);
       } else {
         // Regular employees see only their own data
         query.monitoredUserId = userId;

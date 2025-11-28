@@ -4,10 +4,30 @@ import connectDB from '@/lib/mongodb';
 import MayaScreenSummary from '@/models/MayaScreenSummary';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
+import Department from '@/models/Department';
 
 export const dynamic = 'force-dynamic';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
+
+// Helper function to check if user is a department head (via Department.head field)
+async function getDepartmentIfHead(userId) {
+  // First get the employee ID for this user
+  const user = await User.findById(userId).select('employeeId');
+  if (!user || !user.employeeId) {
+    // Try to find employee by userId
+    const employee = await Employee.findOne({ userId }).select('_id');
+    if (!employee) return null;
+    
+    // Check if this employee is head of any department
+    const department = await Department.findOne({ head: employee._id, isActive: true });
+    return department;
+  }
+  
+  // Check if this employee is head of any department
+  const department = await Department.findOne({ head: user.employeeId, isActive: true });
+  return department;
+}
 
 // POST - Request instant screenshot capture from specific employee
 export async function POST(request) {
@@ -33,8 +53,13 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Check permission: admin, god_admin, or department_head
-    if (!['admin', 'god_admin', 'department_head'].includes(requester.role)) {
+    // Check permission: admin, god_admin, or department head (via Department model)
+    const isAdmin = ['admin', 'god_admin'].includes(requester.role);
+    const headOfDepartment = await getDepartmentIfHead(decoded.userId);
+    
+    console.log('[Instant Capture] Permission check:', { userId: decoded.userId, isAdmin, isHead: !!headOfDepartment });
+    
+    if (!isAdmin && !headOfDepartment) {
       return NextResponse.json({ 
         success: false, 
         error: 'Only admins and department heads can request instant captures' 
@@ -57,12 +82,11 @@ export async function POST(request) {
     }
 
     // Department head can only capture their department employees
-    if (requester.role === 'department_head') {
-      const requesterEmployee = await Employee.findById(requester.employeeId).select('department');
+    if (!isAdmin && headOfDepartment) {
       const targetEmployee = await Employee.findById(targetUser.employeeId).select('department');
       
-      if (!requesterEmployee || !targetEmployee || 
-          requesterEmployee.department?.toString() !== targetEmployee.department?.toString()) {
+      if (!targetEmployee || 
+          targetEmployee.department?.toString() !== headOfDepartment._id.toString()) {
         return NextResponse.json({ 
           success: false, 
           error: 'You can only capture screenshots from your department employees' 

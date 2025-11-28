@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave } from 'react-icons/fa';
+import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 
@@ -27,6 +27,8 @@ export default function ProductivityMonitoringPage() {
   const [selectedCaptureTarget, setSelectedCaptureTarget] = useState(''); // Employee ID for instant capture
   const [showCaptureDropdown, setShowCaptureDropdown] = useState(false);
   const [accessibleEmployees, setAccessibleEmployees] = useState([]); // Employees user can capture
+  const [isUserDepartmentHead, setIsUserDepartmentHead] = useState(false); // Track if user is department head
+  const [userDepartment, setUserDepartment] = useState(null); // User's department (if they are head)
 
   useEffect(() => {
     setIsMounted(true);
@@ -38,9 +40,9 @@ export default function ProductivityMonitoringPage() {
     if (userData) {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
+      checkIfDepartmentHead(parsedUser);
       fetchEmployees(parsedUser);
       fetchAllData(parsedUser);
-      fetchAccessibleEmployees(parsedUser);
       
       // Load saved screenshot interval
       const savedInterval = localStorage.getItem('screenshotInterval');
@@ -49,6 +51,36 @@ export default function ProductivityMonitoringPage() {
       }
     }
   }, []);
+
+  // Check if user is a department head (via Department.head field - not by role or designation)
+  const checkIfDepartmentHead = async (currentUser) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Use the team/check-head API which checks if user is head of any department
+      const response = await fetch('/api/team/check-head', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        const isDH = data.isDepartmentHead || data.isTeamLead || false;
+        const deptId = data.departmentId || data.department?._id || null;
+        
+        setIsUserDepartmentHead(isDH);
+        setUserDepartment(deptId);
+        
+        console.log('[Productivity] Department head check result:', { isDH, departmentId: deptId, data });
+        
+        // If user is department head or admin, fetch accessible employees
+        if (isDH || currentUser.role === 'admin' || currentUser.role === 'god_admin') {
+          fetchAccessibleEmployees(currentUser, deptId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check department head status:', error);
+    }
+  };
 
   const fetchEmployees = async (currentUser) => {
     try {
@@ -78,16 +110,16 @@ export default function ProductivityMonitoringPage() {
     }
   };
 
-  const fetchAccessibleEmployees = async (currentUser) => {
+  const fetchAccessibleEmployees = async (currentUser, departmentId = null) => {
     try {
       const token = localStorage.getItem('token');
       let url = '/api/employees?status=active';
       
-      // Department head gets only their department employees
-      if (currentUser.role === 'department_head' && currentUser.department) {
-        url += `&department=${currentUser.department}`;
+      // If department ID is provided (for department heads), filter by it
+      if (departmentId && currentUser.role !== 'admin' && currentUser.role !== 'god_admin') {
+        url += `&department=${departmentId}`;
       }
-      // Admin and god_admin get all employees
+      // Admin and god_admin get all employees (no department filter)
       
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -95,14 +127,14 @@ export default function ProductivityMonitoringPage() {
       const data = await response.json();
       if (data.success) {
         const emps = data.employees || data.data || [];
-        // Filter out current user from the list
+        // Filter out current user from the list (for instant capture dropdown)
         const filtered = emps.filter(emp => {
           // userId is an object with _id, so compare properly
           const empUserId = emp.userId?._id || emp.userId || emp._id;
           const currentUserId = currentUser._id || currentUser.userId;
-          return empUserId !== currentUserId;
+          return empUserId?.toString() !== currentUserId?.toString();
         });
-        console.log('Accessible employees loaded:', filtered.length);
+        console.log('[Productivity] Accessible employees loaded:', filtered.length, 'for department:', departmentId);
         setAccessibleEmployees(filtered);
       }
     } catch (error) {
@@ -404,37 +436,6 @@ export default function ProductivityMonitoringPage() {
     }
   };
 
-  // Group data by user for card-based display
-  const groupDataByUser = (data, type) => {
-    if (!user) return { own: [], departmentHeads: [], employees: [] };
-    
-    const grouped = {
-      own: [],
-      departmentHeads: [],
-      employees: []
-    };
-
-    data.forEach(item => {
-      const itemUserId = type === 'chat' 
-        ? item.userId?._id || item.userId
-        : item.monitoredUserId?._id || item.monitoredUserId;
-      
-      const itemUser = type === 'chat'
-        ? item.userId
-        : item.monitoredEmployeeId || item.monitoredUserId;
-
-      if (itemUserId === user._id || itemUserId === user.userId) {
-        grouped.own.push(item);
-      } else if (departmentHeads.some(dh => dh.userId === itemUserId || dh._id === itemUserId)) {
-        grouped.departmentHeads.push(item);
-      } else {
-        grouped.employees.push(item);
-      }
-    });
-
-    return grouped;
-  };
-
   const renderChatCard = (title, sessions, cardId, userInfo = null) => {
     const messageCount = sessions.reduce((sum, s) => sum + (s.messages?.length || 0), 0);
 
@@ -553,49 +554,70 @@ export default function ProductivityMonitoringPage() {
   }
 
   const isAdminOrGodAdmin = user.role === 'admin' || user.role === 'god_admin';
-  const isDepartmentHead = user.role === 'department_head';
-  const isEmployee = !isAdminOrGodAdmin && !isDepartmentHead;
-
-  const groupedMonitoring = groupDataByUser(monitoringData, 'monitoring');
-  const groupedChat = groupDataByUser(chatHistory, 'chat');
+  const isDepartmentHead = isUserDepartmentHead || user.role === 'department_head';
+  const canViewTeamData = isAdminOrGodAdmin || isDepartmentHead;
+  const isEmployee = !canViewTeamData;
 
   // Group by individual users for card display
   const getMonitoringByUser = () => {
     const userMap = new Map();
+    const currentUserId = user?._id?.toString() || user?.userId?.toString();
+    
     monitoringData.forEach(record => {
-      const userId = record.monitoredUserId?._id || record.monitoredUserId;
-      const userKey = userId?.toString() || 'unknown';
+      const userId = record.monitoredUserId?._id?.toString() || record.monitoredUserId?.toString();
+      const userKey = userId || 'unknown';
+      
       if (!userMap.has(userKey)) {
+        // Get user info from either monitoredEmployeeId or monitoredUserId
+        const employeeInfo = record.monitoredEmployeeId || {};
+        const userInfo = record.monitoredUserId || {};
+        
         userMap.set(userKey, {
-          user: record.monitoredEmployeeId || record.monitoredUserId,
-          records: []
+          user: {
+            _id: userId,
+            userId: userId,
+            name: employeeInfo.name || userInfo.name || 'Unknown User',
+            employeeCode: employeeInfo.employeeCode || '',
+            designation: employeeInfo.designation || '',
+            department: employeeInfo.department || '',
+            profilePicture: employeeInfo.profilePicture || userInfo.profilePicture || null
+          },
+          records: [],
+          isOwn: userId === currentUserId
         });
       }
       userMap.get(userKey).records.push(record);
     });
+    
     return Array.from(userMap.values());
   };
 
   const getChatByUser = () => {
     const userMap = new Map();
+    const currentUserId = user?._id?.toString() || user?.userId?.toString();
+    
     chatHistory.forEach(session => {
-      const userId = session.userId?._id || session.userId;
-      const userKey = userId?.toString() || 'unknown';
+      const userId = session.userId?._id?.toString() || session.userId?.toString();
+      const userKey = userId || 'unknown';
+      
       if (!userMap.has(userKey)) {
         userMap.set(userKey, {
           user: {
             _id: userId,
-            name: session.employeeName || session.userId?.name || 'Unknown User',
+            userId: userId,
+            name: session.employeeName || session.userId?.name || session.employeeId?.name || 'Unknown User',
             employeeCode: session.employeeCode || session.employeeId?.employeeCode || '',
             designation: session.designation || session.employeeId?.designation || '',
             department: session.department || session.employeeId?.department || '',
             profilePicture: session.userId?.profilePicture || session.employeeId?.profilePicture || null
           },
-          sessions: []
+          sessions: [],
+          isOwn: userId === currentUserId
         });
       }
       userMap.get(userKey).sessions.push(session);
     });
+    
     return Array.from(userMap.values());
   };
 
@@ -654,8 +676,8 @@ export default function ProductivityMonitoringPage() {
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                <FaEye className="text-white text-xl" />
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center p-0">
+                <FaCamera className="text-purple-600 text-2xl" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Instant Screenshot Capture</h3>
@@ -822,49 +844,65 @@ export default function ProductivityMonitoringPage() {
           
           {/* Grid Layout for Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Own Monitoring Card */}
-            {groupedMonitoring.own.length > 0 && renderMonitoringCard(
-              'Your Productivity Monitoring',
-              groupedMonitoring.own,
-              'own-monitoring',
-              user.employeeId || user
-            )}
-
-            {/* Department Heads Cards (Admin only) */}
-            {isAdminOrGodAdmin && getMonitoringByUser()
-              .filter(item => {
-                const userId = item.user?._id || item.user?.userId;
-                return departmentHeads.some(dh => dh.userId === userId || dh._id === userId);
-              })
-              .map((item, idx) => {
-                const userInfo = item.user;
-                return renderMonitoringCard(
-                  `${userInfo?.name || 'Department Head'}`,
-                  item.records,
-                  `dh-monitoring-${idx}`,
-                  userInfo
-                );
-              })
-            }
-
-            {/* Employee Cards */}
-            {(isAdminOrGodAdmin || isDepartmentHead) && getMonitoringByUser()
-              .filter(item => {
-                const userId = item.user?._id || item.user?.userId;
-                const isOwn = userId === user._id || userId === user.userId;
-                const isDH = departmentHeads.some(dh => dh.userId === userId || dh._id === userId);
-                return !isOwn && !isDH;
-              })
-              .map((item, idx) => {
-                const userInfo = item.user;
-                return renderMonitoringCard(
-                  `${userInfo?.name || 'Employee'}`,
-                  item.records,
-                  `emp-monitoring-${idx}`,
-                  userInfo
-                );
-              })
-            }
+            {/* Render cards using getMonitoringByUser - own card first, then others */}
+            {(() => {
+              const allUserData = getMonitoringByUser();
+              const currentUserId = user?._id?.toString() || user?.userId?.toString();
+              
+              // Separate own card from others
+              const ownData = allUserData.find(item => item.isOwn);
+              const otherData = allUserData.filter(item => !item.isOwn);
+              
+              // For admin, separate department heads from regular employees
+              const dhData = isAdminOrGodAdmin ? otherData.filter(item => {
+                const userId = item.user?._id?.toString() || item.user?.userId?.toString();
+                return departmentHeads.some(dh => {
+                  const dhUserId = dh.userId?._id?.toString() || dh.userId?.toString() || dh._id?.toString();
+                  return dhUserId === userId;
+                });
+              }) : [];
+              
+              const employeeData = otherData.filter(item => {
+                const userId = item.user?._id?.toString() || item.user?.userId?.toString();
+                const isDH = departmentHeads.some(dh => {
+                  const dhUserId = dh.userId?._id?.toString() || dh.userId?.toString() || dh._id?.toString();
+                  return dhUserId === userId;
+                });
+                return !isDH;
+              });
+              
+              return (
+                <>
+                  {/* Own card first (for admins, department heads, or any user with data) */}
+                  {ownData && ownData.records.length > 0 && renderMonitoringCard(
+                    'Your Productivity Monitoring',
+                    ownData.records,
+                    'own-monitoring',
+                    { ...ownData.user, name: user.name || ownData.user.name }
+                  )}
+                  
+                  {/* Department Heads Cards (Admin only) */}
+                  {isAdminOrGodAdmin && dhData.map((item, idx) => 
+                    renderMonitoringCard(
+                      item.user?.name || 'Department Head',
+                      item.records,
+                      `dh-monitoring-${idx}`,
+                      item.user
+                    )
+                  )}
+                  
+                  {/* Employee Cards (Admin and Department Head can see) */}
+                  {(isAdminOrGodAdmin || isDepartmentHead) && employeeData.map((item, idx) => 
+                    renderMonitoringCard(
+                      item.user?.name || 'Employee',
+                      item.records,
+                      `emp-monitoring-${idx}`,
+                      item.user
+                    )
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {monitoringData.length === 0 && (
@@ -890,49 +928,65 @@ export default function ProductivityMonitoringPage() {
 
           {/* Grid Layout for Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Own Chat Card */}
-            {groupedChat.own.length > 0 && renderChatCard(
-              'Your MAYA Chat History',
-              groupedChat.own,
-              'own-chat',
-              user.employeeId || user
-            )}
-
-            {/* Department Heads Cards (Admin only) */}
-            {isAdminOrGodAdmin && getChatByUser()
-              .filter(item => {
-                const userId = item.user?._id || item.user?.userId;
-                return departmentHeads.some(dh => dh.userId === userId || dh._id === userId);
-              })
-              .map((item, idx) => {
-                const userInfo = item.user;
-                return renderChatCard(
-                  `${userInfo?.name || 'Department Head'}`,
-                  item.sessions,
-                  `dh-chat-${idx}`,
-                  userInfo
-                );
-              })
-            }
-
-            {/* Employee Cards */}
-            {(isAdminOrGodAdmin || isDepartmentHead) && getChatByUser()
-              .filter(item => {
-                const userId = item.user?._id || item.user?.userId;
-                const isOwn = userId === user._id || userId === user.userId;
-                const isDH = departmentHeads.some(dh => dh.userId === userId || dh._id === userId);
-                return !isOwn && !isDH;
-              })
-              .map((item, idx) => {
-                const userInfo = item.user;
-                return renderChatCard(
-                  `${userInfo?.name || 'Employee'}`,
-                  item.sessions,
-                  `emp-chat-${idx}`,
-                  userInfo
-                );
-              })
-            }
+            {/* Render cards using getChatByUser - own card first, then others */}
+            {(() => {
+              const allUserData = getChatByUser();
+              const currentUserId = user?._id?.toString() || user?.userId?.toString();
+              
+              // Separate own card from others
+              const ownData = allUserData.find(item => item.isOwn);
+              const otherData = allUserData.filter(item => !item.isOwn);
+              
+              // For admin, separate department heads from regular employees
+              const dhData = isAdminOrGodAdmin ? otherData.filter(item => {
+                const userId = item.user?._id?.toString() || item.user?.userId?.toString();
+                return departmentHeads.some(dh => {
+                  const dhUserId = dh.userId?._id?.toString() || dh.userId?.toString() || dh._id?.toString();
+                  return dhUserId === userId;
+                });
+              }) : [];
+              
+              const employeeData = otherData.filter(item => {
+                const userId = item.user?._id?.toString() || item.user?.userId?.toString();
+                const isDH = departmentHeads.some(dh => {
+                  const dhUserId = dh.userId?._id?.toString() || dh.userId?.toString() || dh._id?.toString();
+                  return dhUserId === userId;
+                });
+                return !isDH;
+              });
+              
+              return (
+                <>
+                  {/* Own card first (for admins, department heads, or any user with data) */}
+                  {ownData && ownData.sessions.length > 0 && renderChatCard(
+                    'Your MAYA Chat History',
+                    ownData.sessions,
+                    'own-chat',
+                    { ...ownData.user, name: user.name || ownData.user.name }
+                  )}
+                  
+                  {/* Department Heads Cards (Admin only) */}
+                  {isAdminOrGodAdmin && dhData.map((item, idx) => 
+                    renderChatCard(
+                      item.user?.name || 'Department Head',
+                      item.sessions,
+                      `dh-chat-${idx}`,
+                      item.user
+                    )
+                  )}
+                  
+                  {/* Employee Cards (Admin and Department Head can see) */}
+                  {(isAdminOrGodAdmin || isDepartmentHead) && employeeData.map((item, idx) => 
+                    renderChatCard(
+                      item.user?.name || 'Employee',
+                      item.sessions,
+                      `emp-chat-${idx}`,
+                      item.user
+                    )
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {chatHistory.length === 0 && (

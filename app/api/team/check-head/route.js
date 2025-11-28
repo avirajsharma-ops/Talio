@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import User from '@/models/User'
+import Employee from '@/models/Employee'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,20 +26,44 @@ export async function GET(request) {
     // Get user's employee ID
     const user = await User.findById(decoded.userId).select('employeeId')
 
-    if (!user || !user.employeeId) {
-      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    let employeeId = user?.employeeId;
+    
+    // If user doesn't have employeeId directly, try to find employee by userId
+    if (!employeeId) {
+      const employee = await Employee.findOne({ userId: decoded.userId }).select('_id');
+      employeeId = employee?._id;
     }
 
-    // Check if user is a department head
+    if (!employeeId) {
+      return NextResponse.json({ 
+        success: true, 
+        isDepartmentHead: false,
+        department: null,
+        departmentId: null,
+        message: 'Employee not found' 
+      })
+    }
+
+    // Check if user is a department head (via Department.head field)
     const department = await Department.findOne({ 
-      head: user.employeeId,
+      head: employeeId,
       isActive: true 
-    }).select('name code')
+    }).select('name code _id')
+
+    console.log('[Check Head API] Result:', { 
+      userId: decoded.userId, 
+      employeeId: employeeId?.toString(), 
+      isDepartmentHead: !!department,
+      departmentId: department?._id?.toString(),
+      departmentName: department?.name
+    });
 
     return NextResponse.json({
       success: true,
       isDepartmentHead: !!department,
-      department: department || null
+      department: department || null,
+      departmentId: department?._id || null,
+      departmentName: department?.name || null
     })
   } catch (error) {
     console.error('Check department head error:', error)
