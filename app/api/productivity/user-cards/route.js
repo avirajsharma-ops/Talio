@@ -210,12 +210,42 @@ export async function GET(request) {
         userId: userObjId,
         sessionStart: { $gte: todayStart },
         status: 'completed'
-      }).select('sessionDuration totalActiveTime aiAnalysis.productivityScore').lean();
+      }).select('sessionDuration totalActiveTime aiAnalysis.productivityScore screenshots').lean();
 
-      let todayDuration = todaySessions.reduce((sum, s) => sum + (s.sessionDuration || s.totalActiveTime / 60000 || 0), 0);
-      let avgProductivity = todaySessions.length > 0
-        ? todaySessions.reduce((sum, s) => sum + (s.aiAnalysis?.productivityScore || 0), 0) / todaySessions.length
-        : 0;
+      // Calculate duration from sessions
+      let todayDuration = todaySessions.reduce((sum, s) => {
+        // sessionDuration is in minutes, totalActiveTime is in ms
+        const mins = s.sessionDuration || (s.totalActiveTime ? Math.round(s.totalActiveTime / 60000) : 30);
+        return sum + mins;
+      }, 0);
+      
+      // Calculate average productivity - if no AI analysis, estimate from screenshots
+      let avgProductivity = 0;
+      const analyzedSessions = todaySessions.filter(s => s.aiAnalysis?.productivityScore > 0);
+      if (analyzedSessions.length > 0) {
+        avgProductivity = analyzedSessions.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / analyzedSessions.length;
+      } else if (todaySessions.length > 0) {
+        // No AI analysis yet - show that there's activity but needs analysis
+        // Give a base score based on having screenshots
+        const hasScreenshots = todaySessions.some(s => s.screenshots?.length > 0);
+        avgProductivity = hasScreenshots ? 50 : 0; // 50% indicates "pending analysis"
+      }
+      
+      // If no sessions today, check all-time stats
+      if (todaySessions.length === 0 && totalSessions > 0) {
+        // Get stats from most recent sessions (last 7 days)
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const recentSessions = await ProductivitySession.find({
+          userId: userObjId,
+          sessionStart: { $gte: weekAgo },
+          status: 'completed'
+        }).select('aiAnalysis.productivityScore').lean();
+        
+        const recentAnalyzed = recentSessions.filter(s => s.aiAnalysis?.productivityScore > 0);
+        if (recentAnalyzed.length > 0) {
+          avgProductivity = recentAnalyzed.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / recentAnalyzed.length;
+        }
+      }
       
       // If no sessions, fallback to raw ProductivityData for stats
       if (totalSessions === 0) {

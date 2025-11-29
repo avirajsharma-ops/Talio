@@ -139,7 +139,7 @@ function UserCard({ card, onClick, isSelected }) {
             {card.name}
             {card.isOwnCard && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">You</span>}
           </h4>
-          <p className="text-sm text-gray-500 truncate">{card.designation || card.department}</p>
+          <p className="text-sm text-gray-500 truncate">{card.employeeCode || card.designation || card.department}</p>
         </div>
       </div>
 
@@ -161,11 +161,11 @@ function UserCard({ card, onClick, isSelected }) {
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-1 text-gray-500">
           <FaClock className="text-gray-400" />
-          <span>{Math.round((card.todayStats?.duration || 0) / 60)} min</span>
+          <span>{card.todayStats?.duration || 0} min</span>
         </div>
         <div className="flex items-center gap-1 text-gray-500">
           <FaCamera className="text-gray-400" />
-          <span>{card.todayStats?.sessionsCount || 0} sessions</span>
+          <span>{card.totalSessions || card.todayStats?.sessionsCount || 0} sessions</span>
         </div>
       </div>
 

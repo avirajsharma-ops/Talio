@@ -376,18 +376,51 @@ export async function POST(request) {
     }
 
     // Check permissions
-    const requester = await User.findById(decoded.userId).select('role');
+    const requester = await User.findById(decoded.userId).select('role employeeId');
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
     
-    if (!isAdmin && session.userId.toString() !== decoded.userId) {
-      // Check if department head
-      const dept = await Department.findOne({ 
-        head: toObjectId(decoded.userId),
-        isActive: true 
-      });
-      if (!dept) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    console.log(`[Session Analyze] Permission check: decoded.userId=${decoded.userId}, requester.role=${requester?.role}, isAdmin=${isAdmin}`);
+    console.log(`[Session Analyze] Session userId=${session.userId?.toString()}, match=${session.userId?.toString() === decoded.userId}`);
+    
+    let hasAccess = isAdmin || session.userId.toString() === decoded.userId;
+    
+    if (!hasAccess) {
+      console.log(`[Session Analyze] No direct access, checking department head permissions...`);
+      
+      // Check if user is a department head and the session belongs to someone in their department
+      // First get the requester's employee ID
+      let requesterEmployeeId = requester?.employeeId;
+      if (!requesterEmployeeId) {
+        const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
+        requesterEmployeeId = requesterEmployee?._id;
+        console.log(`[Session Analyze] Looked up employee from userId: ${requesterEmployeeId}`);
+      } else {
+        console.log(`[Session Analyze] Got employeeId from User model: ${requesterEmployeeId}`);
       }
+      
+      if (requesterEmployeeId) {
+        // Check if this employee is head of a department (don't require isActive)
+        const dept = await Department.findOne({ 
+          head: requesterEmployeeId
+        });
+        
+        console.log(`[Session Analyze] Department where user is head: ${dept?.name || 'NONE'}`);
+        
+        if (dept) {
+          // Check if the session's employee belongs to this department
+          const sessionEmployee = await Employee.findById(session.employeeId).select('department');
+          console.log(`[Session Analyze] Session employee dept: ${sessionEmployee?.department?.toString()}, dept._id: ${dept._id.toString()}`);
+          
+          if (sessionEmployee && sessionEmployee.department?.toString() === dept._id.toString()) {
+            hasAccess = true;
+            console.log(`[Session Analyze] Department head ${decoded.userId} authorized to analyze session in ${dept.name}`);
+          }
+        }
+      }
+    }
+    
+    if (!hasAccess) {
+      return NextResponse.json({ success: false, error: 'Unauthorized to analyze this session' }, { status: 403 });
     }
 
     // Get employee info for role context
