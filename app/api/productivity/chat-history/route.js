@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import MayaChatHistory from '@/models/MayaChatHistory';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
+
+// Helper to safely convert to ObjectId
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof mongoose.Types.ObjectId) return id;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return new mongoose.Types.ObjectId(id);
+  }
+  return null;
+}
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -14,20 +25,28 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-
 
 // Helper function to check if user is a department head (via Department.head field)
 async function getDepartmentIfHead(userId) {
+  // Convert userId to ObjectId if needed
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
   // First get the employee ID for this user
-  const user = await User.findById(userId).select('employeeId');
-  if (!user || !user.employeeId) {
+  const user = await User.findById(userObjId).select('employeeId');
+  let employeeId = user?.employeeId;
+  
+  if (!employeeId) {
     // Try to find employee by userId
-    const employee = await Employee.findOne({ userId }).select('_id');
-    if (!employee) return null;
-    
-    // Check if this employee is head of any department
-    const department = await Department.findOne({ head: employee._id, isActive: true });
-    return department;
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    employeeId = employee?._id;
+  }
+  
+  if (!employeeId) {
+    console.log('[getDepartmentIfHead] No employee found for userId:', userId);
+    return null;
   }
   
   // Check if this employee is head of any department
-  const department = await Department.findOne({ head: user.employeeId, isActive: true });
+  const department = await Department.findOne({ head: employeeId, isActive: true });
+  console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
 
@@ -42,8 +61,9 @@ async function canViewChatHistory(requesterId, requesterRole, targetUserId) {
   const department = await getDepartmentIfHead(requesterId);
   
   if (department) {
-    // Get target employee's department
-    const targetEmployee = await Employee.findOne({ userId: targetUserId }).select('department');
+    // Get target employee's department - convert targetUserId to ObjectId
+    const targetObjId = toObjectId(targetUserId);
+    const targetEmployee = await Employee.findOne({ userId: targetObjId }).select('department');
     
     if (targetEmployee && targetEmployee.department && 
         targetEmployee.department.toString() === department._id.toString()) {
@@ -107,7 +127,13 @@ export async function GET(request) {
           error: 'You do not have permission to view this user\'s chat history' 
         }, { status: 403 });
       }
-      query.userId = targetUserId;
+      // Convert string ID to ObjectId for proper querying
+      const targetObjId = toObjectId(targetUserId);
+      if (!targetObjId) {
+        return NextResponse.json({ success: false, error: 'Invalid user ID' }, { status: 400 });
+      }
+      query.userId = targetObjId;
+      console.log('[Chat History API] Query for specific user:', { targetUserId, targetObjId });
     } else {
       // No specific user - return based on role/department head status
       if (user.role === 'god_admin' || user.role === 'admin') {

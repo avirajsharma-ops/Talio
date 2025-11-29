@@ -1,6 +1,7 @@
 'use server';
 
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import MayaScreenSummary from '@/models/MayaScreenSummary';
 import ProductivityData from '@/models/ProductivityData';
@@ -11,27 +12,45 @@ import { jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
+// Helper to safely convert to ObjectId
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof mongoose.Types.ObjectId) return id;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return new mongoose.Types.ObjectId(id);
+  }
+  return null;
+}
+
 /**
  * Check if a user is a department head via Department.head field
  */
 async function getDepartmentIfHead(userId) {
-  const user = await User.findById(userId).select('employeeId');
+  // Convert userId to ObjectId if needed
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
+  const user = await User.findById(userObjId).select('employeeId');
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
-    const employee = await Employee.findOne({ userId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
     employeeId = employee?._id;
   }
   
-  if (!employeeId) return null;
+  if (!employeeId) {
+    console.log('[getDepartmentIfHead] No employee found for userId:', userId);
+    return null;
+  }
   
   const department = await Department.findOne({ head: employeeId, isActive: true });
+  console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
 
 /**
  * GET - Get user cards for raw captures monitoring
- * Returns users who have raw capture data with summary stats
+ * Returns ALL accessible employees with their raw capture stats
  * 
  * Access levels:
  * - god_admin/admin: See all users
@@ -79,179 +98,148 @@ export async function GET(request) {
       departmentId: headOfDepartment?._id?.toString()
     });
 
-    // Build match stage based on access level
-    let userFilter = {};
-    let legacyUserFilter = {};
+    // Build employee query based on access level (same as user-cards API)
+    let employeeQuery = { status: 'active' };
     
     if (isAdminOrGodAdmin) {
-      // Admins see all users - no filter
+      // Admins see all users - no additional filter
     } else if (isDeptHead) {
       // Department heads see only users in their department
-      const deptEmployees = await Employee.find({ 
-        department: headOfDepartment._id,
-        status: 'active'
-      }).select('userId');
-      const deptUserIds = deptEmployees.filter(e => e.userId).map(e => e.userId);
-      userFilter.userId = { $in: deptUserIds };
-      legacyUserFilter.monitoredUserId = { $in: deptUserIds };
+      employeeQuery.department = headOfDepartment._id;
     } else {
-      // All other roles see only their own data
-      userFilter.userId = currentUser._id;
-      legacyUserFilter.monitoredUserId = currentUser._id;
-    }
-
-    // Get raw captures grouped by user from both models
-    const [productivityByUser, legacyByUser] = await Promise.all([
-      // New ProductivityData model
-      ProductivityData.aggregate([
-        { $match: { ...userFilter, status: { $in: ['synced', 'analyzed'] } } },
-        { $sort: { createdAt: -1 } },
-        {
-          $group: {
-            _id: '$userId',
-            totalCaptures: { $sum: 1 },
-            latestCapture: { $first: '$createdAt' },
-            avgProductivity: { $avg: '$productivityScore' },
-            totalActiveTime: { $sum: '$totalActiveTime' },
-            todayCaptures: {
-              $sum: {
-                $cond: [
-                  { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
-                  1,
-                  0
-                ]
-              }
-            }
-          }
-        }
-      ]),
-      // Legacy MayaScreenSummary model
-      MayaScreenSummary.aggregate([
-        { $match: { ...legacyUserFilter, status: { $ne: 'pending' } } },
-        { $sort: { createdAt: -1 } },
-        {
-          $group: {
-            _id: '$monitoredUserId',
-            totalCaptures: { $sum: 1 },
-            latestCapture: { $first: '$createdAt' },
-            avgProductivity: { $avg: '$productivityScore' },
-            totalActiveTime: { $sum: '$totalActiveTime' },
-            todayCaptures: {
-              $sum: {
-                $cond: [
-                  { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
-                  1,
-                  0
-                ]
-              }
-            }
-          }
-        }
-      ])
-    ]);
-
-    // Merge results from both models
-    const userDataMap = new Map();
-    
-    // Add productivity data
-    productivityByUser.forEach(data => {
-      const id = data._id?.toString();
-      if (id) {
-        userDataMap.set(id, {
-          _id: data._id,
-          totalCaptures: data.totalCaptures || 0,
-          latestCapture: data.latestCapture,
-          avgProductivity: data.avgProductivity || 0,
-          totalActiveTime: data.totalActiveTime || 0,
-          todayCaptures: data.todayCaptures || 0
+      // All other roles see only their own card
+      const requesterEmployee = await Employee.findOne({ userId: userId }).select('_id');
+      if (requesterEmployee) {
+        employeeQuery._id = requesterEmployee._id;
+      } else {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          accessLevel: 'self_only'
         });
       }
-    });
-    
-    // Merge legacy data
-    legacyByUser.forEach(data => {
-      const id = data._id?.toString();
-      if (id) {
-        if (userDataMap.has(id)) {
-          const existing = userDataMap.get(id);
-          existing.totalCaptures += data.totalCaptures || 0;
-          existing.todayCaptures += data.todayCaptures || 0;
-          existing.totalActiveTime += data.totalActiveTime || 0;
-          // Take most recent capture
-          if (data.latestCapture && (!existing.latestCapture || data.latestCapture > existing.latestCapture)) {
-            existing.latestCapture = data.latestCapture;
+    }
+
+    // Get all employees first (like user-cards API)
+    const employees = await Employee.find(employeeQuery)
+      .populate('userId', 'name email profilePicture')
+      .populate('department', 'name')
+      .select('firstName lastName employeeCode designation profilePicture userId department')
+      .lean();
+
+    // Get raw capture stats for each employee
+    const userCards = await Promise.all(employees.map(async (employee) => {
+      if (!employee.userId) return null;
+      
+      const empUserId = employee.userId._id || employee.userId;
+      // Convert to ObjectId for aggregation
+      const empUserObjId = toObjectId(empUserId);
+      if (!empUserObjId) return null;
+      
+      // Get stats from both ProductivityData and MayaScreenSummary
+      const [productivityStats, legacyStats] = await Promise.all([
+        ProductivityData.aggregate([
+          { $match: { userId: empUserObjId, status: { $in: ['synced', 'analyzed'] } } },
+          {
+            $group: {
+              _id: null,
+              totalCaptures: { $sum: 1 },
+              latestCapture: { $max: '$createdAt' },
+              avgProductivity: { $avg: '$productivityScore' },
+              totalActiveTime: { $sum: '$totalActiveTime' },
+              todayCaptures: {
+                $sum: {
+                  $cond: [
+                    { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
+                    1,
+                    0
+                  ]
+                }
+              }
+            }
           }
-          // Average the productivity scores
-          if (data.avgProductivity) {
-            existing.avgProductivity = (existing.avgProductivity + data.avgProductivity) / 2;
+        ]),
+        MayaScreenSummary.aggregate([
+          { $match: { monitoredUserId: empUserObjId, status: { $ne: 'pending' } } },
+          {
+            $group: {
+              _id: null,
+              totalCaptures: { $sum: 1 },
+              latestCapture: { $max: '$createdAt' },
+              avgProductivity: { $avg: '$productivityScore' },
+              totalActiveTime: { $sum: '$totalActiveTime' },
+              todayCaptures: {
+                $sum: {
+                  $cond: [
+                    { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
+                    1,
+                    0
+                  ]
+                }
+              }
+            }
           }
-        } else {
-          userDataMap.set(id, {
-            _id: data._id,
-            totalCaptures: data.totalCaptures || 0,
-            latestCapture: data.latestCapture,
-            avgProductivity: data.avgProductivity || 0,
-            totalActiveTime: data.totalActiveTime || 0,
-            todayCaptures: data.todayCaptures || 0
-          });
-        }
+        ])
+      ]);
+
+      // Merge stats from both sources
+      const prodStats = productivityStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
+      const legStats = legacyStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
+      
+      const totalCaptures = (prodStats.totalCaptures || 0) + (legStats.totalCaptures || 0);
+      const todayCaptures = (prodStats.todayCaptures || 0) + (legStats.todayCaptures || 0);
+      const totalActiveTime = (prodStats.totalActiveTime || 0) + (legStats.totalActiveTime || 0);
+      
+      // Get the most recent capture time
+      let latestCapture = prodStats.latestCapture || legStats.latestCapture;
+      if (prodStats.latestCapture && legStats.latestCapture) {
+        latestCapture = prodStats.latestCapture > legStats.latestCapture ? prodStats.latestCapture : legStats.latestCapture;
       }
-    });
+      
+      // Average productivity (if both have values)
+      let avgProductivity = 0;
+      if (prodStats.avgProductivity && legStats.avgProductivity) {
+        avgProductivity = (prodStats.avgProductivity + legStats.avgProductivity) / 2;
+      } else {
+        avgProductivity = prodStats.avgProductivity || legStats.avgProductivity || 0;
+      }
+      
+      const userName = employee.firstName && employee.lastName 
+        ? `${employee.firstName} ${employee.lastName}`
+        : (employee.userId?.name || 'Unknown');
 
-    const capturesByUser = Array.from(userDataMap.values());
+      return {
+        id: employee._id?.toString(),
+        odooId: empUserId?.toString(),
+        userId: empUserId?.toString(),
+        name: userName,
+        email: employee.userId?.email,
+        profilePicture: employee.profilePicture || employee.userId?.profilePicture,
+        employeeCode: employee.employeeCode || '',
+        designation: typeof employee.designation === 'object' ? employee.designation?.title : employee.designation || '',
+        department: employee.department?.name || 'Unassigned',
+        totalCaptures,
+        todayCaptures,
+        avgProductivity: Math.round(avgProductivity),
+        totalActiveTime: Math.round(totalActiveTime / 60000), // Convert to minutes
+        latestCapture,
+        isOwn: empUserId?.toString() === userId?.toString()
+      };
+    }));
 
-    // Get user details for each
-    const userCards = await Promise.all(
-      capturesByUser.map(async (data) => {
-        const user = await User.findById(data._id).select('name email profilePicture');
-        const employee = await Employee.findOne({ userId: data._id }).select('firstName lastName employeeCode designation profilePicture department').populate('department', 'name');
-        
-        let name = 'Unknown User';
-        let profilePicture = null;
-        let employeeCode = '';
-        let designation = '';
-        let department = '';
-        
-        if (employee) {
-          name = employee.firstName ? `${employee.firstName} ${employee.lastName || ''}`.trim() : (user?.name || 'Unknown User');
-          profilePicture = employee.profilePicture || user?.profilePicture;
-          employeeCode = employee.employeeCode || '';
-          designation = typeof employee.designation === 'object' ? employee.designation?.title : employee.designation || '';
-          department = employee.department?.name || '';
-        } else if (user) {
-          name = user.name || user.email?.split('@')[0] || 'Unknown User';
-          profilePicture = user.profilePicture;
-        }
-
-        return {
-          id: data._id?.toString(),
-          odooId: data._id?.toString(),
-          userId: data._id?.toString(),
-          name,
-          profilePicture,
-          employeeCode,
-          designation,
-          department,
-          totalCaptures: data.totalCaptures || 0,
-          todayCaptures: data.todayCaptures || 0,
-          avgProductivity: Math.round(data.avgProductivity || 0),
-          totalActiveTime: Math.round((data.totalActiveTime || 0) / 60000), // Convert to minutes
-          latestCapture: data.latestCapture,
-          isOwn: data._id?.toString() === userId?.toString()
-        };
-      })
-    );
-
-    // Sort: own user first, then by total captures
-    userCards.sort((a, b) => {
-      if (a.isOwn && !b.isOwn) return -1;
-      if (!a.isOwn && b.isOwn) return 1;
-      return (b.totalCaptures || 0) - (a.totalCaptures || 0);
-    });
+    // Filter out null entries and sort: own user first, then by total captures
+    const validUserCards = userCards
+      .filter(card => card !== null)
+      .sort((a, b) => {
+        if (a.isOwn && !b.isOwn) return -1;
+        if (!a.isOwn && b.isOwn) return 1;
+        return (b.totalCaptures || 0) - (a.totalCaptures || 0);
+      });
 
     return NextResponse.json({ 
       success: true, 
-      data: userCards,
+      data: validUserCards,
+      totalUsers: validUserCards.length,
       accessLevel: isAdminOrGodAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
     });
 

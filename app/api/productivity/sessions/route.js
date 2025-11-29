@@ -1,16 +1,50 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import ProductivitySession from '@/models/ProductivitySession';
 import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
+import Department from '@/models/Department';
 import { analyzeProductivityData } from '@/lib/productivityAnalyzer';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for processing
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
+
+// Helper to safely convert to ObjectId
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof mongoose.Types.ObjectId) return id;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return new mongoose.Types.ObjectId(id);
+  }
+  return null;
+}
+
+/**
+ * Check if a user is a department head via Department.head field
+ * Returns the department if user is head, null otherwise
+ */
+async function getDepartmentIfHead(userId) {
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
+  const user = await User.findById(userObjId).select('employeeId');
+  let employeeId = user?.employeeId;
+  
+  if (!employeeId) {
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    employeeId = employee?._id;
+  }
+  
+  if (!employeeId) return null;
+  
+  const department = await Department.findOne({ head: employeeId, isActive: true });
+  return department;
+}
 
 /**
  * Aggregate raw productivity data into sessions
@@ -539,16 +573,42 @@ export async function GET(request) {
     // Check permissions
     const requester = await User.findById(decoded.userId).select('role employeeId');
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
-    const isDeptHead = requester?.role === 'department_head';
+    
+    // Check if user is a department head via Department.head field
+    const headOfDepartment = await getDepartmentIfHead(decoded.userId);
+    const isDeptHead = !!headOfDepartment;
+    console.log('[Sessions] Permission check:', { 
+      userId: decoded.userId, 
+      isAdmin, 
+      isDeptHead, 
+      departmentId: headOfDepartment?._id?.toString() 
+    });
 
     // Build query
     const query = {};
     
     if (userId && (isAdmin || isDeptHead)) {
-      query.userId = userId;
+      // Convert userId from URL param to ObjectId
+      const userObjId = toObjectId(userId);
+      if (userObjId) {
+        query.userId = userObjId;
+      } else {
+        query.userId = userId; // Fallback to string
+      }
+      
+      // If department head, verify the target user is in their department
+      if (isDeptHead && !isAdmin && headOfDepartment) {
+        const targetUser = await User.findById(userObjId).select('employeeId');
+        if (targetUser?.employeeId) {
+          const targetEmployee = await Employee.findById(targetUser.employeeId).select('department');
+          if (!targetEmployee?.department || targetEmployee.department.toString() !== headOfDepartment._id.toString()) {
+            return NextResponse.json({ success: false, error: 'Cannot access data for users outside your department' }, { status: 403 });
+          }
+        }
+      }
     } else if (!isAdmin && !isDeptHead) {
       // Regular employees can only see their own sessions
-      query.userId = decoded.userId;
+      query.userId = toObjectId(decoded.userId) || decoded.userId;
     }
 
     // Status filter

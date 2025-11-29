@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup } from 'react-icons/fa';
+import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup, FaSync } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 import { UserCardsGrid, SessionPopup, ChatHistoryCardsGrid, ChatHistoryPopup, RawCapturesUserCardsGrid, RawCapturesPopup } from '@/components/productivity/SessionComponents';
@@ -29,6 +29,14 @@ export default function ProductivityMonitoringPage() {
   const [isUserDepartmentHead, setIsUserDepartmentHead] = useState(false);
   const [userDepartment, setUserDepartment] = useState(null);
   const [expandedSessions, setExpandedSessions] = useState(new Set());
+  
+  // Refresh key to force re-fetch data in child components
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Function to refresh all grids
+  const refreshAllGrids = () => {
+    setRefreshKey(prev => prev + 1);
+  };
   const [selectedUserFilter, setSelectedUserFilter] = useState('all');
   
   // New session-based state
@@ -348,7 +356,8 @@ export default function ProductivityMonitoringPage() {
               
               if (statusData.data.status === 'analyzed' || statusData.data.status === 'captured') {
                 toast.success(`Screenshot captured! Score: ${statusData.data.productivityScore || 'N/A'}`, { id: 'instant-capture', duration: 4000 });
-                await fetchAllData(user);
+                // Refresh all grids immediately to show new data
+                refreshAllGrids();
               } else {
                 toast.error('Capture failed', { id: 'instant-capture' });
               }
@@ -762,6 +771,7 @@ export default function ProductivityMonitoringPage() {
               setIsSessionPopupOpen(true);
             }}
             selectedUserId={selectedUserForSessions?.userId}
+            refreshKey={refreshKey}
           />
           
           {/* Session Popup Modal */}
@@ -796,6 +806,7 @@ export default function ProductivityMonitoringPage() {
               setIsRawCapturesPopupOpen(true);
             }}
             selectedUserId={selectedUserForRawCaptures?.userId}
+            refreshKey={refreshKey}
           />
           
           {/* Raw Captures Popup Modal */}
@@ -830,6 +841,7 @@ export default function ProductivityMonitoringPage() {
               setIsChatHistoryPopupOpen(true);
             }}
             selectedUserId={selectedUserForChat?.userId}
+            refreshKey={refreshKey}
           />
           
           {/* Chat History Popup Modal */}

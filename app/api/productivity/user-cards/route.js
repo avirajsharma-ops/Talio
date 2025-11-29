@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import ProductivitySession from '@/models/ProductivitySession';
 import User from '@/models/User';
@@ -8,23 +9,41 @@ import Department from '@/models/Department';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
+// Helper to safely convert to ObjectId
+function toObjectId(id) {
+  if (!id) return null;
+  if (id instanceof mongoose.Types.ObjectId) return id;
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return new mongoose.Types.ObjectId(id);
+  }
+  return null;
+}
+
 /**
  * Check if a user is a department head via Department.head field
  */
 async function getDepartmentIfHead(userId) {
+  // Convert userId to ObjectId if needed
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
   // Get the employee ID for this user
-  const user = await User.findById(userId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId');
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
-    const employee = await Employee.findOne({ userId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
     employeeId = employee?._id;
   }
   
-  if (!employeeId) return null;
+  if (!employeeId) {
+    console.log('[getDepartmentIfHead] No employee found for userId:', userId);
+    return null;
+  }
   
   // Check if this employee is head of any department
   const department = await Department.findOne({ head: employeeId, isActive: true });
+  console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
 
@@ -77,7 +96,6 @@ export async function GET(request) {
 
     // Build query for users based on role
     let employeeQuery = { status: 'active' };
-    let onlyOwnCard = false;
     
     if (isAdmin) {
       // Admins see all users - no additional filter
@@ -86,7 +104,6 @@ export async function GET(request) {
       employeeQuery.department = headOfDepartment._id;
     } else {
       // All other roles (employee, hr, manager who is not dept head) see only their own card
-      onlyOwnCard = true;
       const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
@@ -112,10 +129,13 @@ export async function GET(request) {
       if (!employee.userId) return null;
 
       const userId = employee.userId._id || employee.userId;
+      // Convert to ObjectId for querying
+      const userObjId = toObjectId(userId);
+      if (!userObjId) return null;
 
       // Get latest session
       const latestSession = await ProductivitySession.findOne({ 
-        userId: userId,
+        userId: userObjId,
         status: 'completed'
       })
         .sort({ sessionEnd: -1 })
@@ -124,7 +144,7 @@ export async function GET(request) {
 
       // Get total session count
       const totalSessions = await ProductivitySession.countDocuments({
-        userId: userId,
+        userId: userObjId,
         status: 'completed'
       });
 
@@ -133,7 +153,7 @@ export async function GET(request) {
       todayStart.setHours(0, 0, 0, 0);
       
       const todaySessions = await ProductivitySession.find({
-        userId: userId,
+        userId: userObjId,
         sessionStart: { $gte: todayStart },
         status: 'completed'
       }).select('durationMinutes aiAnalysis.productivityScore').lean();

@@ -11,14 +11,14 @@ import { useTheme } from '@/contexts/ThemeContext';
  * User Cards Grid Component
  * Shows a grid of user cards with quick stats and latest session info
  */
-export function UserCardsGrid({ onUserSelect, selectedUserId }) {
+export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
 
   useEffect(() => {
     fetchUserCards();
-  }, []);
+  }, [refreshKey]);
 
   const fetchUserCards = async () => {
     try {
@@ -135,7 +135,10 @@ function UserCard({ card, onClick, isSelected }) {
           }`}></div>
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-gray-800 truncate">{card.name}</h4>
+          <h4 className="font-semibold text-gray-800 truncate flex items-center gap-2">
+            {card.name}
+            {card.isOwnCard && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">You</span>}
+          </h4>
           <p className="text-sm text-gray-500 truncate">{card.designation || card.department}</p>
         </div>
       </div>
@@ -749,14 +752,14 @@ function SessionDetailModal({ session, onClose }) {
  * Chat History User Cards Grid Component
  * Shows a grid of user cards for MAYA chat history
  */
-export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId }) {
+export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
 
   useEffect(() => {
     fetchChatHistoryCards();
-  }, []);
+  }, [refreshKey]);
 
   const fetchChatHistoryCards = async () => {
     try {
@@ -858,7 +861,10 @@ function ChatHistoryUserCard({ card, onClick, isSelected }) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-gray-800 truncate">{card.name}</h4>
+          <h4 className="font-semibold text-gray-800 truncate flex items-center gap-2">
+            {card.name}
+            {card.isOwn && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">You</span>}
+          </h4>
           <p className="text-sm text-gray-500 truncate">{card.employeeCode || card.designation}</p>
         </div>
         <div className="text-right">
@@ -1108,14 +1114,14 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
  * Raw Captures User Cards Grid Component
  * Shows a grid of user cards for raw captures monitoring
  */
-export function RawCapturesUserCardsGrid({ onUserSelect, selectedUserId }) {
+export function RawCapturesUserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
 
   useEffect(() => {
     fetchUserCards();
-  }, []);
+  }, [refreshKey]);
 
   const fetchUserCards = async () => {
     try {
