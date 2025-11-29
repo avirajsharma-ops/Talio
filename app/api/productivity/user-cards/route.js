@@ -4,12 +4,38 @@ import connectDB from '@/lib/mongodb';
 import ProductivitySession from '@/models/ProductivitySession';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
+import Department from '@/models/Department';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 /**
+ * Check if a user is a department head via Department.head field
+ */
+async function getDepartmentIfHead(userId) {
+  // Get the employee ID for this user
+  const user = await User.findById(userId).select('employeeId');
+  let employeeId = user?.employeeId;
+  
+  if (!employeeId) {
+    const employee = await Employee.findOne({ userId }).select('_id');
+    employeeId = employee?._id;
+  }
+  
+  if (!employeeId) return null;
+  
+  // Check if this employee is head of any department
+  const department = await Department.findOne({ head: employeeId, isActive: true });
+  return department;
+}
+
+/**
  * GET - Get user cards for activity monitoring
  * Returns users with their latest session summary
+ * 
+ * Access levels:
+ * - god_admin/admin: See all users
+ * - Department head (via Department.head): See users in their department
+ * - employee/hr/manager (non-dept-head): See only their own card
  */
 export async function GET(request) {
   try {
@@ -29,37 +55,52 @@ export async function GET(request) {
 
     await connectDB();
 
-    // Get requester's role
+    // Get requester's info
     const requester = await User.findById(decoded.userId).select('role');
-    const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
-    const isDeptHead = requester?.role === 'department_head';
-    const isManager = requester?.role === 'manager';
-
-    if (!isAdmin && !isDeptHead && !isManager) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Only admins, department heads, and managers can view user cards' 
-      }, { status: 403 });
+    if (!requester) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
+    
+    const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
+    
+    // Check if user is a department head via Department.head field
+    const headOfDepartment = await getDepartmentIfHead(decoded.userId);
+    const isDeptHead = !!headOfDepartment;
+
+    console.log('[User Cards API] Access check:', {
+      userId: decoded.userId,
+      role: requester.role,
+      isAdmin,
+      isDeptHead,
+      departmentId: headOfDepartment?._id?.toString()
+    });
 
     // Build query for users based on role
     let employeeQuery = { status: 'active' };
+    let onlyOwnCard = false;
     
-    if (isDeptHead) {
-      // Get department head's employee record to find their department
-      const deptHeadEmployee = await Employee.findOne({ userId: decoded.userId }).select('department');
-      if (deptHeadEmployee?.department) {
-        employeeQuery.department = deptHeadEmployee.department;
-      }
-    } else if (isManager) {
-      // Managers can only see their direct reports
-      const managerEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
-      if (managerEmployee) {
-        employeeQuery.reportingTo = managerEmployee._id;
+    if (isAdmin) {
+      // Admins see all users - no additional filter
+    } else if (isDeptHead) {
+      // Department heads see only users in their department
+      employeeQuery.department = headOfDepartment._id;
+    } else {
+      // All other roles (employee, hr, manager who is not dept head) see only their own card
+      onlyOwnCard = true;
+      const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
+      if (requesterEmployee) {
+        employeeQuery._id = requesterEmployee._id;
+      } else {
+        // User has no employee record, return empty
+        return NextResponse.json({
+          success: true,
+          data: [],
+          totalUsers: 0
+        });
       }
     }
 
-    // Get all active employees with user info
+    // Get employees with user info
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture lastActive')
       .populate('department', 'name')
@@ -70,9 +111,11 @@ export async function GET(request) {
     const userCards = await Promise.all(employees.map(async (employee) => {
       if (!employee.userId) return null;
 
+      const userId = employee.userId._id || employee.userId;
+
       // Get latest session
       const latestSession = await ProductivitySession.findOne({ 
-        userId: employee.userId._id,
+        userId: userId,
         status: 'completed'
       })
         .sort({ sessionEnd: -1 })
@@ -81,7 +124,7 @@ export async function GET(request) {
 
       // Get total session count
       const totalSessions = await ProductivitySession.countDocuments({
-        userId: employee.userId._id,
+        userId: userId,
         status: 'completed'
       });
 
@@ -90,7 +133,7 @@ export async function GET(request) {
       todayStart.setHours(0, 0, 0, 0);
       
       const todaySessions = await ProductivitySession.find({
-        userId: employee.userId._id,
+        userId: userId,
         sessionStart: { $gte: todayStart },
         status: 'completed'
       }).select('durationMinutes aiAnalysis.productivityScore').lean();
@@ -100,18 +143,22 @@ export async function GET(request) {
         ? todaySessions.reduce((sum, s) => sum + (s.aiAnalysis?.productivityScore || 0), 0) / todaySessions.length
         : 0;
 
+      const userName = employee.firstName && employee.lastName 
+        ? `${employee.firstName} ${employee.lastName}`
+        : (employee.userId?.name || 'Unknown');
+
       return {
         id: employee._id,
-        odooId: employee.userId._id,
-        name: employee.firstName && employee.lastName 
-          ? `${employee.firstName} ${employee.lastName}`
-          : employee.userId.name,
-        email: employee.userId.email,
+        odooId: userId,
+        userId: userId.toString(),
+        name: userName,
+        email: employee.userId?.email,
         employeeCode: employee.employeeCode,
-        designation: employee.designation,
+        designation: employee.designation?.title || employee.designation || '',
         department: employee.department?.name || 'Unassigned',
-        profilePicture: employee.profilePicture || employee.userId.profilePicture,
-        lastActive: employee.userId.lastActive,
+        profilePicture: employee.profilePicture || employee.userId?.profilePicture,
+        lastActive: employee.userId?.lastActive,
+        isOwnCard: userId.toString() === decoded.userId.toString(),
         latestSession: latestSession ? {
           sessionStart: latestSession.sessionStart,
           sessionEnd: latestSession.sessionEnd,
@@ -129,10 +176,14 @@ export async function GET(request) {
       };
     }));
 
-    // Filter out null entries and sort by latest activity
+    // Filter out null entries and sort: own card first, then by latest activity
     const validUserCards = userCards
       .filter(card => card !== null)
       .sort((a, b) => {
+        // Own card always first
+        if (a.isOwnCard && !b.isOwnCard) return -1;
+        if (!a.isOwnCard && b.isOwnCard) return 1;
+        // Then sort by latest activity
         if (!a.latestSession && !b.latestSession) return 0;
         if (!a.latestSession) return 1;
         if (!b.latestSession) return -1;
@@ -142,7 +193,8 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       data: validUserCards,
-      totalUsers: validUserCards.length
+      totalUsers: validUserCards.length,
+      accessLevel: isAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
     });
 
   } catch (error) {

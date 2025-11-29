@@ -12,7 +12,15 @@ import { getCurrentISTDate } from '@/lib/timezone';
 import OpenAI from 'openai';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY });
+
+// Lazy initialize OpenAI to avoid build errors
+let openai = null;
+function getOpenAI() {
+  if (!openai && (process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY)) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY });
+  }
+  return openai;
+}
 
 /**
  * POST /api/activity/batch

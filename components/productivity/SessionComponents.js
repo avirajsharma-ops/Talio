@@ -12,6 +12,7 @@ import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib
 export function UserCardsGrid({ onUserSelect, selectedUserId }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessLevel, setAccessLevel] = useState('admin');
 
   useEffect(() => {
     fetchUserCards();
@@ -28,6 +29,7 @@ export function UserCardsGrid({ onUserSelect, selectedUserId }) {
       
       if (data.success) {
         setUserCards(data.data || []);
+        setAccessLevel(data.accessLevel || 'admin');
       } else {
         console.error('Failed to fetch user cards:', data.error);
       }
@@ -62,8 +64,14 @@ export function UserCardsGrid({ onUserSelect, selectedUserId }) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-12 text-center">
         <FaUser className="text-6xl text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-600 mb-2">No Active Users</h3>
-        <p className="text-gray-500">Activity data will appear when employees use the desktop app</p>
+        <h3 className="text-lg font-semibold text-gray-600 mb-2">
+          {accessLevel === 'self_only' ? 'No Activity Sessions Yet' : 'No Active Users'}
+        </h3>
+        <p className="text-gray-500">
+          {accessLevel === 'self_only' 
+            ? 'Your activity sessions will appear here once you start using the desktop app'
+            : 'Activity data will appear when employees use the desktop app'}
+        </p>
       </div>
     );
   }
@@ -720,6 +728,359 @@ function SessionDetailModal({ session, onClose }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Chat History User Cards Grid Component
+ * Shows a grid of user cards for MAYA chat history
+ */
+export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId }) {
+  const [userCards, setUserCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [accessLevel, setAccessLevel] = useState('admin');
+
+  useEffect(() => {
+    fetchChatHistoryCards();
+  }, []);
+
+  const fetchChatHistoryCards = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/productivity/chat-history/user-cards', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setUserCards(data.data || []);
+        setAccessLevel(data.accessLevel || 'admin');
+      } else {
+        console.error('Failed to fetch chat history cards:', data.error);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat history cards:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl shadow-md p-4 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="h-16 bg-gray-200 rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (userCards.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+        <FaUser className="text-6xl text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-600 mb-2">
+          {accessLevel === 'self_only' ? 'No MAYA Conversations Yet' : 'No Chat History'}
+        </h3>
+        <p className="text-gray-500">
+          {accessLevel === 'self_only' 
+            ? 'Your MAYA conversations will appear here once you start chatting with MAYA'
+            : 'MAYA conversations will appear here when employees chat with MAYA'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {userCards.map((card) => (
+        <ChatHistoryUserCard 
+          key={card.id} 
+          card={card} 
+          onClick={() => onUserSelect(card)}
+          isSelected={selectedUserId === card.userId}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Individual Chat History User Card Component
+ */
+function ChatHistoryUserCard({ card, onClick, isSelected }) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer p-4 border-2 ${
+        isSelected ? 'border-purple-500 ring-2 ring-purple-200' : 'border-transparent hover:border-gray-200'
+      }`}
+    >
+      {/* Header with avatar and name */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative">
+          {card.profilePicture ? (
+            <img 
+              src={card.profilePicture} 
+              alt={card.name} 
+              className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">
+                {card.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-gray-800 truncate">{card.name}</h4>
+          <p className="text-sm text-gray-500 truncate">{card.employeeCode || card.designation}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-purple-600">{card.totalConversations || 0}</div>
+          <div className="text-xs text-gray-500">Chats</div>
+        </div>
+      </div>
+
+      {/* Last message preview */}
+      {card.lastMessage && (
+        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs text-gray-400">Last conversation</span>
+            <span className="text-xs text-gray-400">
+              {card.lastMessageTime ? formatLocalDateTime(card.lastMessageTime) : ''}
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 line-clamp-2">{card.lastMessage}</p>
+        </div>
+      )}
+
+      {/* Quick stats */}
+      <div className="flex items-center justify-between text-sm mt-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-1 text-gray-500">
+          <span className="text-purple-500 font-medium">{card.todayConversations || 0}</span>
+          <span>today</span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-500">
+          <span className="text-purple-500 font-medium">{card.totalMessages || 0}</span>
+          <span>messages</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Chat History Popup Modal Component
+ * Shows detailed chat history for a user
+ */
+export function ChatHistoryPopup({ user, isOpen, onClose }) {
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchConversations(true);
+    }
+  }, [isOpen, user]);
+
+  const fetchConversations = async (reset = false) => {
+    if (!user) return;
+    
+    try {
+      if (reset) {
+        setLoading(true);
+        setConversations([]);
+        setOffset(0);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const newOffset = reset ? 0 : offset;
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/productivity/chat-history?userId=${user.userId}&limit=4&offset=${newOffset}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const newConversations = data.data || [];
+        if (reset) {
+          setConversations(newConversations);
+        } else {
+          setConversations(prev => [...prev, ...newConversations]);
+        }
+        setOffset(newOffset + newConversations.length);
+        setHasMore(newConversations.length === 4);
+      }
+    } catch (error) {
+      console.error('Failed to fetch conversations:', error);
+      toast.error('Failed to load conversations');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchConversations(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex items-center gap-4">
+          {user?.profilePicture ? (
+            <img 
+              src={user.profilePicture} 
+              alt={user.name} 
+              className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
+              <span className="text-2xl font-bold text-purple-600">
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-white">{user?.name || 'User'}</h3>
+            <p className="text-purple-100 text-sm">{user?.designation || user?.employeeCode || 'Employee'}</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <FaTimes className="text-white text-xl" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <FaUser className="text-5xl text-gray-300 mx-auto mb-4" />
+              <p>No conversations found</p>
+            </div>
+          ) : (
+            <>
+              {conversations.map((conversation, idx) => (
+                <div 
+                  key={conversation._id || idx} 
+                  className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedConversation(selectedConversation?._id === conversation._id ? null : conversation)}
+                >
+                  {/* Conversation Header */}
+                  <div className="px-4 py-3 bg-white border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      {formatLocalDateTime(conversation.createdAt)}
+                    </span>
+                    <span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                      {conversation.messages?.length || 0} messages
+                    </span>
+                  </div>
+
+                  {/* Message Preview / Full Messages */}
+                  <div className="p-4">
+                    {selectedConversation?._id === conversation._id ? (
+                      // Full conversation view
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {conversation.messages?.map((msg, msgIdx) => (
+                          <div 
+                            key={msgIdx} 
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`max-w-[85%] rounded-2xl px-4 py-2 ${
+                              msg.role === 'user' 
+                                ? 'bg-purple-500 text-white' 
+                                : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
+                            }`}>
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              {msg.timestamp && (
+                                <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-purple-200' : 'text-gray-400'}`}>
+                                  {formatLocalTime(msg.timestamp)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      // Preview mode - show first user message
+                      <div className="space-y-2">
+                        {conversation.messages?.slice(0, 2).map((msg, msgIdx) => (
+                          <div 
+                            key={msgIdx} 
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
+                              msg.role === 'user' 
+                                ? 'bg-purple-500 text-white' 
+                                : 'bg-white text-gray-800 border'
+                            }`}>
+                              {msg.content?.substring(0, 100)}{msg.content?.length > 100 ? '...' : ''}
+                            </div>
+                          </div>
+                        ))}
+                        {conversation.messages?.length > 2 && (
+                          <div className="text-center text-sm text-purple-500 font-medium">
+                            Click to see all {conversation.messages.length} messages
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Load More Button */}
+              {hasMore && (
+                <div className="text-center pt-4">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-6 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full font-medium transition-colors disabled:opacity-50"
+                  >
+                    {loadingMore ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                        Loading...
+                      </span>
+                    ) : (
+                      'Load More Conversations'
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

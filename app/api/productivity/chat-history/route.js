@@ -79,6 +79,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
     const limit = parseInt(searchParams.get('limit')) || 50;
+    const offset = parseInt(searchParams.get('offset')) || 0;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
@@ -145,6 +146,7 @@ export async function GET(request) {
       .populate('userId', 'name email')
       .populate('employeeId', 'name employeeCode department designation')
       .sort({ createdAt: -1 })
+      .skip(offset)
       .limit(limit);
 
     return NextResponse.json({

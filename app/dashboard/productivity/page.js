@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
-import { UserCardsGrid, SessionPopup } from '@/components/productivity/SessionComponents';
+import { UserCardsGrid, SessionPopup, ChatHistoryCardsGrid, ChatHistoryPopup } from '@/components/productivity/SessionComponents';
 
 export default function ProductivityMonitoringPage() {
   const [user, setUser] = useState(null);
@@ -34,6 +34,25 @@ export default function ProductivityMonitoringPage() {
   // New session-based state
   const [selectedUserForSessions, setSelectedUserForSessions] = useState(null);
   const [isSessionPopupOpen, setIsSessionPopupOpen] = useState(false);
+  
+  // Chat history popup state
+  const [selectedUserForChat, setSelectedUserForChat] = useState(null);
+  const [isChatHistoryPopupOpen, setIsChatHistoryPopupOpen] = useState(false);
+  
+  // Employee filter dropdown state
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
+  // Click outside handler for employee dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showEmployeeDropdown && !event.target.closest('.employee-filter-dropdown')) {
+        setShowEmployeeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmployeeDropdown]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -545,7 +564,7 @@ export default function ProductivityMonitoringPage() {
       </div>
 
       {/* Desktop App Info */}
-      {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
+      {(isAdminOrGodAdmin || isDepartmentHead) && (
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
           <div className="flex items-start gap-3">
             <div className="text-blue-500 text-xl mt-0.5">ℹ️</div>
@@ -559,8 +578,8 @@ export default function ProductivityMonitoringPage() {
         </div>
       )}
 
-      {/* Instant Capture Panel */}
-      {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
+      {/* Instant Capture Panel - Always visible for admins/dept heads */}
+      {(isAdminOrGodAdmin || isDepartmentHead) && (
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -609,8 +628,8 @@ export default function ProductivityMonitoringPage() {
         </div>
       )}
 
-      {/* Screenshot Interval */}
-      {(isAdminOrGodAdmin || isDepartmentHead) && activeTab === 'monitoring' && (
+      {/* Screenshot Interval - Admin Only */}
+      {isAdminOrGodAdmin && (
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-md p-6 mb-6 border border-purple-200">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
@@ -728,8 +747,16 @@ export default function ProductivityMonitoringPage() {
         /* Session-Based View - User Cards Grid */
         <div>
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Team Activity</h2>
-            <p className="text-gray-600">Click on a team member to view their activity sessions</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {isAdminOrGodAdmin ? 'Team Activity' : isDepartmentHead ? 'Department Activity' : 'My Activity'}
+            </h2>
+            <p className="text-gray-600">
+              {isAdminOrGodAdmin
+                ? 'Click on a team member to view their activity sessions'
+                : isDepartmentHead
+                ? 'Click on a department member to view their activity sessions'
+                : 'Click on your card to view your activity sessions'}
+            </p>
           </div>
           
           <UserCardsGrid 
@@ -752,6 +779,83 @@ export default function ProductivityMonitoringPage() {
         </div>
       ) : activeTab === 'monitoring' ? (
         <div className="space-y-6">
+          {/* Employee Filter Dropdown */}
+          {canViewTeamData && getUniqueUsers().length > 1 && (
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <FaFilter className="text-gray-500" />
+                <span className="text-gray-700 font-medium">Filter by Employee:</span>
+                <div className="relative min-w-[300px] employee-filter-dropdown">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search employees..."
+                      value={employeeSearchQuery}
+                      onChange={(e) => {
+                        setEmployeeSearchQuery(e.target.value);
+                        setShowEmployeeDropdown(true);
+                      }}
+                      onFocus={() => setShowEmployeeDropdown(true)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg pr-10"
+                    />
+                    <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
+                  {showEmployeeDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div
+                        className={`px-4 py-2 cursor-pointer hover:bg-blue-50 ${selectedUserFilter === 'all' ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}
+                        onClick={() => {
+                          setSelectedUserFilter('all');
+                          setEmployeeSearchQuery('');
+                          setShowEmployeeDropdown(false);
+                        }}
+                      >
+                        <FaUsers className="inline mr-2" /> All Employees
+                      </div>
+                      {getUniqueUsers()
+                        .filter(u => 
+                          !employeeSearchQuery || 
+                          u.name?.toLowerCase().includes(employeeSearchQuery.toLowerCase())
+                        )
+                        .map((u) => (
+                          <div
+                            key={u.id}
+                            className={`px-4 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 ${selectedUserFilter === u.id ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}
+                            onClick={() => {
+                              setSelectedUserFilter(u.id);
+                              setEmployeeSearchQuery(u.name);
+                              setShowEmployeeDropdown(false);
+                            }}
+                          >
+                            <FaUser className="text-gray-400" />
+                            <span>{u.name}</span>
+                            {u.isOwn && <span className="text-xs bg-blue-200 text-blue-700 px-2 py-0.5 rounded-full">You</span>}
+                          </div>
+                        ))}
+                      {getUniqueUsers().filter(u => 
+                        !employeeSearchQuery || 
+                        u.name?.toLowerCase().includes(employeeSearchQuery.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-4 py-3 text-gray-500 text-center">No employees found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedUserFilter !== 'all' && (
+                  <button
+                    onClick={() => {
+                      setSelectedUserFilter('all');
+                      setEmployeeSearchQuery('');
+                    }}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Stats Summary */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
@@ -826,80 +930,38 @@ export default function ProductivityMonitoringPage() {
           )}
         </div>
       ) : (
-        /* Chat History Tab */
+        /* Chat History Tab - User Cards Grid */
         <div>
-          <div className="mb-6 flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-800">MAYA Chat History</h2>
-            <span className="text-sm text-gray-600 bg-gray-100 px-4 py-2 rounded-full">
-              {chatHistory.length} session{chatHistory.length !== 1 ? 's' : ''}
-            </span>
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {isAdminOrGodAdmin ? 'MAYA Chat History' : isDepartmentHead ? 'Department MAYA Chats' : 'My MAYA Chats'}
+            </h2>
+            <p className="text-gray-600">
+              {isAdminOrGodAdmin
+                ? 'Click on a team member to view their MAYA conversations'
+                : isDepartmentHead
+                ? 'Click on a department member to view their MAYA conversations'
+                : 'Click on your card to view your MAYA conversations'}
+            </p>
           </div>
           
-          {chatHistory.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-lg p-16 text-center border-2 border-gray-200">
-              <FaHistory className="text-7xl text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-bold text-gray-600 mb-2">No Chat History</h3>
-              <p className="text-gray-500">MAYA conversations will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {getChatHistoryByUser().map((userData, userIdx) => (
-                <div key={userData.user._id || userIdx} className="bg-white rounded-xl shadow-lg overflow-hidden animate-fadeIn">
-                  {/* User Header */}
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4 flex items-center gap-4">
-                    {userData.user.profilePicture ? (
-                      <img src={userData.user.profilePicture} alt={userData.user.name} className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
-                        <span className="text-2xl font-bold text-purple-600">{userData.user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        {userData.isOwn ? 'Your Conversations' : userData.user.name}
-                        {userData.isOwn && <span className="text-xs bg-white/20 px-2 py-1 rounded-full">You</span>}
-                      </h3>
-                      <p className="text-purple-100 text-sm">{userData.user.designation || userData.user.employeeCode || 'Employee'}</p>
-                    </div>
-                    <div className="text-right text-white">
-                      <div className="text-2xl font-bold">{userData.sessions.length}</div>
-                      <div className="text-sm text-purple-100">Conversations</div>
-                    </div>
-                  </div>
-
-                  {/* Chat Sessions */}
-                  <div className="divide-y divide-gray-100 p-4 space-y-4">
-                    {userData.sessions.map((session, idx) => (
-                      <div key={session._id || idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm text-gray-600">{formatLocalDateTime(session.createdAt)}</span>
-                          <span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
-                            {session.messages?.length || 0} messages
-                          </span>
-                        </div>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {session.messages?.slice(0, 3).map((msg, msgIdx) => (
-                            <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
-                                msg.role === 'user' ? 'bg-purple-500 text-white' : 'bg-white text-gray-800 border'
-                              }`}>
-                                {msg.content?.substring(0, 120)}{msg.content?.length > 120 ? '...' : ''}
-                              </div>
-                            </div>
-                          ))}
-                          {session.messages?.length > 3 && (
-                            <div className="text-center text-sm text-gray-500">
-                              +{session.messages.length - 3} more messages
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <ChatHistoryCardsGrid 
+            onUserSelect={(user) => {
+              setSelectedUserForChat(user);
+              setIsChatHistoryPopupOpen(true);
+            }}
+            selectedUserId={selectedUserForChat?.userId}
+          />
+          
+          {/* Chat History Popup Modal */}
+          <ChatHistoryPopup
+            user={selectedUserForChat}
+            isOpen={isChatHistoryPopupOpen}
+            onClose={() => {
+              setIsChatHistoryPopupOpen(false);
+              setSelectedUserForChat(null);
+            }}
+          />
         </div>
       )}
     </div>
