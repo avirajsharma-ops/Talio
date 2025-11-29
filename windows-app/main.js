@@ -261,11 +261,26 @@ function createMainWindow() {
 
 // Create Maya Blob (small floating button at bottom)
 function createMayaBlobWindow() {
+  // If blob window exists but was destroyed, reset it
+  if (mayaBlobWindow && mayaBlobWindow.isDestroyed()) {
+    console.log('[Maya] Blob window was destroyed, resetting reference');
+    mayaBlobWindow = null;
+  }
+  
   if (mayaBlobWindow) {
-    mayaBlobWindow.show();
+    console.log('[Maya] Blob window exists, showing it');
+    try {
+      mayaBlobWindow.show();
+      mayaBlobWindow.setAlwaysOnTop(true, 'floating');
+    } catch (err) {
+      console.error('[Maya] Error showing blob window:', err);
+      mayaBlobWindow = null;
+      createMayaBlobWindow(); // Recreate if error
+    }
     return;
   }
 
+  console.log('[Maya] Creating new blob window');
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const savedPosition = store.get('blobPosition');
 
@@ -283,6 +298,7 @@ function createMayaBlobWindow() {
     skipTaskbar: true,
     hasShadow: true,
     roundedCorners: true,
+    focusable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -295,17 +311,28 @@ function createMayaBlobWindow() {
   mayaBlobWindow.loadFile(path.join(__dirname, 'maya-blob.html'));
 
   mayaBlobWindow.once('ready-to-show', () => {
+    console.log('[Maya] Blob window ready, showing');
     mayaBlobWindow.show();
+    mayaBlobWindow.setAlwaysOnTop(true, 'floating');
   });
 
   // Save position when moved
   mayaBlobWindow.on('moved', () => {
-    const bounds = mayaBlobWindow.getBounds();
-    store.set('blobPosition', { x: bounds.x, y: bounds.y });
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+      const bounds = mayaBlobWindow.getBounds();
+      store.set('blobPosition', { x: bounds.x, y: bounds.y });
+    }
   });
 
   mayaBlobWindow.on('closed', () => {
+    console.log('[Maya] Blob window closed');
     mayaBlobWindow = null;
+  });
+  
+  // Handle minimize to prevent blob from disappearing
+  mayaBlobWindow.on('minimize', (e) => {
+    e.preventDefault();
+    console.log('[Maya] Preventing blob minimize');
   });
 }
 
@@ -372,13 +399,32 @@ function hideDotMatrix() {
 
 // Create native Maya widget window (transparent, professional UI)
 function createMayaWidgetWindow() {
+  // If widget exists but is destroyed, reset reference
+  if (mayaWidgetWindow && mayaWidgetWindow.isDestroyed()) {
+    console.log('[Maya] Widget window was destroyed, resetting reference');
+    mayaWidgetWindow = null;
+  }
+  
   if (mayaWidgetWindow) {
-    mayaWidgetWindow.show();
-    mayaWidgetWindow.focus();
-    resetMayaInactivityTimer();
+    console.log('[Maya] Widget window exists, showing and focusing');
+    try {
+      mayaWidgetWindow.show();
+      mayaWidgetWindow.focus();
+      mayaWidgetWindow.setAlwaysOnTop(true, 'floating');
+      resetMayaInactivityTimer();
+      // Hide blob
+      if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+        mayaBlobWindow.hide();
+      }
+    } catch (err) {
+      console.error('[Maya] Error showing widget:', err);
+      mayaWidgetWindow = null;
+      createMayaWidgetWindow(); // Retry
+    }
     return;
   }
 
+  console.log('[Maya] Creating new widget window');
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const savedPosition = store.get('pipPosition');
 
@@ -399,6 +445,7 @@ function createMayaWidgetWindow() {
     minHeight: 400,
     skipTaskbar: true,
     hasShadow: true,
+    focusable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -411,13 +458,16 @@ function createMayaWidgetWindow() {
   mayaWidgetWindow.loadFile(path.join(__dirname, 'maya-widget.html'));
 
   mayaWidgetWindow.once('ready-to-show', () => {
+    console.log('[Maya] Widget window ready, showing');
     mayaWidgetWindow.show();
+    mayaWidgetWindow.focus();
+    mayaWidgetWindow.setAlwaysOnTop(true, 'floating');
     // Send auth token to widget
     if (authToken) {
       mayaWidgetWindow.webContents.send('maya-auth', { token: authToken, user: currentUser });
     }
     // Hide blob when widget is shown
-    if (mayaBlobWindow) {
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
       mayaBlobWindow.hide();
     }
     resetMayaInactivityTimer();
@@ -425,8 +475,10 @@ function createMayaWidgetWindow() {
 
   // Save position when moved
   mayaWidgetWindow.on('moved', () => {
-    const bounds = mayaWidgetWindow.getBounds();
-    store.set('pipPosition', { x: bounds.x, y: bounds.y });
+    if (mayaWidgetWindow && !mayaWidgetWindow.isDestroyed()) {
+      const bounds = mayaWidgetWindow.getBounds();
+      store.set('pipPosition', { x: bounds.x, y: bounds.y });
+    }
   });
 
   // Track activity
@@ -439,10 +491,18 @@ function createMayaWidgetWindow() {
   });
 
   mayaWidgetWindow.on('closed', () => {
+    console.log('[Maya] Widget window closed');
     mayaWidgetWindow = null;
     clearMayaInactivityTimer();
-    if (mayaBlobWindow) {
+    // Always show or create blob when widget closes
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+      console.log('[Maya] Showing blob after widget close');
       mayaBlobWindow.show();
+      mayaBlobWindow.setAlwaysOnTop(true, 'floating');
+    } else {
+      console.log('[Maya] Creating blob after widget close');
+      mayaBlobWindow = null;
+      createMayaBlobWindow();
     }
   });
 }
@@ -470,12 +530,31 @@ function clearMayaInactivityTimer() {
 
 // Minimize Maya widget to blob
 function minimizeMayaToBob() {
-  if (mayaWidgetWindow && mayaWidgetWindow.isVisible()) {
-    mayaWidgetWindow.hide();
-    if (mayaBlobWindow) {
+  console.log('[Maya] Minimizing widget to blob');
+  try {
+    // Hide widget if it exists
+    if (mayaWidgetWindow && !mayaWidgetWindow.isDestroyed() && mayaWidgetWindow.isVisible()) {
+      mayaWidgetWindow.hide();
+    }
+    
+    // Show or create blob
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+      console.log('[Maya] Showing existing blob');
       mayaBlobWindow.show();
+      mayaBlobWindow.setAlwaysOnTop(true, 'floating');
     } else {
+      console.log('[Maya] Creating new blob window');
+      mayaBlobWindow = null; // Reset reference if destroyed
       createMayaBlobWindow();
+    }
+  } catch (err) {
+    console.error('[Maya] Error minimizing to blob:', err);
+    // Try to create blob anyway
+    try {
+      mayaBlobWindow = null;
+      createMayaBlobWindow();
+    } catch (e) {
+      console.error('[Maya] Failed to create blob:', e);
     }
   }
 }
@@ -1299,12 +1378,21 @@ function setupIPC() {
 
   // Open Maya from blob click - activates listening mode
   ipcMain.handle('open-maya-from-blob', () => {
-    createMayaPIPWindow();
-    // Widget will auto-start listening mode
+    console.log('[Maya IPC] open-maya-from-blob called');
+    try {
+      createMayaWidgetWindow();
+      // Hide blob when widget opens
+      if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+        mayaBlobWindow.hide();
+      }
+    } catch (err) {
+      console.error('[Maya IPC] Error opening widget from blob:', err);
+    }
   });
 
   // Minimize Maya to blob
   ipcMain.handle('minimize-maya-to-blob', () => {
+    console.log('[Maya IPC] minimize-maya-to-blob called');
     minimizeMayaToBob();
   });
 
@@ -1319,9 +1407,21 @@ function setupIPC() {
 
   // Maya widget controls
   ipcMain.handle('maya-close-widget', () => {
-    if (mayaWidgetWindow) {
-      mayaWidgetWindow.hide();
-      if (mayaBlobWindow) mayaBlobWindow.show();
+    console.log('[Maya IPC] maya-close-widget called');
+    try {
+      if (mayaWidgetWindow && !mayaWidgetWindow.isDestroyed()) {
+        mayaWidgetWindow.hide();
+      }
+      // Always show or create blob when widget closes
+      if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+        mayaBlobWindow.show();
+        mayaBlobWindow.setAlwaysOnTop(true, 'floating');
+      } else {
+        mayaBlobWindow = null;
+        createMayaBlobWindow();
+      }
+    } catch (err) {
+      console.error('[Maya IPC] Error closing widget:', err);
     }
   });
 
@@ -1330,16 +1430,41 @@ function setupIPC() {
   });
 
   // Expand widget (called from blob when wake word detected)
-  ipcMain.handle('maya-expand-widget', () => {
-    console.log('[Maya] Expanding widget from blob');
-    if (mayaWidgetWindow) {
-      mayaWidgetWindow.show();
-      mayaWidgetWindow.focus();
-      // Send state change to widget
-      mayaWidgetWindow.webContents.send('maya-widget-state-changed', { minimized: false });
-    }
-    if (mayaBlobWindow) {
-      mayaBlobWindow.hide();
+  ipcMain.handle('maya-expand-widget', async () => {
+    console.log('[Maya IPC] maya-expand-widget called');
+    try {
+      // First hide the blob
+      if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+        console.log('[Maya] Hiding blob window');
+        mayaBlobWindow.hide();
+      }
+      
+      // Check if widget exists and is not destroyed
+      if (mayaWidgetWindow && !mayaWidgetWindow.isDestroyed()) {
+        console.log('[Maya] Widget exists, showing and focusing');
+        mayaWidgetWindow.show();
+        mayaWidgetWindow.focus();
+        mayaWidgetWindow.setAlwaysOnTop(true, 'floating');
+        // Send state change to widget
+        mayaWidgetWindow.webContents.send('maya-widget-state-changed', { minimized: false });
+      } else {
+        console.log('[Maya] Widget does not exist, creating new one');
+        mayaWidgetWindow = null; // Reset reference if destroyed
+        createMayaWidgetWindow();
+      }
+      
+      resetMayaInactivityTimer();
+      return { success: true };
+    } catch (err) {
+      console.error('[Maya IPC] Error expanding widget:', err);
+      // Try to recreate widget on error
+      try {
+        mayaWidgetWindow = null;
+        createMayaWidgetWindow();
+      } catch (e) {
+        console.error('[Maya IPC] Failed to recreate widget:', e);
+      }
+      return { success: false, error: err.message };
     }
   });
 

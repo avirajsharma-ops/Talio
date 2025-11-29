@@ -33,7 +33,7 @@ const DOWNLOADS = {
 
 export default function ResourcesPage() {
   const [selectedOS, setSelectedOS] = useState('mac');
-  const [macArch, setMacArch] = useState('arm64');
+  const [macArch, setMacArch] = useState('arm64')
 
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();

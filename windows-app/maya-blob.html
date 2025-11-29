@@ -156,14 +156,41 @@
     initBlobs();
     animate(0);
 
-    card.addEventListener('click', async () => {
+    // Click handler for blob - opens Maya widget
+    const shell = document.getElementById('mayaBlobShell');
+    
+    function handleBlobClick(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Maya Blob] Click detected, opening widget...');
+      
       if (window.talioDesktop) {
-        if (window.talioDesktop.expandWidget) {
-          await window.talioDesktop.expandWidget();
-        } else {
-          await window.talioDesktop.openMayaFromBlob();
+        console.log('[Maya Blob] talioDesktop available, calling expandWidget');
+        try {
+          window.talioDesktop.expandWidget().then(() => {
+            console.log('[Maya Blob] Widget expanded successfully');
+          }).catch(err => {
+            console.error('[Maya Blob] expandWidget failed:', err);
+            // Fallback to openMayaFromBlob
+            if (window.talioDesktop.openMayaFromBlob) {
+              window.talioDesktop.openMayaFromBlob();
+            }
+          });
+        } catch (err) {
+          console.error('[Maya Blob] Error calling expandWidget:', err);
         }
+      } else {
+        console.error('[Maya Blob] talioDesktop not available!');
       }
+    }
+    
+    // Add click listeners to both card and shell for better hit detection
+    card.addEventListener('click', handleBlobClick);
+    shell.addEventListener('click', handleBlobClick);
+    
+    // Also handle mousedown for immediate response
+    card.addEventListener('mousedown', (e) => {
+      console.log('[Maya Blob] Mousedown on card');
     });
   </script>
 </body>
