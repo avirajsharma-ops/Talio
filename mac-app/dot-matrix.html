@@ -26,6 +26,11 @@
       opacity: 0;
       transition: opacity 1s ease-out;
     }
+    .background {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 80% at 30% 50%, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.7) 100%);
+    }
     canvas {
       position: absolute;
       inset: 0;
@@ -36,6 +41,7 @@
 </head>
 <body>
   <div class="dot-matrix-container" id="dotMatrixContainer">
+    <div class="background"></div>
     <canvas id="dotCanvas"></canvas>
   </div>
   <script>
@@ -44,88 +50,143 @@
     const ctx = canvas.getContext('2d');
     
     let animationId = null;
+    let isScanning = false;
+    let startTime = 0;
+
+    // Configuration
+    const config = {
+      dotSpacing: 18,
+      baseDotRadius: 1.2,
+      focusX: 0.30,
+      focusY: 0.50,
+      focusRadius: 0.35,
+      clusterCount: 5,
+      clusterRadius: 0.08,
+      breatheSpeed: 0.0008,
+      breatheAmount: 0.04,
+      flickerChance: 0.003,
+      jitterAmount: 0.3
+    };
+
     let dots = [];
-    const DOT_SPACING = 20;
-    const DOT_SIZE = 2;
-    const SCAN_SPEED = 3;
-    let scanY = 0;
-    let isScanning = true;
+    let clusters = [];
     
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       initDots();
+      generateClusters();
     }
     
     function initDots() {
       dots = [];
-      const cols = Math.ceil(canvas.width / DOT_SPACING);
-      const rows = Math.ceil(canvas.height / DOT_SPACING);
+      const cols = Math.ceil(canvas.width / config.dotSpacing) + 1;
+      const rows = Math.ceil(canvas.height / config.dotSpacing) + 1;
       
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           dots.push({
-            x: col * DOT_SPACING + DOT_SPACING / 2,
-            y: row * DOT_SPACING + DOT_SPACING / 2,
-            baseAlpha: 0.15,
-            alpha: 0.15,
-            scanned: false
+            baseX: col * config.dotSpacing,
+            baseY: row * config.dotSpacing,
+            x: col * config.dotSpacing,
+            y: row * config.dotSpacing
           });
         }
       }
     }
+
+    function generateClusters() {
+      clusters = [];
+      for (let i = 0; i < config.clusterCount; i++) {
+        clusters.push({
+          x: 0.15 + Math.random() * 0.5,
+          y: 0.2 + Math.random() * 0.6
+        });
+      }
+    }
+
+    function getDistanceFromFocus(x, y) {
+      const fx = canvas.width * config.focusX;
+      const fy = canvas.height * config.focusY;
+      const maxDist = Math.max(canvas.width, canvas.height) * config.focusRadius;
+      const dist = Math.sqrt((x - fx) ** 2 + (y - fy) ** 2);
+      return Math.min(dist / maxDist, 1);
+    }
+
+    function isNearCluster(x, y) {
+      for (const cluster of clusters) {
+        const cx = cluster.x * canvas.width;
+        const cy = cluster.y * canvas.height;
+        const radius = config.clusterRadius * Math.max(canvas.width, canvas.height);
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (dist < radius) return 1 - (dist / radius);
+      }
+      return 0;
+    }
     
-    function animate() {
+    function animate(timestamp) {
+      if (!isScanning) {
+        animationId = null;
+        return;
+      }
+
+      const elapsed = timestamp - startTime;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Update scan line
-      if (isScanning) {
-        scanY += SCAN_SPEED;
-        if (scanY > canvas.height) {
-          scanY = 0;
-        }
-      }
-      
-      // Draw dots
+
+      // Breathing effect
+      const breathe = Math.sin(elapsed * config.breatheSpeed) * config.breatheAmount;
+      const scale = 1 + breathe;
+
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(scale, scale);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
       for (const dot of dots) {
-        // Calculate distance from scan line
-        const distFromScan = Math.abs(dot.y - scanY);
-        
-        if (distFromScan < 50 && isScanning) {
-          // Highlight dots near scan line
-          const intensity = 1 - (distFromScan / 50);
-          dot.alpha = 0.15 + intensity * 0.6;
-          dot.scanned = true;
-        } else if (dot.scanned) {
-          // Fade scanned dots
-          dot.alpha = Math.max(0.2, dot.alpha - 0.01);
+        // Add jitter
+        const jitterX = (Math.random() - 0.5) * config.jitterAmount;
+        const jitterY = (Math.random() - 0.5) * config.jitterAmount;
+        dot.x = dot.baseX + jitterX;
+        dot.y = dot.baseY + jitterY;
+
+        const distFromFocus = getDistanceFromFocus(dot.x, dot.y);
+        const clusterBoost = isNearCluster(dot.x, dot.y);
+
+        // Base brightness calculation
+        let brightness = 0.15 + (1 - distFromFocus) * 0.6;
+        brightness += clusterBoost * 0.25;
+
+        // Flicker effect
+        if (Math.random() < config.flickerChance) {
+          brightness *= 0.3 + Math.random() * 0.7;
         }
-        
+
+        brightness = Math.min(brightness, 0.95);
+
+        // Calculate dot size
+        const sizeFactor = 0.8 + (1 - distFromFocus) * 0.4 + clusterBoost * 0.2;
+        const radius = config.baseDotRadius * sizeFactor;
+
         // Draw dot with glow
-        ctx.beginPath();
-        ctx.arc(dot.x, dot.y, DOT_SIZE, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(77, 255, 163, ${dot.alpha})`;
-        ctx.fill();
-        
-        // Add glow for highlighted dots
-        if (dot.alpha > 0.3) {
-          ctx.beginPath();
-          ctx.arc(dot.x, dot.y, DOT_SIZE * 2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(77, 255, 163, ${dot.alpha * 0.3})`;
-          ctx.fill();
-        }
-      }
-      
-      // Draw scan line
-      if (isScanning) {
-        const gradient = ctx.createLinearGradient(0, scanY - 30, 0, scanY + 30);
-        gradient.addColorStop(0, 'rgba(77, 255, 163, 0)');
-        gradient.addColorStop(0.5, 'rgba(77, 255, 163, 0.4)');
+        const glowRadius = radius * 3;
+        const gradient = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowRadius);
+        gradient.addColorStop(0, `rgba(77, 255, 163, ${brightness})`);
+        gradient.addColorStop(0.5, `rgba(77, 255, 163, ${brightness * 0.3})`);
         gradient.addColorStop(1, 'rgba(77, 255, 163, 0)');
+
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, glowRadius, 0, Math.PI * 2);
         ctx.fillStyle = gradient;
-        ctx.fillRect(0, scanY - 30, canvas.width, 60);
+        ctx.fill();
+
+        // Core dot
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(77, 255, 163, ${brightness})`;
+        ctx.fill();
       }
-      
+
+      ctx.restore();
       animationId = requestAnimationFrame(animate);
     }
     
@@ -133,9 +194,10 @@
       container.classList.remove('fade-out');
       container.classList.add('active');
       isScanning = true;
-      scanY = 0;
+      startTime = performance.now();
       initDots();
-      if (!animationId) animate();
+      generateClusters();
+      if (!animationId) animationId = requestAnimationFrame(animate);
     }
     
     function stopAnalysis() {

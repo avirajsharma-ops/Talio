@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Monitor, Apple, Check } from 'lucide-react';
+import { Download, Check } from 'lucide-react';
 
 // ============================================
 // RELEASE CONFIGURATION - Update for new releases
@@ -103,7 +103,11 @@ export default function ResourcesPage() {
                 : 'bg-[#161616] border-[#262626] text-gray-400 hover:border-[#333]'
             }`}
           >
-            <Apple className="w-5 h-5" />
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Apple_logo_white.svg/1724px-Apple_logo_white.svg.png" 
+              alt="Apple" 
+              className="w-5 h-5 object-contain"
+            />
             <span>macOS</span>
           </button>
           <button
@@ -114,7 +118,11 @@ export default function ResourcesPage() {
                 : 'bg-[#161616] border-[#262626] text-gray-400 hover:border-[#333]'
             }`}
           >
-            <Monitor className="w-5 h-5" />
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Windows_icon_logo.png" 
+              alt="Windows" 
+              className="w-5 h-5 object-contain"
+            />
             <span>Windows</span>
           </button>
         </div>
