@@ -124,17 +124,71 @@ export async function GET(request) {
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture')
       .populate('department', 'name')
-      .select('firstName lastName employeeCode designation profilePicture userId department')
+      .select('firstName lastName employeeCode designation profilePicture userId department email')
       .lean();
+
+    // For employees without userId, fetch users via User.employeeId (reverse relationship)
+    const employeeIds = employees.map(emp => emp._id);
+    const usersWithEmployeeId = await User.find({ 
+      employeeId: { $in: employeeIds } 
+    }).select('_id name email profilePicture employeeId').lean();
+    
+    // Create a map of employeeId -> User
+    const employeeToUserMap = {};
+    usersWithEmployeeId.forEach(user => {
+      if (user.employeeId) {
+        employeeToUserMap[user.employeeId.toString()] = user;
+      }
+    });
+
+    console.log('[Raw Captures User Cards API] Employee to User mapping:', {
+      totalEmployees: employees.length,
+      employeesWithUserId: employees.filter(e => e.userId).length,
+      usersFoundByEmployeeId: usersWithEmployeeId.length
+    });
 
     // Get raw capture stats for each employee
     const userCards = await Promise.all(employees.map(async (employee) => {
-      if (!employee.userId) return null;
+      // Get userId from either Employee.userId or User.employeeId (reverse lookup)
+      let userInfo = employee.userId;
+      let empUserId = userInfo?._id || userInfo;
       
-      const empUserId = employee.userId._id || employee.userId;
+      // If no userId on employee, check reverse relationship
+      if (!empUserId) {
+        const reverseUser = employeeToUserMap[employee._id.toString()];
+        if (reverseUser) {
+          empUserId = reverseUser._id;
+          userInfo = reverseUser;
+        }
+      }
+      
       // Convert to ObjectId for aggregation
       const empUserObjId = toObjectId(empUserId);
-      if (!empUserObjId) return null;
+      
+      // Still include employee even if no user account (show card without capture data)
+      if (!empUserObjId) {
+        const userName = employee.firstName && employee.lastName 
+          ? `${employee.firstName} ${employee.lastName}`
+          : 'Unknown';
+        
+        return {
+          id: employee._id?.toString(),
+          odooId: null,
+          userId: null,
+          name: userName,
+          email: employee.email,
+          profilePicture: employee.profilePicture,
+          employeeCode: employee.employeeCode || '',
+          designation: typeof employee.designation === 'object' ? employee.designation?.title : employee.designation || '',
+          department: employee.department?.name || 'Unassigned',
+          totalCaptures: 0,
+          todayCaptures: 0,
+          avgProductivity: 0,
+          totalActiveTime: 0,
+          latestCapture: null,
+          isOwn: false
+        };
+      }
       
       // Get stats from both ProductivityData and MayaScreenSummary
       const [productivityStats, legacyStats] = await Promise.all([
@@ -206,15 +260,15 @@ export async function GET(request) {
       
       const userName = employee.firstName && employee.lastName 
         ? `${employee.firstName} ${employee.lastName}`
-        : (employee.userId?.name || 'Unknown');
+        : (userInfo?.name || 'Unknown');
 
       return {
         id: employee._id?.toString(),
         odooId: empUserId?.toString(),
         userId: empUserId?.toString(),
         name: userName,
-        email: employee.userId?.email,
-        profilePicture: employee.profilePicture || employee.userId?.profilePicture,
+        email: userInfo?.email || employee.email,
+        profilePicture: employee.profilePicture || userInfo?.profilePicture,
         employeeCode: employee.employeeCode || '',
         designation: typeof employee.designation === 'object' ? employee.designation?.title : employee.designation || '',
         department: employee.department?.name || 'Unassigned',

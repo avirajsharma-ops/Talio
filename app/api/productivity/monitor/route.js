@@ -127,7 +127,7 @@ export async function GET(request) {
       if (!canMonitor) {
         return NextResponse.json({ 
           success: false, 
-          error: 'You do not have permission to view this user\\'s data' 
+          error: "You do not have permission to view this user's data" 
         }, { status: 403 });
       }
       // Convert string to ObjectId for proper querying

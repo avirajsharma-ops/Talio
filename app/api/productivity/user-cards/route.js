@@ -121,17 +121,70 @@ export async function GET(request) {
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture lastActive')
       .populate('department', 'name')
-      .select('firstName lastName employeeCode designation profilePicture userId department')
+      .select('firstName lastName employeeCode designation profilePicture userId department email')
       .lean();
+
+    // For employees without userId, fetch users via User.employeeId (reverse relationship)
+    const employeeIds = employees.map(emp => emp._id);
+    const usersWithEmployeeId = await User.find({ 
+      employeeId: { $in: employeeIds } 
+    }).select('_id name email profilePicture lastActive employeeId').lean();
+    
+    // Create a map of employeeId -> User
+    const employeeToUserMap = {};
+    usersWithEmployeeId.forEach(user => {
+      if (user.employeeId) {
+        employeeToUserMap[user.employeeId.toString()] = user;
+      }
+    });
+
+    console.log('[User Cards API] Employee to User mapping:', {
+      totalEmployees: employees.length,
+      employeesWithUserId: employees.filter(e => e.userId).length,
+      usersFoundByEmployeeId: usersWithEmployeeId.length
+    });
 
     // Get latest session and session count for each employee
     const userCards = await Promise.all(employees.map(async (employee) => {
-      if (!employee.userId) return null;
-
-      const userId = employee.userId._id || employee.userId;
+      // Get userId from either Employee.userId or User.employeeId (reverse lookup)
+      let userInfo = employee.userId;
+      let userId = userInfo?._id || userInfo;
+      
+      // If no userId on employee, check reverse relationship
+      if (!userId) {
+        const reverseUser = employeeToUserMap[employee._id.toString()];
+        if (reverseUser) {
+          userId = reverseUser._id;
+          userInfo = reverseUser;
+        }
+      }
+      
       // Convert to ObjectId for querying
       const userObjId = toObjectId(userId);
-      if (!userObjId) return null;
+      
+      // Still include employee even if no user account (show card without session data)
+      if (!userObjId) {
+        const userName = employee.firstName && employee.lastName 
+          ? `${employee.firstName} ${employee.lastName}`
+          : 'Unknown';
+        
+        return {
+          id: employee._id,
+          odooId: null,
+          userId: null,
+          name: userName,
+          email: employee.email,
+          employeeCode: employee.employeeCode,
+          designation: employee.designation?.title || employee.designation || '',
+          department: employee.department?.name || 'Unassigned',
+          profilePicture: employee.profilePicture,
+          lastActive: null,
+          isOwnCard: false,
+          latestSession: null,
+          totalSessions: 0,
+          todayStats: { duration: 0, sessionsCount: 0, avgProductivity: 0 }
+        };
+      }
 
       // Get latest session
       const latestSession = await ProductivitySession.findOne({ 
@@ -165,19 +218,19 @@ export async function GET(request) {
 
       const userName = employee.firstName && employee.lastName 
         ? `${employee.firstName} ${employee.lastName}`
-        : (employee.userId?.name || 'Unknown');
+        : (userInfo?.name || 'Unknown');
 
       return {
         id: employee._id,
         odooId: userId,
         userId: userId.toString(),
         name: userName,
-        email: employee.userId?.email,
+        email: userInfo?.email || employee.email,
         employeeCode: employee.employeeCode,
         designation: employee.designation?.title || employee.designation || '',
         department: employee.department?.name || 'Unassigned',
-        profilePicture: employee.profilePicture || employee.userId?.profilePicture,
-        lastActive: employee.userId?.lastActive,
+        profilePicture: employee.profilePicture || userInfo?.profilePicture,
+        lastActive: userInfo?.lastActive,
         isOwnCard: userId.toString() === decoded.userId.toString(),
         latestSession: latestSession ? {
           sessionStart: latestSession.sessionStart,
