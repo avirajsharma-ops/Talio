@@ -55,7 +55,7 @@ export default function ProductivityMonitoringPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/team/check-head', {
-        headers: { 'Authorization': \`Bearer \${token}\` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       
@@ -79,7 +79,7 @@ export default function ProductivityMonitoringPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/employees', {
-        headers: { 'Authorization': \`Bearer \${token}\` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       if (data.success) {
@@ -104,10 +104,10 @@ export default function ProductivityMonitoringPage() {
       let url = '/api/employees?status=active';
       
       if (departmentId && currentUser.role !== 'admin' && currentUser.role !== 'god_admin') {
-        url += \`&department=\${departmentId}\`;
+        url += `&department=${departmentId}`;
       }
       
-      const response = await fetch(url, { headers: { 'Authorization': \`Bearer \${token}\` } });
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await response.json();
       if (data.success) {
         const emps = data.employees || data.data || [];
@@ -137,12 +137,12 @@ export default function ProductivityMonitoringPage() {
       const token = localStorage.getItem('token');
       
       let url = '/api/productivity/monitor?limit=500';
-      if (userId) url += \`&userId=\${userId}\`;
+      if (userId) url += `&userId=${userId}`;
       if (includeScreenshots) url += '&includeScreenshot=true';
-      if (dateRange.start) url += \`&startDate=\${dateRange.start}\`;
-      if (dateRange.end) url += \`&endDate=\${dateRange.end}\`;
+      if (dateRange.start) url += `&startDate=${dateRange.start}`;
+      if (dateRange.end) url += `&endDate=${dateRange.end}`;
 
-      const response = await fetch(url, { headers: { 'Authorization': \`Bearer \${token}\` } });
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await response.json();
       
       if (data.success) {
@@ -164,11 +164,11 @@ export default function ProductivityMonitoringPage() {
       const token = localStorage.getItem('token');
       
       let url = '/api/productivity/chat-history?limit=500';
-      if (userId) url += \`&userId=\${userId}\`;
-      if (dateRange.start) url += \`&startDate=\${dateRange.start}\`;
-      if (dateRange.end) url += \`&endDate=\${dateRange.end}\`;
+      if (userId) url += `&userId=${userId}`;
+      if (dateRange.start) url += `&startDate=${dateRange.start}`;
+      if (dateRange.end) url += `&endDate=${dateRange.end}`;
 
-      const response = await fetch(url, { headers: { 'Authorization': \`Bearer \${token}\` } });
+      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await response.json();
       
       if (data.success) {
@@ -197,12 +197,12 @@ export default function ProductivityMonitoringPage() {
     try {
       setSavingInterval(true);
       localStorage.setItem('screenshotInterval', screenshotInterval.toString());
-      toast.success(\`Screenshot interval set to \${screenshotInterval} minutes\`);
+      toast.success(`Screenshot interval set to ${screenshotInterval} minutes`);
       
       const token = localStorage.getItem('token');
       await fetch('/api/settings/screenshot-interval', {
         method: 'POST',
-        headers: { 'Authorization': \`Bearer \${token}\`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ interval: screenshotInterval })
       });
     } catch (error) {
@@ -226,7 +226,7 @@ export default function ProductivityMonitoringPage() {
         return empUserId === selectedCaptureTarget;
       });
       if (employee) {
-        const empName = \`\${employee.firstName || ''} \${employee.lastName || ''}\`.trim() || 'Employee';
+        const empName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee';
         await requestInstantCapture(selectedCaptureTarget, empName);
       } else {
         toast.error('Employee not found');
@@ -242,7 +242,7 @@ export default function ProductivityMonitoringPage() {
       return;
     }
 
-    toast.loading(\`Initiating capture for \${totalEmployees} employees...\`, { duration: 2000 });
+    toast.loading(`Initiating capture for ${totalEmployees} employees...`, { duration: 2000 });
 
     let successCount = 0;
     let failCount = 0;
@@ -255,7 +255,7 @@ export default function ProductivityMonitoringPage() {
         const token = localStorage.getItem('token');
         const response = await fetch('/api/productivity/instant-capture', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${token}\` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ targetUserId: empUserId }),
         });
 
@@ -267,11 +267,11 @@ export default function ProductivityMonitoringPage() {
     }
 
     if (successCount > 0) {
-      toast.success(\`Capture requested for \${successCount} employee\${successCount !== 1 ? 's' : ''}!\`);
+      toast.success(`Capture requested for ${successCount} employee${successCount !== 1 ? 's' : ''}!`);
       setTimeout(() => fetchAllData(user), 3000);
     }
     if (failCount > 0) {
-      toast.error(\`Failed to capture \${failCount} employee\${failCount !== 1 ? 's' : ''}\`);
+      toast.error(`Failed to capture ${failCount} employee${failCount !== 1 ? 's' : ''}`);
     }
   };
 
@@ -287,19 +287,19 @@ export default function ProductivityMonitoringPage() {
     }
 
     setCapturingInstant(targetUserId);
-    toast.loading(\`Requesting instant capture from \${targetUserName}...\`, { id: 'instant-capture' });
+    toast.loading(`Requesting instant capture from ${targetUserName}...`, { id: 'instant-capture' });
 
     try {
       const response = await fetch('/api/productivity/instant-capture', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${localStorage.getItem('token')}\` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ targetUserId })
       });
 
       const data = await response.json();
       
       if (data.success) {
-        toast.success(\`Instant capture requested for \${targetUserName}. Waiting for screenshot...\`, { id: 'instant-capture' });
+        toast.success(`Instant capture requested for ${targetUserName}. Waiting for screenshot...`, { id: 'instant-capture' });
         
         let attempts = 0;
         const maxAttempts = 30;
@@ -308,8 +308,8 @@ export default function ProductivityMonitoringPage() {
           
           try {
             const statusResponse = await fetch(
-              \`/api/productivity/instant-capture?requestId=\${data.data.requestId}\`,
-              { headers: { 'Authorization': \`Bearer \${localStorage.getItem('token')}\` } }
+              `/api/productivity/instant-capture?requestId=${data.data.requestId}`,
+              { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }
             );
             
             const statusData = await statusResponse.json();
@@ -319,7 +319,7 @@ export default function ProductivityMonitoringPage() {
               setCapturingInstant(null);
               
               if (statusData.data.status === 'analyzed' || statusData.data.status === 'captured') {
-                toast.success(\`Screenshot captured! Score: \${statusData.data.productivityScore || 'N/A'}\`, { id: 'instant-capture', duration: 4000 });
+                toast.success(`Screenshot captured! Score: ${statusData.data.productivityScore || 'N/A'}`, { id: 'instant-capture', duration: 4000 });
                 await fetchAllData(user);
               } else {
                 toast.error('Capture failed', { id: 'instant-capture' });
@@ -378,7 +378,7 @@ export default function ProductivityMonitoringPage() {
         
         let userName = 'Unknown User';
         if (employeeInfo.firstName) {
-          userName = \`\${employeeInfo.firstName} \${employeeInfo.lastName || ''}\`.trim();
+          userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
         } else if (employeeInfo.name) {
           userName = employeeInfo.name;
         } else if (userInfo.name) {
@@ -442,14 +442,14 @@ export default function ProductivityMonitoringPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <style jsx>{\`
+      <style jsx>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
         .animate-scaleIn { animation: scaleIn 0.3s ease-out; }
         .animate-slideIn { animation: slideIn 0.3s ease-out; }
-      \`}</style>
+      `}</style>
 
       {/* Header */}
       <div className="mb-6">
@@ -505,7 +505,7 @@ export default function ProductivityMonitoringPage() {
                 <option disabled>──────────</option>
                 {accessibleEmployees.map((emp) => {
                   const empUserId = emp.userId?._id || emp.userId || emp._id;
-                  const empName = \`\${emp.firstName || ''} \${emp.lastName || ''}\`.trim() || 'Unknown';
+                  const empName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown';
                   const empCode = emp.employeeCode || 'N/A';
                   const designation = emp.designation?.title || emp.designation?.levelName || 'Employee';
                   return (
@@ -615,17 +615,17 @@ export default function ProductivityMonitoringPage() {
         <div className="flex border-b">
           <button
             onClick={() => handleTabChange('monitoring')}
-            className={\`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 \${
+            className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
               activeTab === 'monitoring' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
-            }\`}
+            }`}
           >
             <FaEye />Productivity Sessions
           </button>
           <button
             onClick={() => handleTabChange('chat')}
-            className={\`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 \${
+            className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
               activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
-            }\`}
+            }`}
           >
             <FaHistory />MAYA Chat History
           </button>
@@ -741,10 +741,10 @@ export default function ProductivityMonitoringPage() {
                   </div>
                   <div className="space-y-3 max-h-48 overflow-y-auto">
                     {session.messages?.slice(0, 4).map((msg, msgIdx) => (
-                      <div key={msgIdx} className={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
-                        <div className={\`max-w-[80%] rounded-xl px-4 py-2 text-sm \${
+                      <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
                           msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800'
-                        }\`}>
+                        }`}>
                           {msg.content?.substring(0, 150)}{msg.content?.length > 150 ? '...' : ''}
                         </div>
                       </div>
@@ -772,7 +772,7 @@ function SessionCard({ session, isExpanded, onToggle, openModal, userData }) {
   if (session.screenshot?.data) {
     const dataUrl = session.screenshot.data.startsWith('data:') 
       ? session.screenshot.data 
-      : \`data:image/png;base64,\${session.screenshot.data}\`;
+      : `data:image/png;base64,${session.screenshot.data}`;
     screenshots.push({ url: dataUrl, time: session.screenshot.capturedAt || session.createdAt });
   }
   
@@ -823,17 +823,17 @@ function SessionCard({ session, isExpanded, onToggle, openModal, userData }) {
           <div className="flex items-center gap-3 mb-1">
             <div className="h-2 flex-1 bg-gray-200 rounded-full overflow-hidden">
               <div 
-                className={\`h-full rounded-full \${
+                className={`h-full rounded-full ${
                   productivityScore >= 70 ? 'bg-green-500' :
                   productivityScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-                }\`}
-                style={{ width: \`\${productivityScore}%\` }}
+                }`}
+                style={{ width: `${productivityScore}%` }}
               />
             </div>
-            <span className={\`text-lg font-bold \${
+            <span className={`text-lg font-bold ${
               productivityScore >= 70 ? 'text-green-600' :
               productivityScore >= 40 ? 'text-yellow-600' : 'text-red-600'
-            }\`}>
+            }`}>
               {productivityScore}%
             </span>
           </div>
@@ -920,9 +920,9 @@ function SessionCard({ session, isExpanded, onToggle, openModal, userData }) {
                           <button 
                             key={idx}
                             onClick={(e) => { e.stopPropagation(); setCurrentScreenshot(idx); }}
-                            className={\`w-2 h-2 rounded-full transition-colors \${
+                            className={`w-2 h-2 rounded-full transition-colors ${
                               idx === currentScreenshot ? 'bg-blue-500' : 'bg-white/60'
-                            }\`}
+                            }`}
                           />
                         ))}
                       </div>
@@ -1006,7 +1006,7 @@ function SessionCard({ session, isExpanded, onToggle, openModal, userData }) {
                       <div key={idx} className="flex items-center gap-2">
                         <span className="text-sm text-gray-700 flex-1 truncate">{app.appName}</span>
                         <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500" style={{ width: \`\${app.percentage || 0}%\` }} />
+                          <div className="h-full bg-blue-500" style={{ width: `${app.percentage || 0}%` }} />
                         </div>
                         <span className="text-xs text-gray-500 w-10 text-right">{app.percentage}%</span>
                       </div>
@@ -1024,18 +1024,18 @@ function SessionCard({ session, isExpanded, onToggle, openModal, userData }) {
               <div className="flex h-4 rounded-full overflow-hidden">
                 <div 
                   className="bg-green-500" 
-                  style={{ width: \`\${productivePercent}%\` }}
-                  title={\`Productive: \${Math.round((session.productiveTime || 0) / 60000)} min\`}
+                  style={{ width: `${productivePercent}%` }}
+                  title={`Productive: ${Math.round((session.productiveTime || 0) / 60000)} min`}
                 />
                 <div 
                   className="bg-gray-400" 
-                  style={{ width: \`\${session.totalActiveTime > 0 ? Math.round((session.neutralTime / session.totalActiveTime) * 100) : 0}%\` }}
-                  title={\`Neutral: \${Math.round((session.neutralTime || 0) / 60000)} min\`}
+                  style={{ width: `${session.totalActiveTime > 0 ? Math.round((session.neutralTime / session.totalActiveTime) * 100) : 0}%` }}
+                  title={`Neutral: ${Math.round((session.neutralTime || 0) / 60000)} min`}
                 />
                 <div 
                   className="bg-red-500" 
-                  style={{ width: \`\${session.totalActiveTime > 0 ? Math.round((session.unproductiveTime / session.totalActiveTime) * 100) : 0}%\` }}
-                  title={\`Unproductive: \${Math.round((session.unproductiveTime || 0) / 60000)} min\`}
+                  style={{ width: `${session.totalActiveTime > 0 ? Math.round((session.unproductiveTime / session.totalActiveTime) * 100) : 0}%` }}
+                  title={`Unproductive: ${Math.round((session.unproductiveTime || 0) / 60000)} min`}
                 />
               </div>
               <div className="flex justify-between mt-2 text-xs text-gray-500">
