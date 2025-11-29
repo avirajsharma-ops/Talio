@@ -163,18 +163,37 @@ export async function GET(request) {
       // Legacy data
       MayaScreenSummary.find(query)
         .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
-        .populate('monitoredUserId', 'name email profilePicture')
-        .populate('monitoredEmployeeId', 'firstName lastName name employeeCode department designation profilePicture')
-        .populate('requestedByUserId', 'name email')
+        .populate('monitoredUserId', 'email profilePicture employeeId')
+        .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
+        .populate('requestedByUserId', 'email')
         .sort({ createdAt: -1 })
         .limit(Math.floor(limit / 2)),
-      // New ProductivityData - also populate userId as User to get name
+      // New ProductivityData - also populate userId as User to get employee reference
       ProductivityData.find(productivityQuery)
-        .populate('userId', 'name email profilePicture')
-        .populate('employeeId', 'firstName lastName name employeeCode department designation profilePicture')
+        .populate('userId', 'email profilePicture employeeId')
+        .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .sort({ createdAt: -1 })
         .limit(Math.floor(limit / 2))
     ]);
+    
+    // For productivity data without employeeId, try to look up by userId
+    const userIdsNeedingEmployee = productivityData
+      .filter(pd => !pd.employeeId && pd.userId)
+      .map(pd => pd.userId._id || pd.userId);
+    
+    // Batch lookup employees by userId for records missing employeeId
+    let employeeByUserId = {};
+    if (userIdsNeedingEmployee.length > 0) {
+      const employees = await Employee.find({ 
+        userId: { $in: userIdsNeedingEmployee } 
+      }).select('userId firstName lastName employeeCode department designation profilePicture');
+      
+      employees.forEach(emp => {
+        if (emp.userId) {
+          employeeByUserId[emp.userId.toString()] = emp;
+        }
+      });
+    }
 
     // Transform ProductivityData to match the expected format
     const transformedProductivityData = productivityData.map(pd => {
@@ -183,16 +202,28 @@ export async function GET(request) {
       let userEmail = '';
       let userProfilePic = '';
       
-      // Priority 1: Employee data (firstName + lastName)
-      if (pd.employeeId?.firstName) {
-        userName = `${pd.employeeId.firstName} ${pd.employeeId.lastName || ''}`.trim();
-        userProfilePic = pd.employeeId.profilePicture || '';
+      // Get employee info - first from employeeId, then from lookup
+      let employeeInfo = pd.employeeId;
+      if (!employeeInfo && pd.userId) {
+        const userIdStr = (pd.userId._id || pd.userId).toString();
+        employeeInfo = employeeByUserId[userIdStr];
       }
-      // Priority 2: User model name
-      else if (pd.userId?.name) {
-        userName = pd.userId.name;
+      
+      // Priority 1: Employee data (firstName + lastName)
+      if (employeeInfo?.firstName) {
+        userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
+        userProfilePic = employeeInfo.profilePicture || '';
+      }
+      // Priority 2: User email as fallback name
+      else if (pd.userId?.email) {
+        userName = pd.userId.email.split('@')[0]; // Use email prefix as name fallback
         userEmail = pd.userId.email || '';
         userProfilePic = pd.userId.profilePicture || '';
+      }
+      
+      // Get email from userId if we have it
+      if (pd.userId?.email && !userEmail) {
+        userEmail = pd.userId.email;
       }
       
       // Get screenshot - prefer url, fallback to base64 data
@@ -230,7 +261,7 @@ export async function GET(request) {
           email: userEmail,
           profilePicture: userProfilePic
         },
-        monitoredEmployeeId: pd.employeeId,
+        monitoredEmployeeId: employeeInfo || pd.employeeId,
         captureType: 'screenshot',
         captureMode: pd.isInstantCapture ? 'instant' : 'automatic',
         summary: summary,
@@ -266,6 +297,9 @@ export async function GET(request) {
     const allData = [...legacyData, ...transformedProductivityData]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
+
+    console.log('[Monitor API] Returning', allData.length, 'records. Sample names:', 
+      allData.slice(0, 3).map(d => d.monitoredUserId?.name || 'no-name').join(', '));
 
     return NextResponse.json({
       success: true,

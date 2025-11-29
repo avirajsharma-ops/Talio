@@ -62,6 +62,18 @@
       50% { transform: scale(1.08); }
       75% { transform: scale(1.2); }
     }
+    /* Listening indicator */
+    .maya-blob-card.listening {
+      filter: drop-shadow(0 0 30px rgba(77, 255, 163, 0.8));
+    }
+    .maya-blob-card.listening::before {
+      animation: maya-listen-pulse 2s ease-in-out infinite;
+      opacity: 0.5;
+    }
+    @keyframes maya-listen-pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+      50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.6; }
+    }
     .maya-blob-canvas {
       position: absolute;
       inset: 0;
@@ -162,21 +174,114 @@
     animate(0);
 
     card.addEventListener('click', async () => {
-      if (window.talioDesktop) await window.talioDesktop.openMayaFromBlob();
+      if (window.talioDesktop) {
+        stopWakeWordListening();
+        if (window.talioDesktop.expandWidget) {
+          await window.talioDesktop.expandWidget();
+        } else {
+          await window.talioDesktop.openMayaFromBlob();
+        }
+      }
     });
 
-    // Wake word detection - only active when blob is visible (widget minimized)
+    // ============================================
+    // Wake word detection with Levenshtein fuzzy matching
+    // ============================================
     let recognition = null;
     let isListening = false;
     let retryCount = 0;
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = 10;
+    const FUZZY_THRESHOLD = 2; // Max Levenshtein distance for fuzzy match
 
-    // Wake word variations
-    const WAKE_WORDS = ['hey maya', 'hey maia', 'hey mya', 'hi maya', 'ok maya', 'okay maya', 'maya'];
+    // Wake word variations (exact matches)
+    const WAKE_WORDS_EXACT = ['maya', 'maia', 'mya', 'myah', 'maya ai'];
+    const WAKE_PREFIXES = ['hey', 'hi', 'ok', 'okay', 'yo', 'hello'];
+
+    // Levenshtein distance for fuzzy matching
+    function levenshteinDistance(a, b) {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+      
+      const matrix = [];
+      
+      for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+      
+      for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+      
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1, // substitution
+              matrix[i][j - 1] + 1,     // insertion
+              matrix[i - 1][j] + 1      // deletion
+            );
+          }
+        }
+      }
+      
+      return matrix[b.length][a.length];
+    }
+
+    // Check if word is close enough to "maya"
+    function isFuzzyMaya(word) {
+      const normalizedWord = word.toLowerCase().trim();
+      
+      // Exact match with known variations
+      if (WAKE_WORDS_EXACT.includes(normalizedWord)) {
+        return true;
+      }
+      
+      // Fuzzy match - allow small edits (typos, mishearings)
+      for (const target of WAKE_WORDS_EXACT) {
+        if (levenshteinDistance(normalizedWord, target) <= FUZZY_THRESHOLD) {
+          return true;
+        }
+      }
+      
+      return false;
+    }
 
     function checkWakeWord(transcript) {
       const lower = transcript.toLowerCase().trim();
-      return WAKE_WORDS.some(word => lower.includes(word));
+      const words = lower.split(/\s+/);
+      
+      console.log('[Maya Blob] Checking transcript:', lower);
+      
+      // Check for direct wake words with prefix
+      for (const prefix of WAKE_PREFIXES) {
+        for (const wake of WAKE_WORDS_EXACT) {
+          if (lower.includes(`${prefix} ${wake}`)) {
+            console.log('[Maya Blob] Found exact match:', `${prefix} ${wake}`);
+            return true;
+          }
+        }
+      }
+      
+      // Check for just "maya" or variations anywhere in the transcript
+      for (const word of words) {
+        if (isFuzzyMaya(word)) {
+          console.log('[Maya Blob] Found fuzzy match for word:', word);
+          return true;
+        }
+      }
+      
+      // Check pairs of words (in case it's split like "may" "a")
+      for (let i = 0; i < words.length - 1; i++) {
+        const combined = words[i] + words[i + 1];
+        if (isFuzzyMaya(combined)) {
+          console.log('[Maya Blob] Found combined fuzzy match:', combined);
+          return true;
+        }
+      }
+      
+      return false;
     }
 
     function initWakeWordDetection() {
@@ -190,27 +295,39 @@
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
-      recognition.maxAlternatives = 3;
+      recognition.maxAlternatives = 5; // More alternatives for better fuzzy matching
+
+      recognition.onstart = () => {
+        console.log('[Maya Blob] Wake word listening started');
+        card.classList.add('listening');
+      };
 
       recognition.onresult = async (event) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
+          // Check all alternatives
           for (let j = 0; j < result.length; j++) {
             const transcript = result[j].transcript;
 
-            // Check for wake word
+            // Check for wake word with fuzzy matching
             if (checkWakeWord(transcript)) {
-              console.log('[Maya Blob] Wake word detected:', transcript);
+              console.log('[Maya Blob] Wake word detected!');
+              
               // Visual feedback
+              card.classList.remove('listening');
               card.classList.add('speaking');
 
-              // Open Maya widget with listening mode
-              if (window.talioDesktop) {
-                await window.talioDesktop.openMayaFromBlob();
-              }
-
-              // Stop listening (widget will take over)
+              // Stop listening before opening widget
               stopWakeWordListening();
+
+              // Open Maya widget
+              if (window.talioDesktop) {
+                if (window.talioDesktop.expandWidget) {
+                  await window.talioDesktop.expandWidget();
+                } else {
+                  await window.talioDesktop.openMayaFromBlob();
+                }
+              }
 
               setTimeout(() => {
                 card.classList.remove('speaking');
@@ -223,21 +340,37 @@
 
       recognition.onerror = (e) => {
         console.log('[Maya Blob] Speech recognition error:', e.error);
+        card.classList.remove('listening');
+        
         if (e.error === 'not-allowed') {
-          console.log('[Maya Blob] Microphone permission denied - requesting...');
-        } else if (e.error === 'no-speech' || e.error === 'audio-capture') {
-          // These are normal, just restart
-          if (isListening && retryCount < MAX_RETRIES) {
-            retryCount++;
+          console.log('[Maya Blob] Microphone permission denied');
+          // Don't retry on permission error
+          return;
+        }
+        
+        if (e.error === 'aborted') {
+          // User or system aborted - restart after delay
+          if (isListening) {
             setTimeout(() => {
               if (isListening) startWakeWordListening();
-            }, 1000);
+            }, 2000);
           }
+          return;
+        }
+        
+        // For other errors (no-speech, audio-capture), retry
+        if (isListening && retryCount < MAX_RETRIES) {
+          retryCount++;
+          setTimeout(() => {
+            if (isListening) startWakeWordListening();
+          }, 1000);
         }
       };
 
       recognition.onend = () => {
-        // Restart if still supposed to be listening
+        card.classList.remove('listening');
+        
+        // Auto-restart if still supposed to be listening
         if (isListening) {
           retryCount = 0;
           setTimeout(() => {
@@ -246,9 +379,13 @@
                 recognition.start();
               }
             } catch (e) {
-              console.log('[Maya Blob] Could not restart recognition');
+              console.log('[Maya Blob] Could not restart recognition:', e.message);
+              // Try again after a longer delay
+              setTimeout(() => {
+                if (isListening) startWakeWordListening();
+              }, 2000);
             }
-          }, 500);
+          }, 300);
         }
       };
     }
@@ -257,28 +394,41 @@
       if (!recognition) {
         initWakeWordDetection();
       }
-      if (recognition && !isListening) {
-        isListening = true;
-        retryCount = 0;
-        try {
-          recognition.start();
-          console.log('[Maya Blob] Wake word listening started');
-        } catch (e) {
-          console.log('[Maya Blob] Could not start recognition:', e);
-          // Might already be started
-          isListening = false;
-          setTimeout(() => startWakeWordListening(), 1000);
-        }
+      
+      if (!recognition) {
+        console.log('[Maya Blob] Recognition not available');
+        return;
+      }
+      
+      if (isListening) {
+        // Already listening
+        return;
+      }
+      
+      isListening = true;
+      retryCount = 0;
+      
+      try {
+        recognition.start();
+        console.log('[Maya Blob] Starting wake word detection');
+      } catch (e) {
+        console.log('[Maya Blob] Could not start recognition:', e.message);
+        isListening = false;
+        // Retry after delay
+        setTimeout(() => startWakeWordListening(), 1500);
       }
     }
 
     function stopWakeWordListening() {
+      console.log('[Maya Blob] Stopping wake word listening');
       isListening = false;
+      card.classList.remove('listening');
+      
       try {
         recognition?.stop();
-        console.log('[Maya Blob] Wake word listening stopped');
+        recognition?.abort();
       } catch (e) {
-        // Ignore
+        // Ignore errors when stopping
       }
     }
 

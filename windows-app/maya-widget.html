@@ -271,6 +271,7 @@
       background: linear-gradient(135deg, rgba(77, 163, 255, 0.3), rgba(139, 93, 255, 0.3));
       border: 2px solid rgba(77, 163, 255, 0.5);
       color: rgba(255, 255, 255, 0.95);
+      position: relative;
     }
 
     .mic-btn-large:hover {
@@ -279,9 +280,15 @@
     }
 
     .mic-btn-large.listening {
-      background: linear-gradient(135deg, rgba(255, 77, 77, 0.4), rgba(255, 120, 77, 0.3));
-      border-color: rgba(255, 77, 77, 0.7);
+      background: linear-gradient(135deg, rgba(77, 255, 163, 0.4), rgba(77, 200, 163, 0.3));
+      border-color: rgba(77, 255, 163, 0.8);
       animation: pulse-mic-large 1.5s ease-in-out infinite;
+    }
+
+    .mic-btn-large.paused {
+      background: linear-gradient(135deg, rgba(255, 180, 77, 0.4), rgba(255, 140, 77, 0.3));
+      border-color: rgba(255, 180, 77, 0.7);
+      animation: none;
     }
 
     .mic-btn-large svg {
@@ -290,8 +297,8 @@
     }
 
     @keyframes pulse-mic-large {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,77,77,0.5); }
-      50% { transform: scale(1.08); box-shadow: 0 0 0 15px rgba(255,77,77,0); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(77,255,163,0.5); }
+      50% { transform: scale(1.08); box-shadow: 0 0 0 15px rgba(77,255,163,0); }
     }
 
     .mic-btn {
@@ -306,15 +313,15 @@
     }
 
     .mic-btn.listening {
-      background: rgba(255, 77, 77, 0.3);
-      border-color: rgba(255, 77, 77, 0.6);
-      color: rgba(255, 77, 77, 0.95);
+      background: rgba(77, 255, 163, 0.3);
+      border-color: rgba(77, 255, 163, 0.6);
+      color: rgba(77, 255, 163, 0.95);
       animation: pulse-mic 1.5s ease-in-out infinite;
     }
 
     @keyframes pulse-mic {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,77,77,0.4); }
-      50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255,77,77,0); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(77,255,163,0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(77,255,163,0); }
     }
 
     .send-btn {
@@ -339,6 +346,20 @@
       font-size: 12px;
       text-align: center;
       margin-top: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .listening-status.active {
+      color: rgba(77, 255, 163, 0.95);
+      font-weight: 600;
+    }
+
+    .listening-status.paused {
+      color: rgba(255, 180, 77, 0.95);
+    }
+
+    .listening-status.speaking {
+      color: rgba(139, 93, 255, 0.95);
     }
 
     /* Thinking animation */
@@ -721,11 +742,10 @@
       // Set speaking state and pause mic listening
       isSpeaking = true;
       setBlobSpeaking(true);
-      if (recognition && isListening && !isWidgetMinimized) {
-        try {
-          recognition.stop();
-        } catch (e) {}
-      }
+      updateListeningUI(); // Update UI to show "speaking" state
+      
+      // Pause recognition while speaking
+      pauseListening();
 
       // Try ElevenLabs first for high-quality voice with emotional model
       try {
@@ -757,14 +777,17 @@
             currentAudio = null;
             isSpeaking = false;
             setBlobSpeaking(false);
-            // Resume listening when expanded (use debounced restart)
+            updateListeningUI();
+            // Resume listening when expanded
             if (!isWidgetMinimized && isMicMode) {
-              scheduleRecognitionRestart();
+              resumeListening();
             }
             if (callback) callback();
           };
           currentAudio.onerror = () => {
+            isSpeaking = false;
             setBlobSpeaking(false);
+            updateListeningUI();
             // Fallback to Web Speech
             speakWithWebSpeech(text, callback);
           };
@@ -792,9 +815,19 @@
       utterance.onend = () => {
         isSpeaking = false;
         setBlobSpeaking(false);
-        // Resume listening when expanded (use debounced restart)
+        updateListeningUI();
+        // Resume listening when expanded
         if (!isWidgetMinimized && isMicMode) {
-          scheduleRecognitionRestart();
+          resumeListening();
+        }
+        if (callback) callback();
+      };
+      utterance.onerror = () => {
+        isSpeaking = false;
+        setBlobSpeaking(false);
+        updateListeningUI();
+        if (!isWidgetMinimized && isMicMode) {
+          resumeListening();
         }
         if (callback) callback();
       };
@@ -1195,7 +1228,7 @@
       }
     }
 
-    // Voice input using Web Speech API
+    // Voice input using Web Speech API - Continuous listening with proper state management
     function initVoiceRecognition() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         console.log('[Maya] Speech recognition not supported');
@@ -1203,103 +1236,129 @@
         return;
       }
 
+      // Request mic permission on start
+      if (window.mayaBridge?.requestMicPermission) {
+        window.mayaBridge.requestMicPermission().then(granted => {
+          console.log('[Maya] Mic permission:', granted ? 'granted' : 'denied');
+        });
+      }
+
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
       recognition.continuous = true; // Enable continuous listening
       recognition.interimResults = true;
       recognition.lang = 'en-US';
+      recognition.maxAlternatives = 3;
 
       recognition.onstart = () => {
+        console.log('[Maya] Recognition started');
         isListening = true;
-        micBtnLarge?.classList.add('listening');
-        micBtn?.classList.add('listening');
-        listeningStatus.textContent = isWidgetMinimized ? 'Say "Hey Maya"...' : 'Listening...';
+        recognitionLock = false;
+        updateListeningUI();
       };
 
       recognition.onresult = (event) => {
         const last = event.results.length - 1;
-        const transcript = event.results[last][0].transcript.toLowerCase().trim();
+        const transcript = event.results[last][0].transcript.trim();
 
         if (event.results[last].isFinal) {
-          // Wake word detection ONLY when widget is minimized
-          if (isWidgetMinimized) {
-            if (transcript.includes('hey maya') || transcript.includes('hi maya') || transcript.includes('hey mia')) {
-              // Expand widget and acknowledge
-              if (window.mayaBridge?.expandWidget) {
-                window.mayaBridge.expandWidget();
-              }
-              isWidgetMinimized = false;
-              setMicMode(true); // Ensure mic mode is active
-              listeningStatus.textContent = 'Yes? I\'m listening...';
-              addMessage('👂 Listening...', 'system');
-              
-              // Play acknowledgment
-              if (window.speechSynthesis) {
-                const ack = new SpeechSynthesisUtterance('Yes?');
-                ack.rate = 1.2;
-                ack.volume = 0.5;
-                window.speechSynthesis.speak(ack);
-              }
-              return;
-            }
-            // Ignore other speech when minimized
-            return;
-          }
+          console.log('[Maya] Final transcript:', transcript);
           
-          // When expanded, process all speech normally (no wake word needed)
-          if (transcript && transcript.length > 3) {
-            const recentMessages = Array.from(document.querySelectorAll('.message')).slice(-2);
-            const hasRecentWakeWord = recentMessages.some(msg => 
-              msg.textContent.includes('Listening...') || msg.textContent.includes('Yes?')
-            );
+          // When widget is expanded, process all speech as conversation
+          if (!isWidgetMinimized && transcript.length > 2) {
+            // Stop listening while processing
+            pauseListening();
             
-            // Process the message if it's after wake word or seems like a command
-            if (hasRecentWakeWord || transcript.length > 10) {
-              addMessage(transcript, 'user');
-              sendToMaya(transcript);
-              listeningStatus.textContent = 'Listening...';
-            }
+            addMessage(transcript, 'user');
+            sendToMaya(transcript);
           }
         } else {
-          // Show interim results only when expanded
-          if (!isWidgetMinimized) {
-            listeningStatus.textContent = transcript || 'Listening...';
+          // Show interim results with visual feedback
+          if (!isWidgetMinimized && transcript.length > 0) {
+            listeningStatus.textContent = `"${transcript}"`;
+            listeningStatus.classList.add('active');
           }
         }
       };
 
       recognition.onerror = (e) => {
         console.log('[Maya] Speech recognition error:', e.error);
+        recognitionLock = false;
+        
         if (e.error === 'not-allowed') {
-          addMessage('Microphone access denied. Please enable microphone permissions.', 'system');
-          listeningStatus.textContent = 'Mic permission denied';
+          listeningStatus.textContent = '🔇 Mic permission denied';
+          listeningStatus.classList.remove('active', 'speaking');
+          listeningStatus.classList.add('paused');
           isListening = false;
-          recognitionLock = false;
+          // Try to request permission again
+          if (window.mayaBridge?.requestMicPermission) {
+            window.mayaBridge.requestMicPermission();
+          }
         } else if (e.error === 'aborted' || e.error === 'no-speech') {
-          // These are normal - don't spam restart, just let onend handle it
-          console.log('[Maya] Recognition aborted/no-speech, will restart via onend');
+          // Normal - will restart via onend
+          console.log('[Maya] Recognition aborted/no-speech');
+        } else if (e.error === 'network') {
+          listeningStatus.textContent = '⚠️ Network error';
+          scheduleRecognitionRestart();
         } else {
-          // For other errors, schedule a restart with debounce
           isListening = false;
-          recognitionLock = false;
+          scheduleRecognitionRestart();
         }
       };
 
       recognition.onend = () => {
-        console.log('[Maya] Recognition ended, isListening:', isListening, 'minimized:', isWidgetMinimized);
+        console.log('[Maya] Recognition ended, speaking:', isSpeaking, 'minimized:', isWidgetMinimized);
         isListening = false;
         recognitionLock = false;
         
-        // Only auto-restart if we're in mic mode and not speaking
-        if (!onboardingInProgress && !isSpeaking && isMicMode) {
-          // Use debounced restart
+        // Auto-restart if we should be listening
+        if (!isSpeaking && isMicMode && !onboardingInProgress) {
           scheduleRecognitionRestart();
         } else {
-          micBtnLarge?.classList.remove('listening');
-          micBtn?.classList.remove('listening');
-          listeningStatus.textContent = isWidgetMinimized ? 'Say "Hey Maya"...' : 'Tap mic to speak';
+          updateListeningUI();
         }
       };
+    }
+
+    // Update UI to reflect current listening state
+    function updateListeningUI() {
+      micBtnLarge?.classList.remove('listening', 'paused');
+      micBtn?.classList.remove('listening', 'paused');
+      listeningStatus.classList.remove('active', 'paused', 'speaking');
+      
+      if (isSpeaking) {
+        micBtnLarge?.classList.add('paused');
+        micBtn?.classList.add('paused');
+        listeningStatus.textContent = '🔊 Maya is speaking...';
+        listeningStatus.classList.add('speaking');
+      } else if (isListening) {
+        micBtnLarge?.classList.add('listening');
+        micBtn?.classList.add('listening');
+        listeningStatus.textContent = '🎤 Listening...';
+        listeningStatus.classList.add('active');
+      } else if (isMicMode) {
+        listeningStatus.textContent = 'Tap mic or start speaking';
+      } else {
+        listeningStatus.textContent = 'Type your message';
+      }
+    }
+
+    // Pause listening while Maya speaks
+    function pauseListening() {
+      if (recognition && isListening) {
+        try {
+          recognition.stop();
+        } catch (e) {}
+      }
+      isListening = false;
+      updateListeningUI();
+    }
+
+    // Resume listening after Maya finishes speaking
+    function resumeListening() {
+      if (!isSpeaking && isMicMode && !isWidgetMinimized) {
+        scheduleRecognitionRestart();
+      }
     }
 
     // Debounced recognition restart to prevent flickering
@@ -1309,7 +1368,7 @@
       const delay = Math.max(RECOGNITION_DEBOUNCE_MS - timeSinceLastAttempt, 300);
       
       setTimeout(() => {
-        if (!isSpeaking && !onboardingInProgress && isMicMode && !recognitionLock) {
+        if (!isSpeaking && !onboardingInProgress && isMicMode && !recognitionLock && !isWidgetMinimized) {
           startListening();
         }
       }, delay);
@@ -1328,24 +1387,22 @@
         lastRecognitionAttempt = now;
         try {
           recognition.start();
+          console.log('[Maya] Starting recognition...');
         } catch (e) {
-          console.log('[Maya] Could not start listening:', e);
+          console.log('[Maya] Could not start listening:', e.message);
           recognitionLock = false;
-          // If already running, that's fine
           if (e.message && e.message.includes('already started')) {
             isListening = true;
+            updateListeningUI();
           }
         }
       }
     }
 
     function stopListening() {
-      // Only truly stop if user manually requests it
       isListening = false;
       recognitionLock = false;
-      micBtnLarge?.classList.remove('listening');
-      micBtn?.classList.remove('listening');
-      listeningStatus.textContent = 'Say "Hey Maya"...';
+      updateListeningUI();
       try {
         recognition?.stop();
       } catch (e) {}
@@ -1358,10 +1415,10 @@
         micModeWrapper.classList.remove('hidden');
         inputWrapper.classList.remove('active');
         listeningStatus.style.display = 'block';
+        updateListeningUI();
         // Auto-start listening when in mic mode and widget is expanded
         if (!isWidgetMinimized && !isSpeaking) {
-          // Use debounced start
-          scheduleRecognitionRestart();
+          resumeListening();
         }
       } else {
         micModeWrapper.classList.add('hidden');
@@ -1394,9 +1451,22 @@
       setMicMode(false);
     });
 
-    // Large mic button - start listening
+    // Large mic button - toggle listening
     micBtnLarge?.addEventListener('click', () => {
-      if (isListening) {
+      if (isSpeaking) {
+        // If Maya is speaking, stop her
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio = null;
+        }
+        window.speechSynthesis?.cancel();
+        isSpeaking = false;
+        setBlobSpeaking(false);
+        speechQueue.length = 0;
+        speechActive = false;
+        updateListeningUI();
+        resumeListening();
+      } else if (isListening) {
         stopListening();
       } else {
         startListening();
@@ -1479,21 +1549,25 @@
         window.mayaBridge.getWidgetState().then(state => {
           isWidgetMinimized = state?.minimized || false;
           
-          // Auto-start wake word listening if minimized
-          if (isWidgetMinimized && recognition && !onboardingInProgress) {
-            console.log('[Maya] Starting wake word detection (minimized mode)');
-            startListening();
-          }
+          // Auto-start listening regardless of mode
+          // If minimized: wake word detection
+          // If expanded: continuous conversation
+          setTimeout(() => {
+            if (recognition && !onboardingInProgress) {
+              console.log('[Maya] Auto-starting voice recognition, minimized:', isWidgetMinimized);
+              startListening();
+            }
+          }, 1000); // Give a moment for UI to settle
         });
       } else {
-        // Fallback: assume minimized on startup
-        isWidgetMinimized = true;
+        // Fallback: assume full widget mode on startup
+        isWidgetMinimized = false;
         setTimeout(() => {
           if (recognition && !onboardingInProgress) {
-            console.log('[Maya] Starting wake word detection (minimized mode)');
+            console.log('[Maya] Auto-starting voice recognition (fallback mode)');
             startListening();
           }
-        }, 500);
+        }, 1000);
       }
 
       // Ensure mic mode is set as default

@@ -1329,6 +1329,26 @@ function setupIPC() {
     minimizeMayaToBob();
   });
 
+  // Expand widget (called from blob when wake word detected)
+  ipcMain.handle('maya-expand-widget', () => {
+    console.log('[Maya] Expanding widget from blob');
+    if (mayaWidgetWindow) {
+      mayaWidgetWindow.show();
+      mayaWidgetWindow.focus();
+      // Send state change to widget
+      mayaWidgetWindow.webContents.send('maya-widget-state-changed', { minimized: false });
+    }
+    if (mayaBlobWindow) {
+      mayaBlobWindow.hide();
+    }
+  });
+
+  // Get widget state
+  ipcMain.handle('maya-get-widget-state', () => {
+    const isMinimized = !mayaWidgetWindow || !mayaWidgetWindow.isVisible();
+    return { minimized: isMinimized };
+  });
+
   // Maya screen capture with auto-hide widget for clean capture
   ipcMain.handle('maya-capture-screen', async () => {
     try {
@@ -1480,6 +1500,16 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  // Only show main window if no Maya windows are active
+  // This prevents the main window from appearing when interacting with Maya widget
+  const mayaActive = (mayaWidgetWindow && mayaWidgetWindow.isVisible()) || 
+                     (mayaBlobWindow && mayaBlobWindow.isVisible());
+  
+  if (mayaActive) {
+    // Maya is active, don't show main window - just keep focus on Maya
+    return;
+  }
+  
   if (mainWindow === null) {
     createMainWindow();
   } else {

@@ -1380,6 +1380,30 @@ function setupIPC() {
     minimizeMayaToBob();
   });
 
+  // Get Maya widget state (minimized or expanded)
+  ipcMain.handle('maya-get-widget-state', () => {
+    return {
+      minimized: !mayaWidgetWindow || !mayaWidgetWindow.isVisible(),
+      widgetVisible: mayaWidgetWindow && mayaWidgetWindow.isVisible(),
+      blobVisible: mayaBlobWindow && mayaBlobWindow.isVisible()
+    };
+  });
+
+  // Request microphone permission (for voice features)
+  ipcMain.handle('maya-request-mic-permission', async () => {
+    if (process.platform === 'darwin') {
+      try {
+        const status = await systemPreferences.askForMediaAccess('microphone');
+        console.log('[Maya] Microphone permission:', status ? 'granted' : 'denied');
+        return status;
+      } catch (err) {
+        console.error('[Maya] Microphone permission error:', err);
+        return false;
+      }
+    }
+    return true; // Windows/Linux don't need explicit permission
+  });
+
   // Maya screen capture with auto-hide widget for clean capture
   ipcMain.handle('maya-capture-screen', async () => {
     try {
@@ -1540,6 +1564,16 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
+  // On macOS, only show main window if no Maya windows are active
+  // This prevents the main window from appearing when clicking the Maya widget
+  const mayaActive = (mayaWidgetWindow && mayaWidgetWindow.isVisible()) || 
+                     (mayaBlobWindow && mayaBlobWindow.isVisible());
+  
+  if (mayaActive) {
+    // Maya is active, don't show main window - just keep focus on Maya
+    return;
+  }
+  
   if (mainWindow === null) {
     createMainWindow();
   } else {

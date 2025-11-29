@@ -105,7 +105,16 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    const employee = await Employee.findOne({ userId: decoded.userId }).select('_id department');
+    // Try to get employee by user.employeeId first, then by userId field in Employee
+    let employee = null;
+    if (user.employeeId) {
+      employee = await Employee.findById(user.employeeId).select('_id department firstName lastName');
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ userId: decoded.userId }).select('_id department firstName lastName');
+    }
+    
+    console.log(`[Productivity Sync] User ${decoded.userId} -> Employee ${employee?._id} (${employee?.firstName} ${employee?.lastName})`);
 
     // Process app usage with categorization
     const processedAppUsage = (appUsage || []).map(app => ({

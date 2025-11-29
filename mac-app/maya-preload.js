@@ -5,6 +5,13 @@ contextBridge.exposeInMainWorld('mayaBridge', {
   // Widget controls
   closeWidget: () => ipcRenderer.invoke('maya-close-widget'),
   minimizeWidget: () => ipcRenderer.invoke('maya-minimize-widget'),
+  expandWidget: () => ipcRenderer.invoke('open-maya-from-blob'),
+  
+  // Get widget state (minimized or expanded)
+  getWidgetState: () => ipcRenderer.invoke('maya-get-widget-state'),
+  
+  // Request microphone permission
+  requestMicPermission: () => ipcRenderer.invoke('maya-request-mic-permission'),
 
   // Dot matrix overlay
   showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
@@ -39,6 +46,7 @@ contextBridge.exposeInMainWorld('mayaBridge', {
 // Expose talioDesktop for blob window
 contextBridge.exposeInMainWorld('talioDesktop', {
   openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
+  getWidgetState: () => ipcRenderer.invoke('maya-get-widget-state'),
   isElectron: true
 });
 
