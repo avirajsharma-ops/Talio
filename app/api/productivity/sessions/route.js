@@ -598,12 +598,19 @@ export async function GET(request) {
       
       // If department head, verify the target user is in their department
       if (isDeptHead && !isAdmin && headOfDepartment) {
-        const targetUser = await User.findById(userObjId).select('employeeId');
-        if (targetUser?.employeeId) {
-          const targetEmployee = await Employee.findById(targetUser.employeeId).select('department');
-          if (!targetEmployee?.department || targetEmployee.department.toString() !== headOfDepartment._id.toString()) {
-            return NextResponse.json({ success: false, error: 'Cannot access data for users outside your department' }, { status: 403 });
+        // Bidirectional lookup: check Employee.userId first, then User.employeeId
+        let targetEmployee = await Employee.findOne({ userId: userObjId }).select('department');
+        
+        if (!targetEmployee) {
+          // Try reverse relationship: User.employeeId
+          const targetUser = await User.findById(userObjId).select('employeeId');
+          if (targetUser?.employeeId) {
+            targetEmployee = await Employee.findById(targetUser.employeeId).select('department');
           }
+        }
+        
+        if (!targetEmployee?.department || targetEmployee.department.toString() !== headOfDepartment._id.toString()) {
+          return NextResponse.json({ success: false, error: 'Cannot access data for users outside your department' }, { status: 403 });
         }
       }
     } else if (!isAdmin && !isDeptHead) {

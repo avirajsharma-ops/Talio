@@ -159,12 +159,46 @@ export default function ProductivityMonitoringPage() {
     }
   };
 
+  // Trigger session aggregation in background to compile raw data into sessions
+  const triggerSessionAggregation = async (showToast = false) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/productivity/sessions/aggregate', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ processAll: true })
+      });
+      const data = await response.json();
+      
+      if (data.success && showToast) {
+        const totalCreated = data.results?.reduce((sum, r) => sum + (r.sessionsCreated || 0), 0) || 0;
+        if (totalCreated > 0) {
+          toast.success(`Created ${totalCreated} new sessions`);
+          refreshAllGrids(); // Refresh to show new sessions
+        }
+      }
+      return data;
+    } catch (error) {
+      console.error('Session aggregation error:', error);
+      if (showToast) {
+        toast.error('Failed to aggregate sessions');
+      }
+    }
+  };
+
   const fetchAllData = async (currentUser) => {
     // All tabs now handle their own data fetching via user cards
     // Sessions tab - uses UserCardsGrid
     // Monitoring tab - uses RawCapturesUserCardsGrid  
     // Chat tab - uses ChatHistoryCardsGrid
     setLoading(false);
+    
+    // Trigger session aggregation in background to compile any pending raw data
+    // This ensures sessions are created from raw captures
+    triggerSessionAggregation(false);
   };
 
   const fetchMonitoringData = async (currentUser, userId = null) => {
@@ -752,17 +786,28 @@ export default function ProductivityMonitoringPage() {
       ) : activeTab === 'sessions' ? (
         /* Session-Based View - User Cards Grid */
         <div>
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              {isAdminOrGodAdmin ? 'Team Activity' : isDepartmentHead ? 'Department Activity' : 'My Activity'}
-            </h2>
-            <p className="text-gray-600">
-              {isAdminOrGodAdmin
-                ? 'Click on a team member to view their activity sessions'
-                : isDepartmentHead
-                ? 'Click on a department member to view their activity sessions'
-                : 'Click on your card to view your activity sessions'}
-            </p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                {isAdminOrGodAdmin ? 'Team Activity' : isDepartmentHead ? 'Department Activity' : 'My Activity'}
+              </h2>
+              <p className="text-gray-600">
+                {isAdminOrGodAdmin
+                  ? 'Click on a team member to view their activity sessions'
+                  : isDepartmentHead
+                  ? 'Click on a department member to view their activity sessions'
+                  : 'Click on your card to view your activity sessions'}
+              </p>
+            </div>
+            {/* Manual Aggregate Button for admins */}
+            {(isAdminOrGodAdmin || isDepartmentHead) && (
+              <button
+                onClick={() => triggerSessionAggregation(true)}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:opacity-90 flex items-center gap-2 shadow-md"
+              >
+                <FaSync />Aggregate Sessions
+              </button>
+            )}
           </div>
           
           <UserCardsGrid 

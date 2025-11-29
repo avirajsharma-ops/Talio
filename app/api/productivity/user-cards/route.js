@@ -3,6 +3,7 @@ import { jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import ProductivitySession from '@/models/ProductivitySession';
+import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
@@ -192,7 +193,7 @@ export async function GET(request) {
         status: 'completed'
       })
         .sort({ sessionEnd: -1 })
-        .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore screenshots')
+        .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore screenshots sessionDuration totalActiveTime')
         .lean();
 
       // Get total session count
@@ -205,16 +206,51 @@ export async function GET(request) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       
-      const todaySessions = await ProductivitySession.find({
+      let todaySessions = await ProductivitySession.find({
         userId: userObjId,
         sessionStart: { $gte: todayStart },
         status: 'completed'
-      }).select('durationMinutes aiAnalysis.productivityScore').lean();
+      }).select('sessionDuration totalActiveTime aiAnalysis.productivityScore').lean();
 
-      const todayDuration = todaySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-      const avgProductivity = todaySessions.length > 0
+      let todayDuration = todaySessions.reduce((sum, s) => sum + (s.sessionDuration || s.totalActiveTime / 60000 || 0), 0);
+      let avgProductivity = todaySessions.length > 0
         ? todaySessions.reduce((sum, s) => sum + (s.aiAnalysis?.productivityScore || 0), 0) / todaySessions.length
         : 0;
+      
+      // If no sessions, fallback to raw ProductivityData for stats
+      if (totalSessions === 0) {
+        const rawStats = await ProductivityData.aggregate([
+          { $match: { userId: userObjId, status: { $in: ['synced', 'analyzed'] } } },
+          { $group: {
+            _id: null,
+            totalActiveTime: { $sum: '$totalActiveTime' },
+            productiveTime: { $sum: '$productiveTime' },
+            count: { $sum: 1 }
+          }}
+        ]);
+        
+        const todayRawStats = await ProductivityData.aggregate([
+          { $match: { 
+            userId: userObjId, 
+            status: { $in: ['synced', 'analyzed'] },
+            createdAt: { $gte: todayStart }
+          }},
+          { $group: {
+            _id: null,
+            totalActiveTime: { $sum: '$totalActiveTime' },
+            productiveTime: { $sum: '$productiveTime' },
+            count: { $sum: 1 }
+          }}
+        ]);
+        
+        if (todayRawStats.length > 0) {
+          const stats = todayRawStats[0];
+          todayDuration = Math.round((stats.totalActiveTime || 0) / 60000); // Convert ms to mins
+          avgProductivity = stats.totalActiveTime > 0 
+            ? Math.round((stats.productiveTime / stats.totalActiveTime) * 100) 
+            : 0;
+        }
+      }
 
       const userName = employee.firstName && employee.lastName 
         ? `${employee.firstName} ${employee.lastName}`

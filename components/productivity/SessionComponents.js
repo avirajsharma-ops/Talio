@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle } from 'react-icons/fa';
+import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle, FaDesktop, FaGlobe } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -361,10 +361,23 @@ function SessionCard({ session, onClick }) {
   const screenshotCount = session.screenshots?.length || 0;
   const firstScreenshot = session.screenshots?.[0];
   
+  // Get apps and websites from various possible field names
+  const apps = session.appUsageSummary || session.appUsage || session.topApps || [];
+  const websites = session.websiteVisitSummary || session.websiteVisits || session.topWebsites || [];
+  
   const getScoreColor = (score) => {
     if (score >= 70) return 'text-green-600 bg-green-100';
     if (score >= 40) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
+  };
+
+  // Get time spent in a readable format
+  const formatDuration = (ms) => {
+    if (!ms) return '';
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m`;
   };
 
   return (
@@ -406,6 +419,54 @@ function SessionCard({ session, onClick }) {
         )}
       </div>
 
+      {/* Top Apps Used */}
+      {apps.length > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+            <FaDesktop className="text-blue-500" />
+            <span className="font-medium">Apps:</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {apps.slice(0, 3).map((app, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
+                {app.appName}
+                {(app.percentage || app.totalDuration) && (
+                  <span className="text-blue-500">
+                    ({app.percentage ? `${app.percentage}%` : formatDuration(app.totalDuration)})
+                  </span>
+                )}
+              </span>
+            ))}
+            {apps.length > 3 && (
+              <span className="text-xs text-gray-400">+{apps.length - 3} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Top Websites Visited */}
+      {websites.length > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+            <FaGlobe className="text-purple-500" />
+            <span className="font-medium">Websites:</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {websites.slice(0, 3).map((site, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">
+                {site.domain}
+                {(site.visitCount || site.visits) && (
+                  <span className="text-purple-500">({site.visitCount || site.visits} visits)</span>
+                )}
+              </span>
+            ))}
+            {websites.length > 3 && (
+              <span className="text-xs text-gray-400">+{websites.length - 3} more</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <p className="text-sm text-gray-600 line-clamp-2 mb-3">
         {session.aiAnalysis?.summary || 'Activity session captured'}
@@ -421,10 +482,16 @@ function SessionCard({ session, onClick }) {
           <FaCamera className="text-gray-400" />
           <span>{screenshotCount} screenshots</span>
         </div>
-        {(session.appUsageSummary?.length > 0 || session.appUsage?.length > 0) && (
+        {apps.length > 0 && (
           <div className="flex items-center gap-1">
-            <FaChartLine className="text-gray-400" />
-            <span>{(session.appUsageSummary || session.appUsage || []).length} apps</span>
+            <FaDesktop className="text-gray-400" />
+            <span>{apps.length} apps</span>
+          </div>
+        )}
+        {websites.length > 0 && (
+          <div className="flex items-center gap-1">
+            <FaGlobe className="text-gray-400" />
+            <span>{websites.length} sites</span>
           </div>
         )}
       </div>
@@ -448,9 +515,15 @@ function SessionDetailModal({ session, onClose }) {
   const [currentScreenshot, setCurrentScreenshot] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [fullscreenScreenshot, setFullscreenScreenshot] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [sessionData, setSessionData] = useState(session);
   const playIntervalRef = useRef(null);
 
-  const screenshots = session.screenshots || [];
+  const screenshots = sessionData.screenshots || [];
+
+  // Get apps and websites from various possible field names
+  const apps = sessionData.appUsageSummary || sessionData.appUsage || sessionData.topApps || [];
+  const websites = sessionData.websiteVisitSummary || sessionData.websiteVisits || sessionData.topWebsites || [];
 
   // Auto-play screenshots
   useEffect(() => {
@@ -478,6 +551,61 @@ function SessionDetailModal({ session, onClose }) {
     return screenshot?.fullData || screenshot?.thumbnail || screenshot?.url || screenshot?.thumbnailUrl || '';
   };
 
+  // Format duration
+  const formatDuration = (ms) => {
+    if (!ms) return '-';
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m`;
+  };
+
+  // Trigger AI analysis with screenshots
+  const triggerAIAnalysis = async () => {
+    if (analyzing) return;
+    
+    setAnalyzing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/productivity/sessions/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ sessionId: sessionData._id })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('AI analysis complete!');
+        // Update the session data with new analysis
+        setSessionData(prev => ({
+          ...prev,
+          aiAnalysis: {
+            ...prev.aiAnalysis,
+            summary: data.analysis.summary,
+            productivityScore: data.analysis.productivityScore,
+            focusScore: data.analysis.focusScore,
+            efficiencyScore: data.analysis.efficiencyScore,
+            insights: data.analysis.insights,
+            recommendations: data.analysis.recommendations,
+            areasOfImprovement: data.analysis.areasOfImprovement,
+            topAchievements: data.analysis.topAchievements,
+            analyzedAt: new Date()
+          }
+        }));
+      } else {
+        toast.error(data.error || 'Failed to analyze session');
+      }
+    } catch (error) {
+      console.error('AI Analysis error:', error);
+      toast.error('Failed to analyze session');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
@@ -485,9 +613,9 @@ function SessionDetailModal({ session, onClose }) {
         <div className="bg-gray-800 px-6 py-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">
-              Session: {formatLocalTime(session.sessionStart)} - {formatLocalTime(session.sessionEnd)}
+              Session: {formatLocalTime(sessionData.sessionStart)} - {formatLocalTime(sessionData.sessionEnd)}
             </h3>
-            <p className="text-gray-400 text-sm">{formatLocalDateOnly(session.sessionStart)} • {session.sessionDuration || session.durationMinutes} minutes</p>
+            <p className="text-gray-400 text-sm">{formatLocalDateOnly(sessionData.sessionStart)} • {sessionData.sessionDuration || sessionData.durationMinutes} minutes</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full">
             <FaTimes className="text-white text-xl" />
@@ -593,97 +721,204 @@ function SessionDetailModal({ session, onClose }) {
               {/* Scores */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-800">{session.aiAnalysis?.productivityScore || 0}%</div>
+                  <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.productivityScore || 0}%</div>
                   <div className="text-sm text-gray-500">Productivity</div>
-                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(session.aiAnalysis?.productivityScore || 0)}`}></div>
+                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.productivityScore || 0)}`}></div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-800">{session.aiAnalysis?.focusScore || 0}%</div>
+                  <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.focusScore || 0}%</div>
                   <div className="text-sm text-gray-500">Focus</div>
-                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(session.aiAnalysis?.focusScore || 0)}`}></div>
+                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.focusScore || 0)}`}></div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-800">{session.aiAnalysis?.efficiencyScore || 0}%</div>
+                  <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.efficiencyScore || 0}%</div>
                   <div className="text-sm text-gray-500">Efficiency</div>
-                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(session.aiAnalysis?.efficiencyScore || 0)}`}></div>
+                  <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.efficiencyScore || 0)}`}></div>
                 </div>
               </div>
 
               {/* AI Summary */}
               <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
-                <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                  <FaChartLine className="text-blue-600" /> AI Analysis
-                </h4>
-                <p className="text-sm text-gray-700">{session.aiAnalysis?.summary || 'Session activity captured'}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <FaChartLine className="text-blue-600" /> AI Analysis
+                  </h4>
+                  <button
+                    onClick={triggerAIAnalysis}
+                    disabled={analyzing}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs rounded-lg flex items-center gap-1.5 transition-colors"
+                  >
+                    {analyzing ? (
+                      <>
+                        <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>
+                        Analyzing {screenshots.length} screenshots...
+                      </>
+                    ) : (
+                      <>
+                        <FaSync className="text-xs" />
+                        Analyze with AI
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">{sessionData.aiAnalysis?.summary || 'Click "Analyze with AI" to get a comprehensive AI-powered productivity analysis of this session. All screenshots will be analyzed individually and combined with app/website activity.'}</p>
+                
+                {/* Work Activities */}
+                {sessionData.aiAnalysis?.workActivities?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <h5 className="text-xs font-semibold text-gray-600 mb-2">🎯 Work Activities Detected</h5>
+                    <div className="flex flex-wrap gap-1.5">
+                      {sessionData.aiAnalysis.workActivities.map((activity, idx) => (
+                        <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          {activity}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Insights */}
+                {sessionData.aiAnalysis?.insights?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <h5 className="text-xs font-semibold text-gray-600 mb-2">💡 Key Insights</h5>
+                    <ul className="space-y-1">
+                      {sessionData.aiAnalysis.insights.slice(0, 4).map((insight, idx) => (
+                        <li key={idx} className="text-xs text-gray-600 flex items-start gap-1.5">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          {insight}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {/* Screenshot-by-Screenshot Analysis */}
+                {sessionData.aiAnalysis?.screenshotAnalysis?.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <h5 className="text-xs font-semibold text-gray-600 mb-2">📸 Screenshot Timeline ({sessionData.aiAnalysis.screenshotAnalysis.length} analyzed)</h5>
+                    <div className="max-h-32 overflow-y-auto space-y-1.5">
+                      {sessionData.aiAnalysis.screenshotAnalysis.map((ss, idx) => (
+                        <div key={idx} className="text-xs text-gray-600 flex items-start gap-2 bg-white/50 rounded p-1.5">
+                          <span className="text-purple-600 font-medium whitespace-nowrap">{ss.time || `#${ss.index}`}</span>
+                          <span className="text-gray-700">{ss.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* App Usage - use appUsageSummary or appUsage */}
-              {(session.appUsageSummary?.length > 0 || session.appUsage?.length > 0) && (
+              {/* App Usage - Enhanced display */}
+              {apps.length > 0 && (
                 <div className="bg-gray-50 rounded-xl p-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Application Usage</h4>
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <FaDesktop className="text-blue-600" /> Application Usage ({apps.length} apps)
+                  </h4>
                   <div className="space-y-2">
-                    {(session.appUsageSummary || session.appUsage || []).slice(0, 6).map((app, idx) => (
+                    {apps.slice(0, 8).map((app, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                           app.category === 'productive' ? 'bg-green-500' :
                           (app.category === 'distracting' || app.category === 'unproductive') ? 'bg-red-500' : 'bg-gray-400'
                         }`}></span>
-                        <span className="flex-1 text-sm truncate">{app.appName}</span>
-                        <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <span className="flex-1 text-sm truncate font-medium">{app.appName}</span>
+                        <div className="w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div 
-                            className={`h-full ${
+                            className={`h-full transition-all ${
                               app.category === 'productive' ? 'bg-green-500' :
-                              (app.category === 'distracting' || app.category === 'unproductive') ? 'bg-red-500' : 'bg-gray-400'
+                              (app.category === 'distracting' || app.category === 'unproductive') ? 'bg-red-500' : 'bg-blue-400'
                             }`}
-                            style={{ width: `${app.percentage}%` }}
+                            style={{ width: `${app.percentage || 0}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs text-gray-500 w-10 text-right">{app.percentage}%</span>
+                        <span className="text-xs text-gray-600 w-16 text-right">
+                          {app.percentage ? `${app.percentage}%` : formatDuration(app.totalDuration || app.duration)}
+                        </span>
                       </div>
                     ))}
                   </div>
+                  {apps.length > 8 && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">+{apps.length - 8} more applications</p>
+                  )}
                 </div>
               )}
 
-              {/* Website Visits - use websiteVisitSummary or websiteVisits */}
-              {(session.websiteVisitSummary?.length > 0 || session.websiteVisits?.length > 0) && (
+              {/* Website Visits - Enhanced display */}
+              {websites.length > 0 && (
                 <div className="bg-gray-50 rounded-xl p-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Website Visits</h4>
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <FaGlobe className="text-purple-600" /> Website Visits ({websites.length} sites)
+                  </h4>
                   <div className="space-y-2">
-                    {(session.websiteVisitSummary || session.websiteVisits || []).slice(0, 5).map((site, idx) => (
+                    {websites.slice(0, 6).map((site, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                           site.category === 'productive' ? 'bg-green-500' :
                           (site.category === 'distracting' || site.category === 'unproductive') ? 'bg-red-500' : 'bg-gray-400'
                         }`}></span>
-                        <span className="flex-1 text-sm truncate">{site.domain}</span>
-                        <span className="text-xs text-gray-500">{site.visitCount} visits</span>
+                        <span className="flex-1 text-sm truncate font-medium">{site.domain}</span>
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                          {site.visitCount || site.visits || 1} {(site.visitCount || site.visits || 1) === 1 ? 'visit' : 'visits'}
+                        </span>
+                        {(site.totalDuration || site.duration) && (
+                          <span className="text-xs text-gray-500">
+                            {formatDuration(site.totalDuration || site.duration)}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
+                  {websites.length > 6 && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">+{websites.length - 6} more websites</p>
+                  )}
+                </div>
+              )}
+
+              {/* No Apps/Websites Warning */}
+              {apps.length === 0 && websites.length === 0 && (
+                <div className={`rounded-xl p-4 border ${screenshots.length > 0 ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                  <h4 className={`font-semibold mb-2 flex items-center gap-2 ${screenshots.length > 0 ? 'text-blue-800' : 'text-yellow-800'}`}>
+                    {screenshots.length > 0 ? (
+                      <>📸 Screenshot-Based Session</>
+                    ) : (
+                      <><FaExclamationTriangle /> No Activity Data</>
+                    )}
+                  </h4>
+                  <p className={`text-sm ${screenshots.length > 0 ? 'text-blue-700' : 'text-yellow-700'}`}>
+                    {screenshots.length > 0 ? (
+                      <>
+                        This session has {screenshots.length} screenshot{screenshots.length > 1 ? 's' : ''} but no detailed app/website tracking data.
+                        Click <strong>"Analyze with AI"</strong> above to get an AI-powered analysis of what was done during this session.
+                      </>
+                    ) : (
+                      <>
+                        No activity data was captured for this session. This may indicate the desktop app wasn't actively tracking.
+                      </>
+                    )}
+                  </p>
                 </div>
               )}
 
               {/* Keystroke Stats - use keystrokeSummary or keystrokes */}
-              {(session.keystrokeSummary?.totalCount > 0 || session.keystrokes?.total > 0) && (
+              {(sessionData.keystrokeSummary?.totalCount > 0 || sessionData.keystrokes?.total > 0) && (
                 <div className="bg-gray-50 rounded-xl p-4">
                   <h4 className="font-semibold text-gray-800 mb-2">Activity Metrics</h4>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-lg font-bold text-gray-800">
-                        {session.keystrokeSummary?.totalCount || session.keystrokes?.total || 0}
+                        {sessionData.keystrokeSummary?.totalCount || sessionData.keystrokes?.total || 0}
                       </div>
                       <div className="text-xs text-gray-500">Keystrokes</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-gray-800">
-                        {session.keystrokeSummary?.averagePerMinute || session.keystrokes?.perMinute || 0}
+                        {sessionData.keystrokeSummary?.averagePerMinute || sessionData.keystrokes?.perMinute || 0}
                       </div>
                       <div className="text-xs text-gray-500">Per Minute</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-gray-800">
-                        {session.mouseActivitySummary?.totalClicks || session.mouseClicks || 0}
+                        {sessionData.mouseActivitySummary?.totalClicks || sessionData.mouseClicks || 0}
                       </div>
                       <div className="text-xs text-gray-500">Mouse Clicks</div>
                     </div>
@@ -691,15 +926,43 @@ function SessionDetailModal({ session, onClose }) {
                 </div>
               )}
 
+              {/* Recommendations */}
+              {sessionData.aiAnalysis?.recommendations?.length > 0 && (
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                    💡 Recommendations
+                  </h4>
+                  <ul className="space-y-1">
+                    {sessionData.aiAnalysis.recommendations.slice(0, 3).map((rec, idx) => (
+                      <li key={idx} className="text-sm text-blue-700">• {rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Areas of Improvement */}
-              {session.aiAnalysis?.areasOfImprovement?.length > 0 && (
+              {sessionData.aiAnalysis?.areasOfImprovement?.length > 0 && (
                 <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
                   <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
                     <FaExclamationTriangle /> Areas to Improve
                   </h4>
                   <ul className="space-y-1">
-                    {session.aiAnalysis.areasOfImprovement.map((area, idx) => (
+                    {sessionData.aiAnalysis.areasOfImprovement.map((area, idx) => (
                       <li key={idx} className="text-sm text-orange-700">• {area}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Top Achievements */}
+              {sessionData.aiAnalysis?.topAchievements?.length > 0 && (
+                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                  <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                    🏆 Achievements
+                  </h4>
+                  <ul className="space-y-1">
+                    {sessionData.aiAnalysis.topAchievements.map((achievement, idx) => (
+                      <li key={idx} className="text-sm text-green-700">• {achievement}</li>
                     ))}
                   </ul>
                 </div>
@@ -1289,13 +1552,15 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedCaptures, setExpandedCaptures] = useState(new Set());
-  const limit = 20;
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 10; // Reduced for better UX
   const popupRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && user) {
       setCaptures([]);
       setHasMore(true);
+      setTotalCount(user?.totalCaptures || 0);
       fetchCaptures(true);
     }
   }, [isOpen, user]);
@@ -1306,26 +1571,44 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
     try {
       if (reset) {
         setLoading(true);
+        setCaptures([]);
       } else {
         setLoadingMore(true);
       }
 
       const token = localStorage.getItem('token');
-      const skip = reset ? 0 : captures.length;
+      const currentCount = reset ? 0 : captures.length;
       const response = await fetch(
-        `/api/productivity/monitor?userId=${user.userId}&limit=${limit}&skip=${skip}&includeScreenshot=true`,
+        `/api/productivity/monitor?userId=${user.userId}&limit=${limit}&skip=${currentCount}&includeScreenshot=true`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const data = await response.json();
       
       if (data.success) {
         const newCaptures = (data.data || []).filter(item => item.status !== 'pending');
-        if (reset) {
-          setCaptures(newCaptures);
-        } else {
-          setCaptures(prev => [...prev, ...newCaptures]);
-        }
-        setHasMore(newCaptures.length === limit);
+        const updatedCaptures = reset ? newCaptures : [...captures, ...newCaptures];
+        setCaptures(updatedCaptures);
+        
+        // Use API's total count if available, otherwise fall back to user's totalCaptures
+        const apiTotal = data.total || 0;
+        const userTotal = user?.totalCaptures || 0;
+        const bestTotal = Math.max(apiTotal, userTotal);
+        
+        // Use API's hasMore if available, otherwise calculate based on totals
+        const stillHasMore = data.hasMore !== undefined 
+          ? data.hasMore 
+          : (bestTotal > 0 ? updatedCaptures.length < bestTotal : newCaptures.length >= limit);
+        
+        setTotalCount(bestTotal);
+        setHasMore(stillHasMore);
+        
+        console.log('[RawCaptures] Loaded:', {
+          newItems: newCaptures.length,
+          totalLoaded: updatedCaptures.length,
+          apiTotal: apiTotal,
+          userTotal: userTotal,
+          hasMore: stillHasMore
+        });
       }
     } catch (error) {
       console.error('Failed to fetch captures:', error);
@@ -1456,17 +1739,6 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              {capture.productivityScore !== undefined && (
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  capture.productivityScore >= 70 
-                                    ? 'bg-green-100 text-green-700'
-                                    : capture.productivityScore >= 40
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-red-100 text-red-700'
-                                }`}>
-                                  {capture.productivityScore}% Productive
-                                </span>
-                              )}
                               {expandedCaptures.has(capture._id) ? (
                                 <FaChevronUp className="text-gray-400" />
                               ) : (
@@ -1475,17 +1747,26 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
                             </div>
                           </div>
 
-                          {/* Active Window */}
-                          {capture.activeWindow && (
-                            <p className="text-sm text-gray-700 truncate mb-2">
-                              <strong>Window:</strong> {capture.activeWindow}
-                            </p>
+                          {/* Active App/Website */}
+                          {(capture.topApps?.[0]?.appName || capture.appUsage?.[0]?.appName || capture.activeWindow) && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                                <FaDesktop className="text-blue-500" />
+                                {capture.topApps?.[0]?.appName || capture.appUsage?.[0]?.appName || capture.activeWindow}
+                              </span>
+                              {(capture.topWebsites?.[0]?.domain || capture.websiteVisits?.[0]?.domain) && (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                  <FaGlobe className="text-purple-500" />
+                                  {capture.topWebsites?.[0]?.domain || capture.websiteVisits?.[0]?.domain}
+                                </span>
+                              )}
+                            </div>
                           )}
 
-                          {/* AI Analysis Preview */}
-                          {capture.aiAnalysis?.activities && !expandedCaptures.has(capture._id) && (
+                          {/* Activity Preview - show active window title if available */}
+                          {(capture.appUsage?.[0]?.windowTitle || capture.aiAnalysis?.activities) && !expandedCaptures.has(capture._id) && (
                             <p className="text-sm text-gray-600 line-clamp-2">
-                              {capture.aiAnalysis.activities}
+                              {capture.appUsage?.[0]?.windowTitle || capture.aiAnalysis?.activities}
                             </p>
                           )}
                         </div>
@@ -1549,24 +1830,34 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
                 ))}
               </div>
 
-              {/* Load More Button */}
-              {hasMore && (
-                <div className="text-center pt-6">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="px-8 py-3 text-white rounded-full font-medium transition-all disabled:opacity-50 hover:opacity-90"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {loadingMore ? (
-                      <span className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Loading...
-                      </span>
-                    ) : (
-                      'Load More Captures'
-                    )}
-                  </button>
+              {/* Load More Button - Always show if there are more captures to load */}
+              {captures.length > 0 && (
+                <div className="text-center pt-6 pb-2">
+                  <p className="text-sm text-gray-500 mb-3">
+                    Showing {captures.length} of {totalCount > 0 ? totalCount : (user?.totalCaptures || captures.length)} captures
+                  </p>
+                  {(hasMore || captures.length < totalCount) ? (
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="px-8 py-3 text-white rounded-full font-medium transition-all disabled:opacity-50 hover:opacity-90 shadow-lg"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {loadingMore ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Loading More...
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          <FaSync />
+                          Load More Captures ({Math.max(0, totalCount - captures.length)} remaining)
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <p className="text-sm text-gray-400">All captures loaded</p>
+                  )}
                 </div>
               )}
             </>

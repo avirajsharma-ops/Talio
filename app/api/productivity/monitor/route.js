@@ -51,6 +51,25 @@ async function getDepartmentIfHead(userId) {
   return department;
 }
 
+// Helper function to get employee for a user (bidirectional lookup)
+async function getEmployeeForUser(userId) {
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
+  // First try: Employee.userId
+  let employee = await Employee.findOne({ userId: userObjId }).select('_id department');
+  if (employee) return employee;
+  
+  // Second try: User.employeeId (reverse relationship)
+  const user = await User.findById(userObjId).select('employeeId');
+  if (user?.employeeId) {
+    employee = await Employee.findById(user.employeeId).select('_id department');
+    if (employee) return employee;
+  }
+  
+  return null;
+}
+
 // Helper function to check if user can monitor target user
 async function canMonitorUser(requesterId, requesterRole, targetUserId) {
   // god_admin and admin can monitor everyone
@@ -58,23 +77,22 @@ async function canMonitorUser(requesterId, requesterRole, targetUserId) {
     return true;
   }
 
+  // User can always monitor themselves
+  if (requesterId.toString() === targetUserId.toString()) {
+    return true;
+  }
+
   // Check if user is department head via Department model
   const department = await getDepartmentIfHead(requesterId);
   
   if (department) {
-    // Get target employee's department - convert targetUserId to ObjectId
-    const targetObjId = toObjectId(targetUserId);
-    const targetEmployee = await Employee.findOne({ userId: targetObjId }).select('department');
+    // Get target employee's department using bidirectional lookup
+    const targetEmployee = await getEmployeeForUser(targetUserId);
     
     if (targetEmployee && targetEmployee.department && 
         targetEmployee.department.toString() === department._id.toString()) {
       return true;
     }
-  }
-
-  // User can always monitor themselves
-  if (requesterId.toString() === targetUserId.toString()) {
-    return true;
   }
 
   return false;
@@ -185,24 +203,34 @@ export async function GET(request) {
     }
     productivityQuery.status = { $in: ['synced', 'analyzed'] };
 
+    // Get total counts for proper pagination
+    const [legacyCount, productivityCount] = await Promise.all([
+      MayaScreenSummary.countDocuments(query),
+      ProductivityData.countDocuments(productivityQuery)
+    ]);
+    const totalAvailable = legacyCount + productivityCount;
+
     // Fetch from both old MayaScreenSummary and new ProductivityData
+    // Use full limit for each to get proper pagination (we'll combine and slice later)
     const [legacyData, productivityData] = await Promise.all([
-      // Legacy data
-      MayaScreenSummary.find(query)
-        .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
-        .populate('monitoredUserId', 'email profilePicture employeeId')
-        .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
-        .populate('requestedByUserId', 'email')
-        .sort({ createdAt: -1 })
-        .skip(Math.floor(skip / 2))
-        .limit(Math.floor(limit / 2)),
-      // New ProductivityData - also populate userId as User to get employee reference
+      // Legacy data - only fetch if skip is within legacy range
+      skip < legacyCount 
+        ? MayaScreenSummary.find(query)
+            .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
+            .populate('monitoredUserId', 'email profilePicture employeeId')
+            .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
+            .populate('requestedByUserId', 'email')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+        : [],
+      // New ProductivityData - fetch with proper offset
       ProductivityData.find(productivityQuery)
         .populate('userId', 'email profilePicture employeeId')
         .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .sort({ createdAt: -1 })
-        .skip(Math.floor(skip / 2))
-        .limit(Math.floor(limit / 2))
+        .skip(skip)
+        .limit(limit)
     ]);
     
     // For productivity data without employeeId, try to look up by userId
@@ -327,13 +355,15 @@ export async function GET(request) {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
 
-    console.log('[Monitor API] Returning', allData.length, 'records. Sample names:', 
+    console.log('[Monitor API] Returning', allData.length, 'of', totalAvailable, 'total records. Sample names:', 
       allData.slice(0, 3).map(d => d.monitoredUserId?.name || 'no-name').join(', '));
 
     return NextResponse.json({
       success: true,
       data: allData,
-      count: allData.length
+      count: allData.length,
+      total: totalAvailable,
+      hasMore: (skip + allData.length) < totalAvailable
     });
 
   } catch (error) {

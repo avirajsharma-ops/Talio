@@ -50,6 +50,25 @@ async function getDepartmentIfHead(userId) {
   return department;
 }
 
+// Helper function to get employee for a user (bidirectional lookup)
+async function getEmployeeForUser(userId) {
+  const userObjId = toObjectId(userId);
+  if (!userObjId) return null;
+  
+  // First try: Employee.userId
+  let employee = await Employee.findOne({ userId: userObjId }).select('_id department');
+  if (employee) return employee;
+  
+  // Second try: User.employeeId (reverse relationship)
+  const user = await User.findById(userObjId).select('employeeId');
+  if (user?.employeeId) {
+    employee = await Employee.findById(user.employeeId).select('_id department');
+    if (employee) return employee;
+  }
+  
+  return null;
+}
+
 // Helper function to check if user can view target user's chat history
 async function canViewChatHistory(requesterId, requesterRole, targetUserId) {
   // god_admin and admin can view everyone's chat
@@ -57,23 +76,22 @@ async function canViewChatHistory(requesterId, requesterRole, targetUserId) {
     return true;
   }
 
+  // User can always view their own chat
+  if (requesterId.toString() === targetUserId.toString()) {
+    return true;
+  }
+
   // Check if user is department head via Department model
   const department = await getDepartmentIfHead(requesterId);
   
   if (department) {
-    // Get target employee's department - convert targetUserId to ObjectId
-    const targetObjId = toObjectId(targetUserId);
-    const targetEmployee = await Employee.findOne({ userId: targetObjId }).select('department');
+    // Get target employee's department using bidirectional lookup
+    const targetEmployee = await getEmployeeForUser(targetUserId);
     
     if (targetEmployee && targetEmployee.department && 
         targetEmployee.department.toString() === department._id.toString()) {
       return true;
     }
-  }
-
-  // User can always view their own chat
-  if (requesterId.toString() === targetUserId.toString()) {
-    return true;
   }
 
   return false;

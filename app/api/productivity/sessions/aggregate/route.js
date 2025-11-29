@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Employee from '@/models/Employee';
+import Department from '@/models/Department';
 import { 
   aggregateSessionsForUser, 
   saveAggregatedSessions,
@@ -9,6 +12,21 @@ import {
 } from '@/lib/sessionAggregator';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
+
+// Helper to check if user is a department head
+async function getDepartmentIfHead(userId) {
+  const user = await User.findById(userId).select('employeeId');
+  let employeeId = user?.employeeId;
+  
+  if (!employeeId) {
+    const employee = await Employee.findOne({ userId }).select('_id');
+    employeeId = employee?._id;
+  }
+  
+  if (!employeeId) return null;
+  
+  return await Department.findOne({ head: employeeId, isActive: true });
+}
 
 /**
  * POST - Trigger session aggregation
@@ -32,18 +50,20 @@ export async function POST(request) {
 
     await connectDB();
 
-    // Check permissions - only admins can trigger bulk aggregation
+    // Check permissions - admins and department heads can trigger bulk aggregation
     const requester = await User.findById(decoded.userId).select('role');
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
+    const headOfDepartment = await getDepartmentIfHead(decoded.userId);
+    const isDeptHead = !!headOfDepartment;
 
     const body = await request.json().catch(() => ({}));
     const { userId, startTime, endTime, processAll } = body;
 
     if (processAll) {
-      if (!isAdmin) {
+      if (!isAdmin && !isDeptHead) {
         return NextResponse.json({ 
           success: false, 
-          error: 'Only admins can trigger bulk aggregation' 
+          error: 'Only admins and department heads can trigger bulk aggregation' 
         }, { status: 403 });
       }
 
