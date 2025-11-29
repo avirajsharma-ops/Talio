@@ -13,11 +13,6 @@ contextBridge.exposeInMainWorld('mayaBridge', {
     ipcRenderer.on('maya-widget-state-changed', (event, data) => callback(data));
   },
 
-  // Mic commands from blob
-  onMicCommand: (callback) => {
-    ipcRenderer.on('maya-mic-command', (event, data) => callback(data));
-  },
-
   // Dot matrix overlay
   showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
   hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),

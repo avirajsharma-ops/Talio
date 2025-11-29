@@ -5,6 +5,7 @@ import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import { analyzeProductivityData } from '@/lib/productivityAnalyzer';
+import { aggregateSessionsForUser, saveAggregatedSessions } from '@/lib/sessionAggregator';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for processing
@@ -228,6 +229,9 @@ export async function POST(request) {
 
     // Trigger AI analysis in background
     analyzeProductivityAsync(productivityData._id);
+
+    // Trigger session aggregation in background
+    triggerSessionAggregation(decoded.userId, employee?._id);
 
     // If this is a response to an instant fetch request, update the request
     if (instantRequestId) {
@@ -528,4 +532,49 @@ function generateFallbackAnalysis(data) {
     areasOfImprovement: areasOfImprovement.length > 0 ? areasOfImprovement : ['Continue current work patterns'],
     topAchievements: topAchievements.length > 0 ? topAchievements : ['Consistent activity tracking maintained']
   };
+}
+
+// Session aggregation in background
+// Only aggregates when session interval has passed since last aggregation
+const lastAggregation = new Map();
+
+async function triggerSessionAggregation(userId, employeeId) {
+  try {
+    const now = Date.now();
+    const lastTime = lastAggregation.get(userId);
+    
+    // Only aggregate every 5 minutes to avoid excessive processing
+    if (lastTime && now - lastTime < 5 * 60 * 1000) {
+      return;
+    }
+    
+    lastAggregation.set(userId, now);
+    
+    // Aggregate last 2 hours of data
+    const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000);
+    
+    console.log(`[Session Aggregation] Triggering for user ${userId}`);
+    
+    const sessions = await aggregateSessionsForUser(
+      userId,
+      twoHoursAgo,
+      new Date()
+    );
+    
+    if (sessions.length > 0) {
+      await saveAggregatedSessions(sessions);
+      console.log(`[Session Aggregation] Created/updated ${sessions.length} sessions for user ${userId}`);
+      
+      // Emit socket event for session update
+      if (global.io) {
+        global.io.to(`user:${userId}`).emit('session-updated', {
+          userId,
+          sessionsCount: sessions.length,
+          latestSession: sessions[sessions.length - 1]?.sessionEnd
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[Session Aggregation] Error for user ${userId}:`, error);
+  }
 }

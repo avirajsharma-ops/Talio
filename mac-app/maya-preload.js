@@ -9,9 +9,6 @@ contextBridge.exposeInMainWorld('mayaBridge', {
   
   // Get widget state (minimized or expanded)
   getWidgetState: () => ipcRenderer.invoke('maya-get-widget-state'),
-  
-  // Request microphone permission
-  requestMicPermission: () => ipcRenderer.invoke('maya-request-mic-permission'),
 
   // Dot matrix overlay
   showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),

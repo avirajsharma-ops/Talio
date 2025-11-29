@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser } from 'react-icons/fa';
+import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
+import { UserCardsGrid, SessionPopup } from '@/components/productivity/SessionComponents';
 
 export default function ProductivityMonitoringPage() {
   const [user, setUser] = useState(null);
@@ -14,7 +15,7 @@ export default function ProductivityMonitoringPage() {
   const [employees, setEmployees] = useState([]);
   const [departmentHeads, setDepartmentHeads] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [activeTab, setActiveTab] = useState('monitoring');
+  const [activeTab, setActiveTab] = useState('sessions');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [includeScreenshots, setIncludeScreenshots] = useState(true);
   const [screenshotInterval, setScreenshotInterval] = useState(5);
@@ -29,6 +30,10 @@ export default function ProductivityMonitoringPage() {
   const [userDepartment, setUserDepartment] = useState(null);
   const [expandedSessions, setExpandedSessions] = useState(new Set());
   const [selectedUserFilter, setSelectedUserFilter] = useState('all');
+  
+  // New session-based state
+  const [selectedUserForSessions, setSelectedUserForSessions] = useState(null);
+  const [isSessionPopupOpen, setIsSessionPopupOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -124,9 +129,14 @@ export default function ProductivityMonitoringPage() {
   };
 
   const fetchAllData = async (currentUser) => {
+    // Sessions tab handles its own data fetching
+    if (activeTab === 'sessions') {
+      setLoading(false);
+      return;
+    }
     if (activeTab === 'monitoring') {
       await fetchMonitoringData(currentUser);
-    } else {
+    } else if (activeTab === 'chat') {
       await fetchChatHistory(currentUser);
     }
   };
@@ -346,12 +356,13 @@ export default function ProductivityMonitoringPage() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'monitoring') fetchMonitoringData(user);
-    else fetchChatHistory(user);
+    else if (tab === 'chat') fetchChatHistory(user);
+    // 'sessions' tab uses its own data fetching via UserCardsGrid
   };
 
   const handleDateFilter = () => {
     if (activeTab === 'monitoring') fetchMonitoringData(user);
-    else fetchChatHistory(user);
+    else if (activeTab === 'chat') fetchChatHistory(user);
   };
 
   const toggleSessionExpand = (sessionId) => {
@@ -407,7 +418,74 @@ export default function ProductivityMonitoringPage() {
       userData.sessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     });
     
-    return Array.from(userMap.values());
+    // Convert to array and sort: own user first, then others alphabetically
+    const allUsers = Array.from(userMap.values());
+    allUsers.sort((a, b) => {
+      // Own user always first
+      if (a.isOwn) return -1;
+      if (b.isOwn) return 1;
+      // Then sort alphabetically by name
+      return (a.user.name || '').localeCompare(b.user.name || '');
+    });
+    
+    return allUsers;
+  };
+
+  // Group chat history by user (similar to getSessionsByUser)
+  const getChatHistoryByUser = () => {
+    const userMap = new Map();
+    const currentUserId = user?._id?.toString() || user?.userId?.toString();
+    
+    chatHistory.forEach(session => {
+      const userId = session.userId?._id?.toString() || session.userId?.toString();
+      const userKey = userId || 'unknown';
+      
+      if (!userMap.has(userKey)) {
+        const employeeInfo = session.employeeId || {};
+        const userInfo = session.userId || {};
+        
+        let userName = 'Unknown User';
+        if (employeeInfo.firstName) {
+          userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
+        } else if (employeeInfo.name) {
+          userName = employeeInfo.name;
+        } else if (userInfo.name) {
+          userName = userInfo.name;
+        } else if (userInfo.email) {
+          userName = userInfo.email.split('@')[0];
+        }
+        
+        userMap.set(userKey, {
+          user: {
+            _id: userId,
+            userId: userId,
+            name: userName,
+            employeeCode: employeeInfo.employeeCode || '',
+            designation: employeeInfo.designation?.title || employeeInfo.designation || '',
+            department: employeeInfo.department?.name || employeeInfo.department || '',
+            profilePicture: employeeInfo.profilePicture || userInfo.profilePicture || null
+          },
+          sessions: [],
+          isOwn: userId === currentUserId
+        });
+      }
+      userMap.get(userKey).sessions.push(session);
+    });
+    
+    // Sort sessions by date for each user
+    userMap.forEach(userData => {
+      userData.sessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    });
+    
+    // Convert to array and sort: own user first, then others alphabetically
+    const allUsers = Array.from(userMap.values());
+    allUsers.sort((a, b) => {
+      if (a.isOwn) return -1;
+      if (b.isOwn) return 1;
+      return (a.user.name || '').localeCompare(b.user.name || '');
+    });
+    
+    return allUsers;
   };
 
   // Get unique users for filter dropdown
@@ -614,12 +692,20 @@ export default function ProductivityMonitoringPage() {
       <div className="bg-white rounded-lg shadow mb-6">
         <div className="flex border-b">
           <button
+            onClick={() => handleTabChange('sessions')}
+            className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
+              activeTab === 'sessions' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            <FaLayerGroup />Activity Sessions
+          </button>
+          <button
             onClick={() => handleTabChange('monitoring')}
             className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
               activeTab === 'monitoring' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            <FaEye />Productivity Sessions
+            <FaEye />Raw Captures
           </button>
           <button
             onClick={() => handleTabChange('chat')}
@@ -633,10 +719,36 @@ export default function ProductivityMonitoringPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
+      {loading && activeTab !== 'sessions' ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading sessions...</p>
+        </div>
+      ) : activeTab === 'sessions' ? (
+        /* Session-Based View - User Cards Grid */
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Team Activity</h2>
+            <p className="text-gray-600">Click on a team member to view their activity sessions</p>
+          </div>
+          
+          <UserCardsGrid 
+            onUserSelect={(user) => {
+              setSelectedUserForSessions(user);
+              setIsSessionPopupOpen(true);
+            }}
+            selectedUserId={selectedUserForSessions?.userId}
+          />
+          
+          {/* Session Popup Modal */}
+          <SessionPopup
+            user={selectedUserForSessions}
+            isOpen={isSessionPopupOpen}
+            onClose={() => {
+              setIsSessionPopupOpen(false);
+              setSelectedUserForSessions(null);
+            }}
+          />
         </div>
       ) : activeTab === 'monitoring' ? (
         <div className="space-y-6">
@@ -730,22 +842,56 @@ export default function ProductivityMonitoringPage() {
               <p className="text-gray-500">MAYA conversations will appear here</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {chatHistory.map((session, idx) => (
-                <div key={session._id || idx} className="bg-white rounded-xl shadow p-6 border border-gray-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm text-gray-600">{formatLocalDateTime(session.createdAt)}</span>
-                    <span className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                      {session.messages?.length || 0} messages
-                    </span>
+            <div className="space-y-6">
+              {getChatHistoryByUser().map((userData, userIdx) => (
+                <div key={userData.user._id || userIdx} className="bg-white rounded-xl shadow-lg overflow-hidden animate-fadeIn">
+                  {/* User Header */}
+                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4 flex items-center gap-4">
+                    {userData.user.profilePicture ? (
+                      <img src={userData.user.profilePicture} alt={userData.user.name} className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
+                        <span className="text-2xl font-bold text-purple-600">{userData.user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        {userData.isOwn ? 'Your Conversations' : userData.user.name}
+                        {userData.isOwn && <span className="text-xs bg-white/20 px-2 py-1 rounded-full">You</span>}
+                      </h3>
+                      <p className="text-purple-100 text-sm">{userData.user.designation || userData.user.employeeCode || 'Employee'}</p>
+                    </div>
+                    <div className="text-right text-white">
+                      <div className="text-2xl font-bold">{userData.sessions.length}</div>
+                      <div className="text-sm text-purple-100">Conversations</div>
+                    </div>
                   </div>
-                  <div className="space-y-3 max-h-48 overflow-y-auto">
-                    {session.messages?.slice(0, 4).map((msg, msgIdx) => (
-                      <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
-                          msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {msg.content?.substring(0, 150)}{msg.content?.length > 150 ? '...' : ''}
+
+                  {/* Chat Sessions */}
+                  <div className="divide-y divide-gray-100 p-4 space-y-4">
+                    {userData.sessions.map((session, idx) => (
+                      <div key={session._id || idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-sm text-gray-600">{formatLocalDateTime(session.createdAt)}</span>
+                          <span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                            {session.messages?.length || 0} messages
+                          </span>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {session.messages?.slice(0, 3).map((msg, msgIdx) => (
+                            <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[80%] rounded-xl px-4 py-2 text-sm ${
+                                msg.role === 'user' ? 'bg-purple-500 text-white' : 'bg-white text-gray-800 border'
+                              }`}>
+                                {msg.content?.substring(0, 120)}{msg.content?.length > 120 ? '...' : ''}
+                              </div>
+                            </div>
+                          ))}
+                          {session.messages?.length > 3 && (
+                            <div className="text-center text-sm text-gray-500">
+                              +{session.messages.length - 3} more messages
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

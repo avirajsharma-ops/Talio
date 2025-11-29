@@ -1,6 +1,5 @@
 /**
  * Maya Native Module - Handles all Maya AI assistant functionality
- * - Wake word detection using native speech recognition
  * - Native transparent widget rendering
  * - Screen analysis with dot matrix overlay
  * - Activity monitoring and summarization
@@ -13,7 +12,6 @@ const axios = require('axios');
 // Configuration
 const MAYA_CONFIG = {
   API_URL: 'https://app.talio.in',
-  WAKE_WORD: 'hey maya',
   SCREENSHOT_INTERVAL: 30 * 60 * 1000, // 30 minutes
   ACTIVITY_SYNC_INTERVAL: 60 * 1000, // 1 minute
   KEYSTROKE_BUFFER_SIZE: 100
@@ -22,8 +20,6 @@ const MAYA_CONFIG = {
 // State
 let mayaWidgetWindow = null;
 let dotMatrixOverlay = null;
-let wakeWordEnabled = true;
-let isListening = false;
 let authToken = null;
 let currentUser = null;
 

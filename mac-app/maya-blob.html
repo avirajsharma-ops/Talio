@@ -62,18 +62,7 @@
       50% { transform: scale(1.08); }
       75% { transform: scale(1.2); }
     }
-    /* Listening indicator */
-    .maya-blob-card.listening {
-      filter: drop-shadow(0 0 20px rgba(77, 163, 255, 0.8));
-    }
-    .maya-blob-card.listening::before {
-      animation: maya-listen-ring 2s ease-in-out infinite;
-      border-color: rgba(77, 163, 255, 0.5);
-    }
-    @keyframes maya-listen-ring {
-      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-      50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.2; }
-    }
+
     .maya-blob-canvas {
       position: absolute;
       inset: 0;
@@ -81,31 +70,13 @@
       height: 100%;
       pointer-events: none;
     }
-    /* Mic indicator */
-    .mic-indicator {
-      position: absolute;
-      bottom: -8px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.7);
-      white-space: nowrap;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .mic-indicator.active {
-      opacity: 1;
-      color: rgba(77, 255, 163, 0.9);
-    }
   </style>
 </head>
 <body>
-  <div class="maya-blob-shell" id="mayaBlobShell" title="Click to open MAYA or say 'Hey Maya'">
+  <div class="maya-blob-shell" id="mayaBlobShell" title="Click to open MAYA">
     <div class="maya-blob-card" id="mayaBlobCard">
       <canvas class="maya-blob-canvas" id="mayaBlobCanvas"></canvas>
     </div>
-    <div class="mic-indicator" id="micIndicator">🎤 Listening...</div>
   </div>
   <script>
     const card = document.getElementById('mayaBlobCard');
@@ -190,162 +161,6 @@
     card.addEventListener('click', async () => {
       if (window.talioDesktop) await window.talioDesktop.openMayaFromBlob();
     });
-
-    // ==================== WAKE WORD DETECTION ====================
-    let recognition = null;
-    let isListening = false;
-    let restartTimeout = null;
-    const RESTART_DELAY = 300;
-
-    const WAKE_WORDS = [
-      'maya', 'maia', 'mya', 'maia', 'maya',
-      'hey maya', 'hey maia', 'hey mya', 'hey mia',
-      'hi maya', 'hi maia', 'hi mya', 'hi mia',
-      'ok maya', 'okay maya', 'o k maya',
-      'hello maya', 'hello maia',
-      'yo maya', 'yo maia'
-    ];
-
-    function levenshteinDistance(a, b) {
-      const matrix = [];
-      for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-      for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-      for (let i = 1; i <= b.length; i++) {
-        for (let j = 1; j <= a.length; j++) {
-          if (b.charAt(i - 1) === a.charAt(j - 1)) {
-            matrix[i][j] = matrix[i - 1][j - 1];
-          } else {
-            matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
-          }
-        }
-      }
-      return matrix[b.length][a.length];
-    }
-
-    function checkWakeWord(transcript) {
-      const lower = transcript.toLowerCase().trim();
-      for (const word of WAKE_WORDS) {
-        if (lower.includes(word)) return true;
-      }
-      const words = lower.split(/\s+/);
-      for (const word of words) {
-        const mayaVariants = ['maya', 'maia', 'mya', 'mia'];
-        for (const variant of mayaVariants) {
-          if (levenshteinDistance(word, variant) <= 1) return true;
-        }
-      }
-      if (lower.includes('hey') || lower.includes('hi') || lower.includes('ok') || lower.includes('hello')) {
-        for (const word of words) {
-          for (const variant of ['maya', 'maia', 'mya', 'mia']) {
-            if (levenshteinDistance(word, variant) <= 2) return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    function setListeningState(listening) {
-      isListening = listening;
-      if (listening) {
-        card.classList.add('listening');
-        micIndicator.classList.add('active');
-      } else {
-        card.classList.remove('listening');
-        micIndicator.classList.remove('active');
-      }
-    }
-
-    function initWakeWordDetection() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        console.log('[Maya Blob] Speech recognition not supported');
-        return false;
-      }
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-      recognition.maxAlternatives = 5;
-
-      recognition.onstart = () => {
-        console.log('[Maya Blob] Wake word listening started');
-        setListeningState(true);
-      };
-
-      recognition.onresult = async (event) => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          for (let j = 0; j < result.length; j++) {
-            const transcript = result[j].transcript;
-            if (checkWakeWord(transcript)) {
-              console.log('[Maya Blob] Wake word detected:', transcript);
-              card.classList.add('speaking');
-              card.classList.remove('listening');
-              micIndicator.textContent = '✨ Opening...';
-              stopWakeWordListening();
-              if (window.talioDesktop) await window.talioDesktop.openMayaFromBlob();
-              setTimeout(() => {
-                card.classList.remove('speaking');
-                micIndicator.textContent = '🎤 Listening...';
-              }, 1000);
-              return;
-            }
-          }
-        }
-      };
-
-      recognition.onerror = (e) => {
-        console.log('[Maya Blob] Speech recognition error:', e.error);
-        setListeningState(false);
-        if (e.error === 'not-allowed') {
-          micIndicator.textContent = '🔇 Mic denied';
-          micIndicator.classList.add('active');
-        } else {
-          scheduleRestart();
-        }
-      };
-
-      recognition.onend = () => {
-        console.log('[Maya Blob] Recognition ended');
-        setListeningState(false);
-        scheduleRestart();
-      };
-      return true;
-    }
-
-    function scheduleRestart() {
-      if (restartTimeout) clearTimeout(restartTimeout);
-      restartTimeout = setTimeout(() => startWakeWordListening(), RESTART_DELAY);
-    }
-
-    function startWakeWordListening() {
-      if (!recognition && !initWakeWordDetection()) return;
-      if (recognition && !isListening) {
-        try {
-          recognition.start();
-        } catch (e) {
-          if (e.message && e.message.includes('already started')) {
-            setListeningState(true);
-          } else {
-            scheduleRestart();
-          }
-        }
-      }
-    }
-
-    function stopWakeWordListening() {
-      if (restartTimeout) { clearTimeout(restartTimeout); restartTimeout = null; }
-      setListeningState(false);
-      try { recognition?.stop(); } catch (e) {}
-    }
-
-    console.log('[Maya Blob] Initializing wake word detection...');
-    setTimeout(() => startWakeWordListening(), 500);
-    setInterval(() => { if (!isListening && recognition) startWakeWordListening(); }, 5000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') setTimeout(() => startWakeWordListening(), 300);
-    });
-    window.addEventListener('focus', () => setTimeout(() => startWakeWordListening(), 300));
   </script>
 </body>
 </html>
