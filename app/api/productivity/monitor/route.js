@@ -82,6 +82,7 @@ export async function GET(request) {
     const targetUserId = searchParams.get('userId');
     const includeScreenshot = searchParams.get('includeScreenshot') === 'true';
     const limit = parseInt(searchParams.get('limit')) || 50;
+    const skip = parseInt(searchParams.get('skip')) || 0;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
@@ -167,12 +168,14 @@ export async function GET(request) {
         .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
         .populate('requestedByUserId', 'email')
         .sort({ createdAt: -1 })
+        .skip(Math.floor(skip / 2))
         .limit(Math.floor(limit / 2)),
       // New ProductivityData - also populate userId as User to get employee reference
       ProductivityData.find(productivityQuery)
         .populate('userId', 'email profilePicture employeeId')
         .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .sort({ createdAt: -1 })
+        .skip(Math.floor(skip / 2))
         .limit(Math.floor(limit / 2))
     ]);
     

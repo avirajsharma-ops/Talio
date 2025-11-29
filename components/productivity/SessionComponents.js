@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle } from 'react-icons/fa';
+import { createPortal } from 'react-dom';
+import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * User Cards Grid Component
@@ -186,6 +188,10 @@ function UserCard({ card, onClick, isSelected }) {
  * Shows detailed session information with screenshots
  */
 export function SessionPopup({ user, isOpen, onClose }) {
+  const { theme } = useTheme();
+  const primaryColor = theme?.primary?.[600] || '#2563EB';
+  const primaryLight = theme?.primary?.[100] || '#DBEAFE';
+  
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -245,33 +251,37 @@ export function SessionPopup({ user, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center gap-4">
+        <div className="px-6 py-4 flex items-center gap-4 border-b border-gray-200" style={{ backgroundColor: primaryLight }}>
           {user?.profilePicture ? (
             <img 
               src={user.profilePicture} 
               alt={user.name} 
-              className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover"
+              className="w-12 h-12 rounded-full border-2 shadow-sm object-cover"
+              style={{ borderColor: primaryColor }}
             />
           ) : (
-            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-bold text-blue-600">
+            <div 
+              className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <span className="text-xl font-bold">
                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </span>
             </div>
           )}
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-white">{user?.name}'s Sessions</h2>
-            <p className="text-blue-100">{user?.designation} • {user?.department}</p>
+            <h2 className="text-lg font-semibold text-gray-800">{user?.name}'s Sessions</h2>
+            <p className="text-sm text-gray-500">{user?.designation} • {user?.department}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
           >
-            <FaTimes className="text-white text-xl" />
+            <FaTimes className="text-gray-600 text-xl" />
           </button>
         </div>
 
@@ -305,7 +315,8 @@ export function SessionPopup({ user, isOpen, onClose }) {
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 mx-auto"
+                    className="px-6 py-2 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 mx-auto transition-all hover:opacity-90"
+                    style={{ backgroundColor: primaryColor }}
                   >
                     {loadingMore ? (
                       <>
@@ -335,6 +346,8 @@ export function SessionPopup({ user, isOpen, onClose }) {
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
 
 /**
@@ -887,6 +900,8 @@ function ChatHistoryUserCard({ card, onClick, isSelected }) {
  * Shows detailed chat history for a user
  */
 export function ChatHistoryPopup({ user, isOpen, onClose }) {
+  const { theme } = useTheme();
+  const primaryColor = theme?.primary?.[600] || '#2563EB';
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -946,11 +961,11 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex items-center gap-4">
+        <div className="px-6 py-4 flex items-center gap-4" style={{ backgroundColor: primaryColor }}>
           {user?.profilePicture ? (
             <img 
               src={user.profilePicture} 
@@ -959,18 +974,18 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
             />
           ) : (
             <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
-              <span className="text-2xl font-bold text-purple-600">
+              <span className="text-2xl font-bold" style={{ color: primaryColor }}>
                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </span>
             </div>
           )}
           <div className="flex-1">
             <h3 className="text-xl font-bold text-white">{user?.name || 'User'}</h3>
-            <p className="text-purple-100 text-sm">{user?.designation || user?.employeeCode || 'Employee'}</p>
+            <p className="text-gray-200 text-sm">{user?.designation || user?.employeeCode || 'Employee'}</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+            className="p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors"
           >
             <FaTimes className="text-white text-xl" />
           </button>
@@ -1064,11 +1079,12 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="px-6 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full font-medium transition-colors disabled:opacity-50"
+                    className="px-6 py-2 text-white rounded-full font-medium transition-all disabled:opacity-50 hover:opacity-90"
+                    style={{ backgroundColor: primaryColor }}
                   >
                     {loadingMore ? (
                       <span className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         Loading...
                       </span>
                     ) : (
@@ -1083,4 +1099,476 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
+}
+
+
+/**
+ * Raw Captures User Cards Grid Component
+ * Shows a grid of user cards for raw captures monitoring
+ */
+export function RawCapturesUserCardsGrid({ onUserSelect, selectedUserId }) {
+  const [userCards, setUserCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [accessLevel, setAccessLevel] = useState('admin');
+
+  useEffect(() => {
+    fetchUserCards();
+  }, []);
+
+  const fetchUserCards = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/productivity/monitor/user-cards', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setUserCards(data.data || []);
+        setAccessLevel(data.accessLevel || 'admin');
+      } else {
+        console.error('Failed to fetch raw capture user cards:', data.error);
+      }
+    } catch (error) {
+      console.error('Failed to fetch raw capture user cards:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl shadow-md p-4 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+            <div className="h-16 bg-gray-200 rounded"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (userCards.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+        <FaCamera className="text-6xl text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-600 mb-2">
+          {accessLevel === 'self_only' ? 'No Raw Captures Yet' : 'No Captures Found'}
+        </h3>
+        <p className="text-gray-500">
+          {accessLevel === 'self_only' 
+            ? 'Your raw captures will appear here once you start using the desktop app'
+            : 'Raw capture data will appear when employees use the desktop app'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {userCards.map((card) => (
+        <RawCaptureUserCard 
+          key={card.id} 
+          card={card} 
+          onClick={() => onUserSelect(card)}
+          isSelected={selectedUserId === card.userId}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Individual Raw Capture User Card Component
+ */
+function RawCaptureUserCard({ card, onClick, isSelected }) {
+  const getProductivityColor = (score) => {
+    if (score >= 70) return { bg: 'bg-green-500', text: 'text-green-600', ring: 'ring-green-200' };
+    if (score >= 40) return { bg: 'bg-yellow-500', text: 'text-yellow-600', ring: 'ring-yellow-200' };
+    return { bg: 'bg-red-500', text: 'text-red-600', ring: 'ring-red-200' };
+  };
+
+  const colors = getProductivityColor(card.avgProductivity || 0);
+  const isRecent = card.latestCapture && (new Date() - new Date(card.latestCapture)) < 30 * 60 * 1000;
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer p-4 border-2 ${
+        isSelected ? 'border-orange-500 ring-2 ring-orange-200' : 'border-transparent hover:border-gray-200'
+      }`}
+    >
+      {/* Header with avatar and name */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative">
+          {card.profilePicture ? (
+            <img 
+              src={card.profilePicture} 
+              alt={card.name} 
+              className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">
+                {card.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
+          {/* Recent indicator */}
+          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+            isRecent ? 'bg-green-500' : 'bg-gray-400'
+          }`}></div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-gray-800 truncate flex items-center gap-2">
+            {card.name}
+            {card.isOwn && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">You</span>}
+          </h4>
+          <p className="text-sm text-gray-500 truncate">{card.designation || card.department}</p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-gray-50 rounded-lg p-2 text-center">
+          <div className="text-lg font-bold text-orange-600">{card.totalCaptures}</div>
+          <div className="text-xs text-gray-500">Total</div>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-2 text-center">
+          <div className="text-lg font-bold text-blue-600">{card.todayCaptures}</div>
+          <div className="text-xs text-gray-500">Today</div>
+        </div>
+      </div>
+
+      {/* Productivity & Active Time */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-1">
+          <FaChartLine className={colors.text} />
+          <span className={`font-medium ${colors.text}`}>{card.avgProductivity}%</span>
+        </div>
+        <div className="flex items-center gap-1 text-gray-500">
+          <FaClock />
+          <span>{card.totalActiveTime} min</span>
+        </div>
+      </div>
+
+      {/* View Button */}
+      <button className="w-full mt-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg text-sm font-medium transition-colors">
+        View Raw Captures
+      </button>
+    </div>
+  );
+}
+
+
+/**
+ * Raw Captures Popup Modal
+ * Shows raw capture data for a selected user with pagination
+ */
+export function RawCapturesPopup({ user, isOpen, onClose }) {
+  const { theme } = useTheme();
+  const primaryColor = theme?.primary?.[600] || '#2563EB';
+  const [captures, setCaptures] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [expandedCaptures, setExpandedCaptures] = useState(new Set());
+  const limit = 20;
+  const popupRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setCaptures([]);
+      setHasMore(true);
+      fetchCaptures(true);
+    }
+  }, [isOpen, user]);
+
+  const fetchCaptures = async (reset = false) => {
+    if (!user?.userId) return;
+    
+    try {
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const token = localStorage.getItem('token');
+      const skip = reset ? 0 : captures.length;
+      const response = await fetch(
+        `/api/productivity/monitor?userId=${user.userId}&limit=${limit}&skip=${skip}&includeScreenshot=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        const newCaptures = (data.data || []).filter(item => item.status !== 'pending');
+        if (reset) {
+          setCaptures(newCaptures);
+        } else {
+          setCaptures(prev => [...prev, ...newCaptures]);
+        }
+        setHasMore(newCaptures.length === limit);
+      }
+    } catch (error) {
+      console.error('Failed to fetch captures:', error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchCaptures(false);
+    }
+  };
+
+  const toggleExpand = (captureId) => {
+    setExpandedCaptures(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(captureId)) {
+        newSet.delete(captureId);
+      } else {
+        newSet.add(captureId);
+      }
+      return newSet;
+    });
+  };
+
+  if (!isOpen) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] p-4">
+      <div 
+        ref={popupRef}
+        className="bg-gray-100 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center gap-4" style={{ backgroundColor: primaryColor }}>
+          {user?.profilePicture ? (
+            <img 
+              src={user.profilePicture} 
+              alt={user.name} 
+              className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
+              <span className="text-2xl font-bold" style={{ color: primaryColor }}>
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              {user?.isOwn ? 'Your Raw Captures' : `${user?.name}'s Raw Captures`}
+              {user?.isOwn && <span className="text-xs bg-white/20 px-2 py-1 rounded-full">You</span>}
+            </h2>
+            <p className="text-gray-200 text-sm">{user?.designation || user?.employeeCode || 'Employee'}</p>
+          </div>
+          <div className="text-right text-white mr-4">
+            <div className="text-2xl font-bold">{user?.totalCaptures || captures.length}</div>
+            <div className="text-sm text-gray-200">Total Captures</div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="bg-black/10 hover:bg-black/20 rounded-full p-2 transition-colors"
+          >
+            <FaTimes className="text-white text-xl" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
+                  <div className="flex gap-4">
+                    <div className="w-48 h-32 bg-gray-200 rounded-lg"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                      <div className="h-20 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : captures.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center">
+              <FaCamera className="text-6xl text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Raw Captures</h3>
+              <p className="text-gray-500">Raw capture data will appear here once captured</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {captures.map((capture, idx) => (
+                  <div 
+                    key={capture._id || idx}
+                    className="bg-white rounded-xl shadow-md overflow-hidden"
+                  >
+                    <div 
+                      className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => toggleExpand(capture._id)}
+                    >
+                      <div className="flex gap-4">
+                        {/* Thumbnail */}
+                        <div className="w-48 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {capture.screenshotUrl || capture.screenshot?.data ? (
+                            <img 
+                              src={capture.screenshotUrl || (capture.screenshot?.data?.startsWith('data:') ? capture.screenshot.data : `data:image/png;base64,${capture.screenshot?.data}`)}
+                              alt="Screenshot"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <FaCamera className="text-3xl" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <FaClock className="text-gray-400" />
+                              <span className="text-sm text-gray-600">
+                                {formatLocalDateTime(capture.createdAt)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {capture.productivityScore !== undefined && (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  capture.productivityScore >= 70 
+                                    ? 'bg-green-100 text-green-700'
+                                    : capture.productivityScore >= 40
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {capture.productivityScore}% Productive
+                                </span>
+                              )}
+                              {expandedCaptures.has(capture._id) ? (
+                                <FaChevronUp className="text-gray-400" />
+                              ) : (
+                                <FaChevronDown className="text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Active Window */}
+                          {capture.activeWindow && (
+                            <p className="text-sm text-gray-700 truncate mb-2">
+                              <strong>Window:</strong> {capture.activeWindow}
+                            </p>
+                          )}
+
+                          {/* AI Analysis Preview */}
+                          {capture.aiAnalysis?.activities && !expandedCaptures.has(capture._id) && (
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {capture.aiAnalysis.activities}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content */}
+                    {expandedCaptures.has(capture._id) && (
+                      <div className="border-t bg-gray-50 p-4">
+                        {/* Full Screenshot */}
+                        {(capture.screenshotUrl || capture.screenshot?.data) && (
+                          <div className="mb-4">
+                            <img 
+                              src={capture.screenshotUrl || (capture.screenshot?.data?.startsWith('data:') ? capture.screenshot.data : `data:image/png;base64,${capture.screenshot?.data}`)}
+                              alt="Full Screenshot"
+                              className="w-full max-h-96 object-contain rounded-lg border"
+                            />
+                          </div>
+                        )}
+
+                        {/* AI Analysis */}
+                        {capture.aiAnalysis && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {capture.aiAnalysis.activities && (
+                              <div className="bg-white rounded-lg p-3 border">
+                                <h4 className="font-semibold text-gray-700 mb-1">Activities</h4>
+                                <p className="text-sm text-gray-600">{capture.aiAnalysis.activities}</p>
+                              </div>
+                            )}
+                            {capture.aiAnalysis.summary && (
+                              <div className="bg-white rounded-lg p-3 border">
+                                <h4 className="font-semibold text-gray-700 mb-1">Summary</h4>
+                                <p className="text-sm text-gray-600">{capture.aiAnalysis.summary}</p>
+                              </div>
+                            )}
+                            {capture.aiAnalysis.recommendation && (
+                              <div className="bg-white rounded-lg p-3 border md:col-span-2">
+                                <h4 className="font-semibold text-gray-700 mb-1">Recommendation</h4>
+                                <p className="text-sm text-gray-600">{capture.aiAnalysis.recommendation}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Apps Detected */}
+                        {capture.appsDetected?.length > 0 && (
+                          <div className="mt-4">
+                            <h4 className="font-semibold text-gray-700 mb-2">Apps Detected</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {capture.appsDetected.map((app, i) => (
+                                <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                  {app}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Load More Button */}
+              {hasMore && (
+                <div className="text-center pt-6">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-8 py-3 text-white rounded-full font-medium transition-all disabled:opacity-50 hover:opacity-90"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {loadingMore ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Loading...
+                      </span>
+                    ) : (
+                      'Load More Captures'
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }

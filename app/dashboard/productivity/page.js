@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
-import { UserCardsGrid, SessionPopup, ChatHistoryCardsGrid, ChatHistoryPopup } from '@/components/productivity/SessionComponents';
+import { UserCardsGrid, SessionPopup, ChatHistoryCardsGrid, ChatHistoryPopup, RawCapturesUserCardsGrid, RawCapturesPopup } from '@/components/productivity/SessionComponents';
 
 export default function ProductivityMonitoringPage() {
   const [user, setUser] = useState(null);
@@ -38,6 +38,10 @@ export default function ProductivityMonitoringPage() {
   // Chat history popup state
   const [selectedUserForChat, setSelectedUserForChat] = useState(null);
   const [isChatHistoryPopupOpen, setIsChatHistoryPopupOpen] = useState(false);
+  
+  // Raw captures popup state
+  const [selectedUserForRawCaptures, setSelectedUserForRawCaptures] = useState(null);
+  const [isRawCapturesPopupOpen, setIsRawCapturesPopupOpen] = useState(false);
   
   // Employee filter dropdown state
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
@@ -148,16 +152,11 @@ export default function ProductivityMonitoringPage() {
   };
 
   const fetchAllData = async (currentUser) => {
-    // Sessions tab handles its own data fetching
-    if (activeTab === 'sessions') {
-      setLoading(false);
-      return;
-    }
-    if (activeTab === 'monitoring') {
-      await fetchMonitoringData(currentUser);
-    } else if (activeTab === 'chat') {
-      await fetchChatHistory(currentUser);
-    }
+    // All tabs now handle their own data fetching via user cards
+    // Sessions tab - uses UserCardsGrid
+    // Monitoring tab - uses RawCapturesUserCardsGrid  
+    // Chat tab - uses ChatHistoryCardsGrid
+    setLoading(false);
   };
 
   const fetchMonitoringData = async (currentUser, userId = null) => {
@@ -374,14 +373,12 @@ export default function ProductivityMonitoringPage() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    if (tab === 'monitoring') fetchMonitoringData(user);
-    else if (tab === 'chat') fetchChatHistory(user);
-    // 'sessions' tab uses its own data fetching via UserCardsGrid
+    // All tabs now use their own data fetching via user cards
+    // No need to fetch data upfront
   };
 
   const handleDateFilter = () => {
-    if (activeTab === 'monitoring') fetchMonitoringData(user);
-    else if (activeTab === 'chat') fetchChatHistory(user);
+    // Date filtering is now handled within the popup modals
   };
 
   const toggleSessionExpand = (sessionId) => {
@@ -778,156 +775,38 @@ export default function ProductivityMonitoringPage() {
           />
         </div>
       ) : activeTab === 'monitoring' ? (
-        <div className="space-y-6">
-          {/* Employee Filter Dropdown */}
-          {canViewTeamData && getUniqueUsers().length > 1 && (
-            <div className="bg-white rounded-lg shadow p-4 mb-4">
-              <div className="flex items-center gap-4 flex-wrap">
-                <FaFilter className="text-gray-500" />
-                <span className="text-gray-700 font-medium">Filter by Employee:</span>
-                <div className="relative min-w-[300px] employee-filter-dropdown">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search employees..."
-                      value={employeeSearchQuery}
-                      onChange={(e) => {
-                        setEmployeeSearchQuery(e.target.value);
-                        setShowEmployeeDropdown(true);
-                      }}
-                      onFocus={() => setShowEmployeeDropdown(true)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg pr-10"
-                    />
-                    <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
-                  {showEmployeeDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                      <div
-                        className={`px-4 py-2 cursor-pointer hover:bg-blue-50 ${selectedUserFilter === 'all' ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}
-                        onClick={() => {
-                          setSelectedUserFilter('all');
-                          setEmployeeSearchQuery('');
-                          setShowEmployeeDropdown(false);
-                        }}
-                      >
-                        <FaUsers className="inline mr-2" /> All Employees
-                      </div>
-                      {getUniqueUsers()
-                        .filter(u => 
-                          !employeeSearchQuery || 
-                          u.name?.toLowerCase().includes(employeeSearchQuery.toLowerCase())
-                        )
-                        .map((u) => (
-                          <div
-                            key={u.id}
-                            className={`px-4 py-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 ${selectedUserFilter === u.id ? 'bg-blue-100 text-blue-700 font-medium' : ''}`}
-                            onClick={() => {
-                              setSelectedUserFilter(u.id);
-                              setEmployeeSearchQuery(u.name);
-                              setShowEmployeeDropdown(false);
-                            }}
-                          >
-                            <FaUser className="text-gray-400" />
-                            <span>{u.name}</span>
-                            {u.isOwn && <span className="text-xs bg-blue-200 text-blue-700 px-2 py-0.5 rounded-full">You</span>}
-                          </div>
-                        ))}
-                      {getUniqueUsers().filter(u => 
-                        !employeeSearchQuery || 
-                        u.name?.toLowerCase().includes(employeeSearchQuery.toLowerCase())
-                      ).length === 0 && (
-                        <div className="px-4 py-3 text-gray-500 text-center">No employees found</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedUserFilter !== 'all' && (
-                  <button
-                    onClick={() => {
-                      setSelectedUserFilter('all');
-                      setEmployeeSearchQuery('');
-                    }}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Clear filter
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Stats Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-              <div className="text-2xl font-bold text-blue-600">{monitoringData.length}</div>
-              <div className="text-sm text-gray-600">Total Sessions</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-              <div className="text-2xl font-bold text-green-600">
-                {Math.round(monitoringData.reduce((sum, s) => sum + (s.productivityScore || 0), 0) / Math.max(monitoringData.length, 1))}%
-              </div>
-              <div className="text-sm text-gray-600">Avg Productivity</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-              <div className="text-2xl font-bold text-purple-600">{getUniqueUsers().length}</div>
-              <div className="text-sm text-gray-600">Active Users</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-              <div className="text-2xl font-bold text-orange-600">
-                {Math.round(monitoringData.reduce((sum, s) => sum + (s.totalActiveTime || 0), 0) / 60000)} min
-              </div>
-              <div className="text-sm text-gray-600">Total Active Time</div>
-            </div>
+        /* Raw Captures Tab - User Cards Grid */
+        <div>
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {isAdminOrGodAdmin ? 'Raw Captures' : isDepartmentHead ? 'Department Raw Captures' : 'My Raw Captures'}
+            </h2>
+            <p className="text-gray-600">
+              {isAdminOrGodAdmin
+                ? 'Click on a team member to view their raw screen captures'
+                : isDepartmentHead
+                ? 'Click on a department member to view their raw screen captures'
+                : 'Click on your card to view your raw screen captures'}
+            </p>
           </div>
-
-          {/* Sessions by User */}
-          {getFilteredSessions().map((userData, userIdx) => (
-            <div key={userData.user._id || userIdx} className="bg-white rounded-xl shadow-lg overflow-hidden animate-fadeIn">
-              {/* User Header */}
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 flex items-center gap-4">
-                {userData.user.profilePicture ? (
-                  <img src={userData.user.profilePicture} alt={userData.user.name} className="w-14 h-14 rounded-full border-3 border-white shadow-lg object-cover" />
-                ) : (
-                  <div className="w-14 h-14 rounded-full border-3 border-white shadow-lg bg-white flex items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600">{userData.user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    {userData.isOwn ? 'Your Sessions' : userData.user.name}
-                    {userData.isOwn && <span className="text-xs bg-white/20 px-2 py-1 rounded-full">You</span>}
-                  </h3>
-                  <p className="text-blue-100 text-sm">{userData.user.designation || userData.user.employeeCode || 'Employee'}</p>
-                </div>
-                <div className="text-right text-white">
-                  <div className="text-2xl font-bold">{userData.sessions.length}</div>
-                  <div className="text-sm text-blue-100">Sessions</div>
-                </div>
-              </div>
-
-              {/* Sessions List */}
-              <div className="divide-y divide-gray-100">
-                {userData.sessions.map((session, sessionIdx) => (
-                  <SessionCard 
-                    key={session._id || sessionIdx} 
-                    session={session} 
-                    isExpanded={expandedSessions.has(session._id)}
-                    onToggle={() => toggleSessionExpand(session._id)}
-                    openModal={openModal}
-                    userData={userData}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {monitoringData.length === 0 && (
-            <div className="bg-white rounded-xl shadow-lg p-16 text-center border-2 border-gray-200">
-              <FaEye className="text-7xl text-gray-300 mx-auto mb-6" />
-              <h3 className="text-xl font-bold text-gray-600 mb-2">No Productivity Sessions</h3>
-              <p className="text-gray-500">Sessions will appear here once captures are made</p>
-            </div>
-          )}
+          
+          <RawCapturesUserCardsGrid 
+            onUserSelect={(user) => {
+              setSelectedUserForRawCaptures(user);
+              setIsRawCapturesPopupOpen(true);
+            }}
+            selectedUserId={selectedUserForRawCaptures?.userId}
+          />
+          
+          {/* Raw Captures Popup Modal */}
+          <RawCapturesPopup
+            user={selectedUserForRawCaptures}
+            isOpen={isRawCapturesPopupOpen}
+            onClose={() => {
+              setIsRawCapturesPopupOpen(false);
+              setSelectedUserForRawCaptures(null);
+            }}
+          />
         </div>
       ) : (
         /* Chat History Tab - User Cards Grid */
