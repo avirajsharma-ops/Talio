@@ -19,19 +19,14 @@ const DOWNLOADS = {
     x64: {
       url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3-x64.dmg',
       label: 'Intel (x64)',
-      size: '~99 MB'
+      size: '~100 MB'
     }
   },
   windows: {
-    x64: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3-x64.exe',
-      label: '64-bit (x64)',
-      size: '~74 MB'
-    },
-    ia32: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3-ia32.exe',
-      label: '32-bit (x86)',
-      size: '~65 MB'
+    universal: {
+      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3.exe',
+      label: 'Universal (32 & 64-bit)',
+      size: '~138 MB'
     }
   }
 };
@@ -39,7 +34,6 @@ const DOWNLOADS = {
 export default function ResourcesPage() {
   const [selectedOS, setSelectedOS] = useState('mac');
   const [macArch, setMacArch] = useState('arm64');
-  const [winArch, setWinArch] = useState('x64');
 
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
@@ -48,14 +42,6 @@ export default function ResourcesPage() {
     // Detect OS
     if (platform.includes('win') || userAgent.includes('win')) {
       setSelectedOS('windows');
-
-      // Detect Windows architecture
-      if (userAgent.includes('win64') || userAgent.includes('x64') ||
-          userAgent.includes('wow64') || userAgent.includes('amd64')) {
-        setWinArch('x64');
-      } else {
-        setWinArch('ia32');
-      }
     } else {
       setSelectedOS('mac');
 
@@ -86,9 +72,7 @@ export default function ResourcesPage() {
   const altMacArch = macArch === 'arm64' ? 'x64' : 'arm64';
   const altMacDownload = DOWNLOADS.mac[altMacArch];
 
-  const currentWinDownload = DOWNLOADS.windows[winArch];
-  const altWinArch = winArch === 'x64' ? 'ia32' : 'x64';
-  const altWinDownload = DOWNLOADS.windows[altWinArch];
+  const windowsDownload = DOWNLOADS.windows.universal;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center px-6">
@@ -170,25 +154,19 @@ export default function ResourcesPage() {
                   <p className="text-gray-500 text-sm">Version {RELEASE_VERSION}</p>
                 </div>
                 <span className="bg-blue-600/15 text-blue-500 px-3 py-1.5 rounded-full text-xs font-medium">
-                  {currentWinDownload.label}
+                  {windowsDownload.label}
                 </span>
               </div>
               <a
-                href={currentWinDownload.url}
+                href={windowsDownload.url}
                 className="flex items-center justify-center gap-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold transition"
               >
                 <Download className="w-5 h-5" />
-                Download for Windows ({currentWinDownload.label})
+                Download for Windows
               </a>
               <p className="text-center text-gray-500 text-sm mt-3">
-                Installer • {currentWinDownload.size}
+                Universal Installer • {windowsDownload.size} • Works on all Windows
               </p>
-              <div className="mt-4 text-center">
-                <span className="text-gray-600 text-xs">Other version: </span>
-                <a href={altWinDownload.url} className="text-blue-500 text-xs hover:underline">
-                  {altWinDownload.label}
-                </a>
-              </div>
             </div>
           )}
         </div>
