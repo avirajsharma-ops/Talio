@@ -1,9 +1,10 @@
 import {
   FaTachometerAlt, FaUsers, FaClock, FaCalendarAlt, FaMoneyBillWave,
   FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
-  FaBox, FaReceipt, FaPlane, FaHeadset, FaBook, FaGraduationCap,
+  FaBox, FaReceipt, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
-  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends
+  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
+  FaThLarge
 } from 'react-icons/fa'
 
 // Define menu items for each role
@@ -13,6 +14,7 @@ export const roleBasedMenus = {
   // ADMIN - Full access to everything
   admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     { 
       name: 'Employees', 
       icon: FaUsers, 
@@ -25,19 +27,12 @@ export const roleBasedMenus = {
       ]
     },
     {
-      name: 'Attendance',
+      name: 'Attendance & Leaves',
       icon: FaClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
-      ]
-    },
-    {
-      name: 'Leave',
-      icon: FaCalendarAlt,
-      path: '/dashboard/leave',
-      submenu: [
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -94,7 +89,6 @@ export const roleBasedMenus = {
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Assets', icon: FaBox, path: '/dashboard/assets' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
     { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
     { 
@@ -117,19 +111,13 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
-      submenu: [
-        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
-      ]
-    },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
   ],
 
   // HR - HR management focused
   hr: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     { 
       name: 'Employees', 
       icon: FaUsers, 
@@ -141,19 +129,12 @@ export const roleBasedMenus = {
         { name: 'Designations', path: '/dashboard/designations' },
       ]
     },
-    { 
-      name: 'Attendance', 
-      icon: FaClock, 
+    {
+      name: 'Attendance & Leaves',
+      icon: FaClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
-      ]
-    },
-    {
-      name: 'Leave',
-      icon: FaCalendarAlt,
-      path: '/dashboard/leave',
-      submenu: [
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -207,50 +188,26 @@ export const roleBasedMenus = {
     { name: 'Offboarding', icon: FaSignOutAlt, path: '/dashboard/offboarding' },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
+    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
-      submenu: [
-        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
-      ]
-    },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
   ],
 
   // MANAGER - Team management focused
   manager: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     { 
-      name: 'Attendance', 
+      name: 'Attendance & Leaves', 
       icon: FaClock, 
       path: '/dashboard/attendance',
       submenu: [
-        { name: 'Mark Attendance', path: '/dashboard/attendance' },
-        { name: 'Team Attendance', path: '/dashboard/attendance/report' },
-      ]
-    },
-    { 
-      name: 'Leave', 
-      icon: FaCalendarAlt, 
-      path: '/dashboard/leave',
-      submenu: [
+        { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
-        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
-      ]
-    },
-    {
-      name: 'Performance',
-      icon: FaTrophy,
-      path: '/dashboard/performance',
-      submenu: [
-        { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
-        { name: 'Team Goals', path: '/dashboard/performance/goals' },
-        { name: 'Performance Reports', path: '/dashboard/performance/reports' },
       ]
     },
     {
@@ -259,82 +216,14 @@ export const roleBasedMenus = {
       path: '/dashboard/tasks',
       submenu: [
         { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
       ]
     },
-    { name: 'My Profile', icon: FaUser, path: '/dashboard/profile' },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
-    {
-      name: 'Learning',
-      icon: FaGraduationCap,
-      path: '/dashboard/learning',
-      submenu: [
-        { name: 'My Trainings', path: '/dashboard/learning/trainings' },
-        { name: 'Certificates', path: '/dashboard/learning/certificates' },
-      ]
-    },
-    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
-      submenu: [
-        { name: 'Team Monitoring', path: '/dashboard/productivity' },
-      ]
-    },
-  ],
-
-  // EMPLOYEE - Personal focused
-  employee: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'My Profile', icon: FaUser, path: '/dashboard/profile' },
-    { 
-      name: 'Attendance', 
-      icon: FaClock, 
-      path: '/dashboard/attendance',
-      submenu: [
-        { name: 'Mark Attendance', path: '/dashboard/attendance' },
-        { name: 'My Attendance', path: '/dashboard/attendance/report' },
-      ]
-    },
-    { 
-      name: 'Leave', 
-      icon: FaCalendarAlt, 
-      path: '/dashboard/leave',
-      submenu: [
-        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
-        { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
-        { name: 'Leave Balance', path: '/dashboard/leave/balance' },
-      ]
-    },
-    {
-      name: 'Payroll',
-      icon: FaMoneyBillWave,
-      path: '/dashboard/payroll',
-      submenu: [
-        { name: 'My Payslips', path: '/dashboard/payroll/payslips' },
-      ]
-    },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-      ]
-    },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
     {
       name: 'Learning',
       icon: FaGraduationCap,
@@ -346,65 +235,39 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
-      submenu: [
-        { name: 'My Productivity', path: '/dashboard/productivity' },
-      ]
-    },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
   ],
 
-  // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
-  department_head: [
+  // EMPLOYEE - Personal focused
+  employee: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     { 
-      name: 'Attendance', 
+      name: 'Attendance & Leaves', 
       icon: FaClock, 
       path: '/dashboard/attendance',
       submenu: [
-        { name: 'Mark Attendance', path: '/dashboard/attendance' },
-        { name: 'Team Attendance', path: '/dashboard/attendance/report' },
-      ]
-    },
-    { 
-      name: 'Leave', 
-      icon: FaCalendarAlt, 
-      path: '/dashboard/leave',
-      submenu: [
+        { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Apply Leave', path: '/dashboard/leave/apply' },
-        { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
-        { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
-        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
+        { name: 'Leave Balance', path: '/dashboard/leave/balance' },
+        { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
       ]
     },
-    {
-      name: 'Performance',
-      icon: FaTrophy,
-      path: '/dashboard/performance',
-      submenu: [
-        { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
-        { name: 'Team Goals', path: '/dashboard/performance/goals' },
-        { name: 'Performance Reports', path: '/dashboard/performance/reports' },
-      ]
-    },
+    { name: 'Payslips', icon: FaMoneyBillWave, path: '/dashboard/payroll/payslips' },
     {
       name: 'Project Management',
       icon: FaTasks,
       path: '/dashboard/tasks',
       submenu: [
         { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
+        { name: 'Create Project', path: '/dashboard/tasks/create' },
+        { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
       ]
     },
-    { name: 'My Profile', icon: FaUser, path: '/dashboard/profile' },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
     {
       name: 'Learning',
       icon: FaGraduationCap,
@@ -415,19 +278,58 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
+    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+  ],
+
+  // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
+  department_head: [
+    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
+      name: 'Attendance & Leaves', 
+      icon: FaClock, 
+      path: '/dashboard/attendance',
       submenu: [
-        { name: 'Team Monitoring', path: '/dashboard/productivity' },
+        { name: 'My Attendance', path: '/dashboard/attendance' },
+        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
+        { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
+    {
+      name: 'Project Management',
+      icon: FaTasks,
+      path: '/dashboard/tasks',
+      submenu: [
+        { name: 'Project Dashboard', path: '/dashboard/tasks' },
+        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
+        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Create Project', path: '/dashboard/tasks/create' },
+        { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
+      ]
+    },
+    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
+    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    {
+      name: 'Learning',
+      icon: FaGraduationCap,
+      path: '/dashboard/learning',
+      submenu: [
+        { name: 'My Trainings', path: '/dashboard/learning/trainings' },
+        { name: 'Certificates', path: '/dashboard/learning/certificates' },
+      ]
+    },
+    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
+    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
   ],
 
   // GOD ADMIN - Supreme access
   god_admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Employees',
       icon: FaUsers,
@@ -440,19 +342,12 @@ export const roleBasedMenus = {
       ]
     },
     {
-      name: 'Attendance',
+      name: 'Attendance & Leaves',
       icon: FaClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
-      ]
-    },
-    {
-      name: 'Leave',
-      icon: FaCalendarAlt,
-      path: '/dashboard/leave',
-      submenu: [
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -509,7 +404,6 @@ export const roleBasedMenus = {
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Assets', icon: FaBox, path: '/dashboard/assets' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Travel', icon: FaPlane, path: '/dashboard/travel' },
     { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
     { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
     {
@@ -532,14 +426,7 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { 
-      name: 'Productivity', 
-      icon: FaChartLine, 
-      path: '/dashboard/productivity',
-      submenu: [
-        { name: 'Monitoring Dashboard', path: '/dashboard/productivity' },
-      ]
-    },
+    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
   ],
 }
 

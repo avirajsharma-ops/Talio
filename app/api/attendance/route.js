@@ -6,10 +6,12 @@ import User from '@/models/User'
 import Leave from '@/models/Leave'
 import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
+import OvertimeRequest from '@/models/OvertimeRequest'
 import queryCache from '@/lib/queryCache'
 import { logActivity } from '@/lib/activityLogger'
 import { sendEmail } from '@/lib/mailer'
 import { sendPushToUser } from '@/lib/pushNotification'
+import { calculateEffectiveWorkHours, determineAttendanceStatus } from '@/lib/attendanceShrinkage'
 
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -246,18 +248,22 @@ export async function POST(request) {
 
       const checkInTime = new Date()
 
-      // Office timing: 11:00 AM to 7:00 PM
+      // Use office timings from settings (default: 09:00 - 18:00)
+      const [startHour, startMin] = (settings?.checkInTime || '09:00').split(':').map(Number)
+      const [endHour, endMin] = (settings?.checkOutTime || '18:00').split(':').map(Number)
+      const lateThreshold = settings?.lateThreshold || 15 // Grace period in minutes
+
       const officeStartTime = new Date(checkInTime)
-      officeStartTime.setHours(11, 0, 0, 0) // 11:00 AM
+      officeStartTime.setHours(startHour, startMin, 0, 0)
 
-      const officeEndTime = new Date(checkInTime)
-      officeEndTime.setHours(19, 0, 0, 0) // 7:00 PM
+      const lateThresholdTime = new Date(officeStartTime)
+      lateThresholdTime.setMinutes(lateThresholdTime.getMinutes() + lateThreshold)
 
-      // Determine check-in status
+      // Determine check-in status based on settings
       let checkInStatus = 'on-time'
       if (checkInTime < officeStartTime) {
         checkInStatus = 'early'
-      } else if (checkInTime > officeStartTime) {
+      } else if (checkInTime > lateThresholdTime) {
         checkInStatus = 'late'
       }
 
@@ -439,9 +445,10 @@ export async function POST(request) {
         geofenceLocationName
       }
 
-      // Office end time: 7:00 PM
+      // Use office end time from settings
+      const [endHour, endMin] = (settings?.checkOutTime || '18:00').split(':').map(Number)
       const officeEndTime = new Date(checkOutTime)
-      officeEndTime.setHours(19, 0, 0, 0) // 7:00 PM
+      officeEndTime.setHours(endHour, endMin, 0, 0)
 
       // Determine check-out status
       let checkOutStatus = 'on-time'
@@ -453,22 +460,56 @@ export async function POST(request) {
 
       attendance.checkOutStatus = checkOutStatus
 
-      // Calculate work hours
+      // Calculate work hours using shrinkage method
       const checkIn = new Date(attendance.checkIn)
       const checkOut = new Date(attendance.checkOut)
-      const diffMs = checkOut - checkIn
-      const diffHrs = diffMs / (1000 * 60 * 60)
-      attendance.workHours = parseFloat(diffHrs.toFixed(2))
+      
+      // Get break timings from settings
+      const breakTimings = settings?.breakTimings || []
+      
+      // Calculate effective work hours accounting for breaks (shrinkage)
+      const workHoursCalc = calculateEffectiveWorkHours(checkIn, checkOut, breakTimings)
+      
+      // Store both logged and effective hours
+      attendance.workHours = workHoursCalc.effectiveWorkHours // Effective hours after shrinkage
+      attendance.totalLoggedHours = workHoursCalc.totalLoggedHours // Raw logged hours
+      attendance.breakMinutes = workHoursCalc.breakMinutes // Break time deducted
+      attendance.shrinkagePercentage = workHoursCalc.shrinkagePercentage // Shrinkage %
 
-      // Determine attendance status based on work hours
-      // Shift: 11 AM to 7 PM (8 hours)
-      // Present: 8+ hours, Half-day: 4-7.99 hours, Absent: <4 hours
-      if (attendance.workHours >= 8) {
-        attendance.status = 'present'
-      } else if (attendance.workHours >= 4) {
-        attendance.status = 'half-day'
-      } else {
-        attendance.status = 'absent'
+      // Determine attendance status using 50% rule
+      // If employee worked >= 50% of required hours, they pass the half-day mark (not absent)
+      const statusResult = determineAttendanceStatus(workHoursCalc.effectiveWorkHours, {
+        fullDayHours: settings?.fullDayHours || 8,
+        halfDayHours: settings?.halfDayHours || 4
+      })
+      
+      attendance.status = statusResult.status
+      attendance.statusReason = statusResult.reason
+
+      // Calculate overtime if there was a confirmed overtime request
+      try {
+        const overtimeRequest = await OvertimeRequest.findOne({
+          attendance: attendance._id,
+          status: 'overtime-confirmed'
+        })
+
+        if (overtimeRequest) {
+          // Calculate overtime hours (time after scheduled checkout)
+          const scheduledCheckout = new Date(overtimeRequest.scheduledCheckOut)
+          const overtimeMs = checkOut - scheduledCheckout
+          const overtimeHours = overtimeMs > 0 ? overtimeMs / (1000 * 60 * 60) : 0
+
+          attendance.overtime = parseFloat(overtimeHours.toFixed(2))
+          
+          // Update the overtime request
+          overtimeRequest.overtimeHours = attendance.overtime
+          overtimeRequest.status = 'manual-checkout'
+          await overtimeRequest.save()
+          
+          console.log(`[Attendance] Overtime recorded: ${attendance.overtime}h for ${employeeId}`)
+        }
+      } catch (overtimeError) {
+        console.error('Failed to process overtime:', overtimeError)
       }
 
       await attendance.save()
@@ -478,7 +519,7 @@ export async function POST(request) {
         employeeId: employeeId,
         type: 'attendance_checkout',
         action: 'Clocked out',
-        details: `Worked for ${attendance.workHours} hours (${attendance.status})`,
+        details: `Effective work: ${attendance.workHours}h (Logged: ${attendance.totalLoggedHours}h, Breaks: ${attendance.breakMinutes}min, Shrinkage: ${attendance.shrinkagePercentage}%). Status: ${attendance.status}`,
         relatedModel: 'Attendance',
         relatedId: attendance._id
       })

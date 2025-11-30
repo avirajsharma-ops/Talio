@@ -9,7 +9,8 @@ export async function GET(request) {
     await connectDB()
 
     const departments = await Department.find({ isActive: true })
-      .populate('head', 'firstName lastName employeeCode email')
+      .populate('head', 'firstName lastName employeeCode email designation')
+      .populate('heads', 'firstName lastName employeeCode email designation')
       .sort({ name: 1 })
       .lean()
 
@@ -46,6 +47,15 @@ export async function POST(request) {
     await connectDB()
 
     const data = await request.json()
+    
+    // Handle multiple heads - ensure backwards compatibility
+    if (data.heads && data.heads.length > 0) {
+      // Set the first head as the legacy 'head' field for backwards compatibility
+      data.head = data.heads[0]
+    } else if (data.head && !data.heads) {
+      // If only single head provided, also add to heads array
+      data.heads = [data.head]
+    }
 
     const department = await Department.create(data)
 

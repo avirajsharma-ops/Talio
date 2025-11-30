@@ -178,6 +178,40 @@ app.prepare().then(() => {
     if (err) throw err
     console.log(`🚀 Server ready on http://${hostname}:${port}`)
     console.log(`🔌 Socket.IO ready on path: /api/socketio`)
+
+    // Start the attendance notification scheduler (runs every minute)
+    startAttendanceScheduler()
   })
 })
+
+// Attendance notification scheduler
+function startAttendanceScheduler() {
+  console.log('📅 Starting attendance notification scheduler...')
+  
+  // Run every minute to check for scheduled notifications
+  setInterval(async () => {
+    try {
+      const response = await fetch(`http://localhost:${port}/api/attendance/scheduler`, {
+        method: 'GET',
+        headers: {
+          'x-cron-secret': 'internal'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.data?.triggered?.length > 0) {
+          console.log('📬 Notifications triggered:', data.data.triggered)
+        }
+      }
+    } catch (error) {
+      // Silently handle errors during startup when server isn't ready
+      if (!error.message?.includes('ECONNREFUSED')) {
+        console.error('Scheduler error:', error.message)
+      }
+    }
+  }, 60000) // Every 60 seconds
+  
+  console.log('✅ Attendance scheduler started (checking every minute)')
+}
 

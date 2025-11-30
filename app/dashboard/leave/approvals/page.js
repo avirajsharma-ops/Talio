@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaCheck, FaTimes, FaEye, FaFilter } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function LeaveApprovalsPage() {
   const [leaves, setLeaves] = useState([])
@@ -37,7 +38,8 @@ export default function LeaveApprovalsPage() {
   const handleApprove = async (leaveId) => {
     try {
       const token = localStorage.getItem('token')
-      const user = JSON.parse(localStorage.getItem('user'))
+      const user = getCurrentUser()
+      const empId = getEmployeeId(user)
 
       const response = await fetch(`/api/leave/${leaveId}`, {
         method: 'PUT',
@@ -47,7 +49,7 @@ export default function LeaveApprovalsPage() {
         },
         body: JSON.stringify({
           status: 'approved',
-          approvedBy: user.employeeId._id,
+          approvedBy: empId,
           approvedDate: new Date(),
         }),
       })
@@ -70,7 +72,8 @@ export default function LeaveApprovalsPage() {
   const handleReject = async (leaveId) => {
     try {
       const token = localStorage.getItem('token')
-      const user = JSON.parse(localStorage.getItem('user'))
+      const user = getCurrentUser()
+      const empId = getEmployeeId(user)
 
       const response = await fetch(`/api/leave/${leaveId}`, {
         method: 'PUT',
@@ -80,7 +83,7 @@ export default function LeaveApprovalsPage() {
         },
         body: JSON.stringify({
           status: 'rejected',
-          approvedBy: user.employeeId._id,
+          approvedBy: empId,
           approvedDate: new Date(),
         }),
       })

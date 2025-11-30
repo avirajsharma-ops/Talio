@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaDownload, FaEye, FaMoneyBillWave } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function PayrollPage() {
   const [payrolls, setPayrolls] = useState([])
@@ -12,11 +13,18 @@ export default function PayrollPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
-      fetchPayrolls(parsedUser.employeeId._id)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchPayrolls(empId)
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+        setLoading(false)
+      }
+    } else {
+      setLoading(false)
     }
   }, [selectedMonth, selectedYear])
 

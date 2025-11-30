@@ -121,7 +121,11 @@ export async function GET(request) {
     if (user.employeeId) {
       try {
         employeeData = await Employee.findById(user.employeeId)
-        console.log('✅ Employee data fetched')
+          .populate('designation')
+          .populate('department')
+          .populate('reportingManager', 'firstName lastName email')
+          .lean()
+        console.log('✅ Employee data fetched:', employeeData?.firstName, employeeData?.lastName)
       } catch (error) {
         console.error('⚠️ Error fetching employee data:', error)
       }
@@ -154,19 +158,42 @@ export async function GET(request) {
     console.log('✅ JWT token created')
 
     // Prepare user data for response (similar to login API)
-    // NOTE: We exclude profilePicture from cookie to avoid size limits
+    // IMPORTANT: employeeId is stored as an object with _id for frontend compatibility
     const userData = {
-      id: user._id,
+      id: user._id.toString(),
+      _id: user._id.toString(),
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
-      employeeId: user.employeeId,
-      // Include employee data if available (excluding profilePicture)
+      isActive: user.isActive,
+      // Store employeeId as both string and object for compatibility
+      employeeId: employeeData ? {
+        _id: user.employeeId.toString(),
+        id: user.employeeId.toString(),
+        employeeCode: employeeData.employeeCode,
+        firstName: employeeData.firstName,
+        lastName: employeeData.lastName,
+        fullName: `${employeeData.firstName} ${employeeData.lastName}`,
+        email: employeeData.email,
+        phone: employeeData.phone,
+        designation: employeeData.designation,
+        department: employeeData.department,
+        profilePicture: employeeData.profilePicture,
+        status: employeeData.status,
+        dateOfJoining: employeeData.dateOfJoining,
+        reportingManager: employeeData.reportingManager,
+      } : user.employeeId ? { _id: user.employeeId.toString(), id: user.employeeId.toString() } : null,
+      // Also include top-level employee data for easy access
       ...(employeeData && {
         firstName: employeeData.firstName,
         lastName: employeeData.lastName,
+        fullName: `${employeeData.firstName} ${employeeData.lastName}`,
+        profilePicture: employeeData.profilePicture,
         designation: employeeData.designation,
         department: employeeData.department,
-        employeeNumber: employeeData.employeeNumber,
+        employeeCode: employeeData.employeeCode,
+        phone: employeeData.phone,
+        status: employeeData.status,
       })
     }
 

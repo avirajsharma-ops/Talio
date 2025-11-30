@@ -95,6 +95,22 @@ export async function GET(request) {
       status: 'late'
     }).populate('employee', 'firstName lastName employeeCode')
 
+    // 3.5 Who is present today (fully completed check-in/check-out)
+    const presentToday = await Attendance.find({
+      employee: { $in: teamMemberIds },
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: { $in: ['present', 'half-day'] }, // Completed attendance (checked in AND checked out)
+      checkIn: { $exists: true, $ne: null }
+    }).populate('employee', 'firstName lastName employeeCode')
+
+    // 3.6 Who is in progress today (checked in but not checked out yet)
+    const inProgressToday = await Attendance.find({
+      employee: { $in: teamMemberIds },
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: 'in-progress', // Checked in but not checked out yet
+      checkIn: { $exists: true, $ne: null }
+    }).populate('employee', 'firstName lastName employeeCode')
+
     // 4. Underperforming employees
     const underperforming = await Performance.find({
       employee: { $in: teamMemberIds },
@@ -286,6 +302,8 @@ export async function GET(request) {
     const stats = {
       teamStrength: teamStrength,
       attendanceSummary: attendanceSummary,
+      presentToday: presentToday,
+      inProgressToday: inProgressToday,
       onLeaveToday: onLeaveToday,
       absentToday: absentToday,
       lateToday: lateToday,

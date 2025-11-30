@@ -8,6 +8,8 @@ import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
 
+export const dynamic = 'force-dynamic';
+
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 // Helper to safely convert to ObjectId
@@ -21,7 +23,7 @@ function toObjectId(id) {
 }
 
 /**
- * Check if a user is a department head via Department.head field
+ * Check if a user is a department head via Department.head or Department.heads[] field
  */
 async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
@@ -42,8 +44,14 @@ async function getDepartmentIfHead(userId) {
     return null;
   }
   
-  // Check if this employee is head of any department
-  const department = await Department.findOne({ head: employeeId, isActive: true });
+  // Check if this employee is head of any department (check both head and heads fields)
+  const department = await Department.findOne({ 
+    $or: [
+      { head: employeeId },
+      { heads: employeeId }
+    ],
+    isActive: true 
+  });
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
@@ -51,6 +59,10 @@ async function getDepartmentIfHead(userId) {
 /**
  * GET - Get user cards for activity monitoring
  * Returns users with their latest session summary
+ * 
+ * Query params:
+ * - quick=true: Return basic user info without session stats (fast load)
+ * - userId: Get stats for specific user only (for progressive loading)
  * 
  * Access levels:
  * - god_admin/admin: See all users
@@ -75,6 +87,10 @@ export async function GET(request) {
 
     await connectDB();
 
+    const { searchParams } = new URL(request.url);
+    const quickMode = searchParams.get('quick') === 'true';
+    const specificUserId = searchParams.get('userId');
+
     // Get requester's info
     const requester = await User.findById(decoded.userId).select('role');
     if (!requester) {
@@ -87,14 +103,6 @@ export async function GET(request) {
     const headOfDepartment = await getDepartmentIfHead(decoded.userId);
     const isDeptHead = !!headOfDepartment;
 
-    console.log('[User Cards API] Access check:', {
-      userId: decoded.userId,
-      role: requester.role,
-      isAdmin,
-      isDeptHead,
-      departmentId: headOfDepartment?._id?.toString()
-    });
-
     // Build query for users based on role
     let employeeQuery = { status: 'active' };
     
@@ -104,21 +112,21 @@ export async function GET(request) {
       // Department heads see only users in their department
       employeeQuery.department = headOfDepartment._id;
     } else {
-      // All other roles (employee, hr, manager who is not dept head) see only their own card
+      // All other roles see only their own card
       const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {
-        // User has no employee record, return empty
-        return NextResponse.json({
-          success: true,
-          data: [],
-          totalUsers: 0
-        });
+        return NextResponse.json({ success: true, data: [], totalUsers: 0 });
       }
     }
 
-    // Get employees with user info
+    // If requesting stats for specific user, validate access
+    if (specificUserId && !quickMode) {
+      return await getUserStats(specificUserId, decoded.userId, isAdmin, isDeptHead, headOfDepartment);
+    }
+
+    // Get employees with user info - use lean for performance
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture lastActive')
       .populate('department', 'name')
@@ -139,19 +147,68 @@ export async function GET(request) {
       }
     });
 
-    console.log('[User Cards API] Employee to User mapping:', {
-      totalEmployees: employees.length,
-      employeesWithUserId: employees.filter(e => e.userId).length,
-      usersFoundByEmployeeId: usersWithEmployeeId.length
-    });
+    // QUICK MODE: Return basic user info without session stats
+    if (quickMode) {
+      const basicCards = employees.map(employee => {
+        let userInfo = employee.userId;
+        let userId = userInfo?._id || userInfo;
+        
+        if (!userId) {
+          const reverseUser = employeeToUserMap[employee._id.toString()];
+          if (reverseUser) {
+            userId = reverseUser._id;
+            userInfo = reverseUser;
+          }
+        }
 
-    // Get latest session and session count for each employee
-    const userCards = await Promise.all(employees.map(async (employee) => {
-      // Get userId from either Employee.userId or User.employeeId (reverse lookup)
+        const userName = employee.firstName && employee.lastName 
+          ? `${employee.firstName} ${employee.lastName}`
+          : (userInfo?.name || 'Unknown');
+
+        return {
+          id: employee._id,
+          odooId: userId?.toString() || null,
+          userId: userId?.toString() || null,
+          name: userName,
+          email: userInfo?.email || employee.email,
+          employeeCode: employee.employeeCode,
+          designation: employee.designation?.title || employee.designation || '',
+          department: employee.department?.name || 'Unassigned',
+          profilePicture: employee.profilePicture || userInfo?.profilePicture,
+          lastActive: userInfo?.lastActive,
+          isOwnCard: userId?.toString() === decoded.userId.toString(),
+          // Placeholder stats - will be loaded progressively
+          latestSession: null,
+          totalSessions: null, // null indicates "loading"
+          todayStats: { duration: null, sessionsCount: null, avgProductivity: null },
+          statsLoading: true
+        };
+      });
+
+      // Sort: own card first
+      const sortedCards = basicCards.sort((a, b) => {
+        if (a.isOwnCard && !b.isOwnCard) return -1;
+        if (!a.isOwnCard && b.isOwnCard) return 1;
+        return 0;
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: sortedCards,
+        totalUsers: sortedCards.length,
+        accessLevel: isAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only',
+        quickMode: true
+      });
+    }
+
+    // FULL MODE: Use aggregation for better performance
+    const userIds = [];
+    const employeeMap = {};
+
+    employees.forEach(employee => {
       let userInfo = employee.userId;
       let userId = userInfo?._id || userInfo;
       
-      // If no userId on employee, check reverse relationship
       if (!userId) {
         const reverseUser = employeeToUserMap[employee._id.toString()];
         if (reverseUser) {
@@ -159,128 +216,93 @@ export async function GET(request) {
           userInfo = reverseUser;
         }
       }
-      
-      // Convert to ObjectId for querying
-      const userObjId = toObjectId(userId);
-      
-      // Still include employee even if no user account (show card without session data)
-      if (!userObjId) {
-        const userName = employee.firstName && employee.lastName 
-          ? `${employee.firstName} ${employee.lastName}`
-          : 'Unknown';
-        
-        return {
-          id: employee._id,
-          odooId: null,
-          userId: null,
-          name: userName,
-          email: employee.email,
-          employeeCode: employee.employeeCode,
-          designation: employee.designation?.title || employee.designation || '',
-          department: employee.department?.name || 'Unassigned',
-          profilePicture: employee.profilePicture,
-          lastActive: null,
-          isOwnCard: false,
-          latestSession: null,
-          totalSessions: 0,
-          todayStats: { duration: 0, sessionsCount: 0, avgProductivity: 0 }
-        };
+
+      if (userId) {
+        const userObjId = toObjectId(userId);
+        if (userObjId) {
+          userIds.push(userObjId);
+          employeeMap[userObjId.toString()] = { employee, userInfo, userId };
+        }
       }
+    });
 
-      // Get latest session
-      const latestSession = await ProductivitySession.findOne({ 
-        userId: userObjId,
-        status: 'completed'
-      })
-        .sort({ sessionEnd: -1 })
-        .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore screenshots sessionDuration totalActiveTime')
-        .lean();
+    // Batch aggregate session stats for all users at once
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-      // Get total session count
-      const totalSessions = await ProductivitySession.countDocuments({
-        userId: userObjId,
-        status: 'completed'
+    const [sessionStats, latestSessions] = await Promise.all([
+      // Get aggregated stats per user
+      ProductivitySession.aggregate([
+        { $match: { userId: { $in: userIds }, status: 'completed' } },
+        { $facet: {
+          // Total sessions per user
+          totalCounts: [
+            { $group: { _id: '$userId', count: { $sum: 1 } } }
+          ],
+          // Today's stats per user
+          todayStats: [
+            { $match: { sessionStart: { $gte: todayStart } } },
+            { $group: {
+              _id: '$userId',
+              sessionsCount: { $sum: 1 },
+              totalDuration: { $sum: '$sessionDuration' },
+              avgProductivity: { $avg: '$aiAnalysis.productivityScore' }
+            }}
+          ]
+        }}
+      ]),
+      // Get latest session per user
+      ProductivitySession.aggregate([
+        { $match: { userId: { $in: userIds }, status: 'completed' } },
+        { $sort: { sessionEnd: -1 } },
+        { $group: {
+          _id: '$userId',
+          latestSession: { $first: '$$ROOT' }
+        }},
+        { $project: {
+          'latestSession.sessionStart': 1,
+          'latestSession.sessionEnd': 1,
+          'latestSession.aiAnalysis.productivityScore': 1,
+          'latestSession.aiAnalysis.focusScore': 1,
+          'latestSession.screenshots': { $slice: ['$latestSession.screenshots', -1] }
+        }}
+      ])
+    ]);
+
+    // Build lookup maps from aggregation results
+    const totalCountsMap = {};
+    const todayStatsMap = {};
+    const latestSessionsMap = {};
+
+    if (sessionStats.length > 0) {
+      sessionStats[0].totalCounts?.forEach(item => {
+        totalCountsMap[item._id.toString()] = item.count;
       });
+      sessionStats[0].todayStats?.forEach(item => {
+        todayStatsMap[item._id.toString()] = item;
+      });
+    }
+    latestSessions.forEach(item => {
+      latestSessionsMap[item._id.toString()] = item.latestSession;
+    });
 
-      // Calculate today's activity
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+    // Build user cards with stats
+    const userCards = employees.map(employee => {
+      let userInfo = employee.userId;
+      let userId = userInfo?._id || userInfo;
       
-      let todaySessions = await ProductivitySession.find({
-        userId: userObjId,
-        sessionStart: { $gte: todayStart },
-        status: 'completed'
-      }).select('sessionDuration totalActiveTime aiAnalysis.productivityScore screenshots').lean();
-
-      // Calculate duration from sessions
-      let todayDuration = todaySessions.reduce((sum, s) => {
-        // sessionDuration is in minutes, totalActiveTime is in ms
-        const mins = s.sessionDuration || (s.totalActiveTime ? Math.round(s.totalActiveTime / 60000) : 30);
-        return sum + mins;
-      }, 0);
-      
-      // Calculate average productivity - if no AI analysis, estimate from screenshots
-      let avgProductivity = 0;
-      const analyzedSessions = todaySessions.filter(s => s.aiAnalysis?.productivityScore > 0);
-      if (analyzedSessions.length > 0) {
-        avgProductivity = analyzedSessions.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / analyzedSessions.length;
-      } else if (todaySessions.length > 0) {
-        // No AI analysis yet - show that there's activity but needs analysis
-        // Give a base score based on having screenshots
-        const hasScreenshots = todaySessions.some(s => s.screenshots?.length > 0);
-        avgProductivity = hasScreenshots ? 50 : 0; // 50% indicates "pending analysis"
-      }
-      
-      // If no sessions today, check all-time stats
-      if (todaySessions.length === 0 && totalSessions > 0) {
-        // Get stats from most recent sessions (last 7 days)
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const recentSessions = await ProductivitySession.find({
-          userId: userObjId,
-          sessionStart: { $gte: weekAgo },
-          status: 'completed'
-        }).select('aiAnalysis.productivityScore').lean();
-        
-        const recentAnalyzed = recentSessions.filter(s => s.aiAnalysis?.productivityScore > 0);
-        if (recentAnalyzed.length > 0) {
-          avgProductivity = recentAnalyzed.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / recentAnalyzed.length;
+      if (!userId) {
+        const reverseUser = employeeToUserMap[employee._id.toString()];
+        if (reverseUser) {
+          userId = reverseUser._id;
+          userInfo = reverseUser;
         }
       }
-      
-      // If no sessions, fallback to raw ProductivityData for stats
-      if (totalSessions === 0) {
-        const rawStats = await ProductivityData.aggregate([
-          { $match: { userId: userObjId, status: { $in: ['synced', 'analyzed'] } } },
-          { $group: {
-            _id: null,
-            totalActiveTime: { $sum: '$totalActiveTime' },
-            productiveTime: { $sum: '$productiveTime' },
-            count: { $sum: 1 }
-          }}
-        ]);
-        
-        const todayRawStats = await ProductivityData.aggregate([
-          { $match: { 
-            userId: userObjId, 
-            status: { $in: ['synced', 'analyzed'] },
-            createdAt: { $gte: todayStart }
-          }},
-          { $group: {
-            _id: null,
-            totalActiveTime: { $sum: '$totalActiveTime' },
-            productiveTime: { $sum: '$productiveTime' },
-            count: { $sum: 1 }
-          }}
-        ]);
-        
-        if (todayRawStats.length > 0) {
-          const stats = todayRawStats[0];
-          todayDuration = Math.round((stats.totalActiveTime || 0) / 60000); // Convert ms to mins
-          avgProductivity = stats.totalActiveTime > 0 
-            ? Math.round((stats.productiveTime / stats.totalActiveTime) * 100) 
-            : 0;
-        }
-      }
+
+      const userIdStr = userId?.toString();
+      const totalSessions = totalCountsMap[userIdStr] || 0;
+      const todayData = todayStatsMap[userIdStr];
+      const latestSession = latestSessionsMap[userIdStr];
 
       const userName = employee.firstName && employee.lastName 
         ? `${employee.firstName} ${employee.lastName}`
@@ -288,8 +310,8 @@ export async function GET(request) {
 
       return {
         id: employee._id,
-        odooId: userId,
-        userId: userId.toString(),
+        odooId: userIdStr || null,
+        userId: userIdStr || null,
         name: userName,
         email: userInfo?.email || employee.email,
         employeeCode: employee.employeeCode,
@@ -297,42 +319,39 @@ export async function GET(request) {
         department: employee.department?.name || 'Unassigned',
         profilePicture: employee.profilePicture || userInfo?.profilePicture,
         lastActive: userInfo?.lastActive,
-        isOwnCard: userId.toString() === decoded.userId.toString(),
+        isOwnCard: userIdStr === decoded.userId.toString(),
         latestSession: latestSession ? {
           sessionStart: latestSession.sessionStart,
           sessionEnd: latestSession.sessionEnd,
           productivityScore: latestSession.aiAnalysis?.productivityScore,
           focusScore: latestSession.aiAnalysis?.focusScore,
           screenshotCount: latestSession.screenshots?.length || 0,
-          latestScreenshot: latestSession.screenshots?.[latestSession.screenshots.length - 1]?.thumbnailUrl
+          latestScreenshot: latestSession.screenshots?.[0]?.thumbnail || latestSession.screenshots?.[0]?.fullData
         } : null,
         totalSessions,
         todayStats: {
-          duration: todayDuration,
-          sessionsCount: todaySessions.length,
-          avgProductivity: Math.round(avgProductivity)
-        }
+          duration: todayData?.totalDuration || 0,
+          sessionsCount: todayData?.sessionsCount || 0,
+          avgProductivity: Math.round(todayData?.avgProductivity || 0)
+        },
+        statsLoading: false
       };
-    }));
+    });
 
-    // Filter out null entries and sort: own card first, then by latest activity
-    const validUserCards = userCards
-      .filter(card => card !== null)
-      .sort((a, b) => {
-        // Own card always first
-        if (a.isOwnCard && !b.isOwnCard) return -1;
-        if (!a.isOwnCard && b.isOwnCard) return 1;
-        // Then sort by latest activity
-        if (!a.latestSession && !b.latestSession) return 0;
-        if (!a.latestSession) return 1;
-        if (!b.latestSession) return -1;
-        return new Date(b.latestSession.sessionEnd) - new Date(a.latestSession.sessionEnd);
-      });
+    // Sort: own card first, then by latest activity
+    const sortedCards = userCards.sort((a, b) => {
+      if (a.isOwnCard && !b.isOwnCard) return -1;
+      if (!a.isOwnCard && b.isOwnCard) return 1;
+      if (!a.latestSession && !b.latestSession) return 0;
+      if (!a.latestSession) return 1;
+      if (!b.latestSession) return -1;
+      return new Date(b.latestSession.sessionEnd) - new Date(a.latestSession.sessionEnd);
+    });
 
     return NextResponse.json({
       success: true,
-      data: validUserCards,
-      totalUsers: validUserCards.length,
+      data: sortedCards,
+      totalUsers: sortedCards.length,
       accessLevel: isAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
     });
 
@@ -343,4 +362,61 @@ export async function GET(request) {
       error: 'Failed to fetch user cards' 
     }, { status: 500 });
   }
+}
+
+/**
+ * Get stats for a specific user (for progressive loading)
+ */
+async function getUserStats(userId, requesterId, isAdmin, isDeptHead, headOfDepartment) {
+  const userObjId = toObjectId(userId);
+  if (!userObjId) {
+    return NextResponse.json({ success: false, error: 'Invalid user ID' }, { status: 400 });
+  }
+
+  // Verify access
+  if (!isAdmin && !isDeptHead && userId !== requesterId) {
+    return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+  }
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [totalSessions, todaySessions, latestSession] = await Promise.all([
+    ProductivitySession.countDocuments({ userId: userObjId, status: 'completed' }),
+    ProductivitySession.find({
+      userId: userObjId,
+      sessionStart: { $gte: todayStart },
+      status: 'completed'
+    }).select('sessionDuration aiAnalysis.productivityScore').lean(),
+    ProductivitySession.findOne({ userId: userObjId, status: 'completed' })
+      .sort({ sessionEnd: -1 })
+      .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore screenshots')
+      .lean()
+  ]);
+
+  const todayDuration = todaySessions.reduce((sum, s) => sum + (s.sessionDuration || 30), 0);
+  const analyzedSessions = todaySessions.filter(s => s.aiAnalysis?.productivityScore > 0);
+  const avgProductivity = analyzedSessions.length > 0
+    ? Math.round(analyzedSessions.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / analyzedSessions.length)
+    : 0;
+
+  return NextResponse.json({
+    success: true,
+    userId,
+    stats: {
+      totalSessions,
+      latestSession: latestSession ? {
+        sessionStart: latestSession.sessionStart,
+        sessionEnd: latestSession.sessionEnd,
+        productivityScore: latestSession.aiAnalysis?.productivityScore,
+        focusScore: latestSession.aiAnalysis?.focusScore,
+        latestScreenshot: latestSession.screenshots?.[latestSession.screenshots.length - 1]?.thumbnail
+      } : null,
+      todayStats: {
+        duration: todayDuration,
+        sessionsCount: todaySessions.length,
+        avgProductivity
+      }
+    }
+  });
 }

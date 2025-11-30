@@ -13,11 +13,48 @@ import useGeofencing from '@/hooks/useGeofencing'
 import { SocketProvider } from '@/contexts/SocketContext'
 import { UnreadMessagesProvider } from '@/contexts/UnreadMessagesContext'
 import { InAppNotificationProvider } from '@/contexts/InAppNotificationContext'
+import { getCurrentUser, getEmployeeId, syncUserData, getToken } from '@/utils/userHelper'
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userId, setUserId] = useState(null)
   const pathname = usePathname()
+
+  // Sync user data on mount to ensure employee info is complete
+  useEffect(() => {
+    const syncEmployeeData = async () => {
+      const user = getCurrentUser()
+      const token = getToken()
+      
+      if (!user || !token) return
+      
+      // Check if we need to sync (missing firstName or employeeId structure is incomplete)
+      const needsSync = !user.firstName || 
+        (user.employeeId && typeof user.employeeId !== 'object') ||
+        (user.employeeId && !user.employeeId.firstName)
+      
+      if (needsSync) {
+        const empId = getEmployeeId(user)
+        if (empId) {
+          try {
+            console.log('[Dashboard] Syncing employee data...')
+            const response = await fetch(`/api/employees/${empId}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            const result = await response.json()
+            if (result.success && result.data) {
+              syncUserData(result.data)
+              console.log('[Dashboard] Employee data synced:', result.data.firstName, result.data.lastName)
+            }
+          } catch (error) {
+            console.error('[Dashboard] Error syncing employee data:', error)
+          }
+        }
+      }
+    }
+    
+    syncEmployeeData()
+  }, [])
 
   // Get user ID from localStorage and initialize desktop app
   useEffect(() => {

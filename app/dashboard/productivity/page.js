@@ -18,8 +18,6 @@ export default function ProductivityMonitoringPage() {
   const [activeTab, setActiveTab] = useState('sessions');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [includeScreenshots, setIncludeScreenshots] = useState(true);
-  const [screenshotInterval, setScreenshotInterval] = useState(5);
-  const [savingInterval, setSavingInterval] = useState(false);
   const [modalData, setModalData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -79,11 +77,6 @@ export default function ProductivityMonitoringPage() {
       checkIfDepartmentHead(parsedUser);
       fetchEmployees(parsedUser);
       fetchAllData(parsedUser);
-      
-      const savedInterval = localStorage.getItem('screenshotInterval');
-      if (savedInterval) {
-        setScreenshotInterval(parseInt(savedInterval));
-      }
     }
   }, []);
 
@@ -261,25 +254,6 @@ export default function ProductivityMonitoringPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setTimeout(() => setModalData(null), 300);
-  };
-
-  const saveScreenshotInterval = async () => {
-    try {
-      setSavingInterval(true);
-      localStorage.setItem('screenshotInterval', screenshotInterval.toString());
-      toast.success(`Screenshot interval set to ${screenshotInterval} minutes`);
-      
-      const token = localStorage.getItem('token');
-      await fetch('/api/settings/screenshot-interval', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interval: screenshotInterval })
-      });
-    } catch (error) {
-      console.error('Failed to save interval:', error);
-    } finally {
-      setSavingInterval(false);
-    }
   };
 
   const handleCaptureFromDropdown = async () => {
@@ -603,21 +577,6 @@ export default function ProductivityMonitoringPage() {
         </p>
       </div>
 
-      {/* Desktop App Info */}
-      {(isAdminOrGodAdmin || isDepartmentHead) && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
-          <div className="flex items-start gap-3">
-            <div className="text-blue-500 text-xl mt-0.5">ℹ️</div>
-            <div>
-              <h4 className="font-semibold text-blue-900 mb-1">Desktop App Required</h4>
-              <p className="text-sm text-blue-800">
-                Instant capture requires the <strong>MAYA Desktop App</strong> to be running on the employee's computer.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Instant Capture Panel - Always visible for admins/dept heads */}
       {(isAdminOrGodAdmin || isDepartmentHead) && (
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
@@ -660,7 +619,7 @@ export default function ProductivityMonitoringPage() {
                 {capturingInstant ? (
                   <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>Capturing...</>
                 ) : (
-                  <><FaEye />Capture Now</>
+                  <><FaEye className="text-purple-600" />Capture Now</>
                 )}
               </button>
             </div>
@@ -668,42 +627,7 @@ export default function ProductivityMonitoringPage() {
         </div>
       )}
 
-      {/* Screenshot Interval - Admin Only */}
-      {isAdminOrGodAdmin && (
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-md p-6 mb-6 border border-purple-200">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <FaClock className="text-purple-600 text-2xl" />
-              <div>
-                <h3 className="font-semibold text-gray-800">Screenshot Capture Interval</h3>
-                <p className="text-sm text-gray-600">Set how often screenshots are automatically captured</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={screenshotInterval}
-                onChange={(e) => setScreenshotInterval(parseInt(e.target.value))}
-                className="px-4 py-2 border border-purple-300 rounded-lg bg-white"
-              >
-                <option value={1}>Every 1 minute</option>
-                <option value={2}>Every 2 minutes</option>
-                <option value={5}>Every 5 minutes</option>
-                <option value={10}>Every 10 minutes</option>
-                <option value={15}>Every 15 minutes</option>
-                <option value={30}>Every 30 minutes</option>
-                <option value={60}>Every 1 hour</option>
-              </select>
-              <button
-                onClick={saveScreenshotInterval}
-                disabled={savingInterval}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 disabled:opacity-50"
-              >
-                <FaSave />{savingInterval ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Date Range Filter */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -726,7 +650,7 @@ export default function ProductivityMonitoringPage() {
             onClick={handleDateFilter}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
-            <FaFilter />Apply Filter
+            <FaFilter className="text-white" />Apply Filter
           </button>
           
           {/* User Filter */}
@@ -805,7 +729,7 @@ export default function ProductivityMonitoringPage() {
                 onClick={() => triggerSessionAggregation(true)}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:opacity-90 flex items-center gap-2 shadow-md"
               >
-                <FaSync />Aggregate Sessions
+                <FaSync className="text-white" />Aggregate Sessions
               </button>
             )}
           </div>
@@ -827,6 +751,7 @@ export default function ProductivityMonitoringPage() {
               setIsSessionPopupOpen(false);
               setSelectedUserForSessions(null);
             }}
+            onDataChange={refreshAllGrids}
           />
         </div>
       ) : activeTab === 'monitoring' ? (
@@ -862,6 +787,7 @@ export default function ProductivityMonitoringPage() {
               setIsRawCapturesPopupOpen(false);
               setSelectedUserForRawCaptures(null);
             }}
+            onDataChange={refreshAllGrids}
           />
         </div>
       ) : (

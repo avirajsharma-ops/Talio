@@ -39,6 +39,21 @@ const AttendanceSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  totalLoggedHours: {
+    type: Number,
+    default: 0,
+  },
+  breakMinutes: {
+    type: Number,
+    default: 0,
+  },
+  shrinkagePercentage: {
+    type: Number,
+    default: 0,
+  },
+  statusReason: {
+    type: String,
+  },
   overtime: {
     type: Number,
     default: 0,

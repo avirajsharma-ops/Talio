@@ -823,7 +823,8 @@
           await updateOnboarding('greeting');
         }
       } catch (e) {
-        addMessage("Hi! I'm Maya. How can I help you today?", 'assistant');
+        console.log('Failed to fetch greeting from API:', e);
+        // Don't show a hardcoded greeting - wait for user interaction
       }
     }
 
@@ -1163,9 +1164,8 @@
     function showGreetingOnce() {
       if (greetingShown) return;
       greetingShown = true;
-      const greeting = "Hey there! I'm Maya, how can I help you today?";
-      addMessage(greeting, 'assistant');
-      speak(greeting);
+      // Greeting is now fetched from the API dynamically based on context
+      // No hardcoded greeting shown - user will interact first or API will provide personalized greeting
     }
 
     // Get stored credentials on load

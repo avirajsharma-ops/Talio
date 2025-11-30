@@ -13,7 +13,7 @@ import {
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
-// Helper to check if user is a department head
+// Helper to check if user is a department head (via head or heads[] field)
 async function getDepartmentIfHead(userId) {
   const user = await User.findById(userId).select('employeeId');
   let employeeId = user?.employeeId;
@@ -25,7 +25,14 @@ async function getDepartmentIfHead(userId) {
   
   if (!employeeId) return null;
   
-  return await Department.findOne({ head: employeeId, isActive: true });
+  // Check both head and heads fields
+  return await Department.findOne({ 
+    $or: [
+      { head: employeeId },
+      { heads: employeeId }
+    ],
+    isActive: true 
+  });
 }
 
 /**

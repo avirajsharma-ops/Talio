@@ -56,7 +56,7 @@ export async function GET(request) {
 
     const activeToday = await Attendance.countDocuments({
       date: { $gte: todayStart, $lte: todayEnd },
-      status: { $in: ['present', 'late'] }
+      status: { $in: ['present', 'late', 'half-day', 'in-progress'] }
     })
 
     // 4. Employees on Leave Today

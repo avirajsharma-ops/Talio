@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaClock } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function LeavePage() {
   const [leaves, setLeaves] = useState([])
@@ -11,6 +12,7 @@ export default function LeavePage() {
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [user, setUser] = useState(null)
+  const [employeeId, setEmployeeId] = useState(null)
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -20,13 +22,18 @@ export default function LeavePage() {
   })
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
-      fetchLeaves(parsedUser.employeeId._id)
-      fetchLeaveBalance(parsedUser.employeeId._id)
-      fetchLeaveTypes()
+      const empId = getEmployeeId(parsedUser)
+      setEmployeeId(empId)
+      if (empId) {
+        fetchLeaves(empId)
+        fetchLeaveBalance(empId)
+        fetchLeaveTypes()
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+      }
     }
   }, [])
 
@@ -102,7 +109,7 @@ export default function LeavePage() {
         },
         body: JSON.stringify({
           ...formData,
-          employee: user.employeeId._id,
+          employee: employeeId,
         }),
       })
 
@@ -118,8 +125,8 @@ export default function LeavePage() {
           reason: '',
           isHalfDay: false,
         })
-        fetchLeaves(user.employeeId._id)
-        fetchLeaveBalance(user.employeeId._id)
+        fetchLeaves(employeeId)
+        fetchLeaveBalance(employeeId)
       } else {
         toast.error(data.message || 'Failed to submit leave request')
       }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaEdit, FaTrash, FaBuilding, FaUsers } from 'react-icons/fa'
+import { FaPlus, FaEdit, FaTrash, FaBuilding, FaUsers, FaTimes, FaUserTie } from 'react-icons/fa'
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([])
@@ -15,8 +15,10 @@ export default function DepartmentsPage() {
     name: '',
     description: '',
     code: '',
-    head: '',
+    heads: [], // Changed from head to heads array
   })
+  const [headSearch, setHeadSearch] = useState('')
+  const [showHeadDropdown, setShowHeadDropdown] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -111,11 +113,18 @@ export default function DepartmentsPage() {
 
   const handleEdit = (dept) => {
     setEditingDept(dept)
+    // Combine legacy head with heads array for editing
+    const existingHeads = []
+    if (dept.heads && dept.heads.length > 0) {
+      existingHeads.push(...dept.heads.map(h => h._id || h))
+    } else if (dept.head) {
+      existingHeads.push(dept.head._id || dept.head)
+    }
     setFormData({
       name: dept.name,
       description: dept.description || '',
       code: dept.code || '',
-      head: dept.head?._id || '',
+      heads: existingHeads,
     })
     setShowModal(true)
   }
@@ -147,8 +156,32 @@ export default function DepartmentsPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingDept(null)
-    setFormData({ name: '', description: '', code: '', head: '' })
+    setFormData({ name: '', description: '', code: '', heads: [] })
+    setHeadSearch('')
+    setShowHeadDropdown(false)
   }
+
+  const addHead = (employee) => {
+    if (!formData.heads.includes(employee._id)) {
+      setFormData({ ...formData, heads: [...formData.heads, employee._id] })
+    }
+    setHeadSearch('')
+    setShowHeadDropdown(false)
+  }
+
+  const removeHead = (headId) => {
+    setFormData({ ...formData, heads: formData.heads.filter(h => h !== headId) })
+  }
+
+  const getHeadDetails = (headId) => {
+    return employees.find(e => e._id === headId)
+  }
+
+  const filteredEmployees = employees.filter(emp => 
+    !formData.heads.includes(emp._id) &&
+    (`${emp.firstName} ${emp.lastName}`.toLowerCase().includes(headSearch.toLowerCase()) ||
+     emp.employeeCode?.toLowerCase().includes(headSearch.toLowerCase()))
+  )
 
   const canManageDepartments = () => {
     return user && ['god_admin', 'admin', 'hr'].includes(user.role)
@@ -264,12 +297,39 @@ export default function DepartmentsPage() {
                   <FaUsers className="flex-shrink-0" />
                   <span className="truncate">{dept.employeeCount || 0} Employees</span>
                 </div>
-                {dept.head && (
-                  <div className="text-xs sm:text-sm text-gray-600 truncate max-w-[120px] sm:max-w-none">
-                    Head: {dept.head.firstName} {dept.head.lastName}
-                  </div>
-                )}
+                <div className="text-xs sm:text-sm text-gray-600">
+                  {dept.heads && dept.heads.length > 0 ? (
+                    <div className="flex items-center space-x-1">
+                      <FaUserTie className="text-primary-500" />
+                      <span className="truncate max-w-[100px]">
+                        {dept.heads.length === 1 
+                          ? `${dept.heads[0].firstName} ${dept.heads[0].lastName}`
+                          : `${dept.heads.length} Heads`
+                        }
+                      </span>
+                    </div>
+                  ) : dept.head ? (
+                    <div className="flex items-center space-x-1">
+                      <FaUserTie className="text-primary-500" />
+                      <span className="truncate max-w-[100px]">{dept.head.firstName} {dept.head.lastName}</span>
+                    </div>
+                  ) : null}
+                </div>
               </div>
+              
+              {/* Show all heads if multiple */}
+              {dept.heads && dept.heads.length > 1 && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-1">Department Heads:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {dept.heads.map(head => (
+                      <span key={head._id} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full">
+                        {head.firstName} {head.lastName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -326,20 +386,66 @@ export default function DepartmentsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department Head
+                    Department Heads (Multiple allowed)
                   </label>
-                  <select
-                    value={formData.head}
-                    onChange={(e) => setFormData({ ...formData, head: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Select Department Head</option>
-                    {employees.map((employee) => (
-                      <option key={employee._id} value={employee._id}>
-                        {employee.firstName} {employee.lastName} ({employee.employeeCode})
-                      </option>
-                    ))}
-                  </select>
+                  
+                  {/* Selected heads */}
+                  {formData.heads.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {formData.heads.map(headId => {
+                        const head = getHeadDetails(headId)
+                        return head ? (
+                          <span 
+                            key={headId} 
+                            className="inline-flex items-center space-x-1 bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm"
+                          >
+                            <span>{head.firstName} {head.lastName}</span>
+                            <button 
+                              type="button"
+                              onClick={() => removeHead(headId)}
+                              className="text-primary-600 hover:text-primary-800"
+                            >
+                              <FaTimes className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* Search and add heads */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={headSearch}
+                      onChange={(e) => {
+                        setHeadSearch(e.target.value)
+                        setShowHeadDropdown(true)
+                      }}
+                      onFocus={() => setShowHeadDropdown(true)}
+                      placeholder="Search and add department heads..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    
+                    {showHeadDropdown && headSearch && filteredEmployees.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredEmployees.slice(0, 10).map(employee => (
+                          <button
+                            key={employee._id}
+                            type="button"
+                            onClick={() => addHead(employee)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center justify-between"
+                          >
+                            <span>{employee.firstName} {employee.lastName}</span>
+                            <span className="text-xs text-gray-500">{employee.employeeCode}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    For larger departments, you can assign multiple heads. Authority is determined by employee role/level.
+                  </p>
                 </div>
               </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function HelpdeskPage() {
   const [tickets, setTickets] = useState([])
@@ -11,26 +12,20 @@ export default function HelpdeskPage() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    try {
-      const userData = localStorage.getItem('user')
-      if (userData) {
-        const parsedUser = JSON.parse(userData)
-        setUser(parsedUser)
-        if (parsedUser?.employeeId?._id) {
-          fetchTickets(parsedUser.employeeId._id)
-        } else {
-          console.error('Employee ID not found in user data')
-          toast.error('Employee information not found. Please login again.')
-          setLoading(false)
-        }
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
+      setUser(parsedUser)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchTickets(empId)
       } else {
-        console.error('No user data found')
-        toast.error('Please login to view tickets')
+        console.error('Employee ID not found in user data:', parsedUser)
+        toast.error('Employee information not found. Please logout and login again.')
         setLoading(false)
       }
-    } catch (error) {
-      console.error('Error parsing user data:', error)
-      toast.error('Error loading user information. Please login again.')
+    } else {
+      console.error('No user data found')
+      toast.error('Please login to view tickets')
       setLoading(false)
     }
   }, [])

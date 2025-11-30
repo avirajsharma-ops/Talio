@@ -25,7 +25,7 @@ function toObjectId(id) {
 }
 
 /**
- * Check if a user is a department head via Department.head field
+ * Check if a user is a department head via Department.head or Department.heads[] field
  * Returns the department if user is head, null otherwise
  */
 async function getDepartmentIfHead(userId) {
@@ -42,7 +42,14 @@ async function getDepartmentIfHead(userId) {
   
   if (!employeeId) return null;
   
-  const department = await Department.findOne({ head: employeeId, isActive: true });
+  // Check both head and heads fields
+  const department = await Department.findOne({ 
+    $or: [
+      { head: employeeId },
+      { heads: employeeId }
+    ],
+    isActive: true 
+  });
   return department;
 }
 
@@ -473,6 +480,20 @@ function generateFallbackSessionAnalysis(session) {
 // ===================== API ROUTES =====================
 
 /**
+ * Trigger auto-analysis for multiple sessions in background
+ * Non-blocking - errors are logged but don't affect response
+ */
+async function triggerAutoAnalysisForSessions(sessionIds) {
+  for (const sessionId of sessionIds.slice(0, 3)) { // Limit to 3 to avoid timeout
+    try {
+      await analyzeSessionAsync(sessionId);
+    } catch (err) {
+      console.error(`[Auto-Analysis] Failed for session ${sessionId}:`, err.message);
+    }
+  }
+}
+
+/**
  * POST - Trigger session aggregation
  * Can be called by cron job or manually by admin
  */
@@ -568,6 +589,7 @@ export async function GET(request) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const afterDate = searchParams.get('after'); // For incremental fetching of new sessions only
     const includePartial = searchParams.get('includePartial') === 'true';
 
     // Check permissions
@@ -631,6 +653,11 @@ export async function GET(request) {
       query.sessionEnd = { ...(query.sessionEnd || {}), $lte: new Date(endDate) };
     }
 
+    // For incremental fetch - only get sessions newer than specified date
+    if (afterDate) {
+      query.sessionEnd = { ...(query.sessionEnd || {}), $gt: new Date(afterDate) };
+    }
+
     // Get total count for pagination
     const totalCount = await ProductivitySession.countDocuments(query);
 
@@ -643,17 +670,40 @@ export async function GET(request) {
       .populate('userId', 'name email profilePicture')
       .lean();
 
-    // Remove full screenshot data from list view (keep thumbnails)
+    // For list view: include thumbnail OR fullData for first 4 screenshots (for card display)
+    // Also include fullData fallback if no thumbnail exists
     const sessionsForList = sessions.map(session => ({
       ...session,
-      screenshots: session.screenshots?.map(s => ({
+      // Ensure we have computed duration if not set
+      durationMinutes: session.sessionDuration || Math.round((new Date(session.sessionEnd) - new Date(session.sessionStart)) / 60000),
+      screenshots: session.screenshots?.slice(0, 4).map((s, idx) => ({
         _id: s._id,
         capturedAt: s.capturedAt,
-        thumbnail: s.thumbnail,
+        // Include thumbnail if available, else include fullData for display
+        thumbnail: s.thumbnail || s.fullData,
+        // For first screenshot only, include fullData as fallback
+        url: s.thumbnail || s.fullData,
+        thumbnailUrl: s.thumbnail || s.fullData,
         captureType: s.captureType
-        // fullData excluded for list view
-      }))
+      })),
+      // Ensure these fields exist for display
+      appUsage: session.appUsageSummary || session.topApps || [],
+      websiteVisits: session.websiteVisitSummary || session.topWebsites || [],
+      keystrokes: {
+        total: session.keystrokeSummary?.totalCount || 0,
+        perMinute: session.keystrokeSummary?.averagePerMinute || 0
+      },
+      mouseClicks: session.mouseActivitySummary?.totalClicks || 0
     }));
+
+    // Trigger auto-analysis for sessions without AI analysis (background, non-blocking)
+    const unanalyzedSessions = sessions.filter(s => !s.aiAnalysis?.summary);
+    if (unanalyzedSessions.length > 0) {
+      // Don't await - run in background
+      triggerAutoAnalysisForSessions(unanalyzedSessions.map(s => s._id)).catch(err => {
+        console.error('[Sessions GET] Auto-analysis error:', err.message);
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -671,6 +721,139 @@ export async function GET(request) {
     return NextResponse.json({ 
       success: false, 
       error: 'Failed to fetch sessions' 
+    }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE - Delete sessions and/or raw productivity data for a user
+ * Admin only - allows purging user's productivity data
+ */
+export async function DELETE(request) {
+  try {
+    await connectDB();
+    
+    // Verify authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    
+    // Check if user is admin/god_admin
+    const user = await User.findById(payload.userId).select('role');
+    if (!user || !['admin', 'god_admin'].includes(user.role)) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('userId');
+    const sessionId = searchParams.get('sessionId');
+    const deleteType = searchParams.get('type') || 'sessions'; // 'sessions', 'screenshots', 'all'
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+
+    if (!targetUserId && !sessionId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Either userId or sessionId is required' 
+      }, { status: 400 });
+    }
+
+    const results = {
+      sessionsDeleted: 0,
+      rawDataDeleted: 0,
+      screenshotsCleared: 0
+    };
+
+    // Build date filter if provided
+    const dateFilter = {};
+    if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+    if (dateTo) dateFilter.$lte = new Date(dateTo);
+
+    // Delete specific session
+    if (sessionId) {
+      const sessionObjId = toObjectId(sessionId);
+      if (!sessionObjId) {
+        return NextResponse.json({ success: false, error: 'Invalid session ID' }, { status: 400 });
+      }
+
+      if (deleteType === 'screenshots') {
+        // Just clear screenshots from the session
+        const session = await ProductivitySession.findById(sessionObjId);
+        if (session) {
+          results.screenshotsCleared = session.screenshots?.length || 0;
+          session.screenshots = [];
+          await session.save();
+        }
+      } else {
+        // Delete the entire session
+        const deleted = await ProductivitySession.findByIdAndDelete(sessionObjId);
+        if (deleted) {
+          results.sessionsDeleted = 1;
+          results.screenshotsCleared = deleted.screenshots?.length || 0;
+        }
+      }
+    } 
+    // Delete by user ID
+    else if (targetUserId) {
+      const userObjId = toObjectId(targetUserId);
+      if (!userObjId) {
+        return NextResponse.json({ success: false, error: 'Invalid user ID' }, { status: 400 });
+      }
+
+      const sessionQuery = { userId: userObjId };
+      const rawDataQuery = { userId: userObjId };
+      
+      if (Object.keys(dateFilter).length > 0) {
+        sessionQuery.sessionStart = dateFilter;
+        rawDataQuery.createdAt = dateFilter;
+      }
+
+      if (deleteType === 'screenshots') {
+        // Clear screenshots from all matching sessions
+        const sessions = await ProductivitySession.find(sessionQuery);
+        for (const session of sessions) {
+          results.screenshotsCleared += session.screenshots?.length || 0;
+          session.screenshots = [];
+          await session.save();
+        }
+        
+        // Also clear screenshots from raw data
+        const rawDataUpdated = await ProductivityData.updateMany(
+          rawDataQuery,
+          { $unset: { 'screenshot.data': 1, 'screenshot.url': 1 } }
+        );
+        results.rawDataDeleted = rawDataUpdated.modifiedCount || 0;
+      } else if (deleteType === 'sessions') {
+        // Delete sessions only
+        const deleted = await ProductivitySession.deleteMany(sessionQuery);
+        results.sessionsDeleted = deleted.deletedCount || 0;
+      } else if (deleteType === 'all') {
+        // Delete everything
+        const sessionsDeleted = await ProductivitySession.deleteMany(sessionQuery);
+        results.sessionsDeleted = sessionsDeleted.deletedCount || 0;
+        
+        const rawDeleted = await ProductivityData.deleteMany(rawDataQuery);
+        results.rawDataDeleted = rawDeleted.deletedCount || 0;
+      }
+    }
+
+    console.log(`[Session Delete API] Admin ${payload.userId} deleted data:`, results);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Data deleted successfully',
+      ...results
+    });
+
+  } catch (error) {
+    console.error('[Session Delete API] Error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to delete data' 
     }, { status: 500 });
   }
 }

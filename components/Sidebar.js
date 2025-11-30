@@ -65,7 +65,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
     // Add Team menu item if user is a department head
     if (isDepartmentHead) {
-      // Insert Team menu after Dashboard
+      // Insert Team menu after Dashboard - includes Performance options
       const teamMenuItem = {
         name: 'Team',
         icon: FaUsers,
@@ -73,9 +73,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         submenu: [
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
-          { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-          { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
           { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+          { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
+          { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
+          { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
+          { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
+          { name: 'Team Goals', path: '/dashboard/performance/goals' },
+          { name: 'Performance Reports', path: '/dashboard/performance/reports' },
           { name: 'Geofencing', path: '/dashboard/team/geofencing' }
         ]
       }
@@ -202,10 +206,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                             color: pathname === subItem.path ? 'white' : '#6B7280'
                           }}
                         >
-                          <span className="flex items-center">
-                            <span className="w-2 h-2 bg-current rounded-full mr-3 opacity-60"></span>
-                            {subItem.name}
-                          </span>
+                          {subItem.name}
                         </Link>
                       ))}
                     </div>

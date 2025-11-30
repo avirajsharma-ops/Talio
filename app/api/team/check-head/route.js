@@ -44,9 +44,12 @@ export async function GET(request) {
       })
     }
 
-    // Check if user is a department head (via Department.head field)
+    // Check if user is a department head (via Department.head or Department.heads[] field)
     const department = await Department.findOne({ 
-      head: employeeId,
+      $or: [
+        { head: employeeId },
+        { heads: employeeId }
+      ],
       isActive: true 
     }).select('name code _id')
 

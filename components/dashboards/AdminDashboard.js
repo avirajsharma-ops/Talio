@@ -14,6 +14,7 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
+import { getEmployeeId } from '@/utils/userHelper'
 
 export default function AdminDashboard({ user }) {
   const router = useRouter()
@@ -38,15 +39,29 @@ export default function AdminDashboard({ user }) {
   const [employeeSearch, setEmployeeSearch] = useState('')
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
-  const [employeeData, setEmployeeData] = useState(null)
+  // Initialize with cached user data for instant display
+  const [employeeData, setEmployeeData] = useState(() => {
+    if (user?.employeeId && typeof user.employeeId === 'object') return user.employeeId
+    if (user?.employeeCode || user?.firstName) {
+      return { employeeCode: user.employeeCode, firstName: user.firstName, lastName: user.lastName, designation: user.designation, profilePicture: user.profilePicture }
+    }
+    return null
+  })
+
+  // Get employee ID string for API calls
+  const employeeIdStr = getEmployeeId(user)
 
   useEffect(() => {
-    fetchDashboardData()
-    // user.employeeId is the ID string, not an object
-    if (user?.employeeId) {
-      fetchTodayAttendance()
-      fetchEmployeeData()
+    // Load all data in parallel
+    const loadAllData = async () => {
+      const promises = [fetchDashboardData()]
+      if (employeeIdStr) {
+        promises.push(fetchTodayAttendance())
+        promises.push(fetchEmployeeData())
+      }
+      await Promise.allSettled(promises)
     }
+    loadAllData()
   }, [])
 
   const fetchDashboardData = async () => {
@@ -103,7 +118,7 @@ export default function AdminDashboard({ user }) {
       const token = localStorage.getItem('token')
       const today = new Date().toISOString().split('T')[0]
 
-      const response = await fetch(`/api/attendance?employeeId=${user.employeeId}&date=${today}`, {
+      const response = await fetch(`/api/attendance?employeeId=${employeeIdStr}&date=${today}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -119,12 +134,20 @@ export default function AdminDashboard({ user }) {
   const fetchEmployeeData = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/employees/${user.employeeId}`, {
+      const response = await fetch(`/api/employees/${employeeIdStr}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const result = await response.json()
       if (result.success) {
         setEmployeeData(result.data)
+        // Sync to localStorage for faster future loads
+        if (typeof window !== 'undefined') {
+          try {
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+            const updatedUser = { ...currentUser, employeeCode: result.data.employeeCode, firstName: result.data.firstName, lastName: result.data.lastName, designation: result.data.designation, profilePicture: result.data.profilePicture }
+            localStorage.setItem('user', JSON.stringify(updatedUser))
+          } catch (e) { /* ignore */ }
+        }
       }
     } catch (error) {
       console.error('Error fetching employee data:', error)
@@ -132,7 +155,7 @@ export default function AdminDashboard({ user }) {
   }
 
   const handleClockIn = async () => {
-    if (!user?.employeeId) return
+    if (!employeeIdStr) return
     setAttendanceLoading(true)
 
     try {
@@ -204,7 +227,7 @@ export default function AdminDashboard({ user }) {
   }
 
   const handleClockOut = async () => {
-    if (!user?.employeeId) return
+    if (!employeeIdStr) return
     setAttendanceLoading(true)
 
     try {
@@ -250,7 +273,7 @@ export default function AdminDashboard({ user }) {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId,
+          employeeId: employeeIdStr,
           type: 'clock-out',
           latitude,
           longitude,
@@ -368,7 +391,7 @@ export default function AdminDashboard({ user }) {
           {/* User Name and ID */}
           <div>
             <p className="text-xs text-gray-300 mb-0.5">
-              ID: {employeeData?.employeeCode || user?.employeeNumber || '---'}
+              ID: {employeeData?.employeeCode || user?.employeeCode || user?.employeeNumber || '---'}
             </p>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
               {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :

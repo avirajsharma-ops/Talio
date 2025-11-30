@@ -8,7 +8,8 @@ export async function GET(request, { params }) {
     await connectDB()
 
     const department = await Department.findById(params.id)
-      .populate('head', 'firstName lastName')
+      .populate('head', 'firstName lastName employeeCode designation')
+      .populate('heads', 'firstName lastName employeeCode designation')
 
     if (!department) {
       return NextResponse.json(
@@ -36,12 +37,23 @@ export async function PUT(request, { params }) {
     await connectDB()
 
     const data = await request.json()
+    
+    // Handle multiple heads - ensure backwards compatibility
+    if (data.heads && data.heads.length > 0) {
+      // Set the first head as the legacy 'head' field for backwards compatibility
+      data.head = data.heads[0]
+    } else if (data.head && !data.heads) {
+      // If only single head provided, also add to heads array
+      data.heads = [data.head]
+    }
 
     const department = await Department.findByIdAndUpdate(
       params.id,
       data,
       { new: true, runValidators: true }
-    ).populate('head', 'firstName lastName')
+    )
+      .populate('head', 'firstName lastName employeeCode designation')
+      .populate('heads', 'firstName lastName employeeCode designation')
 
     if (!department) {
       return NextResponse.json(

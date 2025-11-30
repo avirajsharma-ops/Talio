@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { FaCalendarAlt, FaClock, FaChartPie, FaHistory } from 'react-icons/fa'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function LeaveBalancePage() {
   const [leaveBalance, setLeaveBalance] = useState([])
@@ -14,12 +15,19 @@ export default function LeaveBalancePage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
-      fetchLeaveBalance(parsedUser.employeeId._id)
-      fetchLeaveHistory(parsedUser.employeeId._id)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchLeaveBalance(empId)
+        fetchLeaveHistory(empId)
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+        setLoading(false)
+      }
+    } else {
+      setLoading(false)
     }
   }, [selectedYear])
 

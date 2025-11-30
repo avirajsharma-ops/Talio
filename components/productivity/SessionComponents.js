@@ -1,29 +1,166 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle, FaDesktop, FaGlobe } from 'react-icons/fa';
+import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle, FaDesktop, FaGlobe, FaTrash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 import { useTheme } from '@/contexts/ThemeContext';
 
+// Cache helper for localStorage
+const CACHE_PREFIX = 'talio_cache_';
+const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes - increased for better UX
+
+// In-memory cache for faster access (survives tab switches but not page reloads)
+const memoryCache = new Map();
+
+function getCachedData(key) {
+  if (typeof window === 'undefined') return null;
+  
+  // Check memory cache first (fastest)
+  const memCached = memoryCache.get(key);
+  if (memCached && Date.now() - memCached.timestamp < CACHE_EXPIRY) {
+    return { data: memCached.data, version: memCached.version };
+  }
+  
+  // Fall back to localStorage
+  try {
+    const cached = localStorage.getItem(CACHE_PREFIX + key);
+    if (!cached) return null;
+    const { data, timestamp, version } = JSON.parse(cached);
+    // Check if cache is still valid
+    if (Date.now() - timestamp < CACHE_EXPIRY) {
+      // Also store in memory cache for faster subsequent access
+      memoryCache.set(key, { data, timestamp, version });
+      return { data, version };
+    }
+    // Cache expired, remove it
+    localStorage.removeItem(CACHE_PREFIX + key);
+    memoryCache.delete(key);
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCachedData(key, data, version = Date.now()) {
+  if (typeof window === 'undefined') return;
+  
+  // Always update memory cache
+  memoryCache.set(key, { data, timestamp: Date.now(), version });
+  
+  try {
+    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({
+      data,
+      timestamp: Date.now(),
+      version
+    }));
+  } catch (e) {
+    // localStorage full or unavailable
+  }
+}
+
+function clearCachedData(keyPattern) {
+  if (typeof window === 'undefined') return;
+  
+  // Clear from memory cache
+  for (const key of memoryCache.keys()) {
+    if (key.startsWith(keyPattern)) {
+      memoryCache.delete(key);
+    }
+  }
+  
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(CACHE_PREFIX + keyPattern)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+}
+
+// Check if user is admin
+function isUserAdmin() {
+  if (typeof window === 'undefined') return false;
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return ['admin', 'god_admin'].includes(user.role);
+  } catch (e) {
+    return false;
+  }
+}
+
 /**
  * User Cards Grid Component
  * Shows a grid of user cards with quick stats and latest session info
+ * Uses progressive loading with caching: basic info first, then stats
+ * Prevents unnecessary re-fetches on tab switches
  */
 export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
+  const lastRefreshRef = useRef(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    fetchUserCards();
+    // Check cache first for instant display
+    const cached = getCachedData('user_cards');
+    if (cached?.data) {
+      setUserCards(cached.data);
+      setLoading(false);
+      hasFetchedRef.current = true;
+    }
+    
+    // Only fetch if:
+    // 1. refreshKey explicitly changed (manual refresh), OR
+    // 2. No cache exists AND we haven't fetched yet
+    const refreshKeyChanged = refreshKey !== lastRefreshRef.current && lastRefreshRef.current !== null;
+    const needsInitialFetch = !cached && !hasFetchedRef.current;
+    
+    if (refreshKeyChanged || needsInitialFetch) {
+      lastRefreshRef.current = refreshKey;
+      fetchUserCardsProgressive(!cached);
+    } else if (!hasFetchedRef.current) {
+      // First mount with cache - still update refreshKey ref
+      lastRefreshRef.current = refreshKey;
+    }
   }, [refreshKey]);
 
-  const fetchUserCards = async () => {
+  const fetchUserCardsProgressive = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
+      
+      // Phase 1: Quick load - get basic user info immediately
+      const quickResponse = await fetch('/api/productivity/user-cards?quick=true', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const quickData = await quickResponse.json();
+      
+      if (quickData.success) {
+        setUserCards(quickData.data || []);
+        setAccessLevel(quickData.accessLevel || 'admin');
+        setCachedData('user_cards', quickData.data || []);
+        setLoading(false);
+        
+        // Phase 2: Load full stats in background
+        fetchFullStats(token);
+      } else {
+        console.error('Failed to fetch user cards:', quickData.error);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user cards:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchFullStats = async (token) => {
+    try {
       const response = await fetch('/api/productivity/user-cards', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -31,14 +168,10 @@ export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
       
       if (data.success) {
         setUserCards(data.data || []);
-        setAccessLevel(data.accessLevel || 'admin');
-      } else {
-        console.error('Failed to fetch user cards:', data.error);
+        setCachedData('user_cards', data.data || []);
       }
     } catch (error) {
-      console.error('Failed to fetch user cards:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch full stats:', error);
     }
   };
 
@@ -97,14 +230,16 @@ export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
  */
 function UserCard({ card, onClick, isSelected }) {
   const getProductivityColor = (score) => {
+    if (score === null || score === undefined) return { bg: 'bg-gray-300', text: 'text-gray-500', ring: 'ring-gray-200' };
     if (score >= 70) return { bg: 'bg-green-500', text: 'text-green-600', ring: 'ring-green-200' };
     if (score >= 40) return { bg: 'bg-yellow-500', text: 'text-yellow-600', ring: 'ring-yellow-200' };
     return { bg: 'bg-red-500', text: 'text-red-600', ring: 'ring-red-200' };
   };
 
-  const colors = getProductivityColor(card.todayStats?.avgProductivity || 0);
+  const colors = getProductivityColor(card.todayStats?.avgProductivity);
   const lastSessionTime = card.latestSession?.sessionEnd;
   const isOnline = lastSessionTime && (new Date() - new Date(lastSessionTime)) < 30 * 60 * 1000;
+  const statsLoading = card.statsLoading || card.totalSessions === null;
 
   return (
     <div 
@@ -147,13 +282,21 @@ function UserCard({ card, onClick, isSelected }) {
       <div className="mb-3">
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-gray-500">Today's Productivity</span>
-          <span className={`font-bold ${colors.text}`}>{card.todayStats?.avgProductivity || 0}%</span>
+          {statsLoading ? (
+            <span className="text-xs text-gray-400 animate-pulse">Loading...</span>
+          ) : (
+            <span className={`font-bold ${colors.text}`}>{card.todayStats?.avgProductivity || 0}%</span>
+          )}
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${colors.bg} transition-all`}
-            style={{ width: `${card.todayStats?.avgProductivity || 0}%` }}
-          ></div>
+          {statsLoading ? (
+            <div className="h-full bg-gray-200 animate-pulse"></div>
+          ) : (
+            <div 
+              className={`h-full ${colors.bg} transition-all`}
+              style={{ width: `${card.todayStats?.avgProductivity || 0}%` }}
+            ></div>
+          )}
         </div>
       </div>
 
@@ -161,11 +304,19 @@ function UserCard({ card, onClick, isSelected }) {
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-1 text-gray-500">
           <FaClock className="text-gray-400" />
-          <span>{card.todayStats?.duration || 0} min</span>
+          {statsLoading ? (
+            <span className="text-xs text-gray-400 animate-pulse">--</span>
+          ) : (
+            <span>{card.todayStats?.duration || 0} min</span>
+          )}
         </div>
         <div className="flex items-center gap-1 text-gray-500">
           <FaCamera className="text-gray-400" />
-          <span>{card.totalSessions || card.todayStats?.sessionsCount || 0} sessions</span>
+          {statsLoading ? (
+            <span className="text-xs text-gray-400 animate-pulse">--</span>
+          ) : (
+            <span>{card.totalSessions || card.todayStats?.sessionsCount || 0} sessions</span>
+          )}
         </div>
       </div>
 
@@ -189,8 +340,10 @@ function UserCard({ card, onClick, isSelected }) {
 /**
  * Session Popup Modal Component
  * Shows detailed session information with screenshots
+ * Includes caching and admin delete functionality
+ * Preserves data on tab switches - only fetches new data
  */
-export function SessionPopup({ user, isOpen, onClose }) {
+export function SessionPopup({ user, isOpen, onClose, onDataChange }) {
   const { theme } = useTheme();
   const primaryColor = theme?.primary?.[600] || '#2563EB';
   const primaryLight = theme?.primary?.[100] || '#DBEAFE';
@@ -201,22 +354,77 @@ export function SessionPopup({ user, isOpen, onClose }) {
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const isAdmin = useMemo(() => isUserAdmin(), []);
+  const cacheKey = useMemo(() => user?.userId ? `sessions_${user.userId}` : null, [user?.userId]);
+  const lastUserIdRef = useRef(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     if (isOpen && user) {
-      fetchSessions(true);
+      const userChanged = lastUserIdRef.current !== user.userId;
+      lastUserIdRef.current = user.userId;
+      
+      // Check cache first
+      const cached = cacheKey ? getCachedData(cacheKey) : null;
+      
+      if (cached?.data?.length > 0) {
+        setSessions(cached.data);
+        setOffset(cached.data.length);
+        setHasMore(cached.data.length >= 4);
+        setLoading(false);
+        hasFetchedRef.current = true;
+        
+        // Only refresh in background if user changed
+        if (userChanged) {
+          fetchNewSessions(cached.data);
+        }
+      } else if (!hasFetchedRef.current || userChanged) {
+        // No cache or user changed - do full fetch
+        fetchSessions(true, true);
+      }
     }
   }, [isOpen, user]);
 
-  const fetchSessions = async (reset = false) => {
+  // Fetch only new sessions (newer than the latest cached one)
+  const fetchNewSessions = async (existingSessions) => {
+    if (!user || existingSessions.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const latestTime = new Date(existingSessions[0].sessionEnd || existingSessions[0].createdAt).toISOString();
+      
+      const response = await fetch(`/api/productivity/sessions?userId=${user.userId}&limit=10&after=${latestTime}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.success && data.data?.length > 0) {
+        // Prepend new sessions to existing ones
+        const newSessions = data.data;
+        const updatedSessions = [...newSessions, ...existingSessions];
+        setSessions(updatedSessions);
+        setOffset(updatedSessions.length);
+        
+        // Update cache
+        if (cacheKey) {
+          setCachedData(cacheKey, updatedSessions);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch new sessions:', error);
+    }
+  };
+
+  const fetchSessions = async (reset = false, showLoading = true) => {
     if (!user) return;
     
     try {
-      if (reset) {
+      if (reset && showLoading) {
         setLoading(true);
         setSessions([]);
         setOffset(0);
-      } else {
+      } else if (!reset) {
         setLoadingMore(true);
       }
 
@@ -229,26 +437,96 @@ export function SessionPopup({ user, isOpen, onClose }) {
 
       if (data.success) {
         const newSessions = data.data || [];
+        let updatedSessions;
         if (reset) {
+          updatedSessions = newSessions;
           setSessions(newSessions);
         } else {
-          setSessions(prev => [...prev, ...newSessions]);
+          // When loading more, append to existing (no duplicates)
+          const existingIds = new Set(sessions.map(s => s._id));
+          const uniqueNewSessions = newSessions.filter(s => !existingIds.has(s._id));
+          updatedSessions = [...sessions, ...uniqueNewSessions];
+          setSessions(updatedSessions);
         }
-        setOffset(newOffset + newSessions.length);
-        setHasMore(newSessions.length === 4);
+        setOffset(updatedSessions.length);
+        setHasMore(data.pagination?.hasMore || newSessions.length === 4);
+        hasFetchedRef.current = true;
+        
+        // Cache the results
+        if (cacheKey && updatedSessions.length > 0) {
+          setCachedData(cacheKey, updatedSessions);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
-      toast.error('Failed to load sessions');
+      if (showLoading) toast.error('Failed to load sessions');
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
+  const handleDeleteSession = async (sessionId, e) => {
+    e?.stopPropagation();
+    if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) return;
+    
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/productivity/sessions?sessionId=${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Session deleted');
+        setSessions(prev => prev.filter(s => s._id !== sessionId));
+        // Clear cache
+        if (cacheKey) clearCachedData(cacheKey);
+        clearCachedData('user_cards');
+        onDataChange?.();
+      } else {
+        toast.error(data.error || 'Failed to delete session');
+      }
+    } catch (error) {
+      toast.error('Failed to delete session');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAllSessions = async () => {
+    if (!confirm(`Are you sure you want to delete ALL sessions for ${user?.name}? This action cannot be undone.`)) return;
+    
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/productivity/sessions?userId=${user.userId}&type=sessions`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`Deleted ${data.sessionsDeleted} sessions`);
+        setSessions([]);
+        if (cacheKey) clearCachedData(cacheKey);
+        clearCachedData('user_cards');
+        onDataChange?.();
+      } else {
+        toast.error(data.error || 'Failed to delete sessions');
+      }
+    } catch (error) {
+      toast.error('Failed to delete sessions');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const loadMore = () => {
     if (!loadingMore && hasMore) {
-      fetchSessions(false);
+      fetchSessions(false, true);
     }
   };
 
@@ -278,8 +556,21 @@ export function SessionPopup({ user, isOpen, onClose }) {
           )}
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-800">{user?.name}'s Sessions</h2>
-            <p className="text-sm text-gray-500">{user?.designation} • {user?.department}</p>
+            <p className="text-sm text-gray-500">{user?.employeeCode || user?.designation} • {user?.department}</p>
           </div>
+          
+          {/* Admin Delete All Button */}
+          {isAdmin && sessions.length > 0 && (
+            <button
+              onClick={handleDeleteAllSessions}
+              disabled={deleting}
+              className="px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              <FaTrash className="text-xs" />
+              Delete All
+            </button>
+          )}
+          
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-200 rounded-full transition-colors"
@@ -308,6 +599,8 @@ export function SessionPopup({ user, isOpen, onClose }) {
                     key={session._id} 
                     session={session}
                     onClick={() => setSelectedSession(session)}
+                    onDelete={isAdmin ? (e) => handleDeleteSession(session._id, e) : null}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>
@@ -328,7 +621,7 @@ export function SessionPopup({ user, isOpen, onClose }) {
                       </>
                     ) : (
                       <>
-                        <FaSync />
+                        <FaSync className="text-white" />
                         Load More Sessions
                       </>
                     )}
@@ -357,13 +650,18 @@ export function SessionPopup({ user, isOpen, onClose }) {
  * Session Card Component
  * Shows a summary of a single session with thumbnails
  */
-function SessionCard({ session, onClick }) {
+function SessionCard({ session, onClick, onDelete, isAdmin }) {
   const screenshotCount = session.screenshots?.length || 0;
-  const firstScreenshot = session.screenshots?.[0];
   
-  // Get apps and websites from various possible field names
+  // Get apps and websites from various possible field names - with safe defaults
   const apps = session.appUsageSummary || session.appUsage || session.topApps || [];
   const websites = session.websiteVisitSummary || session.websiteVisits || session.topWebsites || [];
+  
+  // Calculate productivity score from aiAnalysis or compute from time data
+  const productivityScore = session.aiAnalysis?.productivityScore || 
+    (session.totalActiveTime > 0 
+      ? Math.round((session.productiveTime / session.totalActiveTime) * 100) 
+      : 0);
   
   const getScoreColor = (score) => {
     if (score >= 70) return 'text-green-600 bg-green-100';
@@ -380,11 +678,32 @@ function SessionCard({ session, onClick }) {
     return `${hrs}h ${mins % 60}m`;
   };
 
+  // Get screenshot URL - handle various possible fields
+  const getScreenshotUrl = (screenshot) => {
+    if (!screenshot) return null;
+    return screenshot.thumbnail || screenshot.fullData || screenshot.url || screenshot.thumbnailUrl || null;
+  };
+
+  // Calculate session duration safely
+  const sessionDuration = session.durationMinutes || session.sessionDuration || 
+    Math.round((new Date(session.sessionEnd) - new Date(session.sessionStart)) / 60000) || 30;
+
   return (
     <div 
       onClick={onClick}
-      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all"
+      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all relative group"
     >
+      {/* Admin Delete Button */}
+      {isAdmin && onDelete && (
+        <button
+          onClick={onDelete}
+          className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-200 transition-all z-10"
+          title="Delete session"
+        >
+          <FaTrash className="text-xs" />
+        </button>
+      )}
+      
       {/* Time and Score Header */}
       <div className="flex justify-between items-start mb-3">
         <div>
@@ -393,27 +712,39 @@ function SessionCard({ session, onClick }) {
           </div>
           <div className="text-sm text-gray-500">{formatLocalDateOnly(session.sessionStart)}</div>
         </div>
-        <div className={`px-3 py-1 rounded-full font-bold text-sm ${getScoreColor(session.aiAnalysis?.productivityScore || 0)}`}>
-          {session.aiAnalysis?.productivityScore || 0}%
+        <div className={`px-3 py-1 rounded-full font-bold text-sm ${getScoreColor(productivityScore)}`}>
+          {productivityScore}%
         </div>
       </div>
 
       {/* Screenshot Thumbnails */}
-      <div className="grid grid-cols-4 gap-2 mb-3">
-        {session.screenshots?.slice(0, 4).map((screenshot, idx) => (
-          <div 
-            key={idx} 
-            className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden"
-          >
-            <img 
-              src={screenshot.thumbnail || screenshot.fullData || screenshot.thumbnailUrl || screenshot.url}
-              alt={`Screenshot ${idx + 1}`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ))}
+      <div className="grid grid-cols-4 gap-2 mb-3 relative">
+        {session.screenshots?.slice(0, 4).map((screenshot, idx) => {
+          const url = getScreenshotUrl(screenshot);
+          return (
+            <div 
+              key={screenshot._id || idx} 
+              className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden"
+            >
+              {url ? (
+                <img 
+                  src={url}
+                  alt={`Screenshot ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <FaCamera className="text-lg" />
+                </div>
+              )}
+            </div>
+          );
+        })}
         {screenshotCount > 4 && (
-          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+          <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
             +{screenshotCount - 4} more
           </div>
         )}
@@ -430,9 +761,9 @@ function SessionCard({ session, onClick }) {
             {apps.slice(0, 3).map((app, idx) => (
               <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
                 {app.appName}
-                {(app.percentage || app.totalDuration) && (
+                {(app.percentage || app.totalDuration || app.duration) && (
                   <span className="text-blue-500">
-                    ({app.percentage ? `${app.percentage}%` : formatDuration(app.totalDuration)})
+                    ({app.percentage ? `${app.percentage}%` : formatDuration(app.totalDuration || app.duration)})
                   </span>
                 )}
               </span>
@@ -469,14 +800,16 @@ function SessionCard({ session, onClick }) {
 
       {/* Summary */}
       <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-        {session.aiAnalysis?.summary || 'Activity session captured'}
+        {session.aiAnalysis?.summary || (apps.length > 0 || websites.length > 0 
+          ? `Activity session with ${apps.length} app${apps.length !== 1 ? 's' : ''} and ${websites.length} website${websites.length !== 1 ? 's' : ''} tracked.`
+          : 'Activity session captured')}
       </p>
 
       {/* Quick Stats */}
-      <div className="flex items-center gap-4 text-xs text-gray-500">
+      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
         <div className="flex items-center gap-1">
           <FaClock className="text-gray-400" />
-          <span>{session.sessionDuration || session.durationMinutes} min</span>
+          <span>{sessionDuration} min</span>
         </div>
         <div className="flex items-center gap-1">
           <FaCamera className="text-gray-400" />
@@ -494,7 +827,21 @@ function SessionCard({ session, onClick }) {
             <span>{websites.length} sites</span>
           </div>
         )}
+        {(session.keystrokeSummary?.totalCount > 0 || session.keystrokes?.total > 0) && (
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400">⌨️</span>
+            <span>{session.keystrokeSummary?.totalCount || session.keystrokes?.total} keys</span>
+          </div>
+        )}
       </div>
+
+      {/* AI Analysis Status */}
+      {!session.aiAnalysis?.summary && (
+        <div className="mt-2 flex items-center gap-1 text-xs text-blue-600">
+          <FaSync className="animate-spin" />
+          <span>AI analysis pending...</span>
+        </div>
+      )}
 
       {/* Warnings */}
       {session.aiAnalysis?.areasOfImprovement?.length > 0 && (
@@ -1014,19 +1361,40 @@ function SessionDetailModal({ session, onClose }) {
 /**
  * Chat History User Cards Grid Component
  * Shows a grid of user cards for MAYA chat history
+ * Uses caching to reduce server queries
+ * Prevents unnecessary re-fetches on tab switches
  */
 export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
+  const lastRefreshRef = useRef(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    fetchChatHistoryCards();
+    // Check cache first
+    const cached = getCachedData('chat_history_user_cards');
+    if (cached?.data) {
+      setUserCards(cached.data);
+      setLoading(false);
+      hasFetchedRef.current = true;
+    }
+    
+    // Only fetch if refreshKey explicitly changed or no cache and haven't fetched
+    const refreshKeyChanged = refreshKey !== lastRefreshRef.current && lastRefreshRef.current !== null;
+    const needsInitialFetch = !cached && !hasFetchedRef.current;
+    
+    if (refreshKeyChanged || needsInitialFetch) {
+      lastRefreshRef.current = refreshKey;
+      fetchChatHistoryCards(!cached);
+    } else if (!hasFetchedRef.current) {
+      lastRefreshRef.current = refreshKey;
+    }
   }, [refreshKey]);
 
-  const fetchChatHistoryCards = async () => {
+  const fetchChatHistoryCards = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch('/api/productivity/chat-history/user-cards', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1036,6 +1404,7 @@ export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId, refreshKey 
       if (data.success) {
         setUserCards(data.data || []);
         setAccessLevel(data.accessLevel || 'admin');
+        setCachedData('chat_history_user_cards', data.data || []);
       } else {
         console.error('Failed to fetch chat history cards:', data.error);
       }
@@ -1376,19 +1745,40 @@ export function ChatHistoryPopup({ user, isOpen, onClose }) {
 /**
  * Raw Captures User Cards Grid Component
  * Shows a grid of user cards for raw captures monitoring
+ * Uses caching to reduce server queries
+ * Prevents unnecessary re-fetches on tab switches
  */
 export function RawCapturesUserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
+  const lastRefreshRef = useRef(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    fetchUserCards();
+    // Check cache first
+    const cached = getCachedData('raw_captures_user_cards');
+    if (cached?.data) {
+      setUserCards(cached.data);
+      setLoading(false);
+      hasFetchedRef.current = true;
+    }
+    
+    // Only fetch if refreshKey explicitly changed or no cache and haven't fetched
+    const refreshKeyChanged = refreshKey !== lastRefreshRef.current && lastRefreshRef.current !== null;
+    const needsInitialFetch = !cached && !hasFetchedRef.current;
+    
+    if (refreshKeyChanged || needsInitialFetch) {
+      lastRefreshRef.current = refreshKey;
+      fetchUserCards(!cached);
+    } else if (!hasFetchedRef.current) {
+      lastRefreshRef.current = refreshKey;
+    }
   }, [refreshKey]);
 
-  const fetchUserCards = async () => {
+  const fetchUserCards = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch('/api/productivity/monitor/user-cards', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1398,6 +1788,7 @@ export function RawCapturesUserCardsGrid({ onUserSelect, selectedUserId, refresh
       if (data.success) {
         setUserCards(data.data || []);
         setAccessLevel(data.accessLevel || 'admin');
+        setCachedData('raw_captures_user_cards', data.data || []);
       } else {
         console.error('Failed to fetch raw capture user cards:', data.error);
       }
@@ -1526,7 +1917,7 @@ function RawCaptureUserCard({ card, onClick, isSelected }) {
           <span className={`font-medium ${colors.text}`}>{card.avgProductivity}%</span>
         </div>
         <div className="flex items-center gap-1 text-gray-500">
-          <FaClock />
+          <FaClock className="text-gray-500" />
           <span>{card.totalActiveTime} min</span>
         </div>
       </div>
@@ -1543,36 +1934,182 @@ function RawCaptureUserCard({ card, onClick, isSelected }) {
 /**
  * Raw Captures Popup Modal
  * Shows raw capture data for a selected user with pagination
+ * Includes caching and admin delete functionality
+ * Preserves data on tab switches - only fetches new data
+ * Uses progressive loading to show captures one at a time for better UX
  */
-export function RawCapturesPopup({ user, isOpen, onClose }) {
+export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
   const { theme } = useTheme();
   const primaryColor = theme?.primary?.[600] || '#2563EB';
   const [captures, setCaptures] = useState([]);
+  const [visibleCaptures, setVisibleCaptures] = useState([]); // Progressive display
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedCaptures, setExpandedCaptures] = useState(new Set());
   const [totalCount, setTotalCount] = useState(0);
-  const limit = 10; // Reduced for better UX
+  const [deleting, setDeleting] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false); // Track if we're progressively loading
+  const limit = 10;
   const popupRef = useRef(null);
+  const streamingIndexRef = useRef(0);
+  const isAdmin = useMemo(() => isUserAdmin(), []);
+  const cacheKey = useMemo(() => user?.userId ? `raw_captures_${user.userId}` : null, [user?.userId]);
+  const lastUserIdRef = useRef(null);
+  const hasFetchedRef = useRef(false);
+
+  // Progressive loading effect - show captures one by one
+  useEffect(() => {
+    if (isStreaming && captures.length > 0 && visibleCaptures.length < captures.length) {
+      const timer = setTimeout(() => {
+        const nextIndex = visibleCaptures.length;
+        if (nextIndex < captures.length) {
+          setVisibleCaptures(prev => [...prev, captures[nextIndex]]);
+        }
+        if (nextIndex + 1 >= captures.length) {
+          setIsStreaming(false);
+        }
+      }, 100); // Show each capture with 100ms delay for smooth streaming effect
+      return () => clearTimeout(timer);
+    }
+  }, [isStreaming, captures, visibleCaptures.length]);
 
   useEffect(() => {
     if (isOpen && user) {
-      setCaptures([]);
-      setHasMore(true);
-      setTotalCount(user?.totalCaptures || 0);
-      fetchCaptures(true);
+      const userChanged = lastUserIdRef.current !== user.userId;
+      lastUserIdRef.current = user.userId;
+      
+      // Check cache first
+      const cached = cacheKey ? getCachedData(cacheKey) : null;
+      
+      if (cached?.data?.length > 0 && !userChanged) {
+        // Use cached data and show immediately (no streaming for cached)
+        setCaptures(cached.data);
+        setVisibleCaptures(cached.data); // Show all cached immediately
+        setTotalCount(user?.totalCaptures || cached.data.length);
+        setHasMore(cached.data.length < (user?.totalCaptures || cached.data.length + limit));
+        setLoading(false);
+        hasFetchedRef.current = true;
+        
+        // Fetch new captures in background (prepend new ones)
+        fetchNewCaptures(cached.data);
+      } else if (userChanged || !hasFetchedRef.current) {
+        // User changed or first load - do progressive fetch
+        setCaptures([]);
+        setVisibleCaptures([]);
+        setHasMore(true);
+        setTotalCount(user?.totalCaptures || 0);
+        fetchCapturesProgressively();
+      }
     }
   }, [isOpen, user]);
 
-  const fetchCaptures = async (reset = false) => {
+  // Fetch captures progressively - one at a time for immediate display
+  const fetchCapturesProgressively = async () => {
+    if (!user?.userId) return;
+    
+    setLoading(true);
+    setIsStreaming(true);
+    setCaptures([]);
+    setVisibleCaptures([]);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // First, fetch just 1 capture to show immediately
+      const firstResponse = await fetch(
+        `/api/productivity/monitor?userId=${user.userId}&limit=1&skip=0&includeScreenshot=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const firstData = await firstResponse.json();
+      
+      if (firstData.success) {
+        const firstCapture = (firstData.data || []).filter(item => item.status !== 'pending');
+        if (firstCapture.length > 0) {
+          setCaptures(firstCapture);
+          setVisibleCaptures(firstCapture);
+          setLoading(false); // Stop main loading spinner once first item is visible
+        }
+        
+        // Now fetch remaining captures in background
+        const remainingResponse = await fetch(
+          `/api/productivity/monitor?userId=${user.userId}&limit=${limit - 1}&skip=1&includeScreenshot=true`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        const remainingData = await remainingResponse.json();
+        
+        if (remainingData.success) {
+          const remainingCaptures = (remainingData.data || []).filter(item => item.status !== 'pending');
+          const allCaptures = [...firstCapture, ...remainingCaptures];
+          setCaptures(allCaptures);
+          
+          // Use API's total count if available
+          const apiTotal = remainingData.total || firstData.total || 0;
+          const userTotal = user?.totalCaptures || 0;
+          const bestTotal = Math.max(apiTotal, userTotal, allCaptures.length);
+          
+          setTotalCount(bestTotal);
+          setHasMore(allCaptures.length < bestTotal);
+          hasFetchedRef.current = true;
+          
+          // Cache the results
+          if (cacheKey && allCaptures.length > 0) {
+            setCachedData(cacheKey, allCaptures);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch captures:', error);
+      toast.error('Failed to load captures');
+    } finally {
+      setLoading(false);
+      // Streaming continues via useEffect
+    }
+  };
+
+  // Fetch only new captures (newer than latest cached)
+  const fetchNewCaptures = async (existingCaptures) => {
+    if (!user?.userId || existingCaptures.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const latestTime = new Date(existingCaptures[0].createdAt).toISOString();
+      
+      const response = await fetch(
+        `/api/productivity/monitor?userId=${user.userId}&limit=20&after=${latestTime}&includeScreenshot=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await response.json();
+      
+      if (data.success && data.data?.length > 0) {
+        const newCapturesData = (data.data || []).filter(item => item.status !== 'pending');
+        if (newCapturesData.length > 0) {
+          // Prepend new captures
+          const updatedCaptures = [...newCapturesData, ...existingCaptures];
+          setCaptures(updatedCaptures);
+          setVisibleCaptures(updatedCaptures); // Show all including new ones
+          setTotalCount(prev => prev + newCapturesData.length);
+          
+          // Update cache
+          if (cacheKey) {
+            setCachedData(cacheKey, updatedCaptures);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch new captures:', error);
+    }
+  };
+
+  const fetchCaptures = async (reset = false, showLoading = true) => {
     if (!user?.userId) return;
     
     try {
-      if (reset) {
+      if (reset && showLoading) {
         setLoading(true);
         setCaptures([]);
-      } else {
+        setVisibleCaptures([]);
+      } else if (!reset) {
         setLoadingMore(true);
       }
 
@@ -1585,42 +2122,86 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
       const data = await response.json();
       
       if (data.success) {
-        const newCaptures = (data.data || []).filter(item => item.status !== 'pending');
-        const updatedCaptures = reset ? newCaptures : [...captures, ...newCaptures];
+        const newCapturesData = (data.data || []).filter(item => item.status !== 'pending');
+        
+        let updatedCaptures;
+        if (reset) {
+          updatedCaptures = newCapturesData;
+          // Start progressive loading for new fetch
+          setIsStreaming(true);
+        } else {
+          // When loading more, append and deduplicate
+          const existingIds = new Set(captures.map(c => c._id));
+          const uniqueNewCaptures = newCapturesData.filter(c => !existingIds.has(c._id));
+          updatedCaptures = [...captures, ...uniqueNewCaptures];
+          // For load more, also show immediately
+          setVisibleCaptures(updatedCaptures);
+        }
+        
         setCaptures(updatedCaptures);
+        hasFetchedRef.current = true;
         
         // Use API's total count if available, otherwise fall back to user's totalCaptures
         const apiTotal = data.total || 0;
         const userTotal = user?.totalCaptures || 0;
-        const bestTotal = Math.max(apiTotal, userTotal);
+        const bestTotal = Math.max(apiTotal, userTotal, updatedCaptures.length);
         
         // Use API's hasMore if available, otherwise calculate based on totals
         const stillHasMore = data.hasMore !== undefined 
           ? data.hasMore 
-          : (bestTotal > 0 ? updatedCaptures.length < bestTotal : newCaptures.length >= limit);
+          : (bestTotal > 0 ? updatedCaptures.length < bestTotal : newCapturesData.length >= limit);
         
         setTotalCount(bestTotal);
         setHasMore(stillHasMore);
         
-        console.log('[RawCaptures] Loaded:', {
-          newItems: newCaptures.length,
-          totalLoaded: updatedCaptures.length,
-          apiTotal: apiTotal,
-          userTotal: userTotal,
-          hasMore: stillHasMore
-        });
+        // Cache the results
+        if (cacheKey && updatedCaptures.length > 0) {
+          setCachedData(cacheKey, updatedCaptures);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch captures:', error);
+      if (showLoading) toast.error('Failed to load captures');
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
+  const handleDeleteAllScreenshots = async () => {
+    if (!confirm(`Are you sure you want to delete ALL raw captures for ${user?.name}? This action cannot be undone.`)) return;
+    
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/productivity/sessions?userId=${user.userId}&type=all`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`Deleted ${data.rawDataDeleted} captures`);
+        setCaptures([]);
+        setVisibleCaptures([]);
+        setTotalCount(0);
+        if (cacheKey) clearCachedData(cacheKey);
+        clearCachedData('raw_captures_user_cards');
+        clearCachedData('user_cards');
+        onDataChange?.();
+      } else {
+        toast.error(data.error || 'Failed to delete captures');
+      }
+    } catch (error) {
+      toast.error('Failed to delete captures');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const loadMore = () => {
     if (!loadingMore && hasMore) {
-      fetchCaptures(false);
+      fetchCaptures(false, true);
     }
   };
 
@@ -1640,6 +2221,16 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
 
   const modalContent = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999] p-4">
+      {/* Animation styles for portal */}
+      <style jsx global>{`
+        @keyframes fadeInSlide {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeInSlide 0.3s ease-out forwards;
+        }
+      `}</style>
       <div 
         ref={popupRef}
         className="bg-gray-100 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
@@ -1664,12 +2255,25 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
               {user?.isOwn ? 'Your Raw Captures' : `${user?.name}'s Raw Captures`}
               {user?.isOwn && <span className="text-xs bg-white/20 px-2 py-1 rounded-full">You</span>}
             </h2>
-            <p className="text-gray-200 text-sm">{user?.designation || user?.employeeCode || 'Employee'}</p>
+            <p className="text-gray-200 text-sm">{user?.employeeCode || user?.designation || 'Employee'} • {user?.department}</p>
           </div>
           <div className="text-right text-white mr-4">
-            <div className="text-2xl font-bold">{user?.totalCaptures || captures.length}</div>
+            <div className="text-2xl font-bold">{totalCount || visibleCaptures.length}</div>
             <div className="text-sm text-gray-200">Total Captures</div>
           </div>
+          
+          {/* Admin Delete All Button */}
+          {isAdmin && visibleCaptures.length > 0 && (
+            <button
+              onClick={handleDeleteAllScreenshots}
+              disabled={deleting}
+              className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              <FaTrash className="text-xs" />
+              Delete All
+            </button>
+          )}
+          
           <button 
             onClick={onClose}
             className="bg-black/10 hover:bg-black/20 rounded-full p-2 transition-colors"
@@ -1680,22 +2284,24 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
+          {loading && visibleCaptures.length === 0 ? (
             <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
-                  <div className="flex gap-4">
-                    <div className="w-48 h-32 bg-gray-200 rounded-lg"></div>
-                    <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                      <div className="h-20 bg-gray-200 rounded"></div>
-                    </div>
+              {/* Show single loading skeleton initially */}
+              <div className="bg-white rounded-xl p-4 animate-pulse">
+                <div className="flex gap-4">
+                  <div className="w-48 h-32 bg-gray-200 rounded-lg"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                    <div className="h-20 bg-gray-200 rounded"></div>
                   </div>
                 </div>
-              ))}
+              </div>
+              <div className="text-center text-gray-500 text-sm">
+                Loading first capture...
+              </div>
             </div>
-          ) : captures.length === 0 ? (
+          ) : visibleCaptures.length === 0 ? (
             <div className="bg-white rounded-xl p-12 text-center">
               <FaCamera className="text-6xl text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 mb-2">No Raw Captures</h3>
@@ -1703,11 +2309,20 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
             </div>
           ) : (
             <>
+              {/* Streaming indicator */}
+              {isStreaming && visibleCaptures.length < captures.length && (
+                <div className="mb-4 flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-lg py-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm">Loading more captures... ({visibleCaptures.length}/{captures.length})</span>
+                </div>
+              )}
+              
               <div className="space-y-4">
-                {captures.map((capture, idx) => (
+                {visibleCaptures.map((capture, idx) => (
                   <div 
                     key={capture._id || idx}
-                    className="bg-white rounded-xl shadow-md overflow-hidden"
+                    className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn"
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div 
                       className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -1724,7 +2339,7 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <FaCamera className="text-3xl" />
+                              <FaCamera className="text-3xl text-gray-400" />
                             </div>
                           )}
                         </div>
@@ -1831,15 +2446,15 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
               </div>
 
               {/* Load More Button - Always show if there are more captures to load */}
-              {captures.length > 0 && (
+              {visibleCaptures.length > 0 && (
                 <div className="text-center pt-6 pb-2">
                   <p className="text-sm text-gray-500 mb-3">
-                    Showing {captures.length} of {totalCount > 0 ? totalCount : (user?.totalCaptures || captures.length)} captures
+                    Showing {visibleCaptures.length} of {totalCount > 0 ? totalCount : (user?.totalCaptures || visibleCaptures.length)} captures
                   </p>
-                  {(hasMore || captures.length < totalCount) ? (
+                  {(hasMore || visibleCaptures.length < totalCount) ? (
                     <button
                       onClick={loadMore}
-                      disabled={loadingMore}
+                      disabled={loadingMore || isStreaming}
                       className="px-8 py-3 text-white rounded-full font-medium transition-all disabled:opacity-50 hover:opacity-90 shadow-lg"
                       style={{ backgroundColor: primaryColor }}
                     >
@@ -1850,8 +2465,8 @@ export function RawCapturesPopup({ user, isOpen, onClose }) {
                         </span>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
-                          <FaSync />
-                          Load More Captures ({Math.max(0, totalCount - captures.length)} remaining)
+                          <FaSync className="text-white" />
+                          Load More Captures ({Math.max(0, totalCount - visibleCaptures.length)} remaining)
                         </span>
                       )}
                     </button>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaFile, FaDownload, FaEye, FaTrash } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([])
@@ -11,11 +12,18 @@ export default function DocumentsPage() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
-      fetchDocuments(parsedUser.employeeId._id)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchDocuments(empId)
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+        setLoading(false)
+      }
+    } else {
+      setLoading(false)
     }
   }, [])
 

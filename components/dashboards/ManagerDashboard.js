@@ -12,6 +12,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip from '@/components/charts/CustomTooltip'
+import { getEmployeeId, getDesignationText } from '@/utils/userHelper'
 
 export default function ManagerDashboard({ user }) {
   const { theme } = useTheme()
@@ -20,6 +21,7 @@ export default function ManagerDashboard({ user }) {
   const primaryColor = theme?.primary?.[500] || '#3B82F6'
   const primaryDark = theme?.primary?.[600] || '#2563EB'
 
+  // Initialize with cached user data for instant display
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
   const [teamMembers, setTeamMembers] = useState([])
@@ -27,17 +29,48 @@ export default function ManagerDashboard({ user }) {
   const [recentActivities, setRecentActivities] = useState([])
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
-  const [employeeData, setEmployeeData] = useState(null)
+  // Use user's employeeId data as initial state for instant display
+  const [employeeData, setEmployeeData] = useState(() => {
+    // Try to get cached employee data from user object
+    if (user?.employeeId && typeof user.employeeId === 'object') {
+      return user.employeeId
+    }
+    // Check if user has direct employee fields
+    if (user?.employeeCode || user?.firstName) {
+      return {
+        employeeCode: user.employeeCode,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        designation: user.designation,
+        profilePicture: user.profilePicture
+      }
+    }
+    return null
+  })
+
+  // Get employee ID for API calls
+  const employeeIdStr = getEmployeeId(user)
 
   useEffect(() => {
-    fetchManagerStats()
-    fetchTeamMembers()
-    fetchPendingLeaves()
-    // user.employeeId is the ID string, not an object
-    if (user?.employeeId) {
-      fetchTodayAttendance()
-      fetchEmployeeData()
+    // Load all data in PARALLEL for faster display
+    const loadAllData = async () => {
+      const promises = [
+        fetchManagerStats(),
+        fetchTeamMembers(),
+        fetchPendingLeaves()
+      ]
+      
+      // Add employee-specific fetches if we have an employeeId
+      if (employeeIdStr) {
+        promises.push(fetchTodayAttendance())
+        promises.push(fetchEmployeeData())
+      }
+      
+      await Promise.allSettled(promises)
+      setLoading(false)
     }
+    
+    loadAllData()
   }, [])
 
   const fetchManagerStats = async () => {
@@ -53,8 +86,6 @@ export default function ManagerDashboard({ user }) {
       }
     } catch (error) {
       console.error('Error fetching manager stats:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -93,7 +124,7 @@ export default function ManagerDashboard({ user }) {
       const token = localStorage.getItem('token')
       const today = new Date().toISOString().split('T')[0]
 
-      const response = await fetch(`/api/attendance?employeeId=${user.employeeId}&date=${today}`, {
+      const response = await fetch(`/api/attendance?employeeId=${employeeIdStr}&date=${today}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -109,12 +140,27 @@ export default function ManagerDashboard({ user }) {
   const fetchEmployeeData = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/employees/${user.employeeId}`, {
+      const response = await fetch(`/api/employees/${employeeIdStr}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const result = await response.json()
       if (result.success) {
         setEmployeeData(result.data)
+        // Sync to localStorage for faster future loads
+        if (typeof window !== 'undefined') {
+          try {
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+            const updatedUser = {
+              ...currentUser,
+              employeeCode: result.data.employeeCode,
+              firstName: result.data.firstName,
+              lastName: result.data.lastName,
+              designation: result.data.designation,
+              profilePicture: result.data.profilePicture
+            }
+            localStorage.setItem('user', JSON.stringify(updatedUser))
+          } catch (e) { /* ignore sync errors */ }
+        }
       }
     } catch (error) {
       console.error('Error fetching employee data:', error)
@@ -122,7 +168,7 @@ export default function ManagerDashboard({ user }) {
   }
 
   const handleClockIn = async () => {
-    if (!user?.employeeId) return
+    if (!employeeIdStr) return
     setAttendanceLoading(true)
 
     try {
@@ -368,17 +414,19 @@ export default function ManagerDashboard({ user }) {
           {/* User Name and ID */}
           <div>
             <p className="text-xs text-gray-300 mb-0.5">
-              ID: {employeeData?.employeeCode || user?.employeeNumber || '---'}
+              ID: {employeeData?.employeeCode || user?.employeeCode || user?.employeeId?.employeeCode || user?.employeeNumber || '---'}
             </p>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
               {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
                (user?.firstName && user?.lastName
                 ? `${user.firstName} ${user.lastName}`
-                : 'User')}
+                : user?.employeeId?.firstName && user?.employeeId?.lastName
+                  ? `${user.employeeId.firstName} ${user.employeeId.lastName}`
+                  : user?.name || 'User')}
             </h2>
-            {(employeeData?.designation || user?.designation) && (
+            {(employeeData?.designation || user?.designation || user?.employeeId?.designation) && (
               <p className="text-xs text-gray-300 mt-0.5">
-                {formatDesignation(employeeData?.designation || user?.designation)}
+                {formatDesignation(employeeData?.designation || user?.designation || user?.employeeId?.designation)}
               </p>
             )}
           </div>
@@ -662,7 +710,30 @@ export default function ManagerDashboard({ user }) {
                 const isAbsent = stats.absentToday.some(absent =>
                   absent.employee._id === member._id
                 )
-                const status = isOnLeave ? 'On Leave' : isAbsent ? 'Absent' : 'Present'
+                const isPresent = stats.presentToday?.some(present =>
+                  present.employee._id === member._id
+                )
+                const isInProgress = stats.inProgressToday?.some(inProgress =>
+                  inProgress.employee._id === member._id
+                )
+                const isLate = stats.lateToday?.some(late =>
+                  late.employee._id === member._id
+                )
+                
+                // Determine status based on actual attendance records
+                let status = 'Not Checked In'
+                if (isOnLeave) {
+                  status = 'On Leave'
+                } else if (isAbsent) {
+                  status = 'Absent'
+                } else if (isLate) {
+                  status = 'Late'
+                } else if (isInProgress) {
+                  status = 'In Progress'
+                } else if (isPresent) {
+                  status = 'Present'
+                }
+                
                 const initials = `${member.firstName[0]}${member.lastName[0]}`
 
                 return (
@@ -688,8 +759,11 @@ export default function ManagerDashboard({ user }) {
                     </div>
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       status === 'Present' ? 'bg-green-100 text-green-800' :
-                      status === 'On Leave' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                      status === 'In Progress' ? 'bg-orange-100 text-orange-800' :
+                      status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
+                      status === 'On Leave' ? 'bg-blue-100 text-blue-800' :
+                      status === 'Absent' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-600'
                     }`}>
                       {status}
                     </span>

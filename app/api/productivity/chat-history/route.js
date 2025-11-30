@@ -23,7 +23,7 @@ export const revalidate = 0;
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
-// Helper function to check if user is a department head (via Department.head field)
+// Helper function to check if user is a department head (via Department.head or Department.heads[] field)
 async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
   const userObjId = toObjectId(userId);
@@ -44,8 +44,14 @@ async function getDepartmentIfHead(userId) {
     return null;
   }
   
-  // Check if this employee is head of any department
-  const department = await Department.findOne({ head: employeeId, isActive: true });
+  // Check if this employee is head of any department (check both head and heads fields)
+  const department = await Department.findOne({ 
+    $or: [
+      { head: employeeId },
+      { heads: employeeId }
+    ],
+    isActive: true 
+  });
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
@@ -120,6 +126,7 @@ export async function GET(request) {
     const offset = parseInt(searchParams.get('offset')) || 0;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const afterDate = searchParams.get('after'); // For incremental fetching of new chat history only
 
     await connectDB();
 
@@ -180,10 +187,11 @@ export async function GET(request) {
     }
 
     // Apply date filters if provided
-    if (startDate || endDate) {
+    if (startDate || endDate || afterDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
+      if (afterDate) query.createdAt.$gt = new Date(afterDate); // For incremental fetch
     }
 
     const chatHistory = await MayaChatHistory.find(query)

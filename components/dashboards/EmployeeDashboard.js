@@ -12,6 +12,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip from '@/components/charts/CustomTooltip'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function EmployeeDashboard({ user: userProp }) {
   const { theme } = useTheme()
@@ -35,15 +36,10 @@ export default function EmployeeDashboard({ user: userProp }) {
 
     if (!userProp || !userProp.employeeId) {
       console.log('⚠️ User prop is missing or incomplete, loading from localStorage...')
-      const userData = localStorage.getItem('user')
-      if (userData) {
-        try {
-          const parsedUser = JSON.parse(userData)
-          console.log('✅ User loaded from localStorage:', parsedUser)
-          setUser(parsedUser)
-        } catch (error) {
-          console.error('❌ Error parsing user data:', error)
-        }
+      const parsedUser = getCurrentUser()
+      if (parsedUser) {
+        console.log('✅ User loaded from localStorage:', parsedUser)
+        setUser(parsedUser)
       } else {
         console.error('❌ No user data in localStorage')
       }
@@ -57,10 +53,8 @@ export default function EmployeeDashboard({ user: userProp }) {
     console.log('🔍 Current user state:', user)
     fetchDashboardData()
 
-    // Handle both cases: employeeId as string or as object
-    const employeeId = typeof user?.employeeId === 'object'
-      ? user?.employeeId?._id
-      : user?.employeeId
+    // Use the helper to get employeeId consistently
+    const employeeId = getEmployeeId(user)
 
     if (employeeId) {
       console.log('✅ Fetching attendance for employee:', employeeId)
@@ -111,10 +105,8 @@ export default function EmployeeDashboard({ user: userProp }) {
 
   const fetchTodayAttendance = async () => {
     try {
-      // Handle both cases: employeeId as string or as object
-      const employeeId = typeof user?.employeeId === 'object'
-        ? user.employeeId._id
-        : user?.employeeId
+      // Use helper to get employeeId consistently
+      const employeeId = getEmployeeId(user)
 
       if (!employeeId) {
         console.warn('⚠️ Cannot fetch attendance - no employeeId')
@@ -140,20 +132,16 @@ export default function EmployeeDashboard({ user: userProp }) {
   const handleClockIn = async () => {
     console.log('🔵 Clock In button clicked')
     console.log('🔍 User object:', user)
-    console.log('🔍 User employeeId type:', typeof user?.employeeId)
-    console.log('🔍 User employeeId value:', user?.employeeId)
 
-    // Handle both cases: employeeId as string or as object
-    const employeeId = typeof user?.employeeId === 'object'
-      ? user.employeeId._id
-      : user?.employeeId
+    // Use helper to get employeeId consistently
+    const employeeId = getEmployeeId(user)
 
     console.log('🔍 Resolved employeeId:', employeeId)
 
     if (!employeeId) {
       console.error('❌ No user or employeeId found')
       console.error('❌ User object:', user)
-      toast.error('User information not available')
+      toast.error('User information not available. Please logout and login again.')
       return
     }
 
@@ -263,20 +251,16 @@ export default function EmployeeDashboard({ user: userProp }) {
   const handleClockOut = async () => {
     console.log('🔴 Clock Out button clicked')
     console.log('🔍 User object:', user)
-    console.log('🔍 User employeeId type:', typeof user?.employeeId)
-    console.log('🔍 User employeeId value:', user?.employeeId)
 
-    // Handle both cases: employeeId as string or as object
-    const employeeId = typeof user?.employeeId === 'object'
-      ? user.employeeId._id
-      : user?.employeeId
+    // Use helper to get employeeId consistently
+    const employeeId = getEmployeeId(user)
 
     console.log('🔍 Resolved employeeId:', employeeId)
 
     if (!employeeId) {
       console.error('❌ No user or employeeId found')
       console.error('❌ User object:', user)
-      toast.error('User information not available')
+      toast.error('User information not available. Please logout and login again.')
       return
     }
 
@@ -563,6 +547,7 @@ export default function EmployeeDashboard({ user: userProp }) {
           <div>
             <p className="text-xs text-gray-300 mb-0.5">
               ID: {dashboardStats?.employee?.employeeId ||
+                   user?.employeeCode ||
                    user?.employeeNumber ||
                    user?.employeeId?.employeeCode ||
                    '---'}

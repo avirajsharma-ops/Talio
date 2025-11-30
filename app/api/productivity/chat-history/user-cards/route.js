@@ -22,7 +22,7 @@ function toObjectId(id) {
 }
 
 /**
- * Check if a user is a department head via Department.head field
+ * Check if a user is a department head via Department.head or Department.heads[] field
  */
 async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
@@ -42,7 +42,14 @@ async function getDepartmentIfHead(userId) {
     return null;
   }
   
-  const department = await Department.findOne({ head: employeeId, isActive: true });
+  // Check if this employee is head of any department (check both head and heads fields)
+  const department = await Department.findOne({ 
+    $or: [
+      { head: employeeId },
+      { heads: employeeId }
+    ],
+    isActive: true 
+  });
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }

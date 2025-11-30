@@ -39,7 +39,7 @@ export async function GET(request) {
           },
           present: {
             $sum: {
-              $cond: [{ $eq: ["$status", "present"] }, 1, 0]
+              $cond: [{ $in: ["$status", ["present", "in-progress"]] }, 1, 0] // Include in-progress (checked in but not checked out yet)
             }
           },
           absent: {
@@ -120,7 +120,7 @@ export async function GET(request) {
     }
 
     todayAttendance.forEach(item => {
-      if (item._id === 'present') todayStats.present = item.count
+      if (item._id === 'present' || item._id === 'in-progress') todayStats.present += item.count // in-progress = checked in but not checked out
       else if (item._id === 'absent') todayStats.absent = item.count
       else if (item._id === 'late') todayStats.late = item.count
       else if (item._id === 'half-day') todayStats.halfDay = item.count

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaCalendarAlt, FaClock, FaCheck, FaTimes, FaEye, FaFilter } from 'react-icons/fa'
 import ModalPortal from '@/components/ModalPortal'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function LeaveRequestsPage() {
   const [leaves, setLeaves] = useState([])
@@ -14,26 +15,20 @@ export default function LeaveRequestsPage() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    try {
-      const userData = localStorage.getItem('user')
-      if (userData) {
-        const parsedUser = JSON.parse(userData)
-        setUser(parsedUser)
-        if (parsedUser?.employeeId?._id) {
-          fetchLeaves(parsedUser.employeeId._id)
-        } else {
-          console.error('Employee ID not found in user data')
-          toast.error('Employee information not found. Please login again.')
-          setLoading(false)
-        }
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
+      setUser(parsedUser)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchLeaves(empId)
       } else {
-        console.error('No user data found')
-        toast.error('Please login to view leave requests')
+        console.error('Employee ID not found in user data:', parsedUser)
+        toast.error('Employee information not found. Please logout and login again.')
         setLoading(false)
       }
-    } catch (error) {
-      console.error('Error parsing user data:', error)
-      toast.error('Error loading user information. Please login again.')
+    } else {
+      console.error('No user data found')
+      toast.error('Please login to view leave requests')
       setLoading(false)
     }
   }, [])

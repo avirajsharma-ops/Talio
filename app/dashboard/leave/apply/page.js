@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaCalendarAlt, FaPlus, FaArrowLeft, FaCheck } from 'react-icons/fa'
 import { useRouter } from 'next/navigation'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function ApplyLeavePage() {
   const [leaveTypes, setLeaveTypes] = useState([])
@@ -11,6 +12,7 @@ export default function ApplyLeavePage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [user, setUser] = useState(null)
+  const [employeeId, setEmployeeId] = useState(null)
   const router = useRouter()
   
   const [formData, setFormData] = useState({
@@ -26,12 +28,20 @@ export default function ApplyLeavePage() {
   })
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
+      const empId = getEmployeeId(parsedUser)
+      setEmployeeId(empId)
       fetchLeaveTypes()
-      fetchLeaveBalance(parsedUser.employeeId._id)
+      if (empId) {
+        fetchLeaveBalance(empId)
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+        setLoading(false)
+      }
+    } else {
+      setLoading(false)
     }
   }, [])
 
@@ -132,7 +142,7 @@ export default function ApplyLeavePage() {
         },
         body: JSON.stringify({
           ...formData,
-          employee: user.employeeId._id,
+          employee: employeeId,
           numberOfDays: days,
         }),
       })

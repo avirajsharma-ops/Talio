@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaMoneyBillWave, FaDownload, FaEye, FaCalendarAlt, FaFilter, FaTimes } from 'react-icons/fa'
+import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 
 export default function PayslipsPage() {
   const [payslips, setPayslips] = useState([])
@@ -13,11 +14,18 @@ export default function PayslipsPage() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
+    const parsedUser = getCurrentUser()
+    if (parsedUser) {
       setUser(parsedUser)
-      fetchPayslips(parsedUser.employeeId._id)
+      const empId = getEmployeeId(parsedUser)
+      if (empId) {
+        fetchPayslips(empId)
+      } else {
+        toast.error('Employee information not found. Please logout and login again.')
+        setLoading(false)
+      }
+    } else {
+      setLoading(false)
     }
   }, [selectedYear])
 

@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { formatDesignation } from '@/lib/formatters'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
+import { getEmployeeId } from '@/utils/userHelper'
 
 // Fetch HR dashboard data
 const fetchHRStats = async () => {
@@ -37,26 +38,48 @@ export default function HRDashboard({ user }) {
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [employeeData, setEmployeeData] = useState(null)
 
+  // Get employee ID once - works whether user.employeeId is string or object
+  const employeeIdStr = getEmployeeId(user)
+
   useEffect(() => {
+    // Immediately set basic cached data from localStorage
+    if (typeof window !== 'undefined') {
+      const cachedUser = localStorage.getItem('user')
+      if (cachedUser) {
+        try {
+          const parsed = JSON.parse(cachedUser)
+          if (parsed.employeeCode || parsed.firstName) {
+            setEmployeeData(prev => prev || {
+              employeeCode: parsed.employeeCode,
+              firstName: parsed.firstName,
+              lastName: parsed.lastName,
+              designation: parsed.designation,
+              profilePicture: parsed.profilePicture
+            })
+          }
+        } catch (e) {}
+      }
+    }
+
     const loadStats = async () => {
       const data = await fetchHRStats()
       setStats(data)
       setLoading(false)
     }
     loadStats()
-    // user.employeeId is the ID string, not an object
-    if (user?.employeeId) {
+    // Use employeeIdStr which is properly extracted
+    if (employeeIdStr) {
       fetchTodayAttendance()
       fetchEmployeeData()
     }
-  }, [])
+  }, [employeeIdStr])
 
   const fetchTodayAttendance = async () => {
     try {
       const token = localStorage.getItem('token')
       const today = new Date().toISOString().split('T')[0]
 
-      const response = await fetch(`/api/attendance?employeeId=${user.employeeId}&date=${today}`, {
+      const response = await fetch(`/api/attendance?employeeId=${employeeIdStr}&date=${today}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -72,7 +95,7 @@ export default function HRDashboard({ user }) {
   const fetchEmployeeData = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/employees/${user.employeeId}`, {
+      const response = await fetch(`/api/employees/${employeeIdStr}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const result = await response.json()
@@ -85,7 +108,7 @@ export default function HRDashboard({ user }) {
   }
 
   const handleClockIn = async () => {
-    if (!user?.employeeId) return
+    if (!employeeIdStr) return
     setAttendanceLoading(true)
 
     try {
@@ -132,7 +155,7 @@ export default function HRDashboard({ user }) {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId,
+          employeeId: employeeIdStr,
           type: 'clock-in',
           latitude,
           longitude,
@@ -157,7 +180,7 @@ export default function HRDashboard({ user }) {
   }
 
   const handleClockOut = async () => {
-    if (!user?.employeeId) return
+    if (!employeeIdStr) return
     setAttendanceLoading(true)
 
     try {
@@ -203,7 +226,7 @@ export default function HRDashboard({ user }) {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          employeeId: user.employeeId,
+          employeeId: employeeIdStr,
           type: 'clock-out',
           latitude,
           longitude,
@@ -327,7 +350,7 @@ export default function HRDashboard({ user }) {
           {/* User Name and ID */}
           <div>
             <p className="text-xs text-gray-300 mb-0.5">
-              ID: {employeeData?.employeeCode || user?.employeeNumber || '---'}
+              ID: {employeeData?.employeeCode || user?.employeeCode || user?.employeeNumber || '---'}
             </p>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
               {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :

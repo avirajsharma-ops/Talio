@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
-// Helper function to check if user is a department head (via Department.head field)
+// Helper function to check if user is a department head (via Department.head or Department.heads[] field)
 async function getDepartmentIfHead(userId) {
   // First get the employee ID for this user
   const user = await User.findById(userId).select('employeeId');
@@ -19,13 +19,25 @@ async function getDepartmentIfHead(userId) {
     const employee = await Employee.findOne({ userId }).select('_id');
     if (!employee) return null;
     
-    // Check if this employee is head of any department
-    const department = await Department.findOne({ head: employee._id, isActive: true });
+    // Check if this employee is head of any department (check both head and heads fields)
+    const department = await Department.findOne({ 
+      $or: [
+        { head: employee._id },
+        { heads: employee._id }
+      ],
+      isActive: true 
+    });
     return department;
   }
   
-  // Check if this employee is head of any department
-  const department = await Department.findOne({ head: user.employeeId, isActive: true });
+  // Check if this employee is head of any department (check both head and heads fields)
+  const department = await Department.findOne({ 
+    $or: [
+      { head: user.employeeId },
+      { heads: user.employeeId }
+    ],
+    isActive: true 
+  });
   return department;
 }
 
