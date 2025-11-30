@@ -30,11 +30,11 @@ async function getDepartmentIfHead(userId) {
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
   
-  const user = await User.findById(userObjId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
-    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
   
@@ -50,7 +50,7 @@ async function getDepartmentIfHead(userId) {
       { heads: employeeId }
     ],
     isActive: true 
-  });
+  }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
@@ -86,7 +86,7 @@ export async function GET(request) {
     const userId = decoded.userId || decoded._id || decoded.id;
 
     // Get the user
-    const currentUser = await User.findById(userId).select('role');
+    const currentUser = await User.findById(userId).select('role').lean();
     if (!currentUser) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
@@ -115,7 +115,7 @@ export async function GET(request) {
       employeeQuery.department = headOfDepartment._id;
     } else {
       // All other roles see only their own card
-      const requesterEmployee = await Employee.findOne({ userId: userId }).select('_id');
+      const requesterEmployee = await Employee.findOne({ userId: userId }).select('_id').lean();
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {

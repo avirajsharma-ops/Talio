@@ -6,6 +6,7 @@ import User from '@/models/User';
 import Employee from '@/models/Employee';
 import { analyzeProductivityData } from '@/lib/productivityAnalyzer';
 import { aggregateSessionsForUser, saveAggregatedSessions } from '@/lib/sessionAggregator';
+import { quickCompress } from '@/lib/imageCompression';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for processing
@@ -191,14 +192,31 @@ export async function POST(request) {
       .sort((a, b) => b.duration - a.duration)
       .slice(0, 10);
 
+    // Compress screenshot before saving (if present)
+    let screenshotData = null;
+    let thumbnailData = null;
+    if (screenshot) {
+      try {
+        const compressed = await quickCompress(screenshot);
+        screenshotData = compressed.fullData;
+        thumbnailData = compressed.thumbnail;
+        console.log(`[Productivity Sync] Screenshot compressed: ${compressed.compressionRatio}% reduction`);
+      } catch (compressError) {
+        console.error('[Productivity Sync] Screenshot compression failed, using original:', compressError.message);
+        screenshotData = screenshot;
+        thumbnailData = screenshot;
+      }
+    }
+
     // Create productivity data record
     const productivityData = new ProductivityData({
       userId: decoded.userId,
       employeeId: employee?._id,
       periodStart: periodStart || new Date(Date.now() - 30 * 60 * 1000), // Default 30 min ago
       periodEnd: periodEnd || new Date(),
-      screenshot: screenshot ? {
-        data: screenshot,
+      screenshot: screenshotData ? {
+        data: screenshotData,
+        thumbnail: thumbnailData,
         capturedAt: new Date(),
         captureType: isInstantCapture ? 'instant' : 'periodic'
       } : undefined,

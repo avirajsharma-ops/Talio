@@ -30,7 +30,7 @@ const store = new Store({
     blobPosition: { x: null, y: null },
     authToken: null,
     userId: null,
-    screenshotInterval: 5 * 60 * 1000, // 5 minutes default
+    screenshotInterval: 60 * 1000, // 1 minute default
     // Local productivity data storage
     pendingProductivityData: [],
     lastSyncTimestamp: null,
@@ -76,7 +76,7 @@ let periodStartTime = null;
 let socket = null;
 
 // Activity tracking intervals
-const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 5 * 60 * 1000; // 5 minutes default
+const SCREENSHOT_INTERVAL = store.get('screenshotInterval') || 60 * 1000; // 1 minute default
 const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute for local buffer
 const PERIODIC_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes for API sync
 const APP_CHECK_INTERVAL = 3000; // 3 seconds
@@ -649,8 +649,8 @@ function extractDomainFromTitle(title) {
 function startScreenMonitoring() {
   if (screenshotTimer) return;
 
-  // Get current interval (global or from store)
-  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (5 * 60 * 1000);
+  // Get current interval (global or from store) - default 1 minute
+  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (60 * 1000);
 
   // Capture immediately after 5 seconds
   setTimeout(() => captureAndSyncProductivity(false), 5000);
@@ -850,6 +850,10 @@ function setAuth(token, user) {
   if (token && user?.id) {
     console.log('[Talio] Starting monitoring services...');
     
+    // Clear old cached screenshot interval to force fresh fetch from server
+    store.delete('screenshotInterval');
+    global.SCREENSHOT_INTERVAL = 60 * 1000; // Reset to 1 minute default
+    
     // Initialize socket for real-time capture requests (best effort)
     initializeSocketConnection(user.id);
     
@@ -859,7 +863,7 @@ function setAuth(token, user) {
     // Start activity tracking and sync
     startScreenMonitoring();
     startActivitySync();
-    fetchScreenshotInterval();
+    fetchScreenshotInterval(); // This will update interval from server
     
     // Initialize period tracking
     periodStartTime = Date.now();
@@ -1239,6 +1243,30 @@ function createTray() {
             autoLauncher.disable();
           }
         }
+      }
+    },
+    {
+      label: 'Reset Cache & Settings',
+      click: () => {
+        // Clear cached settings
+        store.delete('screenshotInterval');
+        store.delete('pendingProductivityData');
+        store.delete('lastSyncTimestamp');
+        store.delete('pipPosition');
+        store.delete('blobPosition');
+        
+        // Reset global interval
+        global.SCREENSHOT_INTERVAL = 60 * 1000; // 1 minute default
+        
+        // Restart monitoring with fresh settings
+        if (screenshotTimer) {
+          clearInterval(screenshotTimer);
+          screenshotTimer = null;
+        }
+        startScreenMonitoring();
+        
+        sendNotification('Settings Reset', 'Talio cache and settings have been cleared');
+        console.log('[Talio] Cache and settings reset');
       }
     },
     { type: 'separator' },

@@ -6,6 +6,16 @@ import ProductivitySession from '@/models/ProductivitySession';
 import Employee from '@/models/Employee';
 import User from '@/models/User';
 
+/**
+ * DEPRECATED: Background auto-analysis has been removed from the regular session flow.
+ * 
+ * AI analysis is now triggered manually by users via the "Analyze with AI" button.
+ * Once analyzed, the analysis is saved to the session and won't be re-run unless forced.
+ * 
+ * This endpoint can still be used for batch processing by admins if needed,
+ * but it will only analyze sessions that haven't been analyzed yet.
+ */
+
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for batch processing
 

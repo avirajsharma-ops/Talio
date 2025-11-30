@@ -105,10 +105,86 @@ export async function GET(request) {
       employeeQuery.department = headOfDepartment._id;
     } else {
       // All other roles see only their own card
-      const requesterEmployee = await Employee.findOne({ userId: userId }).select('_id');
+      // First try Employee.userId lookup
+      let requesterEmployee = await Employee.findOne({ userId: userId }).select('_id');
+      
+      // If not found, try User.employeeId reverse lookup
+      if (!requesterEmployee) {
+        const userWithEmployeeId = await User.findById(userId).select('employeeId');
+        if (userWithEmployeeId?.employeeId) {
+          requesterEmployee = await Employee.findById(userWithEmployeeId.employeeId).select('_id');
+        }
+      }
+      
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {
+        // Return user's own card even if no Employee record exists
+        const userRecord = await User.findById(userId).select('name email profilePicture');
+        if (userRecord) {
+          // Get chat stats for this user
+          const userObjId = toObjectId(userId);
+          const chatStats = await MayaChatHistory.aggregate([
+            { $match: { userId: userObjId } },
+            {
+              $group: {
+                _id: null,
+                totalConversations: { $sum: 1 },
+                totalMessages: { $sum: { $size: { $ifNull: ['$messages', []] } } },
+                lastMessageTime: { $max: '$createdAt' },
+                todayConversations: {
+                  $sum: {
+                    $cond: [
+                      { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
+                      1,
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ]);
+          
+          const lastConversation = await MayaChatHistory.findOne({ userId: userObjId })
+            .sort({ createdAt: -1 })
+            .select('messages')
+            .lean();
+            
+          let lastMessage = '';
+          if (lastConversation?.messages?.length > 0) {
+            const userMessage = lastConversation.messages.find(m => m.role === 'user');
+            lastMessage = userMessage?.content || lastConversation.messages[0]?.content || '';
+            if (lastMessage.length > 100) {
+              lastMessage = lastMessage.substring(0, 100) + '...';
+            }
+          }
+          
+          const stats = chatStats[0] || { totalConversations: 0, totalMessages: 0, todayConversations: 0, lastMessageTime: null };
+          
+          const minimalCard = {
+            id: userId,
+            odooId: userId,
+            userId: userId,
+            name: userRecord.name || 'Unknown User',
+            email: userRecord.email || '',
+            profilePicture: userRecord.profilePicture,
+            employeeCode: '',
+            designation: '',
+            department: 'Unassigned',
+            totalConversations: stats.totalConversations || 0,
+            totalMessages: stats.totalMessages || 0,
+            todayConversations: stats.todayConversations || 0,
+            lastMessageTime: stats.lastMessageTime,
+            lastMessage,
+            isOwn: true
+          };
+          return NextResponse.json({
+            success: true,
+            data: [minimalCard],
+            totalUsers: 1,
+            accessLevel: 'self_only'
+          });
+        }
         return NextResponse.json({
           success: true,
           data: [],

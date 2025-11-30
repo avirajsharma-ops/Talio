@@ -31,12 +31,12 @@ async function getDepartmentIfHead(userId) {
   if (!userObjId) return null;
   
   // First get the employee ID for this user
-  const user = await User.findById(userObjId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
     // Try to find employee by userId
-    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
   
@@ -52,7 +52,7 @@ async function getDepartmentIfHead(userId) {
       { heads: employeeId }
     ],
     isActive: true 
-  });
+  }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
@@ -63,13 +63,13 @@ async function getEmployeeForUser(userId) {
   if (!userObjId) return null;
   
   // First try: Employee.userId
-  let employee = await Employee.findOne({ userId: userObjId }).select('_id department');
+  let employee = await Employee.findOne({ userId: userObjId }).select('_id department').lean();
   if (employee) return employee;
   
   // Second try: User.employeeId (reverse relationship)
-  const user = await User.findById(userObjId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId').lean();
   if (user?.employeeId) {
-    employee = await Employee.findById(user.employeeId).select('_id department');
+    employee = await Employee.findById(user.employeeId).select('_id department').lean();
     if (employee) return employee;
   }
   
@@ -124,6 +124,7 @@ export async function GET(request) {
     const userId = decoded.userId;
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
+    const captureId = searchParams.get('captureId'); // For fetching single capture with screenshot
     const includeScreenshot = searchParams.get('includeScreenshot') === 'true';
     const limit = parseInt(searchParams.get('limit')) || 50;
     const skip = parseInt(searchParams.get('skip')) || 0;
@@ -136,6 +137,51 @@ export async function GET(request) {
     const user = await User.findById(userId).select('role');
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    // Handle single capture fetch by ID (for sequential screenshot loading)
+    if (captureId) {
+      const captureObjId = toObjectId(captureId);
+      if (!captureObjId) {
+        return NextResponse.json({ success: false, error: 'Invalid capture ID' }, { status: 400 });
+      }
+      
+      // Try to find in ProductivityData first, then MayaScreenSummary
+      let capture = await ProductivityData.findById(captureObjId)
+        .populate('userId', 'email profilePicture employeeId')
+        .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
+        .lean();
+      
+      if (!capture) {
+        capture = await MayaScreenSummary.findById(captureObjId)
+          .populate('monitoredUserId', 'email profilePicture employeeId')
+          .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
+          .lean();
+      }
+      
+      if (!capture) {
+        return NextResponse.json({ success: false, error: 'Capture not found' }, { status: 404 });
+      }
+      
+      // Get screenshot data
+      let screenshotData = null;
+      if (capture.screenshot?.url) {
+        screenshotData = capture.screenshot.url;
+      } else if (capture.screenshot?.data) {
+        screenshotData = capture.screenshot.data.startsWith('data:') 
+          ? capture.screenshot.data 
+          : `data:image/png;base64,${capture.screenshot.data}`;
+      } else if (capture.screenshotUrl) {
+        screenshotData = capture.screenshotUrl;
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: [{
+          ...capture,
+          screenshotUrl: screenshotData
+        }]
+      });
     }
 
     let query = {};
@@ -215,34 +261,34 @@ export async function GET(request) {
     }
     productivityQuery.status = { $in: ['synced', 'analyzed'] };
 
-    // Get total counts for proper pagination
-    const [legacyCount, productivityCount] = await Promise.all([
-      MayaScreenSummary.countDocuments(query),
-      ProductivityData.countDocuments(productivityQuery)
-    ]);
-    const totalAvailable = legacyCount + productivityCount;
-
+    // Get counts in parallel with data fetch for speed
+    // For initial loads, we can skip count and estimate from results
+    const skipCounting = skip === 0 && limit <= 20;
+    
     // Fetch from both old MayaScreenSummary and new ProductivityData
-    // Use full limit for each to get proper pagination (we'll combine and slice later)
-    const [legacyData, productivityData] = await Promise.all([
-      // Legacy data - only fetch if skip is within legacy range
-      skip < legacyCount 
-        ? MayaScreenSummary.find(query)
-            .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
-            .populate('monitoredUserId', 'email profilePicture employeeId')
-            .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
-            .populate('requestedByUserId', 'email')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-        : [],
+    const [legacyData, productivityData, legacyCount, productivityCount] = await Promise.all([
+      // Legacy data
+      MayaScreenSummary.find(query)
+        .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
+        .populate('monitoredUserId', 'email profilePicture employeeId')
+        .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
+        .populate('requestedByUserId', 'email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       // New ProductivityData - fetch with proper offset
       ProductivityData.find(productivityQuery)
+        .select(includeScreenshot ? '' : '-screenshot.data -screenshot.thumbnail')
         .populate('userId', 'email profilePicture employeeId')
         .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .lean(),
+      // Counts (skip if initial load to speed up)
+      skipCounting ? 0 : MayaScreenSummary.countDocuments(query),
+      skipCounting ? 0 : ProductivityData.countDocuments(productivityQuery)
     ]);
     
     // For productivity data without employeeId, try to look up by userId
@@ -255,7 +301,7 @@ export async function GET(request) {
     if (userIdsNeedingEmployee.length > 0) {
       const employees = await Employee.find({ 
         userId: { $in: userIdsNeedingEmployee } 
-      }).select('userId firstName lastName employeeCode department designation profilePicture');
+      }).select('userId firstName lastName employeeCode department designation profilePicture').lean();
       
       employees.forEach(emp => {
         if (emp.userId) {
@@ -366,6 +412,11 @@ export async function GET(request) {
     const allData = [...legacyData, ...transformedProductivityData]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
+
+    // Calculate total - use counts if available, otherwise estimate from results
+    const totalAvailable = skipCounting 
+      ? (allData.length >= limit ? allData.length + 100 : allData.length) // Estimate more if full page
+      : (legacyCount + productivityCount);
 
     console.log('[Monitor API] Returning', allData.length, 'of', totalAvailable, 'total records. Sample names:', 
       allData.slice(0, 3).map(d => d.monitoredUserId?.name || 'no-name').join(', '));

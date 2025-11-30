@@ -671,7 +671,7 @@ export default function ProductivityMonitoringPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Hide Raw Captures for normal employees */}
       <div className="bg-white rounded-lg shadow mb-6">
         <div className="flex border-b">
           <button
@@ -682,14 +682,17 @@ export default function ProductivityMonitoringPage() {
           >
             <FaLayerGroup />Activity Sessions
           </button>
-          <button
-            onClick={() => handleTabChange('monitoring')}
-            className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
-              activeTab === 'monitoring' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <FaEye />Raw Captures
-          </button>
+          {/* Raw Captures tab - only visible for admins and department heads */}
+          {(isAdminOrGodAdmin || isDepartmentHead) && (
+            <button
+              onClick={() => handleTabChange('monitoring')}
+              className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
+                activeTab === 'monitoring' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <FaEye />Raw Captures
+            </button>
+          )}
           <button
             onClick={() => handleTabChange('chat')}
             className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${

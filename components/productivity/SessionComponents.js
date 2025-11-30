@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle, FaDesktop, FaGlobe, FaTrash } from 'react-icons/fa';
+import { FaUser, FaClock, FaCamera, FaChartLine, FaTimes, FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp, FaExpand, FaPlay, FaPause, FaSync, FaExclamationTriangle, FaDesktop, FaGlobe, FaTrash, FaRobot, FaCheck } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -98,13 +98,26 @@ function isUserAdmin() {
  * Shows a grid of user cards with quick stats and latest session info
  * Uses progressive loading with caching: basic info first, then stats
  * Prevents unnecessary re-fetches on tab switches
+ * For self_only users with a single card, auto-selects their card
  */
-export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
+export function UserCardsGrid({ onUserSelect, selectedUserId, refreshKey, autoSelectSelf = true }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
   const lastRefreshRef = useRef(null);
   const hasFetchedRef = useRef(false);
+  const autoSelectedRef = useRef(false);
+
+  // Auto-select for self_only users with a single card
+  useEffect(() => {
+    if (autoSelectSelf && !autoSelectedRef.current && accessLevel === 'self_only' && userCards.length === 1 && userCards[0].isOwnCard) {
+      autoSelectedRef.current = true;
+      // Small delay to allow UI to render the card first
+      setTimeout(() => {
+        onUserSelect(userCards[0]);
+      }, 100);
+    }
+  }, [accessLevel, userCards, autoSelectSelf, onUserSelect]);
 
   useEffect(() => {
     // Check cache first for instant display
@@ -835,19 +848,19 @@ function SessionCard({ session, onClick, onDelete, isAdmin }) {
         )}
       </div>
 
-      {/* AI Analysis Status */}
-      {!session.aiAnalysis?.summary && (
-        <div className="mt-2 flex items-center gap-1 text-xs text-blue-600">
-          <FaSync className="animate-spin" />
-          <span>AI analysis pending...</span>
-        </div>
-      )}
-
-      {/* Warnings */}
-      {session.aiAnalysis?.areasOfImprovement?.length > 0 && (
+      {/* AI Analysis Status - Only show if analyzed */}
+      {session.aiAnalysis?.summary && session.aiAnalysis?.areasOfImprovement?.length > 0 && (
         <div className="mt-2 flex items-center gap-1 text-xs text-orange-600">
           <FaExclamationTriangle />
           <span>{session.aiAnalysis.areasOfImprovement.length} area(s) to improve</span>
+        </div>
+      )}
+      
+      {/* Show "Not Analyzed" badge if no AI analysis */}
+      {!session.aiAnalysis?.summary && (
+        <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+          <FaRobot className="text-gray-400" />
+          <span>Click to analyze with AI</span>
         </div>
       )}
     </div>
@@ -864,13 +877,139 @@ function SessionDetailModal({ session, onClose }) {
   const [fullscreenScreenshot, setFullscreenScreenshot] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [sessionData, setSessionData] = useState(session);
+  const [loadingDetails, setLoadingDetails] = useState(true);
+  const [loadingScreenshot, setLoadingScreenshot] = useState(false);
+  const [loadedScreenshots, setLoadedScreenshots] = useState({}); // Cache for loaded fullData
+  const [preloadingIndex, setPreloadingIndex] = useState(-1); // Track which screenshot is being preloaded
+  const [allImagesLoaded, setAllImagesLoaded] = useState(false); // Track if all images are loaded for AI analysis
   const playIntervalRef = useRef(null);
+  const preloadAbortRef = useRef(null); // To cancel preloading if modal closes
+
+  // Fetch session details on mount (metadata only, screenshots loaded separately)
+  useEffect(() => {
+    const fetchFullSession = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/productivity/sessions/${session._id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setSessionData(data.data);
+          // Start sequential preloading from screenshot 0
+          if (data.data.screenshots?.length > 0) {
+            startSequentialPreload(data.data._id, data.data.screenshots.length);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch session details:', error);
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+
+    if (session?._id) {
+      fetchFullSession();
+    } else {
+      setLoadingDetails(false);
+    }
+
+    // Cleanup: abort preloading when modal closes
+    return () => {
+      if (preloadAbortRef.current) {
+        preloadAbortRef.current.abort = true;
+      }
+    };
+  }, [session?._id]);
 
   const screenshots = sessionData.screenshots || [];
 
   // Get apps and websites from various possible field names
   const apps = sessionData.appUsageSummary || sessionData.appUsage || sessionData.topApps || [];
   const websites = sessionData.websiteVisitSummary || sessionData.websiteVisits || sessionData.topWebsites || [];
+
+  // Sequential preload - loads screenshots one by one in order
+  const startSequentialPreload = async (sessId, totalScreenshots) => {
+    const abortTracker = { abort: false };
+    preloadAbortRef.current = abortTracker;
+
+    for (let i = 0; i < totalScreenshots; i++) {
+      // Check if we should stop
+      if (abortTracker.abort) break;
+      
+      // Skip if already loaded
+      if (loadedScreenshots[i]) continue;
+
+      setPreloadingIndex(i);
+      setLoadingScreenshot(true);
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/productivity/sessions/${sessId}/screenshot/${i}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (abortTracker.abort) break;
+        
+        const data = await response.json();
+        
+        if (data.success && data.data?.fullData) {
+          setLoadedScreenshots(prev => {
+            const updated = { ...prev, [i]: data.data.fullData };
+            // Check if all screenshots are now loaded
+            if (Object.keys(updated).length >= totalScreenshots) {
+              setAllImagesLoaded(true);
+            }
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to preload screenshot ${i}:`, error);
+      }
+
+      setLoadingScreenshot(false);
+    }
+
+    setPreloadingIndex(-1);
+    // Mark all images loaded if we completed the loop without abort
+    if (!abortTracker.abort && totalScreenshots > 0) {
+      setAllImagesLoaded(true);
+    }
+  };
+
+  // No need for on-demand loading anymore since we preload sequentially
+  // But keep this for fallback if user navigates faster than preload
+  const loadScreenshotData = async (index) => {
+    // Already loaded or currently being preloaded
+    if (loadedScreenshots[index] || preloadingIndex === index) return;
+    if (!sessionData._id) return;
+    
+    // If user jumps ahead, load that specific one
+    setLoadingScreenshot(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/productivity/sessions/${sessionData._id}/screenshot/${index}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      if (data.success && data.data?.fullData) {
+        setLoadedScreenshots(prev => ({ ...prev, [index]: data.data.fullData }));
+      }
+    } catch (error) {
+      console.error('Failed to load screenshot:', error);
+    } finally {
+      setLoadingScreenshot(false);
+    }
+  };
+
+  // Load current screenshot if not already loaded (fallback for fast navigation)
+  useEffect(() => {
+    if (!loadingDetails && screenshots.length > 0 && !loadedScreenshots[currentScreenshot] && preloadingIndex !== currentScreenshot) {
+      loadScreenshotData(currentScreenshot);
+    }
+  }, [currentScreenshot, loadingDetails, screenshots.length, loadedScreenshots, preloadingIndex]);
 
   // Auto-play screenshots
   useEffect(() => {
@@ -893,8 +1032,13 @@ function SessionDetailModal({ session, onClose }) {
     return 'bg-red-500';
   };
 
-  // Normalize screenshot URL
-  const getScreenshotUrl = (screenshot) => {
+  // Get screenshot URL - prioritize cached fullData, then screenshot's own fullData, then thumbnail
+  const getScreenshotUrl = (screenshot, index) => {
+    // Check cache first
+    if (loadedScreenshots[index]) {
+      return loadedScreenshots[index];
+    }
+    // Then check the screenshot object itself
     return screenshot?.fullData || screenshot?.thumbnail || screenshot?.url || screenshot?.thumbnailUrl || '';
   };
 
@@ -907,43 +1051,102 @@ function SessionDetailModal({ session, onClose }) {
     return `${hrs}h ${mins % 60}m`;
   };
 
-  // Trigger AI analysis with screenshots
-  const triggerAIAnalysis = async () => {
+  // Trigger AI analysis with screenshots - pass pre-loaded images to avoid re-fetching
+  const triggerAIAnalysis = async (forceReanalyze = false) => {
     if (analyzing) return;
     
+    // Check if all images are loaded (required for accurate analysis)
+    if (!allImagesLoaded && screenshots.length > 0) {
+      toast.error('Please wait for all screenshots to load before analyzing');
+      return;
+    }
+    
     setAnalyzing(true);
+    
+    // Clear caches before analysis to ensure fresh data
+    clearCachedData('user_cards');
+    clearCachedData('sessions_');
+    
     try {
       const token = localStorage.getItem('token');
+      
+      // Build array of pre-loaded screenshot data to send to API
+      const preloadedScreenshots = screenshots.map((ss, idx) => ({
+        index: idx,
+        fullData: loadedScreenshots[idx] || ss.fullData || ss.thumbnail,
+        capturedAt: ss.capturedAt
+      })).filter(s => s.fullData); // Only include screenshots with valid data
+      
       const response = await fetch('/api/productivity/sessions/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ sessionId: sessionData._id })
+        body: JSON.stringify({ 
+          sessionId: sessionData._id, 
+          forceReanalyze,
+          preloadedScreenshots: preloadedScreenshots.length > 0 ? preloadedScreenshots : undefined
+        })
       });
 
       const data = await response.json();
-      if (data.success) {
-        toast.success('AI analysis complete!');
-        // Update the session data with new analysis
-        setSessionData(prev => ({
-          ...prev,
-          aiAnalysis: {
-            ...prev.aiAnalysis,
-            summary: data.analysis.summary,
-            productivityScore: data.analysis.productivityScore,
-            focusScore: data.analysis.focusScore,
-            efficiencyScore: data.analysis.efficiencyScore,
-            insights: data.analysis.insights,
-            recommendations: data.analysis.recommendations,
-            areasOfImprovement: data.analysis.areasOfImprovement,
-            topAchievements: data.analysis.topAchievements,
-            analyzedAt: new Date()
-          }
-        }));
+      console.log('[AI Analysis] API Response:', { 
+        success: data.success, 
+        cached: data.cached,
+        hasAnalysis: !!data.analysis,
+        summary: data.analysis?.summary?.slice(0, 100),
+        scores: {
+          productivity: data.analysis?.productivityScore,
+          focus: data.analysis?.focusScore,
+          efficiency: data.analysis?.efficiencyScore
+        }
+      });
+      
+      if (data.success && data.analysis) {
+        // Show different message based on whether it was cached or new analysis
+        if (data.cached) {
+          toast.success('Loaded existing analysis');
+        } else {
+          toast.success('AI analysis complete!');
+        }
+        
+        // Create the updated analysis object
+        const updatedAnalysis = {
+          summary: data.analysis.summary || '',
+          productivityScore: data.analysis.productivityScore || 0,
+          focusScore: data.analysis.focusScore || 0,
+          efficiencyScore: data.analysis.efficiencyScore || 0,
+          scoreBreakdown: data.analysis.scoreBreakdown || {},
+          workActivities: data.analysis.workActivities || [],
+          insights: data.analysis.insights || [],
+          recommendations: data.analysis.recommendations || [],
+          areasOfImprovement: data.analysis.areasOfImprovement || [],
+          topAchievements: data.analysis.topAchievements || [],
+          screenshotAnalysis: data.analysis.screenshotAnalysis || [],
+          analyzedAt: data.analysis.analyzedAt || new Date().toISOString()
+        };
+        
+        // Force update the session data with new analysis
+        setSessionData(prev => {
+          const updated = {
+            ...prev,
+            aiAnalysis: updatedAnalysis
+          };
+          console.log('[AI Analysis] Updated session data:', { 
+            summary: updatedAnalysis.summary?.slice(0, 100),
+            productivityScore: updatedAnalysis.productivityScore,
+            focusScore: updatedAnalysis.focusScore
+          });
+          return updated;
+        });
+        
+        // Clear caches again after successful analysis to refresh grids
+        clearCachedData('user_cards');
+        clearCachedData('sessions_');
       } else {
         toast.error(data.error || 'Failed to analyze session');
+        console.error('[AI Analysis] API Error:', data.error || 'No analysis data returned');
       }
     } catch (error) {
       console.error('AI Analysis error:', error);
@@ -969,12 +1172,28 @@ function SessionDetailModal({ session, onClose }) {
           </button>
         </div>
 
+        {/* Loading state while fetching full session details */}
+        {loadingDetails ? (
+          <div className="flex-1 flex items-center justify-center p-12">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading session details...</p>
+            </div>
+          </div>
+        ) : (
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Screenshot Carousel */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-semibold text-gray-800">Screenshots ({screenshots.length})</h4>
+                <h4 className="font-semibold text-gray-800">
+                  Screenshots ({Object.keys(loadedScreenshots).length}/{screenshots.length})
+                  {preloadingIndex >= 0 && (
+                    <span className="ml-2 text-xs text-blue-500 font-normal">
+                      Loading {preloadingIndex + 1}...
+                    </span>
+                  )}
+                </h4>
                 {screenshots.length > 1 && (
                   <div className="flex items-center gap-2">
                     <button 
@@ -990,8 +1209,16 @@ function SessionDetailModal({ session, onClose }) {
 
               {screenshots.length > 0 ? (
                 <div className="relative bg-gray-900 rounded-xl overflow-hidden">
+                  {!loadedScreenshots[currentScreenshot] && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 z-10">
+                      <div className="text-center">
+                        <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-white/70 text-sm">Loading screenshot {currentScreenshot + 1}...</p>
+                      </div>
+                    </div>
+                  )}
                   <img 
-                    src={getScreenshotUrl(screenshots[currentScreenshot])}
+                    src={getScreenshotUrl(screenshots[currentScreenshot], currentScreenshot)}
                     alt={`Screenshot ${currentScreenshot + 1}`}
                     className="w-full h-auto cursor-pointer"
                     onClick={() => setFullscreenScreenshot(true)}
@@ -1041,22 +1268,41 @@ function SessionDetailModal({ session, onClose }) {
                 </div>
               )}
 
-              {/* Thumbnail strip */}
+              {/* Thumbnail strip with loading indicators */}
               {screenshots.length > 1 && (
                 <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
                   {screenshots.map((ss, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCurrentScreenshot(idx)}
-                      className={`flex-shrink-0 w-20 h-12 rounded-lg overflow-hidden border-2 transition-colors ${
+                      className={`relative flex-shrink-0 w-20 h-12 rounded-lg overflow-hidden border-2 transition-colors ${
                         idx === currentScreenshot ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
                       }`}
                     >
-                      <img 
-                        src={getScreenshotUrl(ss)}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
+                      {/* Show loading indicator for screenshots not yet loaded */}
+                      {!loadedScreenshots[idx] && (
+                        <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
+                          {preloadingIndex === idx ? (
+                            <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-500 rounded-full animate-spin"></div>
+                          ) : (
+                            <span className="text-white/50 text-xs">{idx + 1}</span>
+                          )}
+                        </div>
+                      )}
+                      {/* Show thumbnail if available */}
+                      {(ss?.thumbnail || loadedScreenshots[idx]) && (
+                        <img 
+                          src={ss?.thumbnail || loadedScreenshots[idx]}
+                          alt={`Thumbnail ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {/* Green checkmark for loaded */}
+                      {loadedScreenshots[idx] && (
+                        <div className="absolute bottom-0 right-0 bg-green-500 rounded-tl-md p-0.5">
+                          <FaCheck className="text-white text-[8px]" />
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1065,50 +1311,99 @@ function SessionDetailModal({ session, onClose }) {
 
             {/* Right: Session Details */}
             <div className="space-y-4">
-              {/* Scores */}
+              {/* Scores with breakdown tooltips */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <div className="bg-gray-50 rounded-xl p-4 text-center group relative">
                   <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.productivityScore || 0}%</div>
                   <div className="text-sm text-gray-500">Productivity</div>
                   <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.productivityScore || 0)}`}></div>
+                  {sessionData.aiAnalysis?.scoreBreakdown?.productivityReason && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 max-w-xs text-center">
+                      {sessionData.aiAnalysis.scoreBreakdown.productivityReason}
+                    </div>
+                  )}
                 </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <div className="bg-gray-50 rounded-xl p-4 text-center group relative">
                   <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.focusScore || 0}%</div>
                   <div className="text-sm text-gray-500">Focus</div>
                   <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.focusScore || 0)}`}></div>
+                  {sessionData.aiAnalysis?.scoreBreakdown?.focusReason && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 max-w-xs text-center">
+                      {sessionData.aiAnalysis.scoreBreakdown.focusReason}
+                    </div>
+                  )}
                 </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <div className="bg-gray-50 rounded-xl p-4 text-center group relative">
                   <div className="text-2xl font-bold text-gray-800">{sessionData.aiAnalysis?.efficiencyScore || 0}%</div>
                   <div className="text-sm text-gray-500">Efficiency</div>
                   <div className={`h-1 rounded-full mt-2 ${getScoreColor(sessionData.aiAnalysis?.efficiencyScore || 0)}`}></div>
+                  {sessionData.aiAnalysis?.scoreBreakdown?.efficiencyReason && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 max-w-xs text-center">
+                      {sessionData.aiAnalysis.scoreBreakdown.efficiencyReason}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* AI Summary */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+              {/* AI Summary - key forces re-render when analysis changes */}
+              <div 
+                key={`ai-summary-${sessionData.aiAnalysis?.analyzedAt || 'none'}`}
+                className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                     <FaChartLine className="text-blue-600" /> AI Analysis
-                  </h4>
-                  <button
-                    onClick={triggerAIAnalysis}
-                    disabled={analyzing}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs rounded-lg flex items-center gap-1.5 transition-colors"
-                  >
-                    {analyzing ? (
-                      <>
-                        <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>
-                        Analyzing {screenshots.length} screenshots...
-                      </>
-                    ) : (
-                      <>
-                        <FaSync className="text-xs" />
-                        Analyze with AI
-                      </>
+                    {sessionData.aiAnalysis?.analyzedAt && (
+                      <span className="text-xs text-gray-400 font-normal">
+                        • analyzed {new Date(sessionData.aiAnalysis.analyzedAt).toLocaleDateString()}
+                      </span>
                     )}
-                  </button>
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {sessionData.aiAnalysis?.summary && (
+                      <button
+                        onClick={() => triggerAIAnalysis(true)}
+                        disabled={analyzing || (!allImagesLoaded && screenshots.length > 0)}
+                        className={`px-2.5 py-1.5 ${!allImagesLoaded && screenshots.length > 0 ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'} disabled:bg-gray-100 text-xs rounded-lg flex items-center gap-1.5 transition-colors`}
+                        title={!allImagesLoaded && screenshots.length > 0 ? `Loading ${Object.keys(loadedScreenshots).length}/${screenshots.length} screenshots...` : "Re-analyze this session"}
+                      >
+                        {analyzing ? (
+                          <div className="animate-spin h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+                        ) : !allImagesLoaded && screenshots.length > 0 ? (
+                          <div className="animate-spin h-3 w-3 border-2 border-gray-300 border-t-gray-500 rounded-full"></div>
+                        ) : (
+                          <FaSync className="text-xs" />
+                        )}
+                        {!allImagesLoaded && screenshots.length > 0 ? `Loading ${Object.keys(loadedScreenshots).length}/${screenshots.length}...` : 'Re-analyze'}
+                      </button>
+                    )}
+                    {!sessionData.aiAnalysis?.summary && (
+                      <button
+                        onClick={() => triggerAIAnalysis(false)}
+                        disabled={analyzing || (!allImagesLoaded && screenshots.length > 0)}
+                        className={`px-3 py-1.5 ${!allImagesLoaded && screenshots.length > 0 ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} disabled:bg-blue-400 text-white text-xs rounded-lg flex items-center gap-1.5 transition-colors`}
+                      >
+                        {analyzing ? (
+                          <>
+                            <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></div>
+                            Analyzing {screenshots.length} screenshots...
+                          </>
+                        ) : !allImagesLoaded && screenshots.length > 0 ? (
+                          <>
+                            <div className="animate-spin h-3 w-3 border-2 border-white/60 border-t-white rounded-full"></div>
+                            Loading {Object.keys(loadedScreenshots).length}/{screenshots.length}...
+                          </>
+                        ) : (
+                          <>
+                            <FaRobot className="text-xs" />
+                            Analyze with AI
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{sessionData.aiAnalysis?.summary || 'Click "Analyze with AI" to get a comprehensive AI-powered productivity analysis of this session. All screenshots will be analyzed individually and combined with app/website activity.'}</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{sessionData.aiAnalysis?.summary || (!allImagesLoaded && screenshots.length > 0 ? `Loading screenshots (${Object.keys(loadedScreenshots).length}/${screenshots.length})... Analysis will be available once all images are loaded.` : 'Click "Analyze with AI" to get a comprehensive AI-powered productivity analysis of this session. All screenshots will be analyzed individually and combined with app/website activity.')}</p>
                 
                 {/* Work Activities */}
                 {sessionData.aiAnalysis?.workActivities?.length > 0 && (
@@ -1317,6 +1612,7 @@ function SessionDetailModal({ session, onClose }) {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Fullscreen Screenshot Modal */}
@@ -1332,7 +1628,7 @@ function SessionDetailModal({ session, onClose }) {
             <FaTimes className="text-white text-2xl" />
           </button>
           <img 
-            src={getScreenshotUrl(screenshots[currentScreenshot])}
+            src={getScreenshotUrl(screenshots[currentScreenshot], currentScreenshot)}
             alt="Fullscreen screenshot"
             className="max-w-full max-h-full object-contain"
           />
@@ -1363,13 +1659,25 @@ function SessionDetailModal({ session, onClose }) {
  * Shows a grid of user cards for MAYA chat history
  * Uses caching to reduce server queries
  * Prevents unnecessary re-fetches on tab switches
+ * For self_only users with a single card, auto-selects their card
  */
-export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId, refreshKey }) {
+export function ChatHistoryCardsGrid({ onUserSelect, selectedUserId, refreshKey, autoSelectSelf = true }) {
   const [userCards, setUserCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accessLevel, setAccessLevel] = useState('admin');
   const lastRefreshRef = useRef(null);
   const hasFetchedRef = useRef(false);
+  const autoSelectedRef = useRef(false);
+
+  // Auto-select for self_only users with a single card
+  useEffect(() => {
+    if (autoSelectSelf && !autoSelectedRef.current && accessLevel === 'self_only' && userCards.length === 1 && userCards[0].isOwn) {
+      autoSelectedRef.current = true;
+      setTimeout(() => {
+        onUserSelect(userCards[0]);
+      }, 100);
+    }
+  }, [accessLevel, userCards, autoSelectSelf, onUserSelect]);
 
   useEffect(() => {
     // Check cache first
@@ -1949,16 +2257,19 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
   const [expandedCaptures, setExpandedCaptures] = useState(new Set());
   const [totalCount, setTotalCount] = useState(0);
   const [deleting, setDeleting] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false); // Track if we're progressively loading
+  const [isStreaming, setIsStreaming] = useState(false); // Track if we're progressively loading captures
+  const [loadedScreenshots, setLoadedScreenshots] = useState({}); // Cache for loaded screenshot data
+  const [loadingScreenshotIndex, setLoadingScreenshotIndex] = useState(-1); // Which screenshot is loading
   const limit = 10;
   const popupRef = useRef(null);
   const streamingIndexRef = useRef(0);
+  const screenshotAbortRef = useRef(null); // To abort screenshot loading if popup closes
   const isAdmin = useMemo(() => isUserAdmin(), []);
   const cacheKey = useMemo(() => user?.userId ? `raw_captures_${user.userId}` : null, [user?.userId]);
   const lastUserIdRef = useRef(null);
   const hasFetchedRef = useRef(false);
 
-  // Progressive loading effect - show captures one by one
+  // Progressive loading effect - show captures one by one (metadata only)
   useEffect(() => {
     if (isStreaming && captures.length > 0 && visibleCaptures.length < captures.length) {
       const timer = setTimeout(() => {
@@ -1974,10 +2285,65 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
     }
   }, [isStreaming, captures, visibleCaptures.length]);
 
+  // Sequential screenshot loading - load one by one after captures are visible
+  useEffect(() => {
+    if (!isStreaming && visibleCaptures.length > 0) {
+      // Find first capture without loaded screenshot
+      const nextToLoad = visibleCaptures.findIndex((_, idx) => !loadedScreenshots[idx]);
+      if (nextToLoad !== -1 && loadingScreenshotIndex === -1) {
+        loadScreenshotForCapture(nextToLoad);
+      }
+    }
+  }, [isStreaming, visibleCaptures.length, loadedScreenshots, loadingScreenshotIndex]);
+
+  // Load screenshot for a specific capture index
+  const loadScreenshotForCapture = async (index) => {
+    const capture = visibleCaptures[index];
+    if (!capture || loadedScreenshots[index]) return;
+    
+    // If capture already has screenshot data, use it
+    if (capture.screenshotUrl || capture.screenshot?.data) {
+      const screenshotData = capture.screenshotUrl || 
+        (capture.screenshot?.data?.startsWith('data:') ? capture.screenshot.data : `data:image/png;base64,${capture.screenshot?.data}`);
+      setLoadedScreenshots(prev => ({ ...prev, [index]: screenshotData }));
+      return;
+    }
+
+    setLoadingScreenshotIndex(index);
+    
+    try {
+      const token = localStorage.getItem('token');
+      // Fetch single capture with screenshot
+      const response = await fetch(
+        `/api/productivity/monitor?captureId=${capture._id}&includeScreenshot=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (screenshotAbortRef.current?.abort) return;
+      
+      const data = await response.json();
+      
+      if (data.success && data.data?.[0]) {
+        const screenshotData = data.data[0].screenshotUrl || 
+          (data.data[0].screenshot?.data?.startsWith('data:') ? data.data[0].screenshot.data : `data:image/png;base64,${data.data[0].screenshot?.data}`);
+        if (screenshotData) {
+          setLoadedScreenshots(prev => ({ ...prev, [index]: screenshotData }));
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to load screenshot for capture ${index}:`, error);
+    } finally {
+      setLoadingScreenshotIndex(-1);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && user) {
       const userChanged = lastUserIdRef.current !== user.userId;
       lastUserIdRef.current = user.userId;
+      
+      // Reset screenshot loading state
+      screenshotAbortRef.current = { abort: false };
       
       // Check cache first
       const cached = cacheKey ? getCachedData(cacheKey) : null;
@@ -1991,20 +2357,38 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
         setLoading(false);
         hasFetchedRef.current = true;
         
+        // Screenshots from cache should already be in the data
+        const cachedScreenshots = {};
+        cached.data.forEach((cap, idx) => {
+          if (cap.screenshotUrl || cap.screenshot?.data) {
+            cachedScreenshots[idx] = cap.screenshotUrl || 
+              (cap.screenshot?.data?.startsWith('data:') ? cap.screenshot.data : `data:image/png;base64,${cap.screenshot?.data}`);
+          }
+        });
+        setLoadedScreenshots(cachedScreenshots);
+        
         // Fetch new captures in background (prepend new ones)
         fetchNewCaptures(cached.data);
       } else if (userChanged || !hasFetchedRef.current) {
         // User changed or first load - do progressive fetch
         setCaptures([]);
         setVisibleCaptures([]);
+        setLoadedScreenshots({});
         setHasMore(true);
         setTotalCount(user?.totalCaptures || 0);
         fetchCapturesProgressively();
       }
     }
+    
+    // Cleanup on close
+    return () => {
+      if (screenshotAbortRef.current) {
+        screenshotAbortRef.current.abort = true;
+      }
+    };
   }, [isOpen, user]);
 
-  // Fetch captures progressively - one at a time for immediate display
+  // Fetch captures progressively - metadata first, then screenshots sequentially
   const fetchCapturesProgressively = async () => {
     if (!user?.userId) return;
     
@@ -2012,39 +2396,38 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
     setIsStreaming(true);
     setCaptures([]);
     setVisibleCaptures([]);
+    setLoadedScreenshots({});
+    setLoadingScreenshotIndex(-1);
     
     try {
       const token = localStorage.getItem('token');
       
-      // First, fetch just 1 capture to show immediately
-      const firstResponse = await fetch(
-        `/api/productivity/monitor?userId=${user.userId}&limit=1&skip=0&includeScreenshot=true`,
+      // Fetch ALL captures metadata WITHOUT screenshots first (fast!)
+      const response = await fetch(
+        `/api/productivity/monitor?userId=${user.userId}&limit=${limit}&skip=0&includeScreenshot=false`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      const firstData = await firstResponse.json();
+      const data = await response.json();
       
-      if (firstData.success) {
-        const firstCapture = (firstData.data || []).filter(item => item.status !== 'pending');
-        if (firstCapture.length > 0) {
-          setCaptures(firstCapture);
-          setVisibleCaptures(firstCapture);
-          setLoading(false); // Stop main loading spinner once first item is visible
-        }
+      if (!response.ok || !data.success) {
+        console.error('Failed to fetch captures:', data.error || 'Unknown error');
+        toast.error(data.error || 'Failed to load captures');
+        setLoading(false);
+        setIsStreaming(false);
+        return;
+      }
+      
+      if (data.success) {
+        const allCaptures = (data.data || []).filter(item => item.status !== 'pending');
         
-        // Now fetch remaining captures in background
-        const remainingResponse = await fetch(
-          `/api/productivity/monitor?userId=${user.userId}&limit=${limit - 1}&skip=1&includeScreenshot=true`,
-          { headers: { 'Authorization': `Bearer ${token}` } }
-        );
-        const remainingData = await remainingResponse.json();
-        
-        if (remainingData.success) {
-          const remainingCaptures = (remainingData.data || []).filter(item => item.status !== 'pending');
-          const allCaptures = [...firstCapture, ...remainingCaptures];
+        if (allCaptures.length > 0) {
+          // Show first capture immediately
           setCaptures(allCaptures);
+          setVisibleCaptures([allCaptures[0]]);
+          setLoading(false); // Stop main loading spinner
           
-          // Use API's total count if available
-          const apiTotal = remainingData.total || firstData.total || 0;
+          // Use API's total count
+          const apiTotal = data.total || 0;
           const userTotal = user?.totalCaptures || 0;
           const bestTotal = Math.max(apiTotal, userTotal, allCaptures.length);
           
@@ -2052,18 +2435,20 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
           setHasMore(allCaptures.length < bestTotal);
           hasFetchedRef.current = true;
           
-          // Cache the results
+          // Cache the results (without screenshots for now)
           if (cacheKey && allCaptures.length > 0) {
             setCachedData(cacheKey, allCaptures);
           }
+        } else {
+          setLoading(false);
+          setIsStreaming(false);
         }
       }
     } catch (error) {
       console.error('Failed to fetch captures:', error);
       toast.error('Failed to load captures');
-    } finally {
       setLoading(false);
-      // Streaming continues via useEffect
+      setIsStreaming(false);
     }
   };
 
@@ -2309,13 +2694,24 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
             </div>
           ) : (
             <>
-              {/* Streaming indicator */}
-              {isStreaming && visibleCaptures.length < captures.length && (
-                <div className="mb-4 flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-lg py-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span className="text-sm">Loading more captures... ({visibleCaptures.length}/{captures.length})</span>
+              {/* Loading status indicators */}
+              <div className="mb-4 flex items-center justify-between bg-gray-50 rounded-lg py-2 px-4">
+                <span className="text-sm text-gray-600">
+                  Showing {visibleCaptures.length} of {captures.length} captures
+                </span>
+                <div className="flex items-center gap-3">
+                  {/* Screenshot loading progress */}
+                  <span className="text-sm text-gray-500">
+                    Screenshots: {Object.keys(loadedScreenshots).length}/{visibleCaptures.length}
+                  </span>
+                  {loadingScreenshotIndex >= 0 && (
+                    <div className="flex items-center gap-1 text-blue-600">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <span className="text-xs">Loading #{loadingScreenshotIndex + 1}</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
               
               <div className="space-y-4">
                 {visibleCaptures.map((capture, idx) => (
@@ -2329,17 +2725,29 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
                       onClick={() => toggleExpand(capture._id)}
                     >
                       <div className="flex gap-4">
-                        {/* Thumbnail */}
-                        <div className="w-48 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {capture.screenshotUrl || capture.screenshot?.data ? (
+                        {/* Thumbnail with sequential loading */}
+                        <div className="relative w-48 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {loadedScreenshots[idx] ? (
                             <img 
-                              src={capture.screenshotUrl || (capture.screenshot?.data?.startsWith('data:') ? capture.screenshot.data : `data:image/png;base64,${capture.screenshot?.data}`)}
+                              src={loadedScreenshots[idx]}
                               alt="Screenshot"
                               className="w-full h-full object-cover"
                             />
+                          ) : loadingScreenshotIndex === idx ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800">
+                              <div className="w-6 h-6 border-2 border-blue-300 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+                              <span className="text-white/70 text-xs">Loading...</span>
+                            </div>
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <FaCamera className="text-3xl text-gray-400" />
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                              <FaCamera className="text-2xl text-gray-400 mb-1" />
+                              <span className="text-xs">{idx + 1}</span>
+                            </div>
+                          )}
+                          {/* Show checkmark for loaded */}
+                          {loadedScreenshots[idx] && (
+                            <div className="absolute bottom-1 right-1 bg-green-500 rounded-full p-0.5">
+                              <FaCheck className="text-white text-[8px]" />
                             </div>
                           )}
                         </div>
@@ -2392,13 +2800,20 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
                     {expandedCaptures.has(capture._id) && (
                       <div className="border-t bg-gray-50 p-4">
                         {/* Full Screenshot */}
-                        {(capture.screenshotUrl || capture.screenshot?.data) && (
+                        {loadedScreenshots[idx] ? (
                           <div className="mb-4">
                             <img 
-                              src={capture.screenshotUrl || (capture.screenshot?.data?.startsWith('data:') ? capture.screenshot.data : `data:image/png;base64,${capture.screenshot?.data}`)}
+                              src={loadedScreenshots[idx]}
                               alt="Full Screenshot"
                               className="w-full max-h-96 object-contain rounded-lg border"
                             />
+                          </div>
+                        ) : (
+                          <div className="mb-4 flex items-center justify-center h-48 bg-gray-200 rounded-lg">
+                            <div className="text-center">
+                              <div className="w-8 h-8 border-2 border-blue-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-2"></div>
+                              <span className="text-gray-500 text-sm">Loading full screenshot...</span>
+                            </div>
                           </div>
                         )}
 

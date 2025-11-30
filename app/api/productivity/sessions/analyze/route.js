@@ -28,6 +28,12 @@ function toObjectId(id) {
  */
 async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
   try {
+    // Validate image data
+    if (!imageData || typeof imageData !== 'string' || imageData.length < 100) {
+      console.log(`[Screenshot ${index + 1}] Skipping - invalid or too short image data`);
+      return null;
+    }
+
     // Extract base64 data (remove data:image/png;base64, prefix if present)
     let base64Data = imageData;
     if (imageData.startsWith('data:')) {
@@ -37,17 +43,36 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
       }
     }
     
+    // Validate base64 data length (at least 1KB of actual image data)
+    if (base64Data.length < 1000) {
+      console.log(`[Screenshot ${index + 1}] Skipping - base64 data too short (${base64Data.length} chars)`);
+      return null;
+    }
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    // Detect mime type from data URI or default to webp (our compression format)
+    let mimeType = 'image/webp';
+    if (imageData.startsWith('data:image/jpeg')) {
+      mimeType = 'image/jpeg';
+    } else if (imageData.startsWith('data:image/png')) {
+      mimeType = 'image/png';
+    }
+    
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{
             parts: [
               {
                 inline_data: {
-                  mime_type: 'image/png',
+                  mime_type: mimeType,
                   data: base64Data
                 }
               },
@@ -63,6 +88,8 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
         })
       }
     );
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`[Screenshot ${index + 1}] API error: ${response.status}`);
@@ -87,10 +114,13 @@ async function analyzeSessionWithAI(session, employee) {
   
   if (!GEMINI_API_KEY) {
     console.log('[Session Analyze] No Gemini API key found');
-    return generateFallbackAnalysis(session, employee?.designation || 'Employee');
+    const designationTitle = employee?.designation?.title || employee?.designation?.levelName || 'Employee';
+    return generateFallbackAnalysis(session, designationTitle);
   }
 
-  const designation = employee?.designation || 'Employee';
+  // Extract designation title from populated field or fallback
+  const designationTitle = employee?.designation?.title || employee?.designation?.levelName || 'Employee';
+  const designationDescription = employee?.designation?.description || '';
   const department = employee?.department?.name || 'General';
   const employeeName = employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : 'Employee';
   const screenshots = session.screenshots || [];
@@ -114,7 +144,7 @@ async function analyzeSessionWithAI(session, employee) {
   const keystrokeCount = session.keystrokeSummary?.totalCount || 0;
   const mouseClicks = session.mouseActivitySummary?.totalClicks || 0;
   
-  console.log(`[Session Analyze] Starting comprehensive analysis for ${employeeName} (${designation}) in ${department}`);
+  console.log(`[Session Analyze] Starting comprehensive analysis for ${employeeName} (${designationTitle}) in ${department}`);
   console.log(`[Session Analyze] Apps: ${apps.length}, Websites: ${websites.length}, Screenshots: ${screenshots.length}`);
   
   try {
@@ -153,49 +183,143 @@ async function analyzeSessionWithAI(session, employee) {
       ? screenshotDescriptions.map(s => `[${s.time}] ${s.description}`).join('\n')
       : 'No screenshots were available for analysis.';
     
-    const comprehensivePrompt = `You are analyzing a work session for productivity assessment.
+    const comprehensivePrompt = `You are an expert workplace productivity analyst conducting a detailed assessment of an employee's work session.
 
-EMPLOYEE CONTEXT:
-- Name: ${employeeName}
-- Role: ${designation}
-- Department: ${department}
-- This employee should be evaluated based on their specific job responsibilities.
+═══════════════════════════════════════════════════════════════════════
+EMPLOYEE PROFILE
+═══════════════════════════════════════════════════════════════════════
+• Full Name: ${employeeName}
+• Job Title/Designation: ${designationTitle}
+• Job Description: ${designationDescription || 'Standard duties for this role'}
+• Department: ${department}
 
-SESSION OVERVIEW:
-- Duration: ${session.sessionDuration || 30} minutes
-- Total keystrokes: ${keystrokeCount}
-- Mouse clicks: ${mouseClicks}
-- Screenshots analyzed: ${screenshotDescriptions.length}
+IMPORTANT: Evaluate this employee's activities SPECIFICALLY based on their job title "${designationTitle}" and what someone in this role would typically do. A software developer has different productive activities than a marketing manager or HR executive.
 
-APPLICATION USAGE:
+═══════════════════════════════════════════════════════════════════════
+SESSION METRICS
+═══════════════════════════════════════════════════════════════════════
+• Duration: ${session.sessionDuration || 30} minutes
+• Total Keystrokes: ${keystrokeCount} (${keystrokeCount > 0 ? Math.round(keystrokeCount / (session.sessionDuration || 30)) + ' per minute' : 'no data'})
+• Mouse Clicks: ${mouseClicks}
+• Screenshots Analyzed: ${screenshotDescriptions.length}
+
+═══════════════════════════════════════════════════════════════════════
+APPLICATION USAGE (Time Distribution)
+═══════════════════════════════════════════════════════════════════════
 ${appList}
 
-WEBSITE ACTIVITY:
+═══════════════════════════════════════════════════════════════════════
+WEBSITE ACTIVITY
+═══════════════════════════════════════════════════════════════════════
 ${websiteList}
 
-SCREENSHOT ANALYSIS (chronological):
+═══════════════════════════════════════════════════════════════════════
+SCREENSHOT ANALYSIS (Chronological Activity Log)
+═══════════════════════════════════════════════════════════════════════
 ${screenshotSummary}
 
-ROLE-SPECIFIC PRODUCTIVITY GUIDELINES:
-- Developers: coding, debugging, documentation, IDE usage, Stack Overflow = productive
-- Designers: Figma, Sketch, Adobe tools, design research = productive  
-- Marketing: social media management, analytics, content creation, campaigns = productive
-- HR: HRMS systems, communication, policy documents, recruitment = productive
-- Managers: email, calendar, meetings, planning, team communication = productive
-- Sales: CRM, email, calls, proposals = productive
+═══════════════════════════════════════════════════════════════════════
+ROLE-SPECIFIC PRODUCTIVITY CRITERIA
+═══════════════════════════════════════════════════════════════════════
 
-Based on ALL the above data, provide a comprehensive JSON analysis:
+Based on the job title "${designationTitle}", apply these relevant criteria:
+
+FOR SOFTWARE/TECH ROLES (Developer, Engineer, Programmer, QA, DevOps):
+• HIGHLY PRODUCTIVE: VS Code, IntelliJ, Xcode, Terminal, Git, debugging tools, Stack Overflow, GitHub, technical documentation, API testing (Postman), database tools
+• PRODUCTIVE: Slack/Teams for work discussions, Jira/Trello, code reviews, technical blogs
+• NEUTRAL: Email, calendar, general browsing for research
+• DISTRACTING: Social media, entertainment, shopping (unless role-related)
+
+FOR DESIGN ROLES (Designer, UX, UI, Creative):
+• HIGHLY PRODUCTIVE: Figma, Sketch, Adobe Creative Suite, Canva, design research, Dribbble, Behance
+• PRODUCTIVE: Design feedback tools, prototyping, client communication
+• NEUTRAL: Email, reference browsing, inspiration gathering
+• DISTRACTING: Non-design social media, entertainment
+
+FOR MARKETING ROLES (Marketing, Content, SEO, Social Media):
+• HIGHLY PRODUCTIVE: Analytics (Google Analytics, Meta), social media management tools, content creation, CRM, email marketing platforms, SEO tools
+• PRODUCTIVE: Social media research, competitor analysis, content planning
+• NEUTRAL: Industry news, trend research
+• DISTRACTING: Personal social media, unrelated browsing
+
+FOR HR ROLES (HR, Recruiter, People Operations):
+• HIGHLY PRODUCTIVE: HRMS systems, ATS platforms, LinkedIn Recruiter, policy documents, employee records, payroll systems
+• PRODUCTIVE: Email for candidate/employee communication, calendar for interviews, documentation
+• NEUTRAL: HR news, industry benchmarks
+• DISTRACTING: Personal browsing, entertainment
+
+FOR SALES ROLES (Sales, Business Development, Account Management):
+• HIGHLY PRODUCTIVE: CRM (Salesforce, HubSpot), email campaigns, proposal tools, call/demo tools
+• PRODUCTIVE: LinkedIn for prospecting, industry research, pricing tools
+• NEUTRAL: General email, calendar management
+• DISTRACTING: Personal browsing, non-work social media
+
+FOR MANAGEMENT ROLES (Manager, Lead, Director, Head):
+• HIGHLY PRODUCTIVE: Team management tools, reporting dashboards, strategic planning, documentation
+• PRODUCTIVE: Email, calendar, 1-on-1 meetings, team communication, reviews
+• NEUTRAL: Industry reading, professional development
+• DISTRACTING: Excessive personal browsing
+
+FOR ADMINISTRATIVE ROLES (Admin, Assistant, Coordinator):
+• HIGHLY PRODUCTIVE: Document management, scheduling, data entry, office tools, coordination platforms
+• PRODUCTIVE: Email, calendar, file organization
+• NEUTRAL: Reference lookups
+• DISTRACTING: Personal browsing, entertainment
+
+═══════════════════════════════════════════════════════════════════════
+SCORING METHODOLOGY (Apply Rigorously)
+═══════════════════════════════════════════════════════════════════════
+
+PRODUCTIVITY SCORE (0-100):
+• 90-100: Exceptional - Sustained high-value work directly aligned with job responsibilities
+• 75-89: High - Consistent productive work with minimal distractions
+• 60-74: Moderate - Mix of productive and neutral activities, some context switching
+• 40-59: Low - Significant time on non-work activities or excessive idle periods
+• 0-39: Very Low - Predominantly distracted or inactive
+
+FOCUS SCORE (0-100):
+• 90-100: Deep focus - Stayed on 1-2 related apps/tasks, minimal switching
+• 75-89: Good focus - Limited app switching, coherent work patterns
+• 60-74: Moderate focus - Some task switching but generally on track
+• 40-59: Fragmented - Frequent app/context switching affecting continuity
+• 0-39: Highly scattered - Constant switching, no sustained attention
+
+EFFICIENCY SCORE (0-100):
+• 90-100: Optimal - High output indicators (keystrokes, meaningful clicks), streamlined workflow
+• 75-89: Good - Consistent activity, effective tool usage
+• 60-74: Average - Moderate activity levels, some workflow inefficiencies
+• 40-59: Below average - Low activity or inefficient patterns
+• 0-39: Poor - Very low activity or significant workflow issues
+
+═══════════════════════════════════════════════════════════════════════
+REQUIRED JSON OUTPUT
+═══════════════════════════════════════════════════════════════════════
+
 {
-  "summary": "3-5 sentences providing a detailed narrative of the entire session. Describe what the employee did throughout, the progression of activities, and overall productivity assessment for their role.",
-  "productivityScore": 0-100,
-  "focusScore": 0-100,
-  "efficiencyScore": 0-100,
-  "workActivities": ["list of main work activities identified"],
-  "insights": ["insight 1 about work patterns", "insight 2", "insight 3"],
-  "recommendations": ["actionable recommendation 1", "recommendation 2"],
-  "areasOfImprovement": ["specific area to improve"],
-  "topAchievements": ["positive achievement if any"]
-}`;
+  "summary": "A detailed 4-6 sentence narrative analyzing: (1) What the ${designationTitle} worked on during this session, (2) Key activities observed with specific app/website mentions, (3) Work pattern quality and flow, (4) Overall productivity assessment considering their specific role requirements.",
+  "productivityScore": [0-100 based on role-specific criteria above],
+  "focusScore": [0-100 based on task switching and attention patterns],
+  "efficiencyScore": [0-100 based on activity levels and workflow],
+  "scoreBreakdown": {
+    "productivityReason": "Brief explanation of productivity score",
+    "focusReason": "Brief explanation of focus score",
+    "efficiencyReason": "Brief explanation of efficiency score"
+  },
+  "workActivities": ["Specific activity 1 detected", "Activity 2", "Activity 3", "Activity 4", "Activity 5"],
+  "insights": [
+    "Specific insight about work patterns observed",
+    "Insight about tool/app usage effectiveness",
+    "Insight about time allocation"
+  ],
+  "recommendations": [
+    "Actionable recommendation to improve productivity",
+    "Specific tip based on observed patterns"
+  ],
+  "areasOfImprovement": ["Specific area where improvement is needed based on observations"],
+  "topAchievements": ["Positive achievement or good practice observed in this session"]
+}
+
+CRITICAL: Be accurate and fair. Base scores strictly on observed data, not assumptions. If screenshots show productive work, score high. If they show browsing/entertainment, score accordingly. Consider the role context - what's distracting for a developer might be productive for a social media manager.`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -216,7 +340,7 @@ Based on ALL the above data, provide a comprehensive JSON analysis:
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[Session Analyze] Gemini API error (${response.status}):`, errorText.slice(0, 300));
-      return generateFallbackAnalysis(session, designation);
+      return generateFallbackAnalysis(session, designationTitle);
     }
 
     const result = await response.json();
@@ -233,6 +357,7 @@ Based on ALL the above data, provide a comprehensive JSON analysis:
           productivityScore: Math.min(100, Math.max(0, parseInt(parsed.productivityScore) || 50)),
           focusScore: Math.min(100, Math.max(0, parseInt(parsed.focusScore) || 50)),
           efficiencyScore: Math.min(100, Math.max(0, parseInt(parsed.efficiencyScore) || 50)),
+          scoreBreakdown: parsed.scoreBreakdown || null,
           workActivities: (parsed.workActivities || []).slice(0, 5),
           insights: (parsed.insights || []).slice(0, 4),
           recommendations: (parsed.recommendations || []).slice(0, 3),
@@ -247,11 +372,11 @@ Based on ALL the above data, provide a comprehensive JSON analysis:
     }
     
     // If parsing failed, use fallback
-    return generateFallbackAnalysis(session, designation);
+    return generateFallbackAnalysis(session, designationTitle);
     
   } catch (error) {
     console.error('[Session Analyze] Error:', error.message);
-    return generateFallbackAnalysis(session, designation);
+    return generateFallbackAnalysis(session, designationTitle);
   }
 }
 
@@ -345,6 +470,7 @@ function generateFallbackAnalysis(session, designation) {
 
 /**
  * POST - Analyze a session with cost-optimized AI
+ * Returns cached analysis if already analyzed (unless forceReanalyze=true)
  */
 export async function POST(request) {
   try {
@@ -364,9 +490,14 @@ export async function POST(request) {
 
     await connectDB();
 
-    const { sessionId } = await request.json();
+    const { sessionId, forceReanalyze, preloadedScreenshots } = await request.json();
     if (!sessionId) {
       return NextResponse.json({ success: false, error: 'Session ID required' }, { status: 400 });
+    }
+    
+    // Log if we received pre-loaded screenshots from the client
+    if (preloadedScreenshots?.length > 0) {
+      console.log(`[Session Analyze] Received ${preloadedScreenshots.length} pre-loaded screenshots from client`);
     }
 
     // Fetch session with full data
@@ -374,9 +505,45 @@ export async function POST(request) {
     if (!session) {
       return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
+    
+    // If we have pre-loaded screenshots from the client, use them instead of DB data
+    // This avoids network roundtrip to re-fetch images we already have
+    if (preloadedScreenshots?.length > 0) {
+      session.screenshots = session.screenshots?.map((ss, idx) => {
+        const preloaded = preloadedScreenshots.find(p => p.index === idx);
+        if (preloaded?.fullData) {
+          return { ...ss, fullData: preloaded.fullData };
+        }
+        return ss;
+      }) || preloadedScreenshots.map(p => ({ fullData: p.fullData, capturedAt: p.capturedAt }));
+    }
 
-    // Check permissions
-    const requester = await User.findById(decoded.userId).select('role employeeId');
+    // Check if session already has AI analysis (return cached if not forcing reanalyze)
+    if (session.aiAnalysis?.summary && session.aiAnalysis?.analyzedAt && !forceReanalyze) {
+      console.log(`[Session Analyze] Returning cached analysis for session ${sessionId} (analyzed at ${session.aiAnalysis.analyzedAt})`);
+      return NextResponse.json({
+        success: true,
+        message: 'Session already analyzed (cached)',
+        cached: true,
+        analysis: {
+          summary: session.aiAnalysis.summary,
+          productivityScore: session.aiAnalysis.productivityScore,
+          focusScore: session.aiAnalysis.focusScore,
+          efficiencyScore: session.aiAnalysis.efficiencyScore,
+          scoreBreakdown: session.aiAnalysis.scoreBreakdown,
+          workActivities: session.aiAnalysis.workActivities,
+          insights: session.aiAnalysis.insights,
+          recommendations: session.aiAnalysis.recommendations,
+          areasOfImprovement: session.aiAnalysis.areasOfImprovement,
+          topAchievements: session.aiAnalysis.topAchievements,
+          screenshotAnalysis: session.aiAnalysis.screenshotAnalysis,
+          analyzedAt: session.aiAnalysis.analyzedAt
+        }
+      });
+    }
+
+    // Check permissions - use .lean() for read-only queries
+    const requester = await User.findById(decoded.userId).select('role employeeId').lean();
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
     
     console.log(`[Session Analyze] Permission check: decoded.userId=${decoded.userId}, requester.role=${requester?.role}, isAdmin=${isAdmin}`);
@@ -391,7 +558,7 @@ export async function POST(request) {
       // First get the requester's employee ID
       let requesterEmployeeId = requester?.employeeId;
       if (!requesterEmployeeId) {
-        const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
+        const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id').lean();
         requesterEmployeeId = requesterEmployee?._id;
         console.log(`[Session Analyze] Looked up employee from userId: ${requesterEmployeeId}`);
       } else {
@@ -402,13 +569,13 @@ export async function POST(request) {
         // Check if this employee is head of a department (don't require isActive)
         const dept = await Department.findOne({ 
           head: requesterEmployeeId
-        });
+        }).lean();
         
         console.log(`[Session Analyze] Department where user is head: ${dept?.name || 'NONE'}`);
         
         if (dept) {
           // Check if the session's employee belongs to this department
-          const sessionEmployee = await Employee.findById(session.employeeId).select('department');
+          const sessionEmployee = await Employee.findById(session.employeeId).select('department').lean();
           console.log(`[Session Analyze] Session employee dept: ${sessionEmployee?.department?.toString()}, dept._id: ${dept._id.toString()}`);
           
           if (sessionEmployee && sessionEmployee.department?.toString() === dept._id.toString()) {
@@ -423,39 +590,50 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Unauthorized to analyze this session' }, { status: 403 });
     }
 
-    // Get employee info for role context
+    // Get employee info for role context (populate designation to get actual title)
     const employee = await Employee.findById(session.employeeId)
       .populate('department', 'name')
+      .populate('designation', 'title levelName description')
       .select('firstName lastName designation department')
       .lean();
 
-    console.log(`[Session Analyze] Starting for session ${sessionId}, ${session.screenshots?.length || 0} screenshots, employee: ${employee?.designation || 'Unknown'}`);
+    // Extract the actual designation title from the populated object
+    const designationTitle = employee?.designation?.title || employee?.designation?.levelName || 'Employee';
+    console.log(`[Session Analyze] Starting for session ${sessionId}, ${session.screenshots?.length || 0} screenshots, designation: ${designationTitle}`);
 
     // Single optimized AI call
     const analysis = await analyzeSessionWithAI(session, employee);
     
     console.log(`[Session Analyze] Complete: productivity=${analysis.productivityScore}%, focus=${analysis.focusScore}%`);
 
-    // Update session with new analysis
-    await ProductivitySession.findByIdAndUpdate(sessionId, {
-      aiAnalysis: {
-        summary: analysis.summary,
-        productivityScore: analysis.productivityScore,
-        focusScore: analysis.focusScore,
-        efficiencyScore: analysis.efficiencyScore,
-        workActivities: analysis.workActivities,
-        insights: analysis.insights,
-        recommendations: analysis.recommendations,
-        areasOfImprovement: analysis.areasOfImprovement,
-        topAchievements: analysis.topAchievements,
-        screenshotAnalysis: analysis.screenshotAnalysis,
-        analyzedAt: analysis.analyzedAt
-      }
-    });
+    // Try to update session with new analysis (don't fail if this times out)
+    let dbUpdateSuccess = false;
+    try {
+      await ProductivitySession.findByIdAndUpdate(sessionId, {
+        aiAnalysis: {
+          summary: analysis.summary,
+          productivityScore: analysis.productivityScore,
+          focusScore: analysis.focusScore,
+          efficiencyScore: analysis.efficiencyScore,
+          scoreBreakdown: analysis.scoreBreakdown,
+          workActivities: analysis.workActivities,
+          insights: analysis.insights,
+          recommendations: analysis.recommendations,
+          areasOfImprovement: analysis.areasOfImprovement,
+          topAchievements: analysis.topAchievements,
+          screenshotAnalysis: analysis.screenshotAnalysis,
+          analyzedAt: analysis.analyzedAt
+        }
+      }, { maxTimeMS: 30000 }); // 30 second timeout for update
+      dbUpdateSuccess = true;
+    } catch (dbError) {
+      console.error('[Session Analyze] DB update failed (analysis still returned):', dbError.message);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Session analyzed successfully',
+      message: dbUpdateSuccess ? 'Session analyzed and saved' : 'Session analyzed (save pending)',
+      savedToDb: dbUpdateSuccess,
       analysis
     });
 

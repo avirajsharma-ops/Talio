@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Project from '@/models/ProjectNew'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 

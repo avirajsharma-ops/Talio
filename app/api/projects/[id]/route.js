@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import ProjectOld from '@/models/ProjectOld'
+import Project from '@/models/ProjectNew'
 import User from '@/models/User'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
 
-    const project = await ProjectOld.findById(params.id)
+    const project = await Project.findById(params.id)
       .populate('projectManager', 'firstName lastName employeeCode email designation')
       .populate('projectOwner', 'firstName lastName employeeCode')
       .populate('sponsor', 'firstName lastName employeeCode')
@@ -73,7 +73,7 @@ export async function PUT(request, { params }) {
     const data = await request.json()
 
     // Check if user has permission to update
-    const existingProject = await ProjectOld.findById(params.id)
+    const existingProject = await Project.findById(params.id)
     if (!existingProject) {
       return NextResponse.json(
         { success: false, message: 'Project not found' },
@@ -96,7 +96,7 @@ export async function PUT(request, { params }) {
       )
     }
 
-    const project = await ProjectOld.findByIdAndUpdate(
+    const project = await Project.findByIdAndUpdate(
       params.id,
       data,
       { new: true, runValidators: true }
@@ -184,7 +184,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Archive instead of delete
-    const project = await ProjectOld.findByIdAndUpdate(
+    const project = await Project.findByIdAndUpdate(
       params.id,
       { status: 'archived' },
       { new: true }

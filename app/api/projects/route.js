@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import ProjectOld from '@/models/ProjectOld'
+import Project from '@/models/ProjectNew'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
 import Department from '@/models/Department'
@@ -67,7 +67,7 @@ export async function GET(request) {
       }
     }
 
-    const projects = await ProjectOld.find(query)
+    const projects = await Project.find(query)
       .populate('projectManager', 'firstName lastName employeeCode email')
       .populate('projectOwner', 'firstName lastName employeeCode')
       .populate('department', 'name code')
@@ -121,14 +121,25 @@ export async function POST(request) {
       )
     }
 
+    // Process team members to add assignedBy field
+    if (data.team && Array.isArray(data.team)) {
+      data.team = data.team.map(member => ({
+        ...member,
+        assignedBy: user.employeeId, // Track who assigned each member
+        assignmentStatus: member.member?.toString() === user.employeeId?.toString() 
+          ? 'accepted'  // Creator auto-accepts
+          : (member.assignmentStatus || 'pending')
+      }))
+    }
+
     // Create project
-    const project = await ProjectOld.create({
+    const project = await Project.create({
       ...data,
       // Ensure project manager is set
       projectManager: data.projectManager || user.employeeId,
     })
 
-    const populatedProject = await ProjectOld.findById(project._id)
+    const populatedProject = await Project.findById(project._id)
       .populate('projectManager', 'firstName lastName employeeCode email')
       .populate('projectOwner', 'firstName lastName employeeCode')
       .populate('department', 'name code')
@@ -142,49 +153,53 @@ export async function POST(request) {
       const io = global.io
       if (io && data.team && Array.isArray(data.team)) {
         const { sendPushToUser } = require('@/lib/pushNotification')
+        const creatorEmployee = await Employee.findById(user.employeeId).select('firstName lastName')
 
         for (const teamMember of data.team) {
-          const Employee = require('@/models/Employee').default
+          // Skip notifications for the creator (they already know)
+          if (teamMember.member?.toString() === user.employeeId?.toString()) continue
+          
           const employeeDoc = await Employee.findById(teamMember.member).populate('userId')
           const employeeUserId = employeeDoc?.userId?._id || employeeDoc?.userId
 
           if (employeeUserId) {
             // Socket.IO event
-            io.to(`user:${employeeUserId}`).emit('project-assignment', {
+            io.to(`user:${employeeUserId}`).emit('project-invitation', {
               project: populatedProject,
-              action: 'assigned',
+              action: 'invited',
               assignedBy: user.employeeId,
-              message: `You have been assigned to project: ${project.name}`,
+              assignedByName: `${creatorEmployee?.firstName || ''} ${creatorEmployee?.lastName || ''}`.trim(),
+              message: `${creatorEmployee?.firstName || 'Someone'} invited you to join project: ${project.name}`,
               timestamp: new Date()
             })
-            console.log(`✅ [Socket.IO] Project assignment sent to user:${employeeUserId}`)
+            console.log(`✅ [Socket.IO] Project invitation sent to user:${employeeUserId}`)
 
-            // FCM push notification
+            // Push notification
             try {
               await sendPushToUser(
                 employeeUserId,
                 {
-                  title: '📊Prior Project Assigned',
-                  body: `You have been assigned to project: ${project.name}`,
+                  title: '📋 Project Invitation',
+                  body: `${creatorEmployee?.firstName || 'Someone'} invited you to join project: ${project.name}`,
                 },
                 {
                   clickAction: '/dashboard/projects',
-                  eventType: 'project_assignment',
+                  eventType: 'project_invitation',
                   data: {
                     projectId: project._id.toString(),
-                    type: 'project_assignment'
+                    type: 'project_invitation'
                   }
                 }
               )
-              console.log(`📲 [FCM] Project assignment notification sent to user:${employeeUserId}`)
-            } catch (fcmError) {
-              console.error('Failed to send project FCM notification:', fcmError)
+              console.log(`📲 [Push] Project invitation sent to user:${employeeUserId}`)
+            } catch (pushError) {
+              console.error('Failed to send project push notification:', pushError)
             }
           }
         }
       }
     } catch (socketError) {
-      console.error('Failed to send project assignment socket notification:', socketError)
+      console.error('Failed to send project invitation socket notification:', socketError)
     }
 
     return NextResponse.json({

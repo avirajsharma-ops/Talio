@@ -32,8 +32,8 @@ export async function GET(request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Get interval from employee record or use default (30 minutes)
-    const interval = user.employeeId?.screenshotInterval || 30 * 60 * 1000; // milliseconds
+    // Get interval from employee record or use default (1 minute)
+    const interval = user.employeeId?.screenshotInterval || 60 * 1000; // milliseconds
 
     return NextResponse.json({
       success: true,

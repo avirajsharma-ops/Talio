@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
+import Department from '@/models/Department'
 import Designation from '@/models/Designation'
 import CompanySettings from '@/models/CompanySettings'
 import { SignJWT } from 'jose'
 import { sendLoginAlertEmail } from '@/lib/mailer'
 import { sendPushToUser } from '@/lib/pushNotification'
+
+// Ensure models are registered for populate
+const _ensureModels = { Department, Designation };
 
 export async function POST(request) {
   try {
@@ -123,78 +127,82 @@ export async function POST(request) {
       }
     }
 
-    // Best-effort: send login alert email to the user (controlled by admin settings)
-    try {
-      const companySettings = await CompanySettings.findOne().lean().catch(() => null)
+    // Best-effort: send login alert email to the user (controlled by admin settings) - fire and forget
+    (async () => {
+      try {
+        const companySettings = await CompanySettings.findOne().lean().catch(() => null)
 
-      const emailNotificationsEnabled =
-        companySettings?.notifications?.emailNotifications !== false
+        const emailNotificationsEnabled =
+          companySettings?.notifications?.emailNotifications !== false
 
-      const loginEmailEnabled =
-        companySettings?.notifications?.emailEvents?.login !== false
+        const loginEmailEnabled =
+          companySettings?.notifications?.emailEvents?.login !== false
 
-      if (emailNotificationsEnabled && loginEmailEnabled) {
-        const userAgent = request.headers.get('user-agent') || undefined
-        const ipAddress =
-          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-          request.headers.get('x-real-ip') ||
-          undefined
+        if (emailNotificationsEnabled && loginEmailEnabled) {
+          const userAgent = request.headers.get('user-agent') || undefined
+          const ipAddress =
+            request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            request.headers.get('x-real-ip') ||
+            undefined
 
+          const name = employeeData
+            ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
+            : undefined
+
+          await sendLoginAlertEmail({
+            to: user.email,
+            name,
+            loginTime: user.lastLogin || new Date(),
+            userAgent,
+            ipAddress,
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send login alert email:', emailError)
+      }
+    })();
+
+    // Best-effort: send push notification for login - fire and forget
+    ;(async () => {
+      try {
         const name = employeeData
           ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
-          : undefined
+          : user.email.split('@')[0]
 
-        await sendLoginAlertEmail({
-          to: user.email,
-          name,
-          loginTime: user.lastLogin || new Date(),
-          userAgent,
-          ipAddress,
-        })
-      }
-    } catch (emailError) {
-      console.error('Failed to send login alert email:', emailError)
-    }
-
-    // Best-effort: send push notification for login
-    try {
-      const name = employeeData
-        ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
-        : user.email.split('@')[0]
-
-      const currentHour = new Date().getHours()
-      let greeting = 'Hello'
-      let emoji = '👋'
-      if (currentHour < 12) {
-        greeting = 'Good Morning'
-        emoji = '🌅'
-      } else if (currentHour < 17) {
-        greeting = 'Good Afternoon'
-        emoji = '☀️'
-      } else {
-        greeting = 'Good Evening'
-        emoji = '🌙'
-      }
-
-      await sendPushToUser(
-        user._id,
-        {
-          title: `${emoji} ${greeting}, ${name}!`,
-          body: `Welcome back to Talio! You've successfully logged in.`,
-        },
-        {
-          eventType: 'login',
-          clickAction: '/dashboard',
-          icon: '/icon-192x192.png',
-          data: {
-            loginTime: new Date().toISOString(),
-            type: 'login',
-          },
+        const currentHour = new Date().getHours()
+        let greeting = 'Hello'
+        let emoji = '👋'
+        if (currentHour < 12) {
+          greeting = 'Good Morning'
+          emoji = '🌅'
+        } else if (currentHour < 17) {
+          greeting = 'Good Afternoon'
+          emoji = '☀️'
+        } else {
+          greeting = 'Good Evening'
+          emoji = '🌙'
         }
-      )
-    } catch (pushError) {
-      console.error('Failed to send login push notification:', pushError)
-    }
+
+        await sendPushToUser(
+          user._id,
+          {
+            title: `${emoji} ${greeting}, ${name}!`,
+            body: `Welcome back to Talio! You've successfully logged in.`,
+          },
+          {
+            eventType: 'login',
+            clickAction: '/dashboard',
+            icon: '/icon-192x192.png',
+            data: {
+              loginTime: new Date().toISOString(),
+              type: 'login',
+            },
+          }
+        )
+      } catch (pushError) {
+        console.error('Failed to send login push notification:', pushError)
+      }
+    })()
 
     // Return user data without password, including employee details
     // IMPORTANT: employeeId is stored as an object with _id for frontend compatibility

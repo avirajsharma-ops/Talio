@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { 
   FaProjectDiagram, FaPlus, FaUsers, FaTasks, FaCalendarAlt, 
-  FaChartLine, FaFilter, FaSearch, FaClock, FaCheckCircle 
+  FaChartLine, FaFilter, FaSearch, FaClock, FaCheckCircle,
+  FaEnvelope, FaCheck, FaTimes, FaBell
 } from 'react-icons/fa'
 
 export default function ProjectsPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [projects, setProjects] = useState([])
+  const [invitations, setInvitations] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [respondingTo, setRespondingTo] = useState(null)
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -27,8 +30,56 @@ export default function ProjectsPage() {
     if (userData) {
       setUser(JSON.parse(userData))
       fetchProjects()
+      fetchInvitations()
     }
   }, [])
+
+  const fetchInvitations = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/projects/invitations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setInvitations(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching invitations:', error)
+    }
+  }
+
+  const handleRespondToInvitation = async (projectId, action) => {
+    try {
+      setRespondingTo(projectId)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/projects/${projectId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success(data.message)
+        // Remove from invitations and refresh projects
+        setInvitations(prev => prev.filter(inv => inv._id !== projectId))
+        if (action === 'accept') {
+          fetchProjects()
+        }
+      } else {
+        toast.error(data.message || 'Failed to respond')
+      }
+    } catch (error) {
+      console.error('Error responding to invitation:', error)
+      toast.error('Failed to respond to invitation')
+    } finally {
+      setRespondingTo(null)
+    }
+  }
 
   const fetchProjects = async (statusFilter = null) => {
     try {
@@ -139,7 +190,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && (
+        {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager' || user.role === 'employee') && (
           <button
             onClick={() => router.push('/dashboard/projects/create')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
@@ -192,6 +243,76 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
+
+      {/* Pending Invitations */}
+      {invitations.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md p-4 mb-6 border border-blue-200">
+          <div className="flex items-center mb-4">
+            <FaBell className="text-blue-600 mr-2 text-lg animate-pulse" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Project Invitations ({invitations.length})
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {invitations.map(invitation => (
+              <div key={invitation._id} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900">{invitation.name}</h3>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}>
+                        {invitation.status?.replace('_', ' ').toUpperCase()}
+                      </span>
+                      <span className={`text-xs font-medium ${getPriorityColor(invitation.priority)}`}>
+                        {invitation.priority?.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2 line-clamp-1">
+                      {invitation.summary || invitation.description || 'No description'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <span>
+                        <strong>From:</strong> {invitation.projectManager?.firstName} {invitation.projectManager?.lastName}
+                      </span>
+                      <span>
+                        <strong>Role:</strong> {invitation.assignedRole}
+                      </span>
+                      <span>
+                        <strong>Due:</strong> {new Date(invitation.endDate).toLocaleDateString()}
+                      </span>
+                      <span>
+                        <strong>Team:</strong> {invitation.teamSize} member{invitation.teamSize !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRespondToInvitation(invitation._id, 'accept')}
+                      disabled={respondingTo === invitation._id}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                    >
+                      {respondingTo === invitation._id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      ) : (
+                        <FaCheck className="mr-2" />
+                      )}
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRespondToInvitation(invitation._id, 'decline')}
+                      disabled={respondingTo === invitation._id}
+                      className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:opacity-50 transition-colors text-sm font-medium"
+                    >
+                      <FaTimes className="mr-2" />
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -269,7 +390,7 @@ export default function ProjectsPage() {
           <p className="text-gray-600 mb-4">
             {searchTerm ? 'Try adjusting your search' : 'Get started by creating your first project'}
           </p>
-          {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager') && !searchTerm && (
+          {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager' || user.role === 'employee') && !searchTerm && (
             <button
               onClick={() => router.push('/dashboard/projects/create')}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"

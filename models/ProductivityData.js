@@ -59,7 +59,8 @@ const ProductivityDataSchema = new mongoose.Schema({
   // Screenshot data
   screenshot: {
     url: { type: String },
-    data: { type: String }, // Base64 data (temporary, stored to cloud then cleared)
+    data: { type: String }, // Base64 data (compressed, stored in DB)
+    thumbnail: { type: String }, // Small thumbnail for quick preview
     capturedAt: { type: Date },
     captureType: { 
       type: String, 

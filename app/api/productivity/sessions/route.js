@@ -32,11 +32,11 @@ async function getDepartmentIfHead(userId) {
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
   
-  const user = await User.findById(userObjId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
-    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
   
@@ -49,7 +49,7 @@ async function getDepartmentIfHead(userId) {
       { heads: employeeId }
     ],
     isActive: true 
-  });
+  }).lean();
   return department;
 }
 
@@ -157,9 +157,7 @@ async function aggregateSessionsForUser(userId, sessionDurationMins = 30) {
 
       await session.save();
       createdSessions.push(session);
-
-      // Run AI analysis in background
-      analyzeSessionAsync(session._id);
+      // Note: AI analysis is now triggered manually by the user via "Analyze with AI" button
     }
 
     return { 
@@ -310,188 +308,9 @@ function generateThumbnail(base64Data) {
   return null;
 }
 
-/**
- * Run AI analysis on session in background
- */
-async function analyzeSessionAsync(sessionId) {
-  try {
-    await connectDB();
-    
-    const session = await ProductivitySession.findById(sessionId);
-    if (!session) return;
-
-    // Build analysis context from session data
-    const analysisContext = {
-      totalActiveTime: session.totalActiveTime,
-      productiveTime: session.productiveTime,
-      neutralTime: session.neutralTime,
-      unproductiveTime: session.unproductiveTime,
-      topApps: session.topApps,
-      topWebsites: session.topWebsites,
-      keystrokes: session.keystrokeSummary,
-      screenshotCount: session.screenshots?.length || 0,
-      sessionDuration: session.sessionDuration
-    };
-
-    // Generate AI analysis
-    const analysis = await generateSessionAnalysis(analysisContext);
-
-    await ProductivitySession.findByIdAndUpdate(sessionId, {
-      aiAnalysis: {
-        summary: analysis.summary,
-        productivityScore: analysis.productivityScore,
-        focusScore: analysis.focusScore,
-        efficiencyScore: analysis.efficiencyScore,
-        insights: analysis.insights,
-        recommendations: analysis.recommendations,
-        areasOfImprovement: analysis.areasOfImprovement,
-        topAchievements: analysis.topAchievements,
-        analyzedAt: new Date()
-      }
-    });
-
-    console.log(`[Session Analysis] Completed for session ${sessionId}`);
-  } catch (error) {
-    console.error('[Session Analysis] Error:', error);
-    // Save fallback analysis
-    try {
-      const session = await ProductivitySession.findById(sessionId);
-      if (session && !session.aiAnalysis?.summary) {
-        const fallback = generateFallbackSessionAnalysis(session);
-        await ProductivitySession.findByIdAndUpdate(sessionId, { aiAnalysis: fallback });
-      }
-    } catch (e) {
-      console.error('[Session Analysis] Fallback also failed:', e);
-    }
-  }
-}
-
-/**
- * Generate AI-powered session analysis
- */
-async function generateSessionAnalysis(context) {
-  try {
-    // Try using OpenAI or similar
-    const { OpenAI } = await import('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const prompt = `Analyze this ${context.sessionDuration}-minute work session:
-    
-- Total active time: ${Math.round(context.totalActiveTime / 60000)} minutes
-- Productive time: ${Math.round(context.productiveTime / 60000)} minutes (${Math.round((context.productiveTime / context.totalActiveTime) * 100)}%)
-- Neutral time: ${Math.round(context.neutralTime / 60000)} minutes
-- Unproductive time: ${Math.round(context.unproductiveTime / 60000)} minutes
-- Top apps: ${context.topApps?.map(a => `${a.appName} (${a.percentage}%)`).join(', ') || 'None'}
-- Top websites: ${context.topWebsites?.map(w => `${w.domain} (${w.visits} visits)`).join(', ') || 'None'}
-- Total keystrokes: ${context.keystrokes?.totalCount || 0}
-- Screenshots captured: ${context.screenshotCount}
-
-Provide a JSON response with:
-{
-  "summary": "2-3 sentence summary of the session productivity",
-  "productivityScore": number (0-100),
-  "focusScore": number (0-100),
-  "efficiencyScore": number (0-100),
-  "insights": ["insight1", "insight2", "insight3"],
-  "recommendations": ["recommendation1", "recommendation2"],
-  "areasOfImprovement": ["area1"],
-  "topAchievements": ["achievement1"]
-}`;
-
-    const response = await openai.chat.completions.create({
-      model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
-    });
-
-    return JSON.parse(response.choices[0].message.content);
-  } catch (error) {
-    console.error('[AI Analysis] Error:', error);
-    return generateFallbackSessionAnalysis({ 
-      totalActiveTime: context.totalActiveTime,
-      productiveTime: context.productiveTime,
-      neutralTime: context.neutralTime,
-      unproductiveTime: context.unproductiveTime,
-      topApps: context.topApps,
-      topWebsites: context.topWebsites,
-      keystrokeSummary: context.keystrokes
-    });
-  }
-}
-
-/**
- * Generate fallback analysis when AI is unavailable
- */
-function generateFallbackSessionAnalysis(session) {
-  const totalTime = session.totalActiveTime || 1;
-  const productivePercent = Math.round((session.productiveTime / totalTime) * 100);
-  const unproductivePercent = Math.round((session.unproductiveTime / totalTime) * 100);
-  
-  const productivityScore = productivePercent;
-  const focusScore = session.topApps?.length <= 3 ? 85 : session.topApps?.length <= 5 ? 70 : 55;
-  const efficiencyScore = session.keystrokeSummary?.totalCount > 500 ? 80 : 
-                          session.keystrokeSummary?.totalCount > 100 ? 65 : 50;
-  
-  const totalMins = Math.round(totalTime / 60000);
-  const topApp = session.topApps?.[0];
-  
-  let summary = `${session.sessionDuration || 30}-minute session with ${productivePercent}% productive time. `;
-  if (topApp) {
-    summary += `Primary focus: ${topApp.appName} (${topApp.percentage}% of session). `;
-  }
-  if (productivePercent >= 70) {
-    summary += 'Excellent work session!';
-  } else if (productivePercent >= 50) {
-    summary += 'Balanced work session.';
-  } else {
-    summary += 'Consider reducing distractions.';
-  }
-
-  const insights = [];
-  if (topApp) insights.push(`Most used: ${topApp.appName} (${topApp.percentage}%)`);
-  if (session.topWebsites?.[0]) insights.push(`Top site: ${session.topWebsites[0].domain}`);
-  if (session.keystrokeSummary?.totalCount > 0) insights.push(`${session.keystrokeSummary.totalCount} keystrokes`);
-  
-  const recommendations = [];
-  if (productivePercent < 50) recommendations.push('Use focus mode during work hours');
-  if (session.topApps?.length > 5) recommendations.push('Reduce app switching');
-  recommendations.push('Take short breaks every 90 minutes');
-  
-  const areasOfImprovement = [];
-  if (unproductivePercent > 30) areasOfImprovement.push('Reduce unproductive app usage');
-  
-  const topAchievements = [];
-  if (productivePercent >= 70) topAchievements.push('High productivity session');
-  if (session.keystrokeSummary?.totalCount > 500) topAchievements.push('High engagement');
-
-  return {
-    summary,
-    productivityScore,
-    focusScore,
-    efficiencyScore,
-    insights,
-    recommendations,
-    areasOfImprovement: areasOfImprovement.length > 0 ? areasOfImprovement : ['Continue current patterns'],
-    topAchievements: topAchievements.length > 0 ? topAchievements : ['Session completed'],
-    analyzedAt: new Date()
-  };
-}
-
 // ===================== API ROUTES =====================
-
-/**
- * Trigger auto-analysis for multiple sessions in background
- * Non-blocking - errors are logged but don't affect response
- */
-async function triggerAutoAnalysisForSessions(sessionIds) {
-  for (const sessionId of sessionIds.slice(0, 3)) { // Limit to 3 to avoid timeout
-    try {
-      await analyzeSessionAsync(sessionId);
-    } catch (err) {
-      console.error(`[Auto-Analysis] Failed for session ${sessionId}:`, err.message);
-    }
-  }
-}
+// Note: AI analysis is now triggered manually via /api/productivity/sessions/analyze endpoint
+// Analysis results are cached in the session document and won't be re-run unless forced
 
 /**
  * POST - Trigger session aggregation
@@ -518,7 +337,7 @@ export async function POST(request) {
     const { userId, forAll, sessionDuration } = await request.json();
     
     // Get requester's role
-    const requester = await User.findById(decoded.userId).select('role settings');
+    const requester = await User.findById(decoded.userId).select('role settings').lean();
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
     
     // Get session duration from settings or request
@@ -593,7 +412,7 @@ export async function GET(request) {
     const includePartial = searchParams.get('includePartial') === 'true';
 
     // Check permissions
-    const requester = await User.findById(decoded.userId).select('role employeeId');
+    const requester = await User.findById(decoded.userId).select('role employeeId').lean();
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
     
     // Check if user is a department head via Department.head field
@@ -621,13 +440,13 @@ export async function GET(request) {
       // If department head, verify the target user is in their department
       if (isDeptHead && !isAdmin && headOfDepartment) {
         // Bidirectional lookup: check Employee.userId first, then User.employeeId
-        let targetEmployee = await Employee.findOne({ userId: userObjId }).select('department');
+        let targetEmployee = await Employee.findOne({ userId: userObjId }).select('department').lean();
         
         if (!targetEmployee) {
           // Try reverse relationship: User.employeeId
-          const targetUser = await User.findById(userObjId).select('employeeId');
+          const targetUser = await User.findById(userObjId).select('employeeId').lean();
           if (targetUser?.employeeId) {
-            targetEmployee = await Employee.findById(targetUser.employeeId).select('department');
+            targetEmployee = await Employee.findById(targetUser.employeeId).select('department').lean();
           }
         }
         
@@ -658,52 +477,121 @@ export async function GET(request) {
       query.sessionEnd = { ...(query.sessionEnd || {}), $gt: new Date(afterDate) };
     }
 
-    // Get total count for pagination
-    const totalCount = await ProductivitySession.countDocuments(query);
+    // OPTIMIZATION: Use aggregation pipeline for efficient data loading
+    // This avoids loading massive base64 screenshot data
+    const pipeline = [
+      { $match: query },
+      { $sort: { sessionStart: -1 } },
+      { $skip: offset },
+      { $limit: limit },
+      {
+        $project: {
+          // Core session info
+          sessionStart: 1,
+          sessionEnd: 1,
+          sessionDuration: 1,
+          status: 1,
+          userId: 1,
+          employeeId: 1,
+          
+          // Summary data (small)
+          totalActiveTime: 1,
+          productiveTime: 1,
+          neutralTime: 1,
+          unproductiveTime: 1,
+          
+          // App/website summaries (small arrays)
+          topApps: { $slice: ['$topApps', 5] },
+          topWebsites: { $slice: ['$topWebsites', 5] },
+          appUsageSummary: { $slice: ['$appUsageSummary', 5] },
+          websiteVisitSummary: { $slice: ['$websiteVisitSummary', 5] },
+          
+          // Keystroke/mouse summary
+          keystrokeSummary: 1,
+          mouseActivitySummary: 1,
+          
+          // AI analysis (if exists)
+          aiAnalysis: 1,
+          
+          // Screenshot count and first screenshot thumbnail ONLY (no fullData)
+          screenshotCount: { $size: { $ifNull: ['$screenshots', []] } },
+          // Get first 2 screenshots but only thumbnail field
+          screenshots: {
+            $map: {
+              input: { $slice: ['$screenshots', 2] },
+              as: 'ss',
+              in: {
+                _id: '$$ss._id',
+                capturedAt: '$$ss.capturedAt',
+                captureType: '$$ss.captureType',
+                // Only include thumbnail, NOT fullData (which is huge)
+                thumbnail: '$$ss.thumbnail'
+              }
+            }
+          },
+          
+          // Device info
+          deviceInfo: 1,
+          
+          // Metadata
+          createdAt: 1,
+          updatedAt: 1
+        }
+      }
+    ];
 
-    // Fetch sessions
-    const sessions = await ProductivitySession.find(query)
-      .sort({ sessionStart: -1 })
-      .skip(offset)
-      .limit(limit)
-      .populate('employeeId', 'firstName lastName employeeCode designation department profilePicture')
-      .populate('userId', 'name email profilePicture')
-      .lean();
+    // Run aggregation and count in parallel for speed
+    const [sessions, countResult] = await Promise.all([
+      ProductivitySession.aggregate(pipeline),
+      ProductivitySession.countDocuments(query)
+    ]);
 
-    // For list view: include thumbnail OR fullData for first 4 screenshots (for card display)
-    // Also include fullData fallback if no thumbnail exists
-    const sessionsForList = sessions.map(session => ({
-      ...session,
-      // Ensure we have computed duration if not set
+    const totalCount = countResult;
+
+    // Populate employee and user info efficiently
+    const populatedSessions = await ProductivitySession.populate(sessions, [
+      { path: 'employeeId', select: 'firstName lastName employeeCode designation profilePicture' },
+      { path: 'userId', select: 'name email profilePicture' }
+    ]);
+
+    // Format for list view
+    const sessionsForList = populatedSessions.map(session => ({
+      _id: session._id,
+      sessionStart: session.sessionStart,
+      sessionEnd: session.sessionEnd,
+      status: session.status,
+      userId: session.userId,
+      employeeId: session.employeeId,
       durationMinutes: session.sessionDuration || Math.round((new Date(session.sessionEnd) - new Date(session.sessionStart)) / 60000),
-      screenshots: session.screenshots?.slice(0, 4).map((s, idx) => ({
-        _id: s._id,
-        capturedAt: s.capturedAt,
-        // Include thumbnail if available, else include fullData for display
-        thumbnail: s.thumbnail || s.fullData,
-        // For first screenshot only, include fullData as fallback
-        url: s.thumbnail || s.fullData,
-        thumbnailUrl: s.thumbnail || s.fullData,
-        captureType: s.captureType
-      })),
-      // Ensure these fields exist for display
+      
+      // Use screenshotCount from aggregation
+      screenshotCount: session.screenshotCount || 0,
+      screenshots: session.screenshots || [],
+      
+      // Activity summaries
+      totalActiveTime: session.totalActiveTime,
+      productiveTime: session.productiveTime,
       appUsage: session.appUsageSummary || session.topApps || [],
       websiteVisits: session.websiteVisitSummary || session.topWebsites || [],
+      topApps: session.topApps,
+      topWebsites: session.topWebsites,
+      
       keystrokes: {
         total: session.keystrokeSummary?.totalCount || 0,
         perMinute: session.keystrokeSummary?.averagePerMinute || 0
       },
-      mouseClicks: session.mouseActivitySummary?.totalClicks || 0
+      keystrokeSummary: session.keystrokeSummary,
+      mouseClicks: session.mouseActivitySummary?.totalClicks || 0,
+      mouseActivitySummary: session.mouseActivitySummary,
+      
+      // AI analysis
+      aiAnalysis: session.aiAnalysis,
+      
+      deviceInfo: session.deviceInfo
     }));
 
-    // Trigger auto-analysis for sessions without AI analysis (background, non-blocking)
-    const unanalyzedSessions = sessions.filter(s => !s.aiAnalysis?.summary);
-    if (unanalyzedSessions.length > 0) {
-      // Don't await - run in background
-      triggerAutoAnalysisForSessions(unanalyzedSessions.map(s => s._id)).catch(err => {
-        console.error('[Sessions GET] Auto-analysis error:', err.message);
-      });
-    }
+    // Note: Background auto-analysis has been removed. Users can manually trigger AI analysis via the "Analyze with AI" button.
+    // Once analyzed, the analysis is saved to the session and won't need to be re-analyzed.
 
     return NextResponse.json({
       success: true,

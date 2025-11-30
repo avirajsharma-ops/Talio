@@ -110,10 +110,21 @@ const ProductivitySessionSchema = new mongoose.Schema({
     productivityScore: { type: Number, min: 0, max: 100 },
     focusScore: { type: Number, min: 0, max: 100 },
     efficiencyScore: { type: Number, min: 0, max: 100 },
+    scoreBreakdown: {
+      productivityReason: { type: String },
+      focusReason: { type: String },
+      efficiencyReason: { type: String }
+    },
+    workActivities: [{ type: String }],
     insights: [{ type: String }],
     recommendations: [{ type: String }],
     areasOfImprovement: [{ type: String }],
     topAchievements: [{ type: String }],
+    screenshotAnalysis: [{
+      index: { type: Number },
+      time: { type: String },
+      description: { type: String }
+    }],
     analyzedAt: { type: Date }
   },
 

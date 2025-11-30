@@ -31,11 +31,11 @@ async function getDepartmentIfHead(userId) {
   if (!userObjId) return null;
   
   // Get the employee ID for this user
-  const user = await User.findById(userObjId).select('employeeId');
+  const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
   
   if (!employeeId) {
-    const employee = await Employee.findOne({ userId: userObjId }).select('_id');
+    const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
   
@@ -51,7 +51,7 @@ async function getDepartmentIfHead(userId) {
       { heads: employeeId }
     ],
     isActive: true 
-  });
+  }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
 }
@@ -92,7 +92,7 @@ export async function GET(request) {
     const specificUserId = searchParams.get('userId');
 
     // Get requester's info
-    const requester = await User.findById(decoded.userId).select('role');
+    const requester = await User.findById(decoded.userId).select('role').lean();
     if (!requester) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
@@ -113,11 +113,49 @@ export async function GET(request) {
       employeeQuery.department = headOfDepartment._id;
     } else {
       // All other roles see only their own card
-      const requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id');
+      // First try Employee.userId lookup
+      let requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id').lean();
+      
+      // If not found, try User.employeeId reverse lookup
+      if (!requesterEmployee) {
+        const userWithEmployeeId = await User.findById(decoded.userId).select('employeeId').lean();
+        if (userWithEmployeeId?.employeeId) {
+          requesterEmployee = await Employee.findById(userWithEmployeeId.employeeId).select('_id').lean();
+        }
+      }
+      
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {
-        return NextResponse.json({ success: true, data: [], totalUsers: 0 });
+        // Return user's own card even if no Employee record exists
+        // This creates a minimal card from the User record
+        const userRecord = await User.findById(decoded.userId).select('name email profilePicture lastActive').lean();
+        if (userRecord) {
+          const minimalCard = {
+            id: decoded.userId,
+            odooId: decoded.userId,
+            userId: decoded.userId,
+            name: userRecord.name || 'Unknown User',
+            email: userRecord.email || '',
+            employeeCode: '',
+            designation: '',
+            department: 'Unassigned',
+            profilePicture: userRecord.profilePicture,
+            lastActive: userRecord.lastActive,
+            isOwnCard: true,
+            latestSession: null,
+            totalSessions: 0,
+            todayStats: { duration: 0, sessionsCount: 0, avgProductivity: null },
+            statsLoading: false
+          };
+          return NextResponse.json({ 
+            success: true, 
+            data: [minimalCard], 
+            totalUsers: 1,
+            accessLevel: 'self_only'
+          });
+        }
+        return NextResponse.json({ success: true, data: [], totalUsers: 0, accessLevel: 'self_only' });
       }
     }
 
@@ -130,6 +168,7 @@ export async function GET(request) {
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture lastActive')
       .populate('department', 'name')
+      .populate('designation', 'title levelName description')
       .select('firstName lastName employeeCode designation profilePicture userId department email')
       .lean();
 
