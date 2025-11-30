@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import User from '@/models/User'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
     }
 
     // Get task
-    const task = await Project.findById(params.id)
+    const task = await Task.findById(params.id)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
 
     await task.save()
 
-    const updatedTask = await Project.findById(params.id)
+    const updatedTask = await Task.findById(params.id)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
       .populate('checklist.completedBy', 'firstName lastName')
@@ -124,7 +124,7 @@ export async function PATCH(request, { params }) {
     }
 
     // Get task
-    const task = await Project.findById(params.id)
+    const task = await Task.findById(params.id)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -179,9 +179,9 @@ export async function PATCH(request, { params }) {
 
     // Update project analytics if task is part of a project
     if (task.project) {
-      const project = await Project.findById(task.project)
+      const project = await Task.findById(task.project)
       if (project) {
-        const projectTasks = await Project.find({ project: task.project })
+        const projectTasks = await Task.find({ project: task.project })
         const completedTasks = projectTasks.filter(t => t.status === 'completed').length
         project.analytics.completedTasks = completedTasks
         
@@ -195,7 +195,7 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    const updatedTask = await Project.findById(params.id)
+    const updatedTask = await Task.findById(params.id)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
       .populate('checklist.completedBy', 'firstName lastName')
@@ -244,7 +244,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Get task
-    const task = await Project.findById(params.id)
+    const task = await Task.findById(params.id)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },

@@ -68,7 +68,7 @@ export async function GET(request) {
       const empDoc = await Employee.findById(currentEmployeeId)
 
       // Find tasks created by this manager
-      const managerTasks = await Project.find({
+      const managerTasks = await Task.find({
         assignedBy: currentEmployeeId
       }).populate('assignedTo.employee', 'department')
 
@@ -189,7 +189,7 @@ export async function GET(request) {
     const sort = { [sortBy]: sortOrder }
 
     // Execute query
-    const tasks = await Project.find(query)
+    const tasks = await Task.find(query)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
       .populate('parentProject', 'title projectNumber')
@@ -197,10 +197,10 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit)
 
-    const totalTasks = await Project.countDocuments(query)
+    const totalTasks = await Task.countDocuments(query)
 
     // Calculate summary statistics
-    const summaryStats = await Project.aggregate([
+    const summaryStats = await Task.aggregate([
       { $match: query },
       {
         $group: {
@@ -372,7 +372,7 @@ export async function POST(request) {
 
     // If this is a subtask, link it to the parent
     if (task.parentTask) {
-      await Project.findByIdAndUpdate(task.parentTask, { $addToSet: { subtasks: task._id } })
+      await Task.findByIdAndUpdate(task.parentTask, { $addToSet: { subtasks: task._id } })
     }
 
     // Populate the created task (only populate fields that exist)

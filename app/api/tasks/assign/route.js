@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
@@ -33,7 +33,7 @@ export async function POST(request) {
       )
     }
 
-    const task = await Project.findById(taskId)
+    const task = await Task.findById(taskId)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },
@@ -221,7 +221,7 @@ export async function PUT(request) {
       )
     }
 
-    const task = await Project.findById(taskId)
+    const task = await Task.findById(taskId)
     if (!task) {
       return NextResponse.json(
         { success: false, message: 'Task not found' },

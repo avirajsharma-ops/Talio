@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import Leave from '@/models/Leave'
 import Attendance from '@/models/Attendance'
 import Department from '@/models/Department'
@@ -184,7 +184,7 @@ export async function GET(request) {
     }))
 
     // Search Tasks (only user's tasks or tasks they're involved in)
-    const tasks = await Project.find({
+    const tasks = await Task.find({
       $and: [
         {
           $or: [

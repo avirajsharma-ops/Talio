@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
@@ -108,7 +108,7 @@ export async function GET(request) {
     }
 
     // Fetch tasks with pagination
-    const tasks = await Project.find(query)
+    const tasks = await Task.find(query)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode department')
       .populate('deletedBy', 'firstName lastName employeeCode')
@@ -116,7 +116,7 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit)
 
-    const total = await Project.countDocuments(query)
+    const total = await Task.countDocuments(query)
 
     return NextResponse.json({
       success: true,

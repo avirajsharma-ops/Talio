@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 
@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
     const taskId = params.id
 
     // Verify task exists and get its subProjects
-    const task = await Project.findById(taskId)
+    const task = await Task.findById(taskId)
       .populate({
         path: 'subProjects',
         match: { isDeleted: { $ne: true } },
@@ -73,13 +73,13 @@ export async function POST(request, { params }) {
     const body = await request.json()
 
     // Verify parent task exists
-    const parentTask = await Project.findById(parentTaskId)
+    const parentTask = await Task.findById(parentTaskId)
     if (!parentTask) {
       return NextResponse.json({ success: false, message: 'Parent task not found' }, { status: 404 })
     }
 
     // Create milestone as a subProject
-    const milestone = await Project.create({
+    const milestone = await Task.create({
       parentProject: parentTaskId,
       title: body.title,
       description: body.description,
@@ -100,7 +100,7 @@ export async function POST(request, { params }) {
     // Update parent task progress based on all subProjects
     await updateTaskProgress(parentTaskId)
 
-    const populatedMilestone = await Project.findById(milestone._id)
+    const populatedMilestone = await Task.findById(milestone._id)
       .populate('assignedBy', 'firstName lastName employeeCode')
       .populate('assignedTo.employee', 'firstName lastName employeeCode')
 
@@ -121,7 +121,7 @@ export async function POST(request, { params }) {
 // Helper function to update task progress based on milestones
 async function updateTaskProgress(taskId) {
   try {
-    const task = await Project.findById(taskId).populate('subProjects')
+    const task = await Task.findById(taskId).populate('subProjects')
 
     if (!task || !task.subProjects || task.subProjects.length === 0) {
       // No milestones, keep task progress as is

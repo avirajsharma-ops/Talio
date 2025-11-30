@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import Employee from '@/models/Employee'
 import Performance from '@/models/Performance'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +65,7 @@ export async function GET(request) {
       if (endDate) taskQuery.createdAt.$lte = new Date(endDate)
     }
 
-    const tasks = await Project.find(taskQuery)
+    const tasks = await Task.find(taskQuery)
       .select('title status progress dueDate completedAt assignedTo priority')
       .lean()
 

@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import Employee from '@/models/Employee'
 import Leave from '@/models/Leave'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import User from '@/models/User'
 
 export const dynamic = 'force-dynamic'
@@ -63,7 +63,7 @@ export async function GET(request) {
       .limit(10)
 
     // Get pending task approvals (tasks that are completed but need approval)
-    const pendingTasks = await Project.find({
+    const pendingTasks = await Task.find({
       'assignedTo.employee': { $in: teamMemberIds },
       status: 'completed',
       requiresApproval: true,

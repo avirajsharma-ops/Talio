@@ -74,7 +74,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
           { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-          { name: 'Project Approvals', path: '/dashboard/team/task-approvals' },
           { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
           { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
           { name: 'Team Reviews', path: '/dashboard/performance/reviews' },

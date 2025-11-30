@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
@@ -81,7 +81,7 @@ export async function GET(request) {
     }
 
     // Get task statistics
-    const taskStats = await Project.aggregate([
+    const taskStats = await Task.aggregate([
       { $match: taskQuery },
       {
         $group: {
@@ -140,7 +140,7 @@ export async function GET(request) {
       ((stats.totalEstimatedHours / stats.totalActualHours) * 100).toFixed(1) : 0
 
     // Get tasks by status for charts
-    const tasksByStatus = await Project.aggregate([
+    const tasksByStatus = await Task.aggregate([
       { $match: taskQuery },
       {
         $group: {
@@ -151,7 +151,7 @@ export async function GET(request) {
     ])
 
     // Get tasks by priority
-    const tasksByPriority = await Project.aggregate([
+    const tasksByPriority = await Task.aggregate([
       { $match: taskQuery },
       {
         $group: {
@@ -162,7 +162,7 @@ export async function GET(request) {
     ])
 
     // Get tasks by category
-    const tasksByCategory = await Project.aggregate([
+    const tasksByCategory = await Task.aggregate([
       { $match: taskQuery },
       {
         $group: {
@@ -173,14 +173,14 @@ export async function GET(request) {
     ])
 
     // Get recent tasks
-    const recentTasks = await Project.find(taskQuery)
+    const recentTasks = await Task.find(taskQuery)
       .populate('assignedBy', 'firstName lastName')
       .populate('assignedTo.employee', 'firstName lastName')
       .sort({ updatedAt: -1 })
       .limit(10)
 
     // Get upcoming deadlines
-    const upcomingDeadlines = await Project.find({
+    const upcomingDeadlines = await Task.find({
       ...taskQuery,
       dueDate: {
         $gte: new Date(),
@@ -193,7 +193,7 @@ export async function GET(request) {
       .limit(10)
 
     // Get productivity trends (last 30 days)
-    const productivityTrend = await Project.aggregate([
+    const productivityTrend = await Task.aggregate([
       {
         $match: {
           ...taskQuery,
@@ -215,7 +215,7 @@ export async function GET(request) {
     // Get team performance (if viewing team/department/organization)
     let teamPerformance = []
     if (view !== 'personal' && teamMemberIds.length > 1) {
-      teamPerformance = await Project.aggregate([
+      teamPerformance = await Task.aggregate([
         {
           $match: {
             'assignedTo.employee': { $in: teamMemberIds },
@@ -293,7 +293,7 @@ export async function GET(request) {
     }
 
     // Get project progress (if user has projects)
-    const projectProgress = await Project.aggregate([
+    const projectProgress = await Task.aggregate([
       {
         $match: {
           $or: [

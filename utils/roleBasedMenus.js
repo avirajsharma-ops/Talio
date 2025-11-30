@@ -71,6 +71,8 @@ export const roleBasedMenus = {
         { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
         { name: 'Project Analytics', path: '/dashboard/tasks/analytics' },
       ]
     },
@@ -172,6 +174,8 @@ export const roleBasedMenus = {
         { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
         { name: 'Department Projects', path: '/dashboard/tasks/department-tasks' },
+        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { 
@@ -220,6 +224,8 @@ export const roleBasedMenus = {
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
         { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
+        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
@@ -264,6 +270,7 @@ export const roleBasedMenus = {
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
         { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
@@ -308,6 +315,8 @@ export const roleBasedMenus = {
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
         { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
+        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
@@ -386,6 +395,8 @@ export const roleBasedMenus = {
         { name: 'Create Project', path: '/dashboard/tasks/create' },
         { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
         { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
+        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
+        { name: 'Project History', path: '/dashboard/tasks/history' },
         { name: 'Project Analytics', path: '/dashboard/tasks/analytics' },
       ]
     },

@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import Designation from '@/models/Designation'
 import Employee from '@/models/Employee'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import User from '@/models/User'
 
 // GET - Fetch all pending task approvals for department
@@ -84,7 +84,7 @@ export async function GET(request) {
     }
 
     // Get task approvals based on filter
-    const pendingTasks = await Project.find(taskQuery)
+    const pendingTasks = await Task.find(taskQuery)
       .populate({
         path: 'assignedTo.employee',
         select: 'firstName lastName employeeCode profilePicture email',
@@ -168,7 +168,7 @@ export async function POST(request) {
     }
 
     // Get the task
-    const task = await Project.findById(taskId)
+    const task = await Task.findById(taskId)
       .populate('assignedTo.employee', 'department')
 
     if (!task) {
@@ -233,7 +233,7 @@ export async function POST(request) {
 
     await task.save()
 
-    const updatedTask = await Project.findById(taskId)
+    const updatedTask = await Task.findById(taskId)
       .populate({
         path: 'assignedTo.employee',
         select: 'firstName lastName employeeCode profilePicture email',

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Task from '@/models/Task'
-import Project from '@/models/Project'
+import Task from '@/models/Task'
 import User from '@/models/User'
 import { verifyToken } from '@/lib/auth'
 import { logActivity } from '@/lib/activityLogger'
@@ -28,7 +28,7 @@ export async function PUT(request, { params }) {
     const body = await request.json()
 
     // Find milestone using Project model (milestones are subProjects)
-    const milestone = await Project.findById(milestoneId)
+    const milestone = await Task.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
@@ -60,7 +60,7 @@ export async function PUT(request, { params }) {
 
       // Add timeline entry to parent task
       if (milestone.parentProject) {
-        const parentTask = await Project.findById(milestone.parentProject)
+        const parentTask = await Task.findById(milestone.parentProject)
         if (parentTask) {
           parentTask.statusHistory.push({
             status: `Task completed: ${milestone.title}`,
@@ -119,7 +119,7 @@ export async function PUT(request, { params }) {
       await updateTaskProgress(milestone.parentProject)
     }
 
-    const updatedMilestone = await Project.findById(milestoneId)
+    const updatedMilestone = await Task.findById(milestoneId)
 
     return NextResponse.json({
       success: true,
@@ -156,7 +156,7 @@ export async function DELETE(request, { params }) {
     const milestoneId = params.id
 
     // Find milestone using Project model (milestones are subProjects)
-    const milestone = await Project.findById(milestoneId)
+    const milestone = await Task.findById(milestoneId)
     if (!milestone) {
       return NextResponse.json({ success: false, message: 'Milestone not found' }, { status: 404 })
     }
@@ -172,12 +172,12 @@ export async function DELETE(request, { params }) {
 
     // Remove from parent task's subProjects array
     if (parentTaskId) {
-      await Project.findByIdAndUpdate(parentTaskId, {
+      await Task.findByIdAndUpdate(parentTaskId, {
         $pull: { subProjects: milestoneId }
       })
 
       // Add timeline entry to parent task
-      const parentTask = await Project.findById(parentTaskId)
+      const parentTask = await Task.findById(parentTaskId)
       if (parentTask) {
         parentTask.statusHistory.push({
           status: `Milestone deleted: ${milestone.title}`,
@@ -209,7 +209,7 @@ export async function DELETE(request, { params }) {
 async function updateTaskProgress(taskId) {
   try {
     // Find all subProjects (milestones) of this task
-    const milestones = await Project.find({
+    const milestones = await Task.find({
       parentProject: taskId,
       isDeleted: false
     })
@@ -225,7 +225,7 @@ async function updateTaskProgress(taskId) {
     const averageProgress = Math.round((completedMilestones / totalMilestones) * 100)
 
     // Get the task to check current status
-    const task = await Project.findById(taskId)
+    const task = await Task.findById(taskId)
     if (!task) return
 
     // Update task progress
