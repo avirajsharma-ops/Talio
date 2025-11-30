@@ -1,0 +1,249 @@
+import { NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
+import connectDB from '@/lib/mongodb'
+import Project from '@/models/Project'
+import ProjectMember from '@/models/ProjectMember'
+import Task from '@/models/Task'
+import TaskAssignee from '@/models/TaskAssignee'
+import User from '@/models/User'
+import Employee from '@/models/Employee'
+import { 
+  checkProjectAccess, 
+  calculateCompletionPercentage,
+  createTimelineEvent 
+} from '@/lib/projectService'
+import { notifyTaskAssigned } from '@/lib/projectNotifications'
+
+// GET - Get tasks for a project
+export async function GET(request, { params }) {
+  try {
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
+    }
+
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
+
+    await connectDB()
+
+    const { projectId } = await params
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const assignedTo = searchParams.get('assignedTo')
+
+    const user = await User.findById(decoded.userId).select('employeeId role')
+    if (!user || !user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    }
+
+    // Check access
+    const isAdmin = ['admin', 'god_admin', 'hr'].includes(user.role)
+    if (!isAdmin) {
+      const { hasAccess } = await checkProjectAccess(projectId, user.employeeId, 'view')
+      if (!hasAccess) {
+        return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
+      }
+    }
+
+    const query = { project: projectId }
+    if (status && status !== 'all') {
+      query.status = status
+    }
+    if (!status) {
+      query.status = { $ne: 'archived' }
+    }
+
+    let tasks = await Task.find(query)
+      .populate('createdBy', 'firstName lastName profilePicture')
+      .populate('assignedBy', 'firstName lastName')
+      .populate('parentTask', 'title')
+      .sort({ order: 1, createdAt: -1 })
+
+    // Get assignees for each task
+    const taskIds = tasks.map(t => t._id)
+    const assignees = await TaskAssignee.find({ task: { $in: taskIds } })
+      .populate('user', 'firstName lastName profilePicture employeeCode')
+      .populate('assignedBy', 'firstName lastName')
+
+    // Filter by assignee if requested
+    if (assignedTo) {
+      const assignedTaskIds = assignees
+        .filter(a => a.user._id.toString() === assignedTo)
+        .map(a => a.task.toString())
+      tasks = tasks.filter(t => assignedTaskIds.includes(t._id.toString()))
+    }
+
+    // Attach assignees to tasks
+    const tasksWithAssignees = tasks.map(task => ({
+      ...task.toObject(),
+      assignees: assignees.filter(a => a.task.toString() === task._id.toString())
+    }))
+
+    return NextResponse.json({
+      success: true,
+      data: tasksWithAssignees,
+      currentEmployeeId: user.employeeId.toString()
+    })
+  } catch (error) {
+    console.error('Get tasks error:', error)
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}
+
+// POST - Create a new task
+export async function POST(request, { params }) {
+  try {
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
+    }
+
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
+
+    await connectDB()
+
+    const { projectId } = await params
+
+    const user = await User.findById(decoded.userId).select('employeeId role')
+    if (!user || !user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    }
+
+    const project = await Project.findById(projectId)
+    if (!project) {
+      return NextResponse.json({ success: false, message: 'Project not found' }, { status: 404 })
+    }
+
+    // Check if user can create tasks (must be accepted member)
+    const isAdmin = ['admin', 'god_admin'].includes(user.role)
+    if (!isAdmin) {
+      const { hasAccess } = await checkProjectAccess(projectId, user.employeeId, 'participate')
+      if (!hasAccess) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'You must accept the project invitation to create tasks' 
+        }, { status: 403 })
+      }
+    }
+
+    const body = await request.json()
+    const { 
+      title, 
+      description, 
+      priority, 
+      dueDate, 
+      startDate,
+      assigneeIds = [],
+      tags,
+      estimatedHours,
+      parentTask
+    } = body
+
+    if (!title) {
+      return NextResponse.json({ success: false, message: 'Task title is required' }, { status: 400 })
+    }
+
+    // Get highest order for new task
+    const lastTask = await Task.findOne({ project: projectId }).sort({ order: -1 })
+    const order = lastTask ? lastTask.order + 1 : 0
+
+    // Create the task
+    const task = await Task.create({
+      project: projectId,
+      title,
+      description,
+      status: 'todo',
+      priority: priority || 'medium',
+      createdBy: user.employeeId,
+      assignedBy: assigneeIds.length > 0 ? user.employeeId : undefined,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      startDate: startDate ? new Date(startDate) : undefined,
+      tags: tags || [],
+      estimatedHours,
+      parentTask,
+      order
+    })
+
+    const creatorEmployee = await Employee.findById(user.employeeId)
+
+    // Create task_created timeline event
+    await createTimelineEvent({
+      project: projectId,
+      type: 'task_created',
+      createdBy: user.employeeId,
+      relatedTask: task._id,
+      description: `Task "${title}" was created`,
+      metadata: { taskTitle: title, priority }
+    })
+
+    // Assign to users
+    const assignedNames = []
+    for (const assigneeId of assigneeIds) {
+      // Verify assignee is an accepted member
+      const isMember = await ProjectMember.findOne({
+        project: projectId,
+        user: assigneeId,
+        invitationStatus: 'accepted'
+      })
+
+      if (!isMember && assigneeId !== user.employeeId.toString()) {
+        continue // Skip non-members
+      }
+
+      const assignee = await TaskAssignee.create({
+        task: task._id,
+        user: assigneeId,
+        assignedBy: user.employeeId,
+        assignmentStatus: assigneeId === user.employeeId.toString() ? 'accepted' : 'pending'
+      })
+
+      const assigneeEmployee = await Employee.findById(assigneeId)
+      assignedNames.push(`${assigneeEmployee.firstName} ${assigneeEmployee.lastName}`)
+
+      // Create task_assigned timeline event
+      await createTimelineEvent({
+        project: projectId,
+        type: 'task_assigned',
+        createdBy: user.employeeId,
+        relatedTask: task._id,
+        relatedMember: assigneeId,
+        description: `Task "${title}" was assigned to ${assigneeEmployee.firstName} ${assigneeEmployee.lastName}`,
+        metadata: { taskTitle: title, assigneeName: `${assigneeEmployee.firstName} ${assigneeEmployee.lastName}` }
+      })
+
+      // Send notification if not self-assignment
+      if (assigneeId !== user.employeeId.toString()) {
+        await notifyTaskAssigned(project, task, assigneeEmployee, creatorEmployee)
+      }
+    }
+
+    // Recalculate project completion percentage
+    await calculateCompletionPercentage(projectId)
+
+    // Fetch populated task
+    const populatedTask = await Task.findById(task._id)
+      .populate('createdBy', 'firstName lastName profilePicture')
+      .populate('assignedBy', 'firstName lastName')
+
+    const taskAssignees = await TaskAssignee.find({ task: task._id })
+      .populate('user', 'firstName lastName profilePicture employeeCode')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Task created successfully',
+      data: {
+        ...populatedTask.toObject(),
+        assignees: taskAssignees
+      }
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Create task error:', error)
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}

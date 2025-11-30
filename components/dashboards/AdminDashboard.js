@@ -15,6 +15,7 @@ import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
 import { getEmployeeId } from '@/utils/userHelper'
+import ProjectTasksWidget from './ProjectTasksWidget'
 
 export default function AdminDashboard({ user }) {
   const router = useRouter()
@@ -763,6 +764,9 @@ export default function AdminDashboard({ user }) {
           ))}
         </div>
       </div>
+
+      {/* Project Tasks Widget */}
+      <ProjectTasksWidget limit={5} showPendingAcceptance={true} />
 
       {/* Employee Details Modal */}
       {showEmployeeModal && selectedEmployee && (

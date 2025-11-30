@@ -1,7 +1,7 @@
 # Firebase Cloud Messaging (FCM) Setup Guide
 
 ## Overview
-This guide walks you through setting up Firebase Cloud Messaging for push notifications in the Talio HRMS Android app. FCM has completely replaced OneSignal for a native, integrated solution.
+This guide walks you through setting up Firebase Cloud Messaging for push notifications in the Talio HRMS Android app and web application.
 
 ---
 

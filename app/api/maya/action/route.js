@@ -4,7 +4,6 @@ import connectDB from '@/lib/mongodb';
 import MayaActionLog from '@/models/MayaActionLog';
 import Attendance from '@/models/Attendance';
 import Leave from '@/models/Leave';
-import Task from '@/models/Task';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
@@ -88,15 +87,10 @@ export async function POST(request) {
         result = await handleViewLeaves(userId);
         break;
 
-      case 'view_tasks':
-      case 'my_tasks':
-        result = await handleViewTasks(userId);
-        break;
-
       default:
         result = {
           success: false,
-          message: `I understand you want to "${action}", but I'm not sure how to help with that yet. Try asking me about attendance, leaves, or tasks.`
+          message: `I understand you want to "${action}", but I'm not sure how to help with that yet. Try asking me about attendance or leaves.`
         };
     }
 
@@ -286,40 +280,6 @@ async function handleViewLeaves(userId) {
     return {
       success: false,
       message: 'Failed to retrieve leave information.'
-    };
-  }
-}
-
-async function handleViewTasks(userId) {
-  try {
-    const tasks = await Task.find({
-      assignedTo: userId,
-      status: { $in: ['pending', 'in-progress'] }
-    }).sort({ dueDate: 1 }).limit(5);
-
-    if (tasks.length === 0) {
-      return {
-        success: true,
-        message: "You don't have any pending tasks. Great job!"
-      };
-    }
-
-    let message = `You have ${tasks.length} pending ${tasks.length === 1 ? 'task' : 'tasks'}:\n\n`;
-    
-    tasks.forEach((task, index) => {
-      const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
-      message += `${index + 1}. ${task.title} - Due: ${dueDate} (${task.status})\n`;
-    });
-
-    return {
-      success: true,
-      message,
-      data: tasks
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: 'Failed to retrieve task information.'
     };
   }
 }

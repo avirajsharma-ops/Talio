@@ -73,7 +73,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         submenu: [
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
-          { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
           { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
           { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
           { name: 'Team Reviews', path: '/dashboard/performance/reviews' },

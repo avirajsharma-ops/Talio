@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatDesignation } from '@/lib/formatters'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
 import { getEmployeeId } from '@/utils/userHelper'
+import ProjectTasksWidget from './ProjectTasksWidget'
 
 // Fetch HR dashboard data
 const fetchHRStats = async () => {
@@ -750,6 +751,9 @@ export default function HRDashboard({ user }) {
           </div>
         </div>
       )}
+
+      {/* Project Tasks Widget */}
+      <ProjectTasksWidget limit={5} showPendingAcceptance={true} />
     </div>
   )
 }

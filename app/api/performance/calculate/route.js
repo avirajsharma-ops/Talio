@@ -3,7 +3,6 @@ import { verifyToken } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
 import Employee from '@/models/Employee'
 import Performance from '@/models/Performance'
-import Task from '@/models/Task'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,39 +51,9 @@ export async function GET(request) {
       .select('firstName lastName employeeCode department reviews')
       .lean()
 
-    // Fetch tasks for all employees
-    const employeeIds = employees.map(emp => emp._id)
-    const taskQuery = {
-      'assignedTo.employee': { $in: employeeIds },
-      isDeleted: { $ne: true }
-    }
-
-    if (startDate || endDate) {
-      taskQuery.createdAt = {}
-      if (startDate) taskQuery.createdAt.$gte = new Date(startDate)
-      if (endDate) taskQuery.createdAt.$lte = new Date(endDate)
-    }
-
-    const tasks = await Task.find(taskQuery)
-      .select('title status progress dueDate completedAt assignedTo priority')
-      .lean()
-
-    // Group tasks by employee
-    const tasksByEmployee = {}
-    tasks.forEach(task => {
-      task.assignedTo.forEach(assignment => {
-        const empId = assignment.employee.toString()
-        if (!tasksByEmployee[empId]) {
-          tasksByEmployee[empId] = []
-        }
-        tasksByEmployee[empId].push(task)
-      })
-    })
-
     // Calculate performance metrics for each employee
     const performanceMetrics = employees.map(employee => {
       let reviews = employee.reviews || []
-      const employeeTasks = tasksByEmployee[employee._id.toString()] || []
 
       // Filter reviews by date range if provided
       if (startDate || endDate) {
@@ -120,63 +89,29 @@ export async function GET(request) {
         general: reviews.filter(r => r.category === 'general').length
       }
 
-      // Calculate project/task metrics
-      const totalTasks = employeeTasks.length
-      const completedTasks = employeeTasks.filter(t => t.status === 'completed').length
-      const inProgressTasks = employeeTasks.filter(t => t.status === 'in_progress').length
-      const onTimeTasks = employeeTasks.filter(t => {
-        if (t.status === 'completed' && t.completedAt && t.dueDate) {
-          return new Date(t.completedAt) <= new Date(t.dueDate)
-        }
-        return false
-      }).length
-      const overdueTasks = employeeTasks.filter(t => {
-        if (t.status !== 'completed' && t.dueDate) {
-          return new Date() > new Date(t.dueDate)
-        }
-        return false
-      }).length
-      const avgProgress = totalTasks > 0
-        ? (employeeTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / totalTasks).toFixed(1)
-        : 0
-
-      // Calculate task completion rate
-      const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0
-
-      // Calculate on-time delivery rate
-      const onTimeRate = completedTasks > 0 ? ((onTimeTasks / completedTasks) * 100).toFixed(1) : 0
-
       // Calculate performance score (0-100)
       // Based on:
-      // - Review rating (25%)
-      // - Task completion rate (30%)
-      // - On-time delivery (25%)
-      // - Appreciation/Warning balance (10%)
-      // - Activity/Engagement (10%)
+      // - Review rating (50%)
+      // - Appreciation/Warning balance (30%)
+      // - Activity/Engagement (20%)
       let performanceScore = 0
 
-      // Review score (25%)
-      const reviewScore = (parseFloat(avgRating) / 5) * 25
+      // Review score (50%)
+      const reviewScore = (parseFloat(avgRating) / 5) * 50
 
-      // Task completion score (30%)
-      const taskCompletionScore = (parseFloat(completionRate) / 100) * 30
-
-      // On-time delivery score (25%)
-      const onTimeScore = (parseFloat(onTimeRate) / 100) * 25
-
-      // Appreciation/Warning balance (10%)
-      let balanceScore = 0
+      // Appreciation/Warning balance (30%)
+      let balanceScore = 15 // Base score
       if (totalReviews > 0) {
         const appreciationRatio = reviewsByType.appreciation / totalReviews
         const warningRatio = reviewsByType.warning / totalReviews
-        balanceScore = Math.max(0, (appreciationRatio - warningRatio) * 10)
+        balanceScore = Math.max(0, Math.min(30, 15 + (appreciationRatio - warningRatio) * 30))
       }
 
-      // Activity score (10%)
-      const activityScore = Math.min((totalReviews + totalTasks) / 20 * 10, 10)
+      // Activity score (20%)
+      const activityScore = Math.min((totalReviews) / 10 * 20, 20)
 
       performanceScore = Math.max(0, Math.min(100,
-        reviewScore + taskCompletionScore + onTimeScore + balanceScore + activityScore
+        reviewScore + balanceScore + activityScore
       ))
 
       // Determine performance level
@@ -189,11 +124,6 @@ export async function GET(request) {
 
       // Get recent reviews (last 5)
       const recentReviews = reviews
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5)
-
-      // Get recent tasks (last 5)
-      const recentTasks = employeeTasks
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 5)
 
@@ -212,15 +142,6 @@ export async function GET(request) {
           reviewsByType,
           reviewsByCategory,
 
-          // Task/Project metrics
-          totalTasks,
-          completedTasks,
-          inProgressTasks,
-          overdueTasks,
-          completionRate: parseFloat(completionRate),
-          onTimeRate: parseFloat(onTimeRate),
-          avgProgress: parseFloat(avgProgress),
-
           // Overall performance
           performanceScore: Math.round(performanceScore),
           performanceLevel
@@ -232,15 +153,6 @@ export async function GET(request) {
           content: r.content,
           reviewedBy: r.reviewedBy,
           createdAt: r.createdAt
-        })),
-        recentTasks: recentTasks.map(t => ({
-          _id: t._id,
-          title: t.title,
-          status: t.status,
-          progress: t.progress,
-          priority: t.priority,
-          dueDate: t.dueDate,
-          completedAt: t.completedAt
         }))
       }
     })

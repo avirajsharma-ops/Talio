@@ -4,7 +4,6 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Attendance from '@/models/Attendance';
 import Leave from '@/models/Leave';
-import Task from '@/models/Task';
 
 
 export const dynamic = 'force-dynamic'
@@ -42,7 +41,7 @@ export async function GET(request) {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Fetch user's data for today
-    const [attendance, pendingLeaves, todayTasks] = await Promise.all([
+    const [attendance, pendingLeaves] = await Promise.all([
       Attendance.findOne({ 
         userId, 
         date: { $gte: today, $lt: tomorrow } 
@@ -50,11 +49,6 @@ export async function GET(request) {
       Leave.countDocuments({ 
         userId, 
         status: 'pending' 
-      }),
-      Task.countDocuments({ 
-        assignedTo: userId, 
-        status: { $in: ['pending', 'in-progress'] },
-        dueDate: { $gte: today, $lt: tomorrow }
       })
     ]);
 
@@ -78,13 +72,6 @@ export async function GET(request) {
       message += `You have ${pendingLeaves} pending leave ${pendingLeaves === 1 ? 'request' : 'requests'}. `;
     }
 
-    // Add tasks info
-    if (todayTasks > 0) {
-      message += `You have ${todayTasks} ${todayTasks === 1 ? 'task' : 'tasks'} due today. `;
-    } else {
-      message += `No tasks due today. `;
-    }
-
     message += `How can I assist you?`;
 
     return NextResponse.json({
@@ -93,8 +80,7 @@ export async function GET(request) {
         message,
         stats: {
           checkedIn: !!attendance,
-          pendingLeaves,
-          todayTasks
+          pendingLeaves
         }
       }
     });

@@ -3,7 +3,6 @@ import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import Task from '@/models/Task'
 import Leave from '@/models/Leave'
 import Attendance from '@/models/Attendance'
 import Department from '@/models/Department'
@@ -29,8 +28,7 @@ const synonyms = {
   'salary': ['pay', 'payroll', 'compensation', 'wage', 'payment', 'payslip', 'earnings'],
   'pay': ['salary', 'payroll', 'compensation', 'wage', 'payment'],
   'payroll': ['salary', 'pay', 'compensation', 'wage', 'payslip'],
-  'task': ['work', 'assignment', 'project', 'todo', 'job', 'activity'],
-  'work': ['task', 'assignment', 'project', 'job', 'activity'],
+  'work': ['assignment', 'job', 'activity'],
   'employee': ['staff', 'worker', 'team member', 'colleague', 'personnel'],
   'staff': ['employee', 'worker', 'team member', 'personnel'],
   'department': ['division', 'team', 'unit', 'section', 'group'],
@@ -128,7 +126,6 @@ export async function GET(request) {
     const searchRegex = new RegExp(query, 'i')
     const results = {
       pages: [],
-      tasks: [],
       leaves: [],
       announcements: [],
       policies: []
@@ -181,39 +178,6 @@ export async function GET(request) {
       meta: result.item.icon,
       link: result.item.link,
       score: result.score
-    }))
-
-    // Search Tasks (only user's tasks or tasks they're involved in)
-    const tasks = await Task.find({
-      $and: [
-        {
-          $or: [
-            { assignedTo: user.employeeId._id },
-            { createdBy: user.employeeId._id },
-            { 'watchers.employee': user.employeeId._id }
-          ]
-        },
-        {
-          $or: [
-            { title: searchRegex },
-            { description: searchRegex },
-            { taskNumber: searchRegex },
-            { tags: searchRegex }
-          ]
-        }
-      ]
-    })
-      .select('title description status priority dueDate taskNumber')
-      .limit(10)
-
-    results.tasks = tasks.map(task => ({
-      _id: task._id,
-      type: 'task',
-      title: task.title,
-      subtitle: `Project #${task.taskNumber}`,
-      description: task.description?.substring(0, 100),
-      meta: `${task.status} • ${task.priority}`,
-      link: `/dashboard/tasks/my-tasks`
     }))
 
     // Search Leaves (only user's leaves)

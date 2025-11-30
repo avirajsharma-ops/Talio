@@ -4,7 +4,6 @@ import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Designation from '@/models/Designation'
 import User from '@/models/User'
-import Task from '@/models/Task'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Get individual team member details
@@ -76,53 +75,10 @@ export async function GET(request, { params }) {
       )
     }
 
-    // Get task statistics
-    const taskStats = await Task.aggregate([
-      {
-        $match: {
-          'assignedTo.employee': teamMember._id
-        }
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ])
-
-    const stats = {
-      total: 0,
-      assigned: 0,
-      in_progress: 0,
-      review: 0,
-      completed: 0,
-      on_hold: 0,
-      cancelled: 0
-    }
-
-    taskStats.forEach(stat => {
-      stats[stat._id] = stat.count
-      stats.total += stat.count
-    })
-
-    // Get recent tasks
-    const recentTasks = await Task.find({
-      'assignedTo.employee': teamMember._id
-    })
-      .populate('assignedBy', 'firstName lastName')
-      .populate('project', 'name projectCode')
-      .select('title status priority dueDate createdAt')
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean()
-
     return NextResponse.json({
       success: true,
       data: {
-        employee: teamMember,
-        taskStats: stats,
-        recentTasks: recentTasks
+        employee: teamMember
       }
     })
 

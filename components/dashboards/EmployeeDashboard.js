@@ -8,6 +8,7 @@ import {
   FaCheckCircle, FaExclamationCircle, FaUser, FaBullhorn,
   FaExclamationTriangle, FaGift, FaSignInAlt, FaSignOutAlt
 } from 'react-icons/fa'
+import ProjectTasksWidget from './ProjectTasksWidget'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -933,6 +934,9 @@ export default function EmployeeDashboard({ user: userProp }) {
           </div>
         </div>
       </div>
+
+      {/* Project Tasks Widget */}
+      <ProjectTasksWidget limit={5} showPendingAcceptance={true} />
 
       {/* Personal Information & Goals */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">

@@ -4,7 +4,6 @@ import connectDB from '@/lib/mongodb'
 import Department from '@/models/Department'
 import Employee from '@/models/Employee'
 import Leave from '@/models/Leave'
-import Task from '@/models/Task'
 import User from '@/models/User'
 
 export const dynamic = 'force-dynamic'
@@ -62,18 +61,6 @@ export async function GET(request) {
       .sort({ createdAt: -1 })
       .limit(10)
 
-    // Get pending task approvals (tasks that are completed but need approval)
-    const pendingTasks = await Task.find({
-      'assignedTo.employee': { $in: teamMemberIds },
-      status: 'completed',
-      requiresApproval: true,
-      approvalStatus: 'pending'
-    })
-      .populate('assignedTo.employee', 'firstName lastName employeeCode profilePicture')
-      .populate('assignedBy', 'firstName lastName')
-      .sort({ updatedAt: -1 })
-      .limit(10)
-
     return NextResponse.json({
       success: true,
       data: {
@@ -84,9 +71,7 @@ export async function GET(request) {
         },
         teamMembersCount: teamMemberIds.length,
         pendingLeaves: pendingLeaves.length,
-        pendingTasks: pendingTasks.length,
-        recentLeaves: pendingLeaves.slice(0, 5),
-        recentTasks: pendingTasks.slice(0, 5)
+        recentLeaves: pendingLeaves.slice(0, 5)
       }
     })
   } catch (error) {

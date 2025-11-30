@@ -1,13 +1,13 @@
 /**
  * Send Notification API
- * Test endpoint to send push notifications via OneSignal
+ * Test endpoint to send push notifications via Firebase
  */
 
 import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
-import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 
 /**
  * POST /api/fcm/send-notification
@@ -53,21 +53,23 @@ export async function POST(request) {
       )
     }
 
-    console.log(`[OneSignal API] Sending notification to user ${targetUser._id}`)
-    console.log(`[OneSignal API] User: ${targetUser.email}`)
+    console.log(`[FCM API] Sending notification to user ${targetUser._id}`)
+    console.log(`[FCM API] User: ${targetUser.email}`)
 
-    // Send notification
-    const result = await sendOneSignalNotification({
-      userIds: [targetUser._id.toString()],
-      title,
-      body,
-      data,
-      url: data.url || '/dashboard'
-    })
+    // Send notification via Firebase
+    const result = await sendPushToUsers(
+      [targetUser._id.toString()],
+      { title, body },
+      {
+        data,
+        url: data.url || '/dashboard',
+        type: data.type || 'custom'
+      }
+    )
 
     return NextResponse.json({
       success: result.success,
-      message: result.message,
+      message: result.message || (result.success ? 'Notification sent' : 'Failed to send notification'),
       user: {
         email: targetUser.email,
         name: targetUser.name
@@ -75,7 +77,7 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('[OneSignal API] Send error:', error)
+    console.error('[FCM API] Send error:', error)
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

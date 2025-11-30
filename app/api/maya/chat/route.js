@@ -19,7 +19,6 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
     employees: [],
     attendance: [],
     leaves: [],
-    tasks: [],
   };
 
   try {
@@ -27,7 +26,6 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
     const Employee = (await import('@/models/Employee')).default;
     const Attendance = (await import('@/models/Attendance')).default;
     const Leave = (await import('@/models/Leave')).default;
-    const Task = (await import('@/models/Task')).default;
     const Department = (await import('@/models/Department')).default;
 
     // Get user's own employee data (everyone can see their own data)
@@ -88,21 +86,6 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
           days: l.days,
           status: l.status,
           reason: l.reason,
-        }));
-
-        // Get user's tasks
-        const tasks = await Task.find({
-          $or: [
-            { assignedTo: employeeId },
-            { createdBy: employeeId },
-          ]
-        }).sort({ createdAt: -1 }).limit(20).lean();
-        contextData.tasks = tasks.map(t => ({
-          title: t.title,
-          status: t.status,
-          priority: t.priority,
-          dueDate: t.dueDate,
-          progress: t.progress,
         }));
       }
     }
@@ -357,13 +340,6 @@ export async function POST(request) {
         userDataContext += `\n\n=== USER'S LEAVE REQUESTS ===`;
         userContext.leaves.slice(0, 10).forEach(l => {
           userDataContext += `\n• ${l.type}: ${new Date(l.startDate).toLocaleDateString()} to ${new Date(l.endDate).toLocaleDateString()} (${l.days} days) - Status: ${l.status}`;
-        });
-      }
-
-      if (userContext.tasks && userContext.tasks.length > 0) {
-        userDataContext += `\n\n=== USER'S TASKS ===`;
-        userContext.tasks.slice(0, 10).forEach(t => {
-          userDataContext += `\n• ${t.title}: ${t.status} | Priority: ${t.priority || 'N/A'} | Progress: ${t.progress || 0}%`;
         });
       }
 

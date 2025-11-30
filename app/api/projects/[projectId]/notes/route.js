@@ -1,0 +1,130 @@
+import { NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
+import connectDB from '@/lib/mongodb'
+import Project from '@/models/Project'
+import ProjectMember from '@/models/ProjectMember'
+import ProjectNote from '@/models/ProjectNote'
+import User from '@/models/User'
+import Employee from '@/models/Employee'
+import { checkProjectAccess } from '@/lib/projectService'
+
+// GET - Get all notes for a project
+export async function GET(request, { params }) {
+  try {
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
+    }
+
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
+
+    await connectDB()
+
+    const { projectId } = await params
+
+    const user = await User.findById(decoded.userId).select('employeeId role')
+    if (!user || !user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    }
+
+    // Check project access
+    const isAdmin = ['admin', 'god_admin', 'hr'].includes(user.role)
+    if (!isAdmin) {
+      const { hasAccess } = await checkProjectAccess(projectId, user.employeeId, 'view')
+      if (!hasAccess) {
+        return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
+      }
+    }
+
+    // Get notes - team notes + personal notes of current user
+    const notes = await ProjectNote.find({
+      project: projectId,
+      isArchived: false,
+      $or: [
+        { visibility: 'team' },
+        { visibility: 'personal', createdBy: user.employeeId }
+      ]
+    })
+      .populate('createdBy', 'firstName lastName profilePicture')
+      .populate('relatedTask', 'title status')
+      .sort({ isPinned: -1, createdAt: -1 })
+
+    return NextResponse.json({
+      success: true,
+      data: notes
+    })
+  } catch (error) {
+    console.error('Get project notes error:', error)
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}
+
+// POST - Create a new note
+export async function POST(request, { params }) {
+  try {
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
+    }
+
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
+
+    await connectDB()
+
+    const { projectId } = await params
+
+    const user = await User.findById(decoded.userId).select('employeeId role')
+    if (!user || !user.employeeId) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+    }
+
+    // Check if user can participate in project
+    const isAdmin = ['admin', 'god_admin'].includes(user.role)
+    if (!isAdmin) {
+      const { hasAccess } = await checkProjectAccess(projectId, user.employeeId, 'participate')
+      if (!hasAccess) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'You must accept the project invitation to add notes' 
+        }, { status: 403 })
+      }
+    }
+
+    const body = await request.json()
+    const { title, content, color, visibility, relatedTask, isPinned } = body
+
+    if (!content?.trim()) {
+      return NextResponse.json({ success: false, message: 'Note content is required' }, { status: 400 })
+    }
+
+    const note = await ProjectNote.create({
+      project: projectId,
+      createdBy: user.employeeId,
+      title: title?.trim(),
+      content: content.trim(),
+      color: color || 'yellow',
+      visibility: visibility || 'team',
+      relatedTask,
+      isPinned: isPinned || false
+    })
+
+    const populatedNote = await ProjectNote.findById(note._id)
+      .populate('createdBy', 'firstName lastName profilePicture')
+      .populate('relatedTask', 'title status')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Note created successfully',
+      data: populatedNote
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Create project note error:', error)
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+  }
+}

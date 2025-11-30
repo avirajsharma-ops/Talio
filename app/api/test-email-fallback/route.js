@@ -155,31 +155,25 @@ This is an automated test message.
         }
       })
 
-    } else if (testType === 'onesignal') {
-      // Test via OneSignal with forced failure to trigger email fallback
-      const { sendOneSignalNotification } = await import('@/lib/onesignal')
+    } else if (testType === 'firebase') {
+      // Test via Firebase push notification
+      const { sendPushToUsers } = await import('@/lib/pushNotification')
       
-      // This will fail because we're using an invalid user ID format
-      // which will trigger the email fallback
-      const result = await sendOneSignalNotification({
-        userIds: [targetUserId.toString()],
-        title,
-        message,
-        url: '/dashboard',
-        emailFallback: true
-      })
+      const result = await sendPushToUsers(
+        [targetUserId.toString()],
+        { title, body: message },
+        { url: '/dashboard', type: 'test' }
+      )
 
       return NextResponse.json({
         success: true,
-        message: result.emailFallbackUsed 
-          ? `✅ Email fallback triggered and sent to ${user.email}` 
-          : `⚠️ OneSignal succeeded or email fallback disabled`,
+        message: result.success 
+          ? `✅ Firebase push notification sent` 
+          : `⚠️ Firebase push failed, email fallback may be needed`,
         details: {
-          testType: 'onesignal',
+          testType: 'firebase',
           recipient: user.email,
-          oneSignalSuccess: result.success,
-          emailFallbackUsed: result.emailFallbackUsed,
-          emailFallbackMessage: result.emailFallbackMessage,
+          firebaseSuccess: result.success,
           result
         }
       })
@@ -187,7 +181,7 @@ This is an automated test message.
 
     return NextResponse.json({
       success: false,
-      error: 'Invalid test type. Use "direct" or "onesignal"'
+      error: 'Invalid test type. Use "direct" or "firebase"'
     }, { status: 400 })
 
   } catch (error) {

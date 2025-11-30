@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb'
 import Policy from '@/models/Policy'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 
 // PUT - Update policy
 export async function PUT(request, { params }) {
@@ -54,16 +54,20 @@ export async function PUT(request, { params }) {
       }
 
       if (targetUserIds.length > 0) {
-        await sendOneSignalNotification({
-          userIds: targetUserIds,
-          title: '📋 Policy Updated',
-          message: `${policy.title} has been updated - Please review`,
-          url: '/dashboard/policies',
-          data: {
+        await sendPushToUsers(
+          targetUserIds,
+          {
+            title: '📋 Policy Updated',
+            body: `${policy.title} has been updated - Please review`
+          },
+          {
+            url: '/dashboard/policies',
             type: 'policy_update',
-            policyId: policy._id.toString()
+            data: {
+              policyId: policy._id.toString()
+            }
           }
-        })
+        )
 
         console.log(`Policy update notification sent to ${targetUserIds.length} user(s)`)
       }

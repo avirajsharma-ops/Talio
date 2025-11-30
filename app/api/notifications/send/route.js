@@ -5,7 +5,6 @@ import User from '@/models/User'
 import Employee from '@/models/Employee'
 import Department from '@/models/Department'
 import Notification from '@/models/Notification'
-import { sendOneSignalNotification } from '@/lib/onesignal'
 import { sendPushToUsers } from '@/lib/pushNotification'
 
 export async function POST(request) {
@@ -311,55 +310,15 @@ export async function POST(request) {
       // Continue even if database save fails
     }
 
-    console.log(`[OneSignal] Sending to ${userIds.length} user(s)`)
-
-    // Send notification via OneSignal
-    let onesignalResult = { success: false, message: 'No users found' }
-    if (userIds.length > 0) {
-      try {
-        onesignalResult = await sendOneSignalNotification({
-          userIds,
-          title,
-          message: message,
-          data: {
-            type: 'custom',
-            sentBy: currentEmployee ? currentEmployee._id.toString() : decoded.userId,
-            url: url || '/dashboard'
-          },
-          url: url || '/dashboard'
-        })
-
-        if (onesignalResult.success) {
-          console.log(`[OneSignal] Notification sent successfully`)
-
-          // Update delivery status in database
-          if (savedNotifications.length > 0) {
-            await Notification.updateMany(
-              { _id: { $in: savedNotifications.map(n => n._id) } },
-              {
-                'deliveryStatus.oneSignal.sent': true,
-                'deliveryStatus.oneSignal.sentAt': new Date()
-              }
-            )
-          }
-        } else {
-          console.warn(`[OneSignal] Failed to send notification:`, onesignalResult.message)
-        }
-      } catch (onesignalError) {
-        console.error('[OneSignal] Error sending notification:', onesignalError)
-        onesignalResult = { success: false, message: onesignalError.message }
-      }
-    } else {
-      console.warn('[OneSignal] No users found for notification')
-    }
+    console.log(`[Notifications] Sending to ${userIds.length} user(s)`)
 
     // Send Firebase push notification
-    let firebasePushResult = { success: false, message: 'No users found' }
+    let pushResult = { success: false, message: 'No users found' }
     if (userIds.length > 0) {
       try {
         console.log(`[Firebase] Sending push notification to ${userIds.length} user(s)`)
         
-        firebasePushResult = await sendPushToUsers(
+        pushResult = await sendPushToUsers(
           userIds,
           {
             title: title,
@@ -376,8 +335,8 @@ export async function POST(request) {
           }
         )
 
-        if (firebasePushResult.success) {
-          console.log(`[Firebase] Push notification sent successfully to ${firebasePushResult.successCount || userIds.length} user(s)`)
+        if (pushResult.success) {
+          console.log(`[Firebase] Push notification sent successfully to ${pushResult.successCount || userIds.length} user(s)`)
 
           // Update delivery status in database
           if (savedNotifications.length > 0) {
@@ -390,19 +349,19 @@ export async function POST(request) {
             )
           }
         } else {
-          console.warn(`[Firebase] Failed to send push notification:`, firebasePushResult.message)
+          console.warn(`[Firebase] Failed to send push notification:`, pushResult.message)
         }
       } catch (firebaseError) {
         console.error('[Firebase] Error sending push notification:', firebaseError)
-        firebasePushResult = { success: false, message: firebaseError.message }
+        pushResult = { success: false, message: firebaseError.message }
       }
     }
 
-    // Success if OneSignal succeeded OR Firebase succeeded OR notifications saved to DB
-    const notificationSent = onesignalResult.success || firebasePushResult.success || savedNotifications.length > 0
+    // Success if Firebase succeeded OR notifications saved to DB
+    const notificationSent = pushResult.success || savedNotifications.length > 0
 
     if (!notificationSent) {
-      console.warn('[Notification] OneSignal, Firebase, and database save all failed')
+      console.warn('[Notification] Firebase and database save both failed')
       return NextResponse.json(
         { success: false, message: 'Failed to send notifications' },
         { status: 500 }
@@ -415,12 +374,10 @@ export async function POST(request) {
       data: {
         recipientCount: userIds.length,
         savedToDatabase: savedNotifications.length,
-        oneSignalSuccess: onesignalResult.success,
-        firebasePushSuccess: firebasePushResult.success,
+        firebasePushSuccess: pushResult.success,
         methods: {
           database: savedNotifications.length > 0 ? 'saved' : 'failed',
-          oneSignal: onesignalResult.success ? 'sent' : 'failed',
-          firebasePush: firebasePushResult.success ? 'sent' : 'failed'
+          firebasePush: pushResult.success ? 'sent' : 'failed'
         }
       }
     })

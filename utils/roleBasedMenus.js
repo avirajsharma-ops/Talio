@@ -3,8 +3,8 @@ import {
   FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
   FaBox, FaReceipt, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
-  FaTasks, FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
-  FaThLarge
+  FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
+  FaThLarge, FaTasks
 } from 'react-icons/fa'
 
 // Define menu items for each role
@@ -15,6 +15,17 @@ export const roleBasedMenus = {
   admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     { 
       name: 'Employees', 
       icon: FaUsers, 
@@ -59,21 +70,6 @@ export const roleBasedMenus = {
         { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
         { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
-      ]
-    },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'All Projects', path: '/dashboard/tasks/all' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
-        { name: 'Project Analytics', path: '/dashboard/tasks/analytics' },
       ]
     },
     { 
@@ -120,6 +116,17 @@ export const roleBasedMenus = {
   hr: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     { 
       name: 'Employees', 
       icon: FaUsers, 
@@ -163,21 +170,6 @@ export const roleBasedMenus = {
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
       ]
     },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'All Projects', path: '/dashboard/tasks/all' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Department Projects', path: '/dashboard/tasks/department-tasks' },
-        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
-      ]
-    },
     { 
       name: 'Recruitment', 
       icon: FaBriefcase, 
@@ -202,6 +194,17 @@ export const roleBasedMenus = {
   manager: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     { 
       name: 'Attendance & Leaves', 
       icon: FaClock, 
@@ -212,20 +215,6 @@ export const roleBasedMenus = {
         { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
-      ]
-    },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
-        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
@@ -248,6 +237,17 @@ export const roleBasedMenus = {
   employee: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'My Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     { 
       name: 'Attendance & Leaves', 
       icon: FaClock, 
@@ -260,19 +260,6 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Payslips', icon: FaMoneyBillWave, path: '/dashboard/payroll/payslips' },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'Assign to Colleague', path: '/dashboard/tasks/assign' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
-      ]
-    },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
     { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
     {
@@ -293,6 +280,17 @@ export const roleBasedMenus = {
   department_head: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     { 
       name: 'Attendance & Leaves', 
       icon: FaClock, 
@@ -303,20 +301,6 @@ export const roleBasedMenus = {
         { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
-      ]
-    },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'Assign Projects', path: '/dashboard/tasks/assign' },
-        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
       ]
     },
     { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
@@ -339,6 +323,17 @@ export const roleBasedMenus = {
   god_admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    {
+      name: 'Projects',
+      icon: FaTasks,
+      path: '/dashboard/projects',
+      submenu: [
+        { name: 'All Projects', path: '/dashboard/projects' },
+        { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
+        { name: 'Create Project', path: '/dashboard/projects/create' },
+      ]
+    },
     {
       name: 'Employees',
       icon: FaUsers,
@@ -383,21 +378,6 @@ export const roleBasedMenus = {
         { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
         { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
-      ]
-    },
-    {
-      name: 'Project Management',
-      icon: FaTasks,
-      path: '/dashboard/tasks',
-      submenu: [
-        { name: 'Project Dashboard', path: '/dashboard/tasks' },
-        { name: 'All Projects', path: '/dashboard/tasks/all' },
-        { name: 'Create Project', path: '/dashboard/tasks/create' },
-        { name: 'My Projects', path: '/dashboard/tasks/my-tasks' },
-        { name: 'Team Projects', path: '/dashboard/tasks/team-tasks' },
-        { name: 'Project Approvals', path: '/dashboard/tasks/approvals' },
-        { name: 'Project History', path: '/dashboard/tasks/history' },
-        { name: 'Project Analytics', path: '/dashboard/tasks/analytics' },
       ]
     },
     {

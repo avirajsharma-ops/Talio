@@ -176,6 +176,9 @@ export default function Header({ toggleSidebar }) {
         '/tasks/create': 'Create Project',
         '/tasks/assign': 'Assign Projects',
         '/tasks/history': 'Project History',
+        '/projects': 'Projects',
+        '/projects/my-tasks': 'My Tasks',
+        '/projects/create': 'Create Project',
         '/chat': 'Chat',
         '/leave': 'Leave',
         '/leave/apply': 'Apply Leave',
@@ -198,6 +201,11 @@ export default function Header({ toggleSidebar }) {
 
       // Check for exact match
       if (titleMap[cleanPath]) return titleMap[cleanPath]
+
+      // Check for project detail or edit pages (dynamic routes like /projects/[id] or /projects/[id]/edit)
+      if (cleanPath.match(/^\/projects\/[a-f0-9]{24}(\/edit)?$/i)) {
+        return cleanPath.endsWith('/edit') ? 'Edit Project' : 'Project Details'
+      }
 
       // Check for partial match (for dynamic routes)
       for (const [route, title] of Object.entries(titleMap)) {

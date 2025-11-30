@@ -1,7 +1,7 @@
 # Firebase Cloud Messaging (FCM) Implementation Summary
 
 ## 🎯 Overview
-Talio HRMS now uses **Firebase Cloud Messaging (FCM)** for push notifications on Android devices. OneSignal has been completely removed and replaced with a native Firebase implementation.
+Talio HRMS uses **Firebase Cloud Messaging (FCM)** for push notifications on Android devices and web.
 
 ---
 
@@ -12,7 +12,6 @@ Talio HRMS now uses **Firebase Cloud Messaging (FCM)** for push notifications on
 - ✅ Created `FirebaseMessagingService.kt` for handling notifications
 - ✅ Updated `MainActivity.kt` with FCM JavaScript bridge (`AndroidFCM`)
 - ✅ Updated `TalioApplication.kt` to initialize Firebase
-- ✅ Removed all OneSignal code from Android
 - ✅ Configured notification channel for Android 8+
 
 ### 2. **Backend Services**
@@ -22,7 +21,7 @@ Talio HRMS now uses **Firebase Cloud Messaging (FCM)** for push notifications on
   - `sendNotificationToMultipleDevices()` - Batch notifications
   - `sendNotificationToUser()` - User-aware (respects preferences)
   - `sendNotificationToUsers()` - Bulk user notifications
-- ✅ Updated `lib/notificationService.js` - Replaced OneSignal with FCM
+- ✅ Updated `lib/notificationService.js` - FCM-based notifications
 - ✅ Updated `models/Notification.js` - Changed deliveryStatus schema
 
 ### 3. **API Routes**
@@ -41,7 +40,6 @@ Talio HRMS now uses **Firebase Cloud Messaging (FCM)** for push notifications on
 
 ### 5. **Database Schema**
 - ✅ Updated `models/User.js`
-  - Removed: `oneSignalPlayerId`, `oneSignalSubscribedAt`, `notificationPermissionStatus`
   - Updated: `fcmTokens` array with device info
   - Added: `notificationPreferences` object (chat, projects, leave, attendance, announcements)
 
@@ -155,19 +153,19 @@ docs/
 ### Modified Files
 ```
 models/
-├── User.js                       # Cleaned OneSignal, updated fcmTokens
+├── User.js                       # Updated fcmTokens
 └── Notification.js               # Changed deliveryStatus schema
 
 lib/
-└── notificationService.js        # Replaced OneSignal with FCM
+└── notificationService.js        # FCM-based notifications
 
 android/
 ├── build.gradle                  # Added Google Services
 └── app/
-    ├── build.gradle              # Replaced OneSignal with Firebase
+    ├── build.gradle              # Firebase dependencies
     └── AndroidManifest.xml       # Updated service declaration
 
-package.json                      # Removed react-onesignal, added firebase-admin
+package.json                      # Added firebase-admin
 ```
 
 ---

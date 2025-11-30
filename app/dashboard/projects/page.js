@@ -1,377 +1,282 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { 
-  FaProjectDiagram, FaPlus, FaUsers, FaTasks, FaCalendarAlt, 
-  FaChartLine, FaFilter, FaSearch, FaClock, FaCheckCircle,
-  FaEnvelope, FaCheck, FaTimes, FaBell
+  FaPlus, FaSearch, FaFilter, FaProjectDiagram, FaCalendarAlt,
+  FaCheckCircle, FaClock, FaExclamationTriangle, FaArchive,
+  FaEye, FaUsers, FaTasks, FaChartLine, FaClipboardCheck
 } from 'react-icons/fa'
+import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
+
+const statusColors = {
+  planned: 'bg-blue-100 text-blue-800',
+  ongoing: 'bg-green-100 text-green-800',
+  completed: 'bg-emerald-100 text-emerald-800',
+  'completed_pending_approval': 'bg-yellow-100 text-yellow-800',
+  approved: 'bg-emerald-100 text-emerald-800',
+  rejected: 'bg-red-100 text-red-800',
+  pending: 'bg-orange-100 text-orange-800',
+  overdue: 'bg-red-100 text-red-800',
+  archived: 'bg-gray-100 text-gray-800'
+}
+
+const statusLabels = {
+  planned: 'Planned',
+  ongoing: 'Ongoing',
+  completed: 'Completed',
+  'completed_pending_approval': 'Pending Approval',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  pending: 'Pending',
+  overdue: 'Overdue',
+  archived: 'Archived'
+}
+
+const priorityColors = {
+  low: 'bg-gray-100 text-gray-700',
+  medium: 'bg-blue-100 text-blue-700',
+  high: 'bg-orange-100 text-orange-700',
+  critical: 'bg-red-100 text-red-700'
+}
 
 export default function ProjectsPage() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
   const [projects, setProjects] = useState([])
-  const [invitations, setInvitations] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [respondingTo, setRespondingTo] = useState(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('active')
+  const [user, setUser] = useState(null)
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
     completed: 0,
-    planning: 0
+    overdue: 0
   })
+  
+  // Auto-refresh refs
+  const refreshIntervalRef = useRef(null)
+  const lastFetchRef = useRef(Date.now())
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (userData) {
       setUser(JSON.parse(userData))
-      fetchProjects()
-      fetchInvitations()
     }
   }, [])
 
-  const fetchInvitations = async () => {
+  const fetchProjects = useCallback(async (silent = false) => {
     try {
+      if (!silent) setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/projects/invitations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const data = await response.json()
-      if (data.success) {
-        setInvitations(data.data || [])
-      }
-    } catch (error) {
-      console.error('Error fetching invitations:', error)
-    }
-  }
-
-  const handleRespondToInvitation = async (projectId, action) => {
-    try {
-      setRespondingTo(projectId)
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/projects/${projectId}/respond`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action })
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        toast.success(data.message)
-        // Remove from invitations and refresh projects
-        setInvitations(prev => prev.filter(inv => inv._id !== projectId))
-        if (action === 'accept') {
-          fetchProjects()
-        }
-      } else {
-        toast.error(data.message || 'Failed to respond')
-      }
-    } catch (error) {
-      console.error('Error responding to invitation:', error)
-      toast.error('Failed to respond to invitation')
-    } finally {
-      setRespondingTo(null)
-    }
-  }
-
-  const fetchProjects = async (statusFilter = null) => {
-    try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      
-      let url = '/api/projects'
-      if (statusFilter) {
-        url += `?status=${statusFilter}`
-      }
-
-      const response = await fetch(url, {
+      const response = await fetch(`/api/projects?status=${statusFilter}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
 
       const data = await response.json()
+
       if (data.success) {
-        setProjects(data.data)
-        calculateStats(data.data)
-      } else {
+        setProjects(prev => {
+          // Only update if data changed to prevent layout shifts
+          if (JSON.stringify(prev) !== JSON.stringify(data.data)) {
+            return data.data
+          }
+          return prev
+        })
+        
+        // Calculate stats
+        const allProjects = data.data
+        setStats({
+          total: allProjects.length,
+          active: allProjects.filter(p => ['planned', 'ongoing', 'pending'].includes(p.status)).length,
+          completed: allProjects.filter(p => ['completed', 'approved'].includes(p.status)).length,
+          overdue: allProjects.filter(p => p.status === 'overdue' || (new Date(p.endDate) < new Date() && !['completed', 'approved', 'archived'].includes(p.status))).length
+        })
+        lastFetchRef.current = Date.now()
+      } else if (!silent) {
         toast.error(data.message || 'Failed to fetch projects')
       }
     } catch (error) {
-      console.error('Error fetching projects:', error)
-      toast.error('Failed to fetch projects')
+      console.error('Fetch projects error:', error)
+      if (!silent) toast.error('An error occurred while fetching projects')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
+  }, [statusFilter])
+
+  // Silent refresh function for background updates
+  const silentRefresh = useCallback(() => {
+    fetchProjects(true)
+  }, [fetchProjects])
+
+  useEffect(() => {
+    fetchProjects()
+  }, [statusFilter, fetchProjects])
+
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    refreshIntervalRef.current = setInterval(silentRefresh, 10000)
+    
+    // Also refresh when window gains focus
+    const handleFocus = () => {
+      if (Date.now() - lastFetchRef.current > 5000) {
+        silentRefresh()
+      }
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+      }
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [silentRefresh])
+
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = search === '' || 
+      project.name.toLowerCase().includes(search.toLowerCase()) ||
+      project.description?.toLowerCase().includes(search.toLowerCase())
+    return matchesSearch
+  })
+
+  // All users can create projects
+  const canCreateProject = () => {
+    return true
   }
 
-  const calculateStats = (projectsData) => {
-    setStats({
-      total: projectsData.length,
-      active: projectsData.filter(p => p.status === 'active').length,
-      completed: projectsData.filter(p => p.status === 'completed').length,
-      planning: projectsData.filter(p => p.status === 'planning').length
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     })
   }
 
-  const handleFilterChange = (newFilter) => {
-    setFilter(newFilter)
-    if (newFilter === 'all') {
-      fetchProjects()
-    } else {
-      fetchProjects(newFilter)
-    }
-  }
-
-  const filteredProjects = projects.filter(project => {
-    if (searchTerm) {
-      return project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             project.projectCode?.toLowerCase().includes(searchTerm.toLowerCase())
-    }
-    return true
-  })
-
-  const getStatusColor = (status) => {
-    const colors = {
-      planning: 'bg-blue-100 text-blue-800',
-      active: 'bg-green-100 text-green-800',
-      on_hold: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-gray-100 text-gray-800',
-      cancelled: 'bg-red-100 text-red-800',
-      archived: 'bg-gray-100 text-gray-600'
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
-  }
-
-  const getHealthColor = (health) => {
-    const colors = {
-      green: 'bg-green-500',
-      yellow: 'bg-yellow-500',
-      red: 'bg-red-500'
-    }
-    return colors[health] || 'bg-gray-500'
-  }
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      low: 'text-gray-600',
-      medium: 'text-blue-600',
-      high: 'text-orange-600',
-      urgent: 'text-red-600',
-      critical: 'text-red-800 font-bold'
-    }
-    return colors[priority] || 'text-gray-600'
-  }
-
-  if (!user) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
+  const getDaysRemaining = (endDate) => {
+    const now = new Date()
+    const end = new Date(endDate)
+    const diff = end - now
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+    return days
   }
 
   return (
-    <div className="px-4 py-4 sm:p-6 lg:p-8 pb-14 md:pb-6">
+    <div className="page-container">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
-        <div className="flex items-center mb-4 sm:mb-0">
-          <FaProjectDiagram className="text-blue-600 mr-3 text-2xl" />
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Projects</h1>
-            <p className="text-gray-600 text-sm sm:text-base">Manage and track project progress</p>
-          </div>
+      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Projects</h1>
+          <p className="text-gray-600 mt-1">
+            Manage and track your projects
+          </p>
         </div>
-
-        {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager' || user.role === 'employee') && (
+        {canCreateProject() && (
           <button
             onClick={() => router.push('/dashboard/projects/create')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+            className="btn-primary flex items-center space-x-2"
           >
-            <FaPlus className="mr-2" />
-            Create Project
+            <FaPlus />
+            <span>Create Project</span>
           </button>
         )}
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium">Total Projects</p>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-sm text-gray-500">Total Projects</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
             </div>
-            <FaProjectDiagram className="text-blue-500 text-xl sm:text-2xl" />
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <FaProjectDiagram className="text-blue-600 text-xl" />
+            </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-green-600 font-medium">Active</p>
-              <p className="text-2xl sm:text-3xl font-bold text-green-900">{stats.active}</p>
+              <p className="text-sm text-gray-500">Active</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
             </div>
-            <FaTasks className="text-green-500 text-xl sm:text-2xl" />
+            <div className="p-3 bg-green-100 rounded-lg">
+              <FaClock className="text-green-600 text-xl" />
+            </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-blue-600 font-medium">Planning</p>
-              <p className="text-2xl sm:text-3xl font-bold text-blue-900">{stats.planning}</p>
+              <p className="text-sm text-gray-500">Completed</p>
+              <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
             </div>
-            <FaClock className="text-blue-500 text-xl sm:text-2xl" />
+            <div className="p-3 bg-emerald-100 rounded-lg">
+              <FaCheckCircle className="text-emerald-600 text-xl" />
+            </div>
           </div>
         </div>
-
-        <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium">Completed</p>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.completed}</p>
+              <p className="text-sm text-gray-500">Overdue</p>
+              <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
             </div>
-            <FaCheckCircle className="text-gray-500 text-xl sm:text-2xl" />
+            <div className="p-3 bg-red-100 rounded-lg">
+              <FaExclamationTriangle className="text-red-600 text-xl" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Pending Invitations */}
-      {invitations.length > 0 && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md p-4 mb-6 border border-blue-200">
-          <div className="flex items-center mb-4">
-            <FaBell className="text-blue-600 mr-2 text-lg animate-pulse" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              Project Invitations ({invitations.length})
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {invitations.map(invitation => (
-              <div key={invitation._id} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900">{invitation.name}</h3>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(invitation.status)}`}>
-                        {invitation.status?.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span className={`text-xs font-medium ${getPriorityColor(invitation.priority)}`}>
-                        {invitation.priority?.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-1">
-                      {invitation.summary || invitation.description || 'No description'}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                      <span>
-                        <strong>From:</strong> {invitation.projectManager?.firstName} {invitation.projectManager?.lastName}
-                      </span>
-                      <span>
-                        <strong>Role:</strong> {invitation.assignedRole}
-                      </span>
-                      <span>
-                        <strong>Due:</strong> {new Date(invitation.endDate).toLocaleDateString()}
-                      </span>
-                      <span>
-                        <strong>Team:</strong> {invitation.teamSize} member{invitation.teamSize !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleRespondToInvitation(invitation._id, 'accept')}
-                      disabled={respondingTo === invitation._id}
-                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-sm font-medium"
-                    >
-                      {respondingTo === invitation._id ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      ) : (
-                        <FaCheck className="mr-2" />
-                      )}
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleRespondToInvitation(invitation._id, 'decline')}
-                      disabled={respondingTo === invitation._id}
-                      className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:opacity-50 transition-colors text-sm font-medium"
-                    >
-                      <FaTimes className="mr-2" />
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters and Search */}
+      {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Status Filter */}
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => handleFilterChange('all')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'all' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => handleFilterChange('planning')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'planning' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Planning
-            </button>
-            <button
-              onClick={() => handleFilterChange('active')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'active' 
-                  ? 'bg-blue-600 text-white' 
+              onClick={() => setStatusFilter('active')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                statusFilter === 'active' 
+                  ? 'bg-primary-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               Active
             </button>
             <button
-              onClick={() => handleFilterChange('completed')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'completed' 
-                  ? 'bg-blue-600 text-white' 
+              onClick={() => setStatusFilter('completed')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                statusFilter === 'completed' 
+                  ? 'bg-primary-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               Completed
+            </button>
+            <button
+              onClick={() => setStatusFilter('archived')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                statusFilter === 'archived' 
+                  ? 'bg-primary-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Archived
             </button>
           </div>
         </div>
@@ -380,90 +285,150 @@ export default function ProjectsPage() {
       {/* Projects Grid */}
       {loading ? (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading projects...</p>
         </div>
       ) : filteredProjects.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <FaProjectDiagram className="text-gray-400 text-4xl mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No Projects Found</h3>
-          <p className="text-gray-600 mb-4">
-            {searchTerm ? 'Try adjusting your search' : 'Get started by creating your first project'}
+          <FaProjectDiagram className="text-6xl text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">No projects found</h3>
+          <p className="text-gray-500 mb-4">
+            {search ? 'Try adjusting your search criteria' : 'Create your first project to get started'}
           </p>
-          {(user.role === 'god_admin' || user.role === 'admin' || user.role === 'hr' || user.role === 'manager' || user.role === 'employee') && !searchTerm && (
+          {canCreateProject() && !search && (
             <button
               onClick={() => router.push('/dashboard/projects/create')}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+              className="btn-primary"
             >
-              <FaPlus className="mr-2" />
               Create Project
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProjects.map((project) => (
-            <div
-              key={project._id}
-              onClick={() => router.push(`/dashboard/projects/${project._id}`)}
-              className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
-            >
-              {/* Project Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-gray-900 truncate">{project.name}</h3>
-                  <p className="text-sm text-gray-500">{project.projectCode}</p>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${getHealthColor(project.health)} flex-shrink-0 ml-2 mt-1`} 
-                     title={`Health: ${project.health}`}
-                />
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map((project) => {
+            const daysRemaining = getDaysRemaining(project.endDate)
+            const isOverdue = daysRemaining < 0 && !['completed', 'approved', 'archived'].includes(project.status)
+            
+            return (
+              <div
+                key={project._id}
+                onClick={() => router.push(`/dashboard/projects/${project._id}`)}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+              >
+                {/* Project Header */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-1">
+                      {project.name}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityColors[project.priority]}`}>
+                      {project.priority}
+                    </span>
+                  </div>
+                  
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                    {project.description || 'No description'}
+                  </p>
 
-              {/* Description */}
-              {project.summary && (
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.summary}</p>
-              )}
+                  {/* Status and Dates */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      isOverdue ? statusColors.overdue : statusColors[project.status]
+                    }`}>
+                      {isOverdue ? 'Overdue' : statusLabels[project.status]}
+                    </span>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaCalendarAlt className="mr-1" />
+                      {formatDate(project.endDate)}
+                    </div>
+                  </div>
 
-              {/* Status and Priority */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(project.status)}`}>
-                  {project.status.replace('_', ' ').toUpperCase()}
-                </span>
-                <span className={`text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                  {project.priority.toUpperCase()}
-                </span>
-              </div>
+                  {/* Progress Bar */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-500">Progress</span>
+                      <span className="font-medium text-gray-700">{project.completionPercentage || 0}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all ${
+                          project.completionPercentage >= 100 ? 'bg-green-500' :
+                          project.completionPercentage >= 50 ? 'bg-blue-500' :
+                          'bg-orange-500'
+                        }`}
+                        style={{ width: `${Math.min(project.completionPercentage || 0, 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>Progress</span>
-                  <span>{project.progress || 0}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ width: `${project.progress || 0}%` }}
-                  />
-                </div>
-              </div>
+                  {/* Task Stats */}
+                  {project.taskStats && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="text-center p-2 bg-gray-50 rounded-lg">
+                        <p className="text-lg font-bold text-gray-800">{project.taskStats.total}</p>
+                        <p className="text-xs text-gray-500">Tasks</p>
+                      </div>
+                      <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <p className="text-lg font-bold text-green-600">{project.taskStats.completed}</p>
+                        <p className="text-xs text-gray-500">Done</p>
+                      </div>
+                      <div className="text-center p-2 bg-blue-50 rounded-lg">
+                        <p className="text-lg font-bold text-blue-600">{project.taskStats.inProgress}</p>
+                        <p className="text-xs text-gray-500">In Progress</p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Footer Info */}
-              <div className="flex items-center justify-between text-xs text-gray-600 pt-3 border-t border-gray-200">
-                <div className="flex items-center">
-                  <FaUsers className="mr-1" />
-                  <span>{project.team?.filter(t => t.isActive).length || 0} members</span>
+                  {/* Project Head */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-medium overflow-hidden">
+                        {project.projectHead?.profilePicture ? (
+                          <img 
+                            src={project.projectHead.profilePicture} 
+                            alt={`${project.projectHead.firstName} ${project.projectHead.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span>
+                            {project.projectHead?.firstName?.[0]}{project.projectHead?.lastName?.[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="ml-2">
+                        <p className="text-sm font-medium text-gray-700">
+                          {project.projectHead?.firstName} {project.projectHead?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">Project Head</p>
+                      </div>
+                    </div>
+                    {project.userRole && (
+                      <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded-full">
+                        {project.userRole}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <FaCalendarAlt className="mr-1" />
-                  <span>{new Date(project.endDate).toLocaleDateString()}</span>
-                </div>
+
+                {/* Days Remaining Footer */}
+                {!['completed', 'approved', 'archived'].includes(project.status) && (
+                  <div className={`px-5 py-3 ${isOverdue ? 'bg-red-50' : 'bg-gray-50'}`}>
+                    <p className={`text-sm ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>
+                      {isOverdue 
+                        ? `${Math.abs(daysRemaining)} days overdue`
+                        : daysRemaining === 0 
+                          ? 'Due today'
+                          : `${daysRemaining} days remaining`
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
-

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Announcement from '@/models/Announcement'
 import User from '@/models/User'
-import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 
 // PUT - Update announcement
 export async function PUT(request, { params }) {
@@ -30,16 +30,20 @@ export async function PUT(request, { params }) {
       const userIds = allUsers.map(u => u._id.toString())
 
       if (userIds.length > 0) {
-        await sendOneSignalNotification({
+        await sendPushToUsers(
           userIds,
-          title: '📢 Announcement Updated',
-          message: announcement.title,
-          url: '/dashboard/announcements',
-          data: {
+          {
+            title: '📢 Announcement Updated',
+            body: announcement.title
+          },
+          {
+            url: '/dashboard/announcements',
             type: 'announcement_update',
-            announcementId: announcement._id.toString()
+            data: {
+              announcementId: announcement._id.toString()
+            }
           }
-        })
+        )
 
         console.log(`Announcement update notification sent to ${userIds.length} user(s)`)
       }

@@ -13,6 +13,7 @@ import { formatDesignation } from '@/lib/formatters'
 import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip from '@/components/charts/CustomTooltip'
 import { getEmployeeId, getDesignationText } from '@/utils/userHelper'
+import ProjectTasksWidget from './ProjectTasksWidget'
 
 export default function ManagerDashboard({ user }) {
   const { theme } = useTheme()
@@ -826,6 +827,9 @@ export default function ManagerDashboard({ user }) {
           </div>
         </div>
       </div>
+
+      {/* Project Tasks Widget */}
+      <ProjectTasksWidget limit={5} showPendingAcceptance={true} />
     </div>
   )
 }

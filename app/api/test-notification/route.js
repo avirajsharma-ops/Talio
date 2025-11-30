@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { sendOneSignalNotification } from '@/lib/onesignal'
+import { sendPushToUsers } from '@/lib/pushNotification'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Notification from '@/models/Notification'
 
 /**
- * Test endpoint for Android push notifications
+ * Test endpoint for push notifications
  * POST /api/test-notification
  */
 export async function POST(request) {
@@ -47,7 +47,7 @@ export async function POST(request) {
     const notifications = {
       message: {
         title: customTitle || '💬 Test Message Notification',
-        message: customMessage || 'This is a test message. If you see this, your WhatsApp-like notifications are working! App can be killed.',
+        message: customMessage || 'This is a test message. If you see this, your notifications are working! App can be killed.',
         type: 'message',
         data: {
           chatId: 'test-chat-' + Date.now(),
@@ -93,27 +93,32 @@ export async function POST(request) {
     console.log(`Title: ${notification.title}`)
     console.log('='.repeat(80) + '\n')
 
-    console.log(`\n🚀 Sending notification via OneSignal:`)
+    console.log(`\n🚀 Sending notification via Firebase:`)
     console.log(`   User ID: ${user._id}`)
     console.log(`   Type: ${notification.type}`)
     console.log(`   Title: ${notification.title}`)
     console.log(`   Message: ${notification.message}`)
     console.log('')
 
-    // Send notification via OneSignal
-    const result = await sendOneSignalNotification({
-      userIds: [user._id.toString()],
-      title: notification.title,
-      message: notification.message,
-      data: {
-        ...notification.data,
-        type: notification.type,
+    // Send notification via Firebase
+    const result = await sendPushToUsers(
+      [user._id.toString()],
+      {
         title: notification.title,
-        body: notification.message,
-        message: notification.message
+        body: notification.message
       },
-      url: '/dashboard'
-    })
+      {
+        data: {
+          ...notification.data,
+          type: notification.type,
+          title: notification.title,
+          body: notification.message,
+          message: notification.message
+        },
+        url: '/dashboard',
+        type: notification.type
+      }
+    )
 
     console.log(`\n📊 Test Result:`)
     console.log(`   Success: ${result.success}`)
@@ -140,9 +145,9 @@ export async function POST(request) {
           socketIO: {
             sent: false
           },
-          oneSignal: {
-            sent: result.successCount > 0,
-            sentAt: result.successCount > 0 ? new Date() : null
+          fcm: {
+            sent: result.success,
+            sentAt: result.success ? new Date() : null
           }
         }
       })
@@ -152,9 +157,9 @@ export async function POST(request) {
     }
 
     return NextResponse.json({
-      success: result.success && result.successCount > 0,
-      message: result.success && result.successCount > 0
-        ? '✅ Test notification sent! Check your Android device.'
+      success: result.success,
+      message: result.success
+        ? '✅ Test notification sent! Check your device.'
         : '❌ Failed to send notification',
       details: {
         type,
@@ -172,7 +177,7 @@ export async function POST(request) {
           type: notification.type
         },
         instructions: [
-          '1. Make sure your Android app is FORCE STOPPED (Settings → Apps → Talio → Force Stop)',
+          '1. Make sure your app is FORCE STOPPED (Settings → Apps → Talio → Force Stop)',
           '2. Check your notification panel',
           '3. You should see the notification with sound and vibration',
           '4. Check ADB logs: adb logcat | grep TalioFCM'
@@ -199,7 +204,7 @@ export async function POST(request) {
  */
 export async function GET() {
   return NextResponse.json({
-    message: 'Android Push Notification Test Endpoint',
+    message: 'Push Notification Test Endpoint',
     usage: {
       method: 'POST',
       endpoint: '/api/test-notification',
@@ -246,9 +251,9 @@ export async function GET() {
     ],
     instructions: [
       '1. Get your user ID from the database or login response',
-      '2. Force stop the Android app (Settings → Apps → Talio → Force Stop)',
+      '2. Force stop the app (Settings → Apps → Talio → Force Stop)',
       '3. Send POST request to this endpoint with userId and type',
-      '4. Check your Android device notification panel',
+      '4. Check your device notification panel',
       '5. Monitor logs: adb logcat | grep TalioFCM'
     ]
   })

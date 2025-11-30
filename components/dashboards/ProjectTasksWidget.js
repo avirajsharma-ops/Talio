@@ -1,0 +1,343 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
+import { 
+  FaProjectDiagram, FaTasks, FaCalendarAlt, FaChevronRight,
+  FaExclamationTriangle, FaCheckCircle, FaPlay, FaClock,
+  FaEye, FaCheck, FaTimes
+} from 'react-icons/fa'
+
+const priorityColors = {
+  low: 'bg-gray-100 text-gray-700',
+  medium: 'bg-blue-100 text-blue-700',
+  high: 'bg-orange-100 text-orange-700',
+  critical: 'bg-red-100 text-red-700'
+}
+
+const statusIcons = {
+  'todo': FaTasks,
+  'in-progress': FaPlay,
+  'review': FaEye,
+  'completed': FaCheckCircle
+}
+
+const statusColors = {
+  'todo': 'text-gray-500',
+  'in-progress': 'text-blue-500',
+  'review': 'text-purple-500',
+  'completed': 'text-green-500'
+}
+
+export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = true }) {
+  const router = useRouter()
+  const [tasks, setTasks] = useState([])
+  const [pendingTasks, setPendingTasks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [respondingTo, setRespondingTo] = useState(null)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  useEffect(() => {
+    fetchTodayTasks()
+  }, [])
+
+  const fetchTodayTasks = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      
+      // Fetch today's tasks
+      const response = await fetch(`/api/projects/my-tasks?period=today&limit=${limit}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        const allTasks = data.data || []
+        setPendingTasks(allTasks.filter(t => t.assignmentStatus === 'pending'))
+        setTasks(allTasks.filter(t => t.assignmentStatus !== 'pending'))
+      }
+    } catch (error) {
+      console.error('Fetch today project tasks error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRespondToAssignment = async (task, action, reason = '') => {
+    try {
+      setRespondingTo(task._id)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/projects/${task.project._id}/tasks/${task._id}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action, reason: action === 'reject' ? reason : undefined })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success(data.message)
+        fetchTodayTasks()
+        setShowRejectModal(false)
+        setRejectReason('')
+        setSelectedTask(null)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error('Failed to respond to assignment')
+    } finally {
+      setRespondingTo(null)
+    }
+  }
+
+  const openRejectModal = (task) => {
+    setSelectedTask(task)
+    setRejectReason('')
+    setShowRejectModal(true)
+  }
+
+  const handleUpdateStatus = async (task, newStatus) => {
+    try {
+      setRespondingTo(task._id)
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/projects/${task.project._id}/tasks/${task._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Task updated')
+        fetchTodayTasks()
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error('Failed to update task')
+    } finally {
+      setRespondingTo(null)
+    }
+  }
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const isOverdue = (task) => {
+    return task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed'
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-lg p-3 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+        <div className="flex items-center space-x-3 mb-4">
+          <FaProjectDiagram className="w-5 h-5 text-primary-500" />
+          <h3 className="text-sm sm:text-base font-bold text-gray-800">Today's Project Tasks</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+        </div>
+      </div>
+    )
+  }
+
+  const allTasks = showPendingAcceptance ? [...pendingTasks, ...tasks] : tasks
+
+  return (
+    <div className="rounded-lg p-3 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
+        <div className="flex items-center space-x-3">
+          <FaProjectDiagram className="w-5 h-5 text-primary-500" />
+          <h3 className="text-sm sm:text-base font-bold text-gray-800">Today's Project Tasks</h3>
+          {allTasks.length > 0 && (
+            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded-full">
+              {allTasks.length}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => router.push('/dashboard/projects/my-tasks')}
+          className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center"
+        >
+          View All
+          <FaChevronRight className="ml-1 w-3 h-3" />
+        </button>
+      </div>
+
+      {allTasks.length === 0 ? (
+        <div className="text-center py-8">
+          <FaCheckCircle className="w-10 h-10 text-green-300 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm">No project tasks due today</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Pending Acceptance Tasks */}
+          {showPendingAcceptance && pendingTasks.map(task => (
+            <div 
+              key={task._id} 
+              className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FaClock className="w-3 h-3 text-yellow-600" />
+                    <span className="text-xs text-yellow-700 font-medium">Pending Acceptance</span>
+                  </div>
+                  <h4 className="text-sm font-medium text-gray-900 truncate">{task.title}</h4>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                    <span className="truncate">{task.project?.name}</span>
+                    {task.dueDate && (
+                      <>
+                        <span>•</span>
+                        <span className={isOverdue(task) ? 'text-red-500' : ''}>
+                          Due {formatDate(task.dueDate)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-1 ml-2">
+                  <button
+                    onClick={() => openRejectModal(task)}
+                    disabled={respondingTo === task._id}
+                    className="p-1.5 text-red-600 hover:bg-red-100 rounded disabled:opacity-50"
+                    title="Reject"
+                  >
+                    <FaTimes className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleRespondToAssignment(task, 'accept')}
+                    disabled={respondingTo === task._id}
+                    className="p-1.5 text-green-600 hover:bg-green-100 rounded disabled:opacity-50"
+                    title="Accept"
+                  >
+                    <FaCheck className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Regular Tasks */}
+          {tasks.map(task => {
+            const StatusIcon = statusIcons[task.status] || FaTasks
+            const taskOverdue = isOverdue(task)
+            
+            return (
+              <div 
+                key={task._id} 
+                className={`p-3 rounded-lg border ${
+                  taskOverdue ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-gray-50'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-3 flex-1 min-w-0">
+                    <div className={`p-1.5 rounded ${statusColors[task.status]}`}>
+                      <StatusIcon className="w-3 h-3" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">{task.title}</h4>
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${priorityColors[task.priority]}`}>
+                          {task.priority}
+                        </span>
+                        {taskOverdue && (
+                          <span className="flex items-center gap-1 text-xs text-red-600">
+                            <FaExclamationTriangle className="w-3 h-3" />
+                            Overdue
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                        <span className="truncate">{task.project?.name}</span>
+                        {task.dueDate && (
+                          <>
+                            <span>•</span>
+                            <span className={taskOverdue ? 'text-red-500' : ''}>
+                              {formatDate(task.dueDate)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Action Button */}
+                  {task.status !== 'completed' && (
+                    <button
+                      onClick={() => {
+                        const nextStatus = {
+                          'todo': 'in-progress',
+                          'in-progress': 'review',
+                          'review': 'completed'
+                        }
+                        handleUpdateStatus(task, nextStatus[task.status])
+                      }}
+                      disabled={respondingTo === task._id}
+                      className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded hover:bg-primary-200 disabled:opacity-50 flex-shrink-0 ml-2"
+                    >
+                      {task.status === 'todo' ? 'Start' : 
+                       task.status === 'in-progress' ? 'Review' : 
+                       task.status === 'review' ? 'Complete' : ''}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Reject Task Modal */}
+      {showRejectModal && selectedTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reject Task Assignment</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Please provide a reason for rejecting "{selectedTask.title}"
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter reason for rejection..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false)
+                  setRejectReason('')
+                  setSelectedTask(null)
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRespondToAssignment(selectedTask, 'reject', rejectReason)}
+                disabled={respondingTo === selectedTask._id}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {respondingTo === selectedTask._id ? 'Rejecting...' : 'Reject Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

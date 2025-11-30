@@ -1,27 +1,37 @@
 import { NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
+import { verifyToken } from '@/lib/auth'
 import connectDB from '@/lib/mongodb'
-import Project from '@/models/ProjectNew'
+import Project from '@/models/Project'
+import ProjectMember from '@/models/ProjectMember'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
-import Department from '@/models/Department'
+import { 
+  createProject, 
+  getUserProjects, 
+  calculateCompletionPercentage,
+  getProjectTaskStats,
+  createTimelineEvent
+} from '@/lib/projectService'
+import { 
+  notifyProjectInvitation,
+  getProjectMemberUserIds
+} from '@/lib/projectNotifications'
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
-
-// GET - List projects
+// GET - List projects for current user
 export async function GET(request) {
   try {
-    await connectDB()
-
-    // Verify JWT token
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
     }
 
-    const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
 
-    // Get current user
+    await connectDB()
+
     const user = await User.findById(decoded.userId).select('employeeId role')
     if (!user || !user.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
@@ -29,190 +39,173 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    const department = searchParams.get('department')
-    const myProjects = searchParams.get('myProjects') === 'true'
+    const role = searchParams.get('role')
+    const invitationStatus = searchParams.get('invitationStatus')
+    const all = searchParams.get('all') // For admin to see all projects
 
-    let query = {}
+    let projects
 
-    // Filter by status
-    if (status) {
-      query.status = status
-    }
-
-    // Filter by department
-    if (department) {
-      query.department = department
-    }
-
-    // For non-admin users, show only their projects or department projects
-    if (user.role !== 'admin') {
-      if (myProjects) {
-        // Show projects where user is a team member or project manager
-        query.$or = [
-          { projectManager: user.employeeId },
-          { 'team.member': user.employeeId, 'team.isActive': true },
-          { 'crossDepartmentCollaboration.collaborators.employee': user.employeeId }
-        ]
-      } else {
-        // Show department projects
-        const employee = await Employee.findById(user.employeeId).select('department')
-        if (employee && employee.department) {
-          query.$or = [
-            { department: employee.department },
-            { 'crossDepartmentCollaboration.departments': employee.department },
-            { projectManager: user.employeeId },
-            { 'team.member': user.employeeId, 'team.isActive': true }
-          ]
-        }
+    // Admin can see all projects
+    if (all === 'true' && ['admin', 'god_admin', 'hr'].includes(user.role)) {
+      const query = {}
+      if (status) {
+        query.status = status === 'active' 
+          ? { $in: ['planned', 'ongoing', 'pending', 'completed_pending_approval'] }
+          : status
       }
+      if (!status) {
+        query.status = { $ne: 'archived' }
+      }
+
+      projects = await Project.find(query)
+        .populate('projectHead', 'firstName lastName profilePicture')
+        .populate('createdBy', 'firstName lastName')
+        .populate('department', 'name')
+        .sort({ updatedAt: -1 })
+    } else {
+      // Regular user - get their projects
+      const filters = {}
+      if (status) {
+        filters.status = status === 'active' 
+          ? ['planned', 'ongoing', 'pending', 'completed_pending_approval', 'overdue']
+          : status.split(',')
+      }
+      if (role) filters.role = role
+      if (invitationStatus) filters.invitationStatus = invitationStatus
+
+      projects = await getUserProjects(user.employeeId, filters)
     }
 
-    const projects = await Project.find(query)
-      .populate('projectManager', 'firstName lastName employeeCode email')
-      .populate('projectOwner', 'firstName lastName employeeCode')
-      .populate('department', 'name code')
-      .populate('team.member', 'firstName lastName employeeCode email designation')
-      .populate('crossDepartmentCollaboration.departments', 'name code')
-      .populate('crossDepartmentCollaboration.collaborators.employee', 'firstName lastName employeeCode')
-      .populate('crossDepartmentCollaboration.collaborators.department', 'name')
-      .sort({ createdAt: -1 })
-      .lean()
+    // Add task stats to each project
+    const projectsWithStats = await Promise.all(projects.map(async (project) => {
+      const stats = await getProjectTaskStats(project._id)
+      return {
+        ...project.toObject ? project.toObject() : project,
+        taskStats: stats
+      }
+    }))
 
     return NextResponse.json({
       success: true,
-      data: projects,
+      data: projectsWithStats,
+      currentEmployeeId: user.employeeId.toString()
     })
   } catch (error) {
     console.error('Get projects error:', error)
-    return NextResponse.json(
-      { success: false, message: 'Failed to fetch projects' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
 
-// POST - Create project
+// POST - Create a new project
 export async function POST(request) {
   try {
-    await connectDB()
-
-    // Verify JWT token
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, message: 'No token provided' }, { status: 401 })
     }
 
-    const { payload: decoded } = await jwtVerify(token, JWT_SECRET)
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
 
-    // Get current user
-    const user = await User.findById(decoded.userId).select('employeeId role')
+    await connectDB()
+
+    const user = await User.findById(decoded.userId).select('employeeId')
     if (!user || !user.employeeId) {
       return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
-    const data = await request.json()
-
-    // Validate department exists
-    const department = await Department.findById(data.department)
-    if (!department) {
-      return NextResponse.json(
-        { success: false, message: 'Department not found' },
-        { status: 404 }
-      )
+    const creatorEmployee = await Employee.findById(user.employeeId)
+    if (!creatorEmployee) {
+      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
     }
 
-    // Process team members to add assignedBy field
-    if (data.team && Array.isArray(data.team)) {
-      data.team = data.team.map(member => ({
-        ...member,
-        assignedBy: user.employeeId, // Track who assigned each member
-        assignmentStatus: member.member?.toString() === user.employeeId?.toString() 
-          ? 'accepted'  // Creator auto-accepts
-          : (member.assignmentStatus || 'pending')
+    const body = await request.json()
+    const { 
+      name, 
+      description, 
+      startDate, 
+      endDate, 
+      projectHeadId, 
+      members = [],
+      priority,
+      department,
+      tags,
+      status
+    } = body
+
+    // Validate required fields
+    if (!name || !startDate || !endDate || !projectHeadId) {
+      return NextResponse.json({
+        success: false,
+        message: 'Name, start date, end date, and project head are required'
+      }, { status: 400 })
+    }
+
+    // Validate dates
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (end < start) {
+      return NextResponse.json({
+        success: false,
+        message: 'End date must be after start date'
+      }, { status: 400 })
+    }
+
+    // Verify project head exists
+    const projectHead = await Employee.findById(projectHeadId)
+    if (!projectHead) {
+      return NextResponse.json({
+        success: false,
+        message: 'Project head not found'
+      }, { status: 404 })
+    }
+
+    // Create the project with service
+    const project = await createProject(
+      {
+        name,
+        description,
+        startDate: start,
+        endDate: end,
+        projectHead: projectHeadId,
+        priority: priority || 'medium',
+        department,
+        tags: tags || [],
+        status: status || 'planned'
+      },
+      creatorEmployee,
+      members.map(m => ({
+        userId: m.userId,
+        role: m.role || 'member',
+        isExternal: m.isExternal || false,
+        sourceDepartment: m.sourceDepartment
       }))
-    }
+    )
 
-    // Create project
-    const project = await Project.create({
-      ...data,
-      // Ensure project manager is set
-      projectManager: data.projectManager || user.employeeId,
-    })
-
-    const populatedProject = await Project.findById(project._id)
-      .populate('projectManager', 'firstName lastName employeeCode email')
-      .populate('projectOwner', 'firstName lastName employeeCode')
-      .populate('department', 'name code')
-      .populate('team.member', 'firstName lastName employeeCode email')
-      .populate('crossDepartmentCollaboration.departments', 'name code')
-      .populate('crossDepartmentCollaboration.collaborators.employee', 'firstName lastName employeeCode')
-      .populate('crossDepartmentCollaboration.collaborators.department', 'name')
-
-    // Emit Socket.IO events for project team members
-    try {
-      const io = global.io
-      if (io && data.team && Array.isArray(data.team)) {
-        const { sendPushToUser } = require('@/lib/pushNotification')
-        const creatorEmployee = await Employee.findById(user.employeeId).select('firstName lastName')
-
-        for (const teamMember of data.team) {
-          // Skip notifications for the creator (they already know)
-          if (teamMember.member?.toString() === user.employeeId?.toString()) continue
-          
-          const employeeDoc = await Employee.findById(teamMember.member).populate('userId')
-          const employeeUserId = employeeDoc?.userId?._id || employeeDoc?.userId
-
-          if (employeeUserId) {
-            // Socket.IO event
-            io.to(`user:${employeeUserId}`).emit('project-invitation', {
-              project: populatedProject,
-              action: 'invited',
-              assignedBy: user.employeeId,
-              assignedByName: `${creatorEmployee?.firstName || ''} ${creatorEmployee?.lastName || ''}`.trim(),
-              message: `${creatorEmployee?.firstName || 'Someone'} invited you to join project: ${project.name}`,
-              timestamp: new Date()
-            })
-            console.log(`✅ [Socket.IO] Project invitation sent to user:${employeeUserId}`)
-
-            // Push notification
-            try {
-              await sendPushToUser(
-                employeeUserId,
-                {
-                  title: '📋 Project Invitation',
-                  body: `${creatorEmployee?.firstName || 'Someone'} invited you to join project: ${project.name}`,
-                },
-                {
-                  clickAction: '/dashboard/projects',
-                  eventType: 'project_invitation',
-                  data: {
-                    projectId: project._id.toString(),
-                    type: 'project_invitation'
-                  }
-                }
-              )
-              console.log(`📲 [Push] Project invitation sent to user:${employeeUserId}`)
-            } catch (pushError) {
-              console.error('Failed to send project push notification:', pushError)
-            }
-          }
-        }
+    // Send notifications to invited members
+    for (const member of members) {
+      const invitedEmployee = await Employee.findById(member.userId)
+      if (invitedEmployee) {
+        await notifyProjectInvitation(project, invitedEmployee, creatorEmployee)
       }
-    } catch (socketError) {
-      console.error('Failed to send project invitation socket notification:', socketError)
     }
+
+    // Populate and return the project
+    const populatedProject = await Project.findById(project._id)
+      .populate('projectHead', 'firstName lastName profilePicture')
+      .populate('createdBy', 'firstName lastName')
+      .populate('department', 'name')
+      .populate('chatGroup')
 
     return NextResponse.json({
       success: true,
       message: 'Project created successfully',
-      data: populatedProject,
+      data: populatedProject
     }, { status: 201 })
   } catch (error) {
     console.error('Create project error:', error)
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create project' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }
 }
-
