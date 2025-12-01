@@ -138,7 +138,7 @@ export async function GET(request) {
 
     // Optimized: Use lean() and select only needed fields
     const attendance = await Attendance.find(query)
-      .select('employee date checkIn checkOut status workHours overtime')
+      .select('employee date checkIn checkOut checkInStatus checkOutStatus status workHours overtime totalLoggedHours breakMinutes shrinkagePercentage')
       .populate({
         path: 'employee',
         select: 'firstName lastName employeeCode',

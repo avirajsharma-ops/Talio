@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell } from 'react-icons/fa'
+import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell, FaMoneyBillWave } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -54,6 +54,7 @@ export default function SettingsPage() {
       baseTabs.push(
         { id: 'company', name: 'Company Settings', icon: FaBuilding },
         { id: 'geofencing', name: 'Geofencing', icon: FaMapMarkerAlt },
+        { id: 'payroll', name: 'Payroll Settings', icon: FaMoneyBillWave },
       )
     }
 
@@ -126,6 +127,7 @@ export default function SettingsPage() {
       <div className="rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
         {activeTab === 'company' && <CompanySettingsTab />}
         {activeTab === 'geofencing' && <GeofencingTab />}
+        {activeTab === 'payroll' && <PayrollSettingsTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'personalization' && <PersonalizationTab />}
       </div>
@@ -1861,6 +1863,534 @@ function PersonalizationTab() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Payroll Settings Tab (Admin/HR only)
+function PayrollSettingsTab() {
+  const [settings, setSettings] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/settings/company', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSettings(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching payroll settings:', error)
+      toast.error('Failed to load payroll settings')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      const formData = new FormData(e.target)
+      
+      const payrollSettings = {
+        payroll: {
+          workingDaysPerMonth: parseInt(formData.get('workingDaysPerMonth')) || 26,
+          
+          lateDeduction: {
+            enabled: formData.get('lateDeductionEnabled') === 'on',
+            type: formData.get('lateDeductionType') || 'fixed',
+            value: parseFloat(formData.get('lateDeductionValue')) || 100,
+            graceLatesPerMonth: parseInt(formData.get('graceLatesPerMonth')) || 3,
+          },
+          
+          halfDayDeduction: {
+            enabled: formData.get('halfDayDeductionEnabled') === 'on',
+            type: formData.get('halfDayDeductionType') || 'half-day-salary',
+            value: parseFloat(formData.get('halfDayDeductionValue')) || 50,
+          },
+          
+          absentDeduction: {
+            enabled: formData.get('absentDeductionEnabled') === 'on',
+            type: formData.get('absentDeductionType') || 'full-day-salary',
+            value: parseFloat(formData.get('absentDeductionValue')) || 100,
+          },
+          
+          overtime: {
+            enabled: formData.get('overtimeEnabled') === 'on',
+            rateMultiplier: parseFloat(formData.get('overtimeRateMultiplier')) || 1.5,
+            minHoursForOvertime: parseFloat(formData.get('minHoursForOvertime')) || 1,
+          },
+          
+          pfEnabled: formData.get('pfEnabled') === 'on',
+          pfPercentage: parseFloat(formData.get('pfPercentage')) || 12,
+          esiEnabled: formData.get('esiEnabled') === 'on',
+          esiPercentage: parseFloat(formData.get('esiPercentage')) || 0.75,
+          professionalTax: {
+            enabled: formData.get('professionalTaxEnabled') === 'on',
+            amount: parseFloat(formData.get('professionalTaxAmount')) || 200,
+          },
+          tdsEnabled: formData.get('tdsEnabled') === 'on',
+          tdsPercentage: parseFloat(formData.get('tdsPercentage')) || 10,
+        }
+      }
+
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/settings/company', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payrollSettings)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Payroll settings saved successfully!')
+        setSettings(data.data)
+      } else {
+        toast.error(data.message || 'Failed to save payroll settings')
+      }
+    } catch (error) {
+      console.error('Error saving payroll settings:', error)
+      toast.error('Failed to save payroll settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount || 0)
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading payroll settings...</p>
+      </div>
+    )
+  }
+
+  const payroll = settings?.payroll || {}
+
+  return (
+    <div>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+        <FaMoneyBillWave className="text-green-600" />
+        Payroll Settings
+      </h2>
+      <p className="text-gray-600 mb-6">Configure salary deductions, overtime rules, and statutory compliance</p>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* General Settings */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FaCog className="text-blue-500" />
+            General Settings
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Working Days Per Month
+              </label>
+              <input
+                type="number"
+                name="workingDaysPerMonth"
+                defaultValue={payroll.workingDaysPerMonth || 26}
+                min="20"
+                max="31"
+                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Used to calculate daily salary rate</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Attendance-Based Deductions */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FaClock className="text-orange-500" />
+            Attendance-Based Deductions
+          </h3>
+
+          {/* Late Deduction */}
+          <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-semibold text-gray-900">Late Arrival Deduction</h4>
+                <p className="text-sm text-gray-600">Deduct from salary when employee arrives late</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="lateDeductionEnabled"
+                  defaultChecked={payroll.lateDeduction?.enabled !== false}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deduction Type</label>
+                <select
+                  name="lateDeductionType"
+                  defaultValue={payroll.lateDeduction?.type || 'fixed'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="fixed">Fixed Amount (₹)</option>
+                  <option value="percentage">Percentage of Salary (%)</option>
+                  <option value="per-day-salary">% of Daily Salary</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
+                <input
+                  type="number"
+                  name="lateDeductionValue"
+                  defaultValue={payroll.lateDeduction?.value || 100}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Grace Lates/Month</label>
+                <input
+                  type="number"
+                  name="graceLatesPerMonth"
+                  defaultValue={payroll.lateDeduction?.graceLatesPerMonth || 3}
+                  min="0"
+                  max="31"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">No deduction for first N lates</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Half-Day Deduction */}
+          <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-semibold text-gray-900">Half-Day Deduction</h4>
+                <p className="text-sm text-gray-600">Deduct when employee works less than full day hours</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="halfDayDeductionEnabled"
+                  defaultChecked={payroll.halfDayDeduction?.enabled !== false}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deduction Type</label>
+                <select
+                  name="halfDayDeductionType"
+                  defaultValue={payroll.halfDayDeduction?.type || 'half-day-salary'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="fixed">Fixed Amount (₹)</option>
+                  <option value="percentage">Percentage of Monthly Salary (%)</option>
+                  <option value="half-day-salary">% of Daily Salary (50% = half day)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
+                <input
+                  type="number"
+                  name="halfDayDeductionValue"
+                  defaultValue={payroll.halfDayDeduction?.value || 50}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Absent Deduction */}
+          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-semibold text-gray-900">Absent Day Deduction</h4>
+                <p className="text-sm text-gray-600">Deduct when employee is absent without approved leave</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="absentDeductionEnabled"
+                  defaultChecked={payroll.absentDeduction?.enabled !== false}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deduction Type</label>
+                <select
+                  name="absentDeductionType"
+                  defaultValue={payroll.absentDeduction?.type || 'full-day-salary'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="fixed">Fixed Amount (₹)</option>
+                  <option value="percentage">Percentage of Monthly Salary (%)</option>
+                  <option value="full-day-salary">% of Daily Salary (100% = full day)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
+                <input
+                  type="number"
+                  name="absentDeductionValue"
+                  defaultValue={payroll.absentDeduction?.value || 100}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Overtime Settings */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FaClock className="text-green-500" />
+            Overtime Settings
+          </h3>
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="font-semibold text-gray-900">Enable Overtime Pay</h4>
+                <p className="text-sm text-gray-600">Pay extra for hours worked beyond regular shift</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="overtimeEnabled"
+                  defaultChecked={payroll.overtime?.enabled !== false}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rate Multiplier</label>
+                <input
+                  type="number"
+                  name="overtimeRateMultiplier"
+                  defaultValue={payroll.overtime?.rateMultiplier || 1.5}
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">1.5 = 150% of hourly rate</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Hours</label>
+                <input
+                  type="number"
+                  name="minHoursForOvertime"
+                  defaultValue={payroll.overtime?.minHoursForOvertime || 1}
+                  min="0.5"
+                  max="4"
+                  step="0.5"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Min extra hours to qualify for OT</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Statutory Deductions */}
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FaMoneyBillWave className="text-purple-500" />
+            Statutory Deductions
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PF */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-900">Provident Fund (PF)</h4>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="pfEnabled"
+                    defaultChecked={payroll.pfEnabled !== false}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PF Percentage (%)</label>
+                <input
+                  type="number"
+                  name="pfPercentage"
+                  defaultValue={payroll.pfPercentage || 12}
+                  min="0"
+                  max="20"
+                  step="0.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* ESI */}
+            <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-900">ESI (Employee State Insurance)</h4>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="esiEnabled"
+                    defaultChecked={payroll.esiEnabled !== false}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ESI Percentage (%)</label>
+                <input
+                  type="number"
+                  name="esiPercentage"
+                  defaultValue={payroll.esiPercentage || 0.75}
+                  min="0"
+                  max="5"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* Professional Tax */}
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-900">Professional Tax</h4>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="professionalTaxEnabled"
+                    defaultChecked={payroll.professionalTax?.enabled !== false}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fixed Amount (₹)</label>
+                <input
+                  type="number"
+                  name="professionalTaxAmount"
+                  defaultValue={payroll.professionalTax?.amount || 200}
+                  min="0"
+                  max="2500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            {/* TDS */}
+            <div className="p-4 bg-pink-50 rounded-lg border border-pink-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-900">TDS (Tax Deducted at Source)</h4>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="tdsEnabled"
+                    defaultChecked={payroll.tdsEnabled !== false}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">TDS Percentage (%)</label>
+                <input
+                  type="number"
+                  name="tdsPercentage"
+                  defaultValue={payroll.tdsPercentage || 10}
+                  min="0"
+                  max="30"
+                  step="0.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Preview */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Settings Summary</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="bg-white p-3 rounded-lg">
+              <p className="text-gray-500">Working Days</p>
+              <p className="font-semibold text-gray-900">{payroll.workingDaysPerMonth || 26} days/month</p>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <p className="text-gray-500">Grace Lates</p>
+              <p className="font-semibold text-gray-900">{payroll.lateDeduction?.graceLatesPerMonth || 3} per month</p>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <p className="text-gray-500">Overtime Rate</p>
+              <p className="font-semibold text-gray-900">{payroll.overtime?.rateMultiplier || 1.5}x</p>
+            </div>
+            <div className="bg-white p-3 rounded-lg">
+              <p className="text-gray-500">PF Rate</p>
+              <p className="font-semibold text-gray-900">{payroll.pfPercentage || 12}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 font-semibold"
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <FaCheck />
+                Save Payroll Settings
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

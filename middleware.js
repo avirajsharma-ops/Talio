@@ -10,6 +10,7 @@ export async function middleware(request) {
   const publicApiRoutes = [
     '/api/auth/login',
     '/api/auth/register',
+    '/api/auth/session',
     '/api/auth/forgot-password',
     '/api/auth/google/callback',
     '/api/create-user',

@@ -133,6 +133,31 @@ export async function PUT(request) {
             ...settings.companyAddress,
             ...body.companyAddress,
           }
+        } else if (key === 'payroll' && body.payroll) {
+          // Deep merge payroll settings
+          settings.payroll = {
+            ...settings.payroll?.toObject?.() || settings.payroll || {},
+            ...body.payroll,
+            lateDeduction: {
+              ...(settings.payroll?.lateDeduction?.toObject?.() || settings.payroll?.lateDeduction || {}),
+              ...(body.payroll?.lateDeduction || {}),
+            },
+            halfDayDeduction: {
+              ...(settings.payroll?.halfDayDeduction?.toObject?.() || settings.payroll?.halfDayDeduction || {}),
+              ...(body.payroll?.halfDayDeduction || {}),
+            },
+            absentDeduction: {
+              ...(settings.payroll?.absentDeduction?.toObject?.() || settings.payroll?.absentDeduction || {}),
+              ...(body.payroll?.absentDeduction || {}),
+            },
+            overtimeRate: {
+              ...(settings.payroll?.overtimeRate?.toObject?.() || settings.payroll?.overtimeRate || {}),
+              ...(body.payroll?.overtimeRate || {}),
+            },
+            allowances: body.payroll?.allowances || settings.payroll?.allowances || [],
+            deductions: body.payroll?.deductions || settings.payroll?.deductions || [],
+          }
+          console.log('Updated payroll settings:', settings.payroll)
         } else {
           settings[key] = body[key]
         }

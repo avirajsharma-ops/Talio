@@ -146,6 +146,122 @@ const CompanySettingsSchema = new mongoose.Schema({
       default: 10,
     },
   },
+
+  // Payroll Settings
+  payroll: {
+    // Salary calculation basis
+    workingDaysPerMonth: {
+      type: Number,
+      default: 26, // Standard working days in a month
+    },
+    
+    // Late arrival deduction settings
+    lateDeduction: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      type: {
+        type: String,
+        enum: ['fixed', 'percentage', 'per-day-salary'],
+        default: 'fixed',
+      },
+      value: {
+        type: Number,
+        default: 100, // ₹100 per late or percentage value
+      },
+      graceLatesPerMonth: {
+        type: Number,
+        default: 3, // First 3 lates are free
+      },
+    },
+    
+    // Half-day deduction settings
+    halfDayDeduction: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      type: {
+        type: String,
+        enum: ['fixed', 'percentage', 'half-day-salary'],
+        default: 'half-day-salary',
+      },
+      value: {
+        type: Number,
+        default: 50, // 50% of daily salary or fixed amount
+      },
+    },
+    
+    // Absent deduction settings
+    absentDeduction: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      type: {
+        type: String,
+        enum: ['fixed', 'percentage', 'full-day-salary'],
+        default: 'full-day-salary',
+      },
+      value: {
+        type: Number,
+        default: 100, // 100% of daily salary
+      },
+    },
+    
+    // Overtime settings
+    overtime: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      rateMultiplier: {
+        type: Number,
+        default: 1.5, // 1.5x for overtime hours
+      },
+      minHoursForOvertime: {
+        type: Number,
+        default: 1, // Minimum 1 hour to count as overtime
+      },
+    },
+    
+    // Standard deductions
+    pfEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    pfPercentage: {
+      type: Number,
+      default: 12, // 12% PF
+    },
+    esiEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    esiPercentage: {
+      type: Number,
+      default: 0.75, // 0.75% ESI
+    },
+    professionalTax: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      amount: {
+        type: Number,
+        default: 200, // Fixed ₹200
+      },
+    },
+    tdsEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    tdsPercentage: {
+      type: Number,
+      default: 10, // 10% TDS
+    },
+  },
   
   // Notification Settings
   notifications: {
