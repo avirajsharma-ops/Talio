@@ -66,6 +66,7 @@ let mouseActivityBuffer = { clicks: 0, scrollDistance: 0, movementDistance: 0 };
 let currentActiveApp = { name: '', title: '', startTime: null };
 let lastActiveWindow = null;
 let screenshotTimer = null;
+let screenshotStartupTimer = null; // Timer for initial minute-boundary wait
 let activitySyncTimer = null;
 let periodicSyncTimer = null;
 let keyListener = null;
@@ -674,19 +675,46 @@ function extractDomainFromTitle(title) {
   return null;
 }
 
-// Start periodic screenshot and data sync
+// Start periodic screenshot and data sync - aligned to minute boundaries
 function startScreenMonitoring() {
-  if (screenshotTimer) return;
+  if (screenshotTimer || screenshotStartupTimer) return;
 
   // Get current interval (global or from store) - default 1 minute
   const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (60 * 1000);
 
-  // Capture immediately after 5 seconds
-  setTimeout(() => captureAndSyncProductivity(false), 5000);
+  // Track the last captured minute to avoid duplicate captures
+  let lastCapturedMinute = -1;
 
-  // Then at configured intervals
-  screenshotTimer = setInterval(() => captureAndSyncProductivity(false), currentInterval);
-  console.log(`[Talio] Screen monitoring started (${currentInterval / 60000} min intervals)`);
+  // Function to capture only when minute changes
+  const captureOnMinuteChange = async () => {
+    const now = new Date();
+    const currentMinute = now.getMinutes();
+    
+    // Only capture if the minute has changed since last capture
+    if (currentMinute !== lastCapturedMinute) {
+      lastCapturedMinute = currentMinute;
+      console.log(`[Talio] 📸 Minute changed to :${currentMinute.toString().padStart(2, '0')} - capturing screenshot`);
+      await captureAndSyncProductivity(false);
+    }
+  };
+
+  // Calculate milliseconds until the next minute starts
+  const now = new Date();
+  const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+  
+  console.log(`[Talio] Screen monitoring starting in ${Math.round(msUntilNextMinute / 1000)}s (at next minute boundary)`);
+
+  // Wait until the next minute boundary, then capture
+  screenshotStartupTimer = setTimeout(() => {
+    screenshotStartupTimer = null; // Clear startup timer reference
+    
+    // Capture immediately at the minute boundary
+    captureOnMinuteChange();
+    
+    // Then check every 5 seconds if the minute has changed (handles edge cases)
+    screenshotTimer = setInterval(captureOnMinuteChange, 5000);
+    console.log(`[Talio] Screen monitoring active (captures at each minute change)`);
+  }, msUntilNextMinute);
 }
 
 // Sync all productivity data to server via API
@@ -902,6 +930,10 @@ function setAuth(token, user) {
   } else if (!token) {
     // User logged out - stop monitoring
     console.log('[Talio] Auth cleared - stopping monitoring');
+    if (screenshotStartupTimer) {
+      clearTimeout(screenshotStartupTimer);
+      screenshotStartupTimer = null;
+    }
     if (screenshotTimer) {
       clearInterval(screenshotTimer);
       screenshotTimer = null;
@@ -1016,6 +1048,10 @@ function updateScreenshotInterval(newInterval) {
     store.set('screenshotInterval', newInterval);
     
     // Restart screenshot timer with new interval
+    if (screenshotStartupTimer) {
+      clearTimeout(screenshotStartupTimer);
+      screenshotStartupTimer = null;
+    }
     if (screenshotTimer) {
       clearInterval(screenshotTimer);
       screenshotTimer = null;
@@ -1288,6 +1324,10 @@ function createTray() {
         global.SCREENSHOT_INTERVAL = 60 * 1000; // 1 minute default
         
         // Restart monitoring with fresh settings
+        if (screenshotStartupTimer) {
+          clearTimeout(screenshotStartupTimer);
+          screenshotStartupTimer = null;
+        }
         if (screenshotTimer) {
           clearInterval(screenshotTimer);
           screenshotTimer = null;

@@ -128,8 +128,11 @@ const ProductivitySessionSchema = new mongoose.Schema({
     analyzedAt: { type: Date }
   },
 
-  // Number of raw captures included in this session
+  // Number of raw captures included in this session (target: 30 screenshots per session)
   captureCount: { type: Number, default: 0 },
+  
+  // Session number for the day (1, 2, 3, etc.)
+  sessionNumber: { type: Number, default: 1 },
   
   // IDs of ProductivityData records that were aggregated
   sourceDataIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProductivityData' }],
@@ -144,7 +147,11 @@ const ProductivitySessionSchema = new mongoose.Schema({
   // For instant fetch - partial session data
   isPartialSession: { type: Boolean, default: false },
   partialSessionRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  partialSessionRequestedAt: { type: Date }
+  partialSessionRequestedAt: { type: Date },
+  
+  // Session end markers (new 30-screenshot session logic)
+  isLastSessionOfDay: { type: Boolean, default: false },  // True if this is the final session for the day
+  checkoutTriggered: { type: Boolean, default: false }    // True if session ended due to user checkout
 
 }, {
   timestamps: true
@@ -156,6 +163,7 @@ ProductivitySessionSchema.index({ userId: 1, status: 1, sessionStart: -1 });
 ProductivitySessionSchema.index({ employeeId: 1, sessionStart: -1 });
 ProductivitySessionSchema.index({ status: 1, sessionEnd: 1 });
 ProductivitySessionSchema.index({ createdAt: -1 });
+ProductivitySessionSchema.index({ userId: 1, sessionNumber: 1, sessionStart: -1 });
 
 // Auto-expire after 90 days
 ProductivitySessionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });

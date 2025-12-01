@@ -90,6 +90,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const quickMode = searchParams.get('quick') === 'true';
     const specificUserId = searchParams.get('userId');
+    const dateParam = searchParams.get('date'); // Optional date filter (YYYY-MM-DD)
 
     // Get requester's info
     const requester = await User.findById(decoded.userId).select('role').lean();
@@ -161,7 +162,7 @@ export async function GET(request) {
 
     // If requesting stats for specific user, validate access
     if (specificUserId && !quickMode) {
-      return await getUserStats(specificUserId, decoded.userId, isAdmin, isDeptHead, headOfDepartment);
+      return await getUserStats(specificUserId, decoded.userId, isAdmin, isDeptHead, headOfDepartment, dateParam);
     }
 
     // Get employees with user info - use lean for performance
@@ -266,33 +267,51 @@ export async function GET(request) {
     });
 
     // Batch aggregate session stats for all users at once
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Use date parameter if provided, otherwise use today
+    let targetDateStart, targetDateEnd;
+    if (dateParam) {
+      targetDateStart = new Date(dateParam);
+      targetDateStart.setHours(0, 0, 0, 0);
+      targetDateEnd = new Date(dateParam);
+      targetDateEnd.setHours(23, 59, 59, 999);
+    } else {
+      targetDateStart = new Date();
+      targetDateStart.setHours(0, 0, 0, 0);
+      targetDateEnd = new Date();
+      targetDateEnd.setHours(23, 59, 59, 999);
+    }
 
-    const [sessionStats, latestSessions] = await Promise.all([
-      // Get aggregated stats per user
+    // Skip heavy totalCounts on first load - only fetch today's data for performance
+    const skipTotalCounts = searchParams.get('skipTotal') === 'true';
+
+    const [dateStatsResult, latestSessions, daySessions] = await Promise.all([
+      // Get only today's stats (much faster than counting all sessions)
       ProductivitySession.aggregate([
-        { $match: { userId: { $in: userIds }, status: 'completed' } },
-        { $facet: {
-          // Total sessions per user
-          totalCounts: [
-            { $group: { _id: '$userId', count: { $sum: 1 } } }
-          ],
-          // Today's stats per user
-          todayStats: [
-            { $match: { sessionStart: { $gte: todayStart } } },
-            { $group: {
-              _id: '$userId',
-              sessionsCount: { $sum: 1 },
-              totalDuration: { $sum: '$sessionDuration' },
-              avgProductivity: { $avg: '$aiAnalysis.productivityScore' }
-            }}
-          ]
-        }}
+        { 
+          $match: { 
+            userId: { $in: userIds }, 
+            status: 'completed',
+            sessionStart: { $gte: targetDateStart, $lte: targetDateEnd }
+          } 
+        },
+        { 
+          $group: {
+            _id: '$userId',
+            sessionsCount: { $sum: 1 },
+            totalDuration: { $sum: '$sessionDuration' },
+            avgProductivity: { $avg: '$aiAnalysis.productivityScore' }
+          }
+        }
       ]),
-      // Get latest session per user
+      // Get latest session per user (limited to recent sessions for performance)
       ProductivitySession.aggregate([
-        { $match: { userId: { $in: userIds }, status: 'completed' } },
+        { 
+          $match: { 
+            userId: { $in: userIds }, 
+            status: 'completed',
+            sessionStart: { $gte: targetDateStart } // Only search today's sessions
+          } 
+        },
         { $sort: { sessionEnd: -1 } },
         { $group: {
           _id: '$userId',
@@ -305,24 +324,48 @@ export async function GET(request) {
           'latestSession.aiAnalysis.focusScore': 1,
           'latestSession.screenshots': { $slice: ['$latestSession.screenshots', -1] }
         }}
-      ])
+      ]),
+      // Get all sessions for the target date per user (for expanded card view)
+      // Note: Do NOT fetch screenshots here - they're loaded on demand to reduce payload
+      ProductivitySession.find({
+        userId: { $in: userIds },
+        status: 'completed',
+        sessionStart: { $gte: targetDateStart, $lte: targetDateEnd }
+      })
+        .select('userId sessionNumber sessionStart sessionEnd captureCount aiAnalysis.productivityScore aiAnalysis.focusScore isLastSessionOfDay checkoutTriggered')
+        .sort({ sessionStart: 1 })
+        .lean()
     ]);
 
     // Build lookup maps from aggregation results
-    const totalCountsMap = {};
-    const todayStatsMap = {};
+    const dateStatsMap = {};
     const latestSessionsMap = {};
+    const daySessionsMap = {};
 
-    if (sessionStats.length > 0) {
-      sessionStats[0].totalCounts?.forEach(item => {
-        totalCountsMap[item._id.toString()] = item.count;
-      });
-      sessionStats[0].todayStats?.forEach(item => {
-        todayStatsMap[item._id.toString()] = item;
-      });
-    }
+    dateStatsResult.forEach(item => {
+      dateStatsMap[item._id.toString()] = item;
+    });
     latestSessions.forEach(item => {
       latestSessionsMap[item._id.toString()] = item.latestSession;
+    });
+    
+    // Group day sessions by user
+    daySessions.forEach(session => {
+      const userIdStr = session.userId.toString();
+      if (!daySessionsMap[userIdStr]) {
+        daySessionsMap[userIdStr] = [];
+      }
+      daySessionsMap[userIdStr].push({
+        _id: session._id,
+        sessionNumber: session.sessionNumber || 1,
+        sessionStart: session.sessionStart,
+        sessionEnd: session.sessionEnd,
+        captureCount: session.captureCount || 0,
+        productivityScore: session.aiAnalysis?.productivityScore,
+        focusScore: session.aiAnalysis?.focusScore,
+        isLastSessionOfDay: session.isLastSessionOfDay || false,
+        checkoutTriggered: session.checkoutTriggered || false
+      });
     });
 
     // Build user cards with stats
@@ -339,9 +382,9 @@ export async function GET(request) {
       }
 
       const userIdStr = userId?.toString();
-      const totalSessions = totalCountsMap[userIdStr] || 0;
-      const todayData = todayStatsMap[userIdStr];
+      const dateData = dateStatsMap[userIdStr];
       const latestSession = latestSessionsMap[userIdStr];
+      const userDaySessions = daySessionsMap[userIdStr] || [];
 
       const userName = employee.firstName && employee.lastName 
         ? `${employee.firstName} ${employee.lastName}`
@@ -367,12 +410,17 @@ export async function GET(request) {
           screenshotCount: latestSession.screenshots?.length || 0,
           latestScreenshot: latestSession.screenshots?.[0]?.thumbnail || latestSession.screenshots?.[0]?.fullData
         } : null,
-        totalSessions,
-        todayStats: {
-          duration: todayData?.totalDuration || 0,
-          sessionsCount: todayData?.sessionsCount || 0,
-          avgProductivity: Math.round(todayData?.avgProductivity || 0)
+        // Use today's session count (not historical total - faster query)
+        totalSessions: dateData?.sessionsCount || 0,
+        // Stats for the selected date (or today)
+        dateStats: {
+          date: dateParam || new Date().toISOString().split('T')[0],
+          duration: dateData?.totalDuration || 0,
+          sessionsCount: dateData?.sessionsCount || 0,
+          avgProductivity: Math.round(dateData?.avgProductivity || 0)
         },
+        // All sessions for the selected date (for expanded card)
+        daySessions: userDaySessions,
         statsLoading: false
       };
     });
@@ -391,7 +439,8 @@ export async function GET(request) {
       success: true,
       data: sortedCards,
       totalUsers: sortedCards.length,
-      accessLevel: isAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
+      accessLevel: isAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only',
+      selectedDate: dateParam || new Date().toISOString().split('T')[0]
     });
 
   } catch (error) {
@@ -406,7 +455,7 @@ export async function GET(request) {
 /**
  * Get stats for a specific user (for progressive loading)
  */
-async function getUserStats(userId, requesterId, isAdmin, isDeptHead, headOfDepartment) {
+async function getUserStats(userId, requesterId, isAdmin, isDeptHead, headOfDepartment, dateParam) {
   const userObjId = toObjectId(userId);
   if (!userObjId) {
     return NextResponse.json({ success: false, error: 'Invalid user ID' }, { status: 400 });
@@ -417,45 +466,76 @@ async function getUserStats(userId, requesterId, isAdmin, isDeptHead, headOfDepa
     return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
   }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Use date parameter if provided, otherwise use today
+  let targetDateStart, targetDateEnd;
+  if (dateParam) {
+    targetDateStart = new Date(dateParam);
+    targetDateStart.setHours(0, 0, 0, 0);
+    targetDateEnd = new Date(dateParam);
+    targetDateEnd.setHours(23, 59, 59, 999);
+  } else {
+    targetDateStart = new Date();
+    targetDateStart.setHours(0, 0, 0, 0);
+    targetDateEnd = new Date();
+    targetDateEnd.setHours(23, 59, 59, 999);
+  }
 
-  const [totalSessions, todaySessions, latestSession] = await Promise.all([
+  const [totalSessions, dateSessions, latestSession] = await Promise.all([
     ProductivitySession.countDocuments({ userId: userObjId, status: 'completed' }),
+    // Note: Do NOT fetch screenshots here - they're loaded on demand
     ProductivitySession.find({
       userId: userObjId,
-      sessionStart: { $gte: todayStart },
+      sessionStart: { $gte: targetDateStart, $lte: targetDateEnd },
       status: 'completed'
-    }).select('sessionDuration aiAnalysis.productivityScore').lean(),
+    })
+      .select('sessionNumber sessionStart sessionEnd sessionDuration captureCount aiAnalysis.productivityScore aiAnalysis.focusScore isLastSessionOfDay checkoutTriggered')
+      .sort({ sessionStart: 1 })
+      .lean(),
+    // Only fetch minimal data for latest session (just get the last thumbnail for preview)
     ProductivitySession.findOne({ userId: userObjId, status: 'completed' })
       .sort({ sessionEnd: -1 })
-      .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore screenshots')
+      .select('sessionStart sessionEnd aiAnalysis.productivityScore aiAnalysis.focusScore')
       .lean()
   ]);
 
-  const todayDuration = todaySessions.reduce((sum, s) => sum + (s.sessionDuration || 30), 0);
-  const analyzedSessions = todaySessions.filter(s => s.aiAnalysis?.productivityScore > 0);
+  const dateDuration = dateSessions.reduce((sum, s) => sum + (s.sessionDuration || 30), 0);
+  const analyzedSessions = dateSessions.filter(s => s.aiAnalysis?.productivityScore > 0);
   const avgProductivity = analyzedSessions.length > 0
     ? Math.round(analyzedSessions.reduce((sum, s) => sum + s.aiAnalysis.productivityScore, 0) / analyzedSessions.length)
     : 0;
 
+  // Format day sessions for the response (no screenshots)
+  const formattedDaySessions = dateSessions.map(session => ({
+    _id: session._id,
+    sessionNumber: session.sessionNumber || 1,
+    sessionStart: session.sessionStart,
+    sessionEnd: session.sessionEnd,
+    captureCount: session.captureCount || 0,
+    productivityScore: session.aiAnalysis?.productivityScore,
+    focusScore: session.aiAnalysis?.focusScore,
+    isLastSessionOfDay: session.isLastSessionOfDay || false,
+    checkoutTriggered: session.checkoutTriggered || false
+  }));
+
   return NextResponse.json({
     success: true,
     userId,
+    selectedDate: dateParam || new Date().toISOString().split('T')[0],
     stats: {
       totalSessions,
       latestSession: latestSession ? {
         sessionStart: latestSession.sessionStart,
         sessionEnd: latestSession.sessionEnd,
         productivityScore: latestSession.aiAnalysis?.productivityScore,
-        focusScore: latestSession.aiAnalysis?.focusScore,
-        latestScreenshot: latestSession.screenshots?.[latestSession.screenshots.length - 1]?.thumbnail
+        focusScore: latestSession.aiAnalysis?.focusScore
       } : null,
-      todayStats: {
-        duration: todayDuration,
-        sessionsCount: todaySessions.length,
+      dateStats: {
+        date: dateParam || new Date().toISOString().split('T')[0],
+        duration: dateDuration,
+        sessionsCount: dateSessions.length,
         avgProductivity
-      }
+      },
+      daySessions: formattedDaySessions
     }
   });
 }

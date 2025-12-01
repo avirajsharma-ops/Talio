@@ -249,7 +249,9 @@ function UserCard({ card, onClick, isSelected }) {
     return { bg: 'bg-red-500', text: 'text-red-600', ring: 'ring-red-200' };
   };
 
-  const colors = getProductivityColor(card.todayStats?.avgProductivity);
+  // Support both old todayStats and new dateStats fields
+  const stats = card.dateStats || card.todayStats || {};
+  const colors = getProductivityColor(stats.avgProductivity);
   const lastSessionTime = card.latestSession?.sessionEnd;
   const isOnline = lastSessionTime && (new Date() - new Date(lastSessionTime)) < 30 * 60 * 1000;
   const statsLoading = card.statsLoading || card.totalSessions === null;
@@ -298,7 +300,7 @@ function UserCard({ card, onClick, isSelected }) {
           {statsLoading ? (
             <span className="text-xs text-gray-400 animate-pulse">Loading...</span>
           ) : (
-            <span className={`font-bold ${colors.text}`}>{card.todayStats?.avgProductivity || 0}%</span>
+            <span className={`font-bold ${colors.text}`}>{stats.avgProductivity || 0}%</span>
           )}
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -307,7 +309,7 @@ function UserCard({ card, onClick, isSelected }) {
           ) : (
             <div 
               className={`h-full ${colors.bg} transition-all`}
-              style={{ width: `${card.todayStats?.avgProductivity || 0}%` }}
+              style={{ width: `${stats.avgProductivity || 0}%` }}
             ></div>
           )}
         </div>
@@ -320,7 +322,7 @@ function UserCard({ card, onClick, isSelected }) {
           {statsLoading ? (
             <span className="text-xs text-gray-400 animate-pulse">--</span>
           ) : (
-            <span>{card.todayStats?.duration || 0} min</span>
+            <span>{stats.duration || 0} min</span>
           )}
         </div>
         <div className="flex items-center gap-1 text-gray-500">
@@ -328,7 +330,7 @@ function UserCard({ card, onClick, isSelected }) {
           {statsLoading ? (
             <span className="text-xs text-gray-400 animate-pulse">--</span>
           ) : (
-            <span>{card.totalSessions || card.todayStats?.sessionsCount || 0} sessions</span>
+            <span>{card.totalSessions || stats.sessionsCount || 0} sessions</span>
           )}
         </div>
       </div>
