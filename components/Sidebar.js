@@ -73,13 +73,29 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         submenu: [
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
-          { name: 'Leave Approvals', path: '/dashboard/team/leave-approvals' },
-          { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
           { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
           { name: 'Team Goals', path: '/dashboard/performance/goals' },
           { name: 'Performance Reports', path: '/dashboard/performance/reports' },
           { name: 'Geofencing', path: '/dashboard/team/geofencing' }
         ]
+      }
+
+      // Override Attendance & Leaves menu for department heads with Team Attendance and Regularisation
+      const attendanceMenuIndex = baseMenuItems.findIndex(item => item.name === 'Attendance & Leaves')
+      if (attendanceMenuIndex !== -1) {
+        baseMenuItems = [...baseMenuItems]
+        baseMenuItems[attendanceMenuIndex] = {
+          ...baseMenuItems[attendanceMenuIndex],
+          submenu: [
+            { name: 'My Attendance', path: '/dashboard/attendance' },
+            { name: 'Team Attendance', path: '/dashboard/attendance/team' },
+            { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
+            { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+            { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
+            { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
+            { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
+          ]
+        }
       }
 
       return [

@@ -80,10 +80,38 @@ export default function ApplyLeavePage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
+    
+    // If checking Half Day or Work From Home, clear the leave type
+    if (name === 'isHalfDay' && checked) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked,
+        leaveType: '',
+        workFromHome: false
+      }))
+    } else if (name === 'workFromHome' && checked) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked,
+        leaveType: '',
+        isHalfDay: false
+      }))
+    } else if (name === 'isHalfDay' && !checked) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }))
+    } else if (name === 'workFromHome' && !checked) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }))
+    }
   }
 
   const calculateDays = () => {
@@ -225,16 +253,22 @@ export default function ApplyLeavePage() {
                     name="leaveType"
                     value={formData.leaveType}
                     onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required={!formData.isHalfDay && !formData.workFromHome}
+                    disabled={formData.isHalfDay || formData.workFromHome}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <option value="">Select Leave Type</option>
+                    <option value="">{formData.isHalfDay || formData.workFromHome ? 'Not applicable for Half Day/WFH' : 'Select Leave Type'}</option>
                     {leaveTypes.map((type) => (
                       <option key={type._id} value={type._id}>
                         {type.name} ({type.code})
                       </option>
                     ))}
                   </select>
+                  {(formData.isHalfDay || formData.workFromHome) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave type is not required for {formData.isHalfDay ? 'Half Day' : 'Work From Home'} requests
+                    </p>
+                  )}
                 </div>
 
                 {/* Half Day Option */}
@@ -245,9 +279,9 @@ export default function ApplyLeavePage() {
                     checked={formData.isHalfDay}
                     onChange={handleChange}
                     disabled={formData.workFromHome}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className={`text-sm font-medium ${formData.workFromHome ? 'text-gray-400' : 'text-gray-700'}`}>
                     Half Day Leave
                   </label>
                 </div>
@@ -260,9 +294,9 @@ export default function ApplyLeavePage() {
                     checked={formData.workFromHome}
                     onChange={handleChange}
                     disabled={formData.isHalfDay}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className={`text-sm font-medium ${formData.isHalfDay ? 'text-gray-400' : 'text-gray-700'}`}>
                     Work From Home
                   </label>
                 </div>

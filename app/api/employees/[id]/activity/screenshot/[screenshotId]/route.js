@@ -61,12 +61,19 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Screenshot not found' }, { status: 404 });
     }
 
+    // Ensure screenshot data has proper data URI prefix
+    let screenshotData = screenshot.screenshot;
+    if (screenshotData && !screenshotData.startsWith('data:')) {
+      // Default to webp if no prefix (our current compression format)
+      screenshotData = `data:image/webp;base64,${screenshotData}`;
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         id: screenshot._id,
         capturedAt: screenshot.capturedAt,
-        screenshot: screenshot.screenshot, // Full base64 image
+        screenshot: screenshotData, // Full base64 image with proper data URI
         analysis: screenshot.analysis,
         source: screenshot.source,
         deviceInfo: screenshot.deviceInfo

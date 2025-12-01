@@ -70,14 +70,30 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, error: 'Screenshot not found' }, { status: 404 });
     }
 
+    // Ensure fullData and thumbnail have proper data URI prefixes
+    let fullData = result.screenshot.fullData;
+    let thumbnail = result.screenshot.thumbnail;
+    
+    if (fullData && !fullData.startsWith('data:')) {
+      const mimeType = fullData.startsWith('/9j/') ? 'image/jpeg' : 
+                      fullData.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+      fullData = `data:${mimeType};base64,${fullData}`;
+    }
+    
+    if (thumbnail && !thumbnail.startsWith('data:')) {
+      const mimeType = thumbnail.startsWith('/9j/') ? 'image/jpeg' : 
+                      thumbnail.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+      thumbnail = `data:${mimeType};base64,${thumbnail}`;
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         _id: result.screenshot._id,
         capturedAt: result.screenshot.capturedAt,
         captureType: result.screenshot.captureType,
-        fullData: result.screenshot.fullData,
-        thumbnail: result.screenshot.thumbnail
+        fullData,
+        thumbnail
       }
     });
 

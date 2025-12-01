@@ -147,9 +147,32 @@ export async function GET(request) {
       .sort({ date: -1 })
       .lean()
 
+    // Auto-fix: Correct any records stuck in 'in-progress' that have both checkIn and checkOut
+    // This handles edge cases where clock-out didn't properly update the status
+    const fixedData = attendance.map(record => {
+      if (record.status === 'in-progress' && record.checkIn && record.checkOut && record.workHours) {
+        // Determine correct status based on work hours
+        let correctedStatus = 'absent'
+        if (record.workHours >= 7.2) { // 90% of 8 hours
+          correctedStatus = 'present'
+        } else if (record.workHours >= 4) { // 50% of 8 hours
+          correctedStatus = 'half-day'
+        }
+        
+        // Update the database in background (non-blocking)
+        Attendance.updateOne(
+          { _id: record._id },
+          { status: correctedStatus, statusReason: 'Auto-fixed: Status was in-progress after clock-out' }
+        ).exec().catch(err => console.error('Auto-fix attendance status error:', err))
+        
+        return { ...record, status: correctedStatus }
+      }
+      return record
+    })
+
     const response = {
       success: true,
-      data: attendance,
+      data: fixedData,
     }
 
     // Cache for 30 seconds

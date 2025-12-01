@@ -44,6 +44,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
+        { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -213,7 +214,7 @@ export const roleBasedMenus = {
         { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Apply Leave', path: '/dashboard/leave/apply' },
         { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
-        { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
@@ -297,9 +298,11 @@ export const roleBasedMenus = {
       path: '/dashboard/attendance',
       submenu: [
         { name: 'My Attendance', path: '/dashboard/attendance' },
+        { name: 'Team Attendance', path: '/dashboard/attendance/team' },
+        { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
         { name: 'Apply Leave', path: '/dashboard/leave/apply' },
         { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
-        { name: 'Team Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
@@ -352,6 +355,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
+        { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },

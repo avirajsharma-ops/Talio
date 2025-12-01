@@ -257,6 +257,7 @@ function createMayaBlobWindow() {
     transparent: true,
     alwaysOnTop: true,
     resizable: false,
+    movable: true,
     skipTaskbar: true,
     hasShadow: true,
     roundedCorners: true,
@@ -360,16 +361,44 @@ function createMayaWidgetWindow() {
   // Mic/camera/accessibility permissions are NOT needed for basic Maya functionality
 
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  const savedPosition = store.get('pipPosition');
-
+  
   const widgetWidth = 400;
   const widgetHeight = 550;
+  
+  // Position widget relative to blob if blob exists
+  let widgetX, widgetY;
+  if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+    const blobBounds = mayaBlobWindow.getBounds();
+    // Try to position to the left of blob
+    widgetX = blobBounds.x - widgetWidth - 10;
+    widgetY = blobBounds.y;
+    
+    // If widget would go off left edge, position to the right of blob
+    if (widgetX < 0) {
+      widgetX = blobBounds.x + blobBounds.width + 10;
+    }
+    // If widget would go off right edge, position inside screen
+    if (widgetX + widgetWidth > width) {
+      widgetX = width - widgetWidth - 20;
+    }
+    // Keep widget within vertical bounds
+    if (widgetY + widgetHeight > height) {
+      widgetY = height - widgetHeight - 20;
+    }
+    if (widgetY < 0) {
+      widgetY = 20;
+    }
+  } else {
+    const savedPosition = store.get('pipPosition');
+    widgetX = savedPosition.x ?? width - widgetWidth - 20;
+    widgetY = savedPosition.y ?? height - widgetHeight - 80;
+  }
 
   mayaWidgetWindow = new BrowserWindow({
     width: widgetWidth,
     height: widgetHeight,
-    x: savedPosition.x ?? width - widgetWidth - 20,
-    y: savedPosition.y ?? height - widgetHeight - 80,
+    x: widgetX,
+    y: widgetY,
     frame: false,
     roundedCorners: true,
     transparent: true,

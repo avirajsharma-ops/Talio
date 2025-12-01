@@ -144,7 +144,23 @@ export default function TeamMemberDetailsPage() {
     )
   }
 
-  const { employee, taskStats, recentTasks } = memberData
+  const { employee, taskStats = { total: 0, in_progress: 0, review: 0, completed: 0 }, recentTasks = [] } = memberData || {}
+
+  // Safety check for employee
+  if (!employee) {
+    return (
+      <div className="p-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center text-blue-600 hover:text-blue-700 mb-4"
+        >
+          <FaArrowLeft className="mr-2" />
+          Go Back
+        </button>
+        <p className="text-gray-600">Employee data not available</p>
+      </div>
+    )
+  }
 
   return (
     <div className="px-4 py-4 sm:p-6 lg:p-8 pb-24 md:pb-6">

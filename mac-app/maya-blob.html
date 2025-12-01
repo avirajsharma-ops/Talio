@@ -10,7 +10,8 @@
       height: 120px;
       overflow: hidden;
       background: transparent;
-      -webkit-app-region: drag;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .maya-blob-shell {
       position: fixed;
@@ -19,8 +20,8 @@
       display: grid;
       place-items: center;
       pointer-events: auto;
-      -webkit-app-region: no-drag;
-      cursor: pointer;
+      -webkit-app-region: drag;
+      cursor: move;
     }
     .maya-blob-card {
       position: relative;
@@ -28,6 +29,7 @@
       height: 72px;
       border-radius: 50%;
       cursor: pointer;
+      -webkit-app-region: no-drag;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .maya-blob-card:hover { transform: scale(1.1); }

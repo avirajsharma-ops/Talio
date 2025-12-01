@@ -163,16 +163,24 @@ export async function GET(request) {
         return NextResponse.json({ success: false, error: 'Capture not found' }, { status: 404 });
       }
       
-      // Get screenshot data
+      // Get screenshot data with proper data URI prefix
       let screenshotData = null;
       if (capture.screenshot?.url) {
         screenshotData = capture.screenshot.url;
       } else if (capture.screenshot?.data) {
-        screenshotData = capture.screenshot.data.startsWith('data:') 
-          ? capture.screenshot.data 
-          : `data:image/png;base64,${capture.screenshot.data}`;
+        const data = capture.screenshot.data;
+        if (data.startsWith('data:')) {
+          screenshotData = data;
+        } else {
+          // Detect format from data or default to webp (our compression format)
+          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' : 
+                          data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+          screenshotData = `data:${mimeType};base64,${data}`;
+        }
       } else if (capture.screenshotUrl) {
-        screenshotData = capture.screenshotUrl;
+        const url = capture.screenshotUrl;
+        screenshotData = url.startsWith('data:') ? url : 
+                        (url.startsWith('http') ? url : `data:image/webp;base64,${url}`);
       }
       
       return NextResponse.json({
@@ -341,14 +349,21 @@ export async function GET(request) {
         userEmail = pd.userId.email;
       }
       
-      // Get screenshot - prefer url, fallback to base64 data
+      // Get screenshot - prefer url, fallback to base64 data with proper format detection
       let screenshotData = null;
       if (pd.screenshot?.url) {
         screenshotData = pd.screenshot.url;
       } else if (pd.screenshot?.data) {
-        // Ensure base64 data has proper data URI prefix
         const data = pd.screenshot.data;
-        screenshotData = data.startsWith('data:') ? data : `data:image/png;base64,${data}`;
+        if (data.startsWith('data:')) {
+          screenshotData = data;
+        } else {
+          // Detect image format from base64 data header
+          // JPEG: /9j/, PNG: iVBOR, WebP: UklGR (our compression format)
+          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' : 
+                          data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+          screenshotData = `data:${mimeType};base64,${data}`;
+        }
       }
       
       // Generate dynamic summary if AI analysis is missing

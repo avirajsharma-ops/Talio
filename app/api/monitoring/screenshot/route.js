@@ -132,11 +132,18 @@ export async function POST(request) {
       analysis = { ...analysis, ...geminiAnalysis };
     }
 
+    // Ensure screenshot has data URI prefix for storage
+    let screenshotData = screenshot;
+    if (screenshot && !screenshot.startsWith('data:')) {
+      // Add default PNG prefix if none exists  
+      screenshotData = `data:image/png;base64,${screenshot}`;
+    }
+
     // Save screenshot with analysis
     const screenCapture = new AutoScreenCapture({
       employee: employee._id,
       user: user._id,
-      screenshot,
+      screenshot: screenshotData,
       screenshotSize,
       capturedAt: new Date(timestamp),
       analysis,

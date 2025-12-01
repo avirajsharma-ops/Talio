@@ -154,7 +154,7 @@ export default function TeamDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -165,20 +165,6 @@ export default function TeamDashboard() {
             </div>
             <div className="bg-blue-100 p-3 rounded-lg">
               <FaUsers className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Pending Leaves</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {teamData?.pendingLeaves || 0}
-              </p>
-            </div>
-            <div className="bg-yellow-100 p-3 rounded-lg">
-              <FaClock className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -219,7 +205,7 @@ export default function TeamDashboard() {
             <div>
               <p className="text-sm text-gray-600">Total Pending</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {(teamData?.pendingLeaves || 0) + (teamData?.pendingTasks || 0) + pendingCorrections.length}
+                {(teamData?.pendingTasks || 0) + pendingCorrections.length}
               </p>
             </div>
             <div className="bg-green-100 p-3 rounded-lg">
@@ -339,31 +325,7 @@ export default function TeamDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Leave Approvals */}
-        <div 
-          onClick={() => router.push('/dashboard/team/leave-approvals')}
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Leave Approvals</h2>
-            <div className="bg-yellow-100 p-2 rounded-lg">
-              <FaClock className="h-5 w-5 text-yellow-600" />
-            </div>
-          </div>
-          <p className="text-gray-600 mb-4">
-            Review and approve leave requests from your team members
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">
-              {teamData?.pendingLeaves || 0} pending requests
-            </span>
-            <button className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-              View All →
-            </button>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-6">
         {/* Task Approvals */}
         <div 
           onClick={() => router.push('/dashboard/team/task-approvals')}
@@ -390,65 +352,35 @@ export default function TeamDashboard() {
       </div>
 
       {/* Recent Activity */}
-      {(teamData?.recentLeaves?.length > 0 || teamData?.recentTasks?.length > 0) && (
+      {teamData?.recentTasks?.length > 0 && (
         <div className="mt-6 bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Pending Items</h2>
           
-          {teamData?.recentLeaves?.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Leave Requests</h3>
-              <div className="space-y-2">
-                {teamData.recentLeaves.map((leave) => (
-                  <div key={leave._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-yellow-100 p-2 rounded-full">
-                        <FaClock className="h-4 w-4 text-yellow-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {leave.employee?.firstName} {leave.employee?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {leave.leaveType?.name} - {leave.numberOfDays} days
-                        </p>
-                      </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Project Approvals</h3>
+            <div className="space-y-2">
+              {teamData.recentTasks.map((task) => (
+                <div key={task._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-purple-100 p-2 rounded-full">
+                      <FaFileAlt className="h-4 w-4 text-purple-600" />
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(leave.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {teamData?.recentTasks?.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Project Approvals</h3>
-              <div className="space-y-2">
-                {teamData.recentTasks.map((task) => (
-                  <div key={task._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-purple-100 p-2 rounded-full">
-                        <FaFileAlt className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {task.title}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Assigned by: {task.assignedBy?.firstName} {task.assignedBy?.lastName}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Assigned by: {task.assignedBy?.firstName} {task.assignedBy?.lastName}
+                      </p>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(task.updatedAt).toLocaleDateString()}
-                    </span>
                   </div>
-                ))}
-              </div>
+                  <span className="text-xs text-gray-500">
+                    {new Date(task.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
