@@ -25,7 +25,12 @@ export async function GET(request) {
     // Get user's employee ID
     const user = await User.findById(decoded.userId).select('employeeId')
     if (!user || !user.employeeId) {
-      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+      // Return empty data for users without employee records
+      return NextResponse.json({
+        success: true,
+        data: [],
+        message: 'No employee record linked to this user'
+      })
     }
 
     // Check if user is a department head
@@ -36,9 +41,10 @@ export async function GET(request) {
 
     if (!department) {
       return NextResponse.json({ 
-        success: false, 
+        success: true, 
+        data: [],
         message: 'You are not a department head' 
-      }, { status: 403 })
+      })
     }
 
     // Get all team members

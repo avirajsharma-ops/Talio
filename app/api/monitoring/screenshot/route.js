@@ -5,7 +5,7 @@ import User from '@/models/User';
 import Employee from '@/models/Employee';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Gemini API for vision analysis
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;

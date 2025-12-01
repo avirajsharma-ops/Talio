@@ -7,7 +7,7 @@ import KeystrokeLog from '@/models/KeystrokeLog';
 import WindowActivityLog from '@/models/WindowActivityLog';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 /**
  * GET /api/employees/[id]/activity

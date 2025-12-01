@@ -6,7 +6,7 @@ import Employee from '@/models/Employee';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
 import { getCurrentISTDate } from '@/lib/timezone';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 /**

@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
       return NextResponse.json(cached)
     }
 
-    const employee = await Employee.findById(params.id)
+    let employee = await Employee.findById(params.id)
       .populate({
         path: 'department',
         select: 'name',
@@ -37,6 +37,30 @@ export async function GET(request, { params }) {
       })
       .lean()
 
+    // If not found by employee ID, check if it's a user ID and get employee from there
+    if (!employee) {
+      const userWithEmployee = await User.findById(params.id).select('employeeId').lean()
+      if (userWithEmployee?.employeeId) {
+        employee = await Employee.findById(userWithEmployee.employeeId)
+          .populate({
+            path: 'department',
+            select: 'name',
+            options: { strictPopulate: false, lean: true }
+          })
+          .populate({
+            path: 'designation',
+            select: 'title levelName',
+            options: { strictPopulate: false, lean: true }
+          })
+          .populate({
+            path: 'reportingManager',
+            select: 'firstName lastName email',
+            options: { strictPopulate: false, lean: true }
+          })
+          .lean()
+      }
+    }
+
     if (!employee) {
       return NextResponse.json(
         { success: false, message: 'Employee not found' },
@@ -45,7 +69,7 @@ export async function GET(request, { params }) {
     }
 
     // Get user data for this employee (reverse lookup)
-    const user = await User.findOne({ employeeId: params.id })
+    const user = await User.findOne({ employeeId: employee._id })
       .select('_id email role')
       .lean()
 

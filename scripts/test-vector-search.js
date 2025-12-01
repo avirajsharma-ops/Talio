@@ -5,7 +5,7 @@
  */
 
 // Load environment variables
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local') });
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const { searchEmployees, searchAnnouncements, multiCollectionSearch } = require('../lib/vectorSearch');
 

@@ -11,14 +11,14 @@
  */
 
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const NEW_INTERVAL_MS = 60 * 1000; // 1 minute in milliseconds
 
 async function resetScreenshotIntervals() {
   if (!MONGODB_URI) {
-    console.error('❌ MONGODB_URI not found in .env.local');
+    console.error('❌ MONGODB_URI not found in .env');
     process.exit(1);
   }
 

@@ -5,7 +5,7 @@
  * Ensures both User.employeeId and Employee.userId are properly set
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 const mongoose = require('mongoose');
 
 // ANSI colors

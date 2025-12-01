@@ -35,10 +35,17 @@ export async function GET(request) {
     const user = await User.findById(decoded.userId).select('employeeId').lean()
     
     if (!user || !user.employeeId) {
-      return NextResponse.json(
-        { success: false, message: 'Employee not found' },
-        { status: 404 }
-      )
+      // Return empty data for users without employee records
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: {
+          total: 0,
+          department: null,
+          role: null,
+          message: 'No employee record linked to this user'
+        }
+      })
     }
 
     // Get user role

@@ -142,7 +142,7 @@ export default function NotificationManagement() {
                 Firebase Not Configured
               </h3>
               <p className="mt-1 text-sm text-yellow-700">
-                Firebase Cloud Messaging is not configured. Please check your .env.local file and ensure all Firebase credentials are set.
+                Firebase Cloud Messaging is not configured. Please check your .env file and ensure all Firebase credentials are set.
                 <button
                   onClick={() => setActiveTab('config')}
                   className="ml-1 font-semibold underline hover:text-yellow-900"
@@ -366,7 +366,7 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
                 Firebase Configuration Required
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-blue-700">
-                Firebase Cloud Messaging is not configured. Please check your .env.local file.
+                Firebase Cloud Messaging is not configured. Please check your .env file.
                 {userRole === 'admin' && (
                   <span> Go to the <strong>Configuration</strong> tab to view Firebase status.</span>
                 )}
@@ -1570,7 +1570,7 @@ function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
             }`}>
               {apiKeyConfigured
                 ? 'Your Firebase integration is active and ready to send push notifications.'
-                : 'Firebase Cloud Messaging is not configured. Please check your .env.local file.'}
+                : 'Firebase Cloud Messaging is not configured. Please check your .env file.'}
             </p>
           </div>
         </div>
@@ -1637,10 +1637,10 @@ function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
           <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'var(--color-primary-50)' }}>
             <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-primary-800)' }}>Firebase Configuration</h4>
             <p className="text-sm mb-2" style={{ color: 'var(--color-primary-700)' }}>
-              Firebase Cloud Messaging is configured via environment variables in the <code className="bg-white px-1 rounded">.env.local</code> file.
+              Firebase Cloud Messaging is configured via environment variables in the <code className="bg-white px-1 rounded">.env</code> file.
             </p>
             <p className="text-sm" style={{ color: 'var(--color-primary-700)' }}>
-              To update Firebase credentials, edit the <code className="bg-white px-1 rounded">.env.local</code> file and restart the server.
+              To update Firebase credentials, edit the <code className="bg-white px-1 rounded">.env</code> file and restart the server.
             </p>
           </div>
         </div>

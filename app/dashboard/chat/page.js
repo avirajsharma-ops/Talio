@@ -646,9 +646,9 @@ export default function ChatPage() {
       </div>
 
       {/* Chat Container - Full screen edge-to-edge when chat selected */}
-      <div className={`overflow-hidden ${
+      <div className={`${
         selectedChat
-          ? 'fixed top-[60px] left-0 right-0 bottom-[70px] z-[60] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md'
+          ? 'fixed top-[60px] left-0 right-0 bottom-[70px] z-[60] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto'
           : '-m-2 mt-[3em] p-0 md:mt-0 md:mx-0 md:rounded-2xl md:shadow-md bg-white'
       }`} style={{
         height: selectedChat ? 'calc(100vh - 130px)' : 'calc(100vh - 232px)',

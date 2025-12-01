@@ -24,7 +24,13 @@ export async function GET(request) {
     // Get user to find employee ID
     const userDoc = await User.findById(decoded.userId).select('employeeId')
     if (!userDoc || !userDoc.employeeId) {
-      return NextResponse.json({ success: false, message: 'Employee not found' }, { status: 404 })
+      // Return 0 unread for users without employee records
+      return NextResponse.json({
+        success: true,
+        totalUnread: 0,
+        unreadByChat: {},
+        message: 'No employee record linked to this user'
+      })
     }
 
     // Get employee details

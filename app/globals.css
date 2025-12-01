@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   MOBILE OPTIMIZATIONS - Global Auto-Fixes
+   ============================================ */
+
+/* Auto-fix ALL inputs to prevent iOS zoom (16px minimum) */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Auto-fix ALL tables for mobile horizontal scroll */
+  table:not(.no-mobile-scroll) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table:not(.no-mobile-scroll) thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+  }
+  
+  table:not(.no-mobile-scroll) th,
+  table:not(.no-mobile-scroll) td {
+    white-space: nowrap;
+    padding: 0.75rem;
+  }
+}
+
+/* Improved touch targets (minimum 44x44px for mobile) */
+@media (max-width: 767px) {
+  .btn,
+  button,
+  a[role="button"] {
+    min-height: 44px;
+  }
+}
+
 /* PWA Window Controls Overlay - Hide default title bar */
 @media (display-mode: window-controls-overlay) {
   html {
@@ -266,6 +317,22 @@ body {
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Backdrop fade-in animation with blur */
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInBackdrop 0.5s ease-out forwards;
+}
+
 /* Card Hover Effect */
 .card-hover {
   transition: all 0.3s ease;
@@ -298,7 +365,7 @@ body {
   @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
 }
 
-/* Fix for input text color */
+/* Fix for input text color - ONLY for inputs with white backgrounds */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -314,7 +381,6 @@ input[type="search"],
 select,
 textarea {
   color: #1f2937 !important;
-  background-color: white !important;
 }
 
 input[type="text"]::placeholder,
@@ -325,6 +391,12 @@ input[type="number"]::placeholder,
 input[type="search"]::placeholder,
 textarea::placeholder {
   color: #9ca3af !important;
+}
+
+/* Ensure select options have dark text on white background */
+select option {
+  color: #374151 !important;
+  background-color: white !important;
 }
 
 /* Badge Styles */

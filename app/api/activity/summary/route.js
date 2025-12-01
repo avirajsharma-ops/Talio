@@ -13,7 +13,7 @@ import { getCurrentISTDate, getISTStartOfDay, getISTEndOfDay } from '@/lib/timez
 
 export const dynamic = 'force-dynamic'
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 /**
  * GET /api/activity/summary

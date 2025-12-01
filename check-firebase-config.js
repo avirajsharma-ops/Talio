@@ -144,18 +144,18 @@ function checkFirebaseIntegration() {
   console.log(`═══════════════════════════════════════════════════════════${colors.reset}\n`);
   
   // Load environment files
-  const envLocal = loadEnvFile('.env.local');
+  const envLocal = loadEnvFile('.env');
   const envExample = loadEnvFile('.env.example');
   const envFirebase = loadEnvFile('.env.firebase');
   
   if (!envLocal) {
-    console.log(`${colors.red}❌ .env.local file not found!${colors.reset}`);
-    console.log(`${colors.yellow}ℹ️  Create .env.local from .env.example${colors.reset}\n`);
+    console.log(`${colors.red}❌ .env file not found!${colors.reset}`);
+    console.log(`${colors.yellow}ℹ️  Create .env from .env.example${colors.reset}\n`);
     return;
   }
   
   console.log(`${colors.bold}📋 Environment Files Status:${colors.reset}`);
-  console.log(`   ${colors.green}✓${colors.reset} .env.local (current config)`);
+  console.log(`   ${colors.green}✓${colors.reset} .env (current config)`);
   if (envFirebase) {
     console.log(`   ${colors.green}✓${colors.reset} .env.firebase (reference config)`);
   }
@@ -283,7 +283,7 @@ function checkFirebaseIntegration() {
     console.log(`   3. Get Client SDK keys from: Project Settings → General → Your apps`);
     console.log(`   4. Get VAPID key from: Project Settings → Cloud Messaging → Web Push certificates`);
     console.log(`   5. Get Admin SDK from: Project Settings → Service Accounts → Generate New Private Key`);
-    console.log(`   6. Add all keys to .env.local file\n`);
+    console.log(`   6. Add all keys to .env file\n`);
     
     console.log(`${colors.bold}${colors.cyan}📚 Documentation:${colors.reset}`);
     console.log(`   • FIREBASE_CONFIGURATION.md`);

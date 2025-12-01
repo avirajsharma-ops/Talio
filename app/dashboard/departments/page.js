@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaEdit, FaTrash, FaBuilding, FaUsers, FaTimes, FaUserTie } from 'react-icons/fa'
+import { FaPlus, FaEdit, FaTrash, FaBuilding, FaUsers, FaTimes, FaUserTie, FaSearch } from 'react-icons/fa'
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([])
@@ -11,6 +11,7 @@ export default function DepartmentsPage() {
   const [editingDept, setEditingDept] = useState(null)
   const [user, setUser] = useState(null)
   const [employees, setEmployees] = useState([])
+  const [users, setUsers] = useState([]) // Fallback users list
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -19,6 +20,7 @@ export default function DepartmentsPage() {
   })
   const [headSearch, setHeadSearch] = useState('')
   const [showHeadDropdown, setShowHeadDropdown] = useState(false)
+  const dropdownRef = useRef(null)
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -34,8 +36,20 @@ export default function DepartmentsPage() {
         // For god_admin, admin and HR, show full management interface
         fetchDepartments()
         fetchEmployees()
+        fetchUsers() // Also fetch users as fallback
       }
     }
+  }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowHeadDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchDepartments = async () => {
@@ -68,10 +82,26 @@ export default function DepartmentsPage() {
 
       const data = await response.json()
       if (data.success) {
-        setEmployees(data.data)
+        setEmployees(data.data || [])
       }
     } catch (error) {
       console.error('Fetch employees error:', error)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/users?limit=1000', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.data || data.users || [])
+      }
+    } catch (error) {
+      console.error('Fetch users error:', error)
     }
   }
 
@@ -100,7 +130,7 @@ export default function DepartmentsPage() {
         toast.success(data.message)
         setShowModal(false)
         setEditingDept(null)
-        setFormData({ name: '', description: '', code: '' })
+        setFormData({ name: '', description: '', code: '', heads: [] })
         fetchDepartments()
       } else {
         toast.error(data.message)
@@ -174,14 +204,41 @@ export default function DepartmentsPage() {
   }
 
   const getHeadDetails = (headId) => {
-    return employees.find(e => e._id === headId)
+    // Check employees first
+    const emp = employees.find(e => e._id === headId)
+    if (emp) return emp
+    // Fallback to users
+    const usr = users.find(u => u._id === headId || u.employeeId === headId)
+    if (usr) return { 
+      _id: usr._id, 
+      firstName: usr.firstName || usr.email?.split('@')[0] || 'User',
+      lastName: usr.lastName || '',
+      employeeCode: usr.employeeId?.employeeCode || usr.email
+    }
+    return null
   }
 
-  const filteredEmployees = employees.filter(emp => 
-    !formData.heads.includes(emp._id) &&
-    (`${emp.firstName} ${emp.lastName}`.toLowerCase().includes(headSearch.toLowerCase()) ||
-     emp.employeeCode?.toLowerCase().includes(headSearch.toLowerCase()))
-  )
+  // Combine employees and users for selection
+  const availablePeople = employees.length > 0 ? employees : users.map(u => ({
+    _id: u._id,
+    firstName: u.firstName || u.email?.split('@')[0] || 'User',
+    lastName: u.lastName || '',
+    employeeCode: u.email || u._id,
+    email: u.email
+  }))
+
+  // Filter out already selected heads (ensure heads is always an array)
+  const heads = formData.heads || []
+  const unselectedPeople = availablePeople.filter(person => !heads.includes(person._id))
+
+  // When searching, filter by search term; otherwise just show first 10
+  const filteredEmployees = headSearch.trim() 
+    ? unselectedPeople.filter(person => 
+        `${person.firstName} ${person.lastName}`.toLowerCase().includes(headSearch.toLowerCase()) ||
+        person.employeeCode?.toLowerCase().includes(headSearch.toLowerCase()) ||
+        person.email?.toLowerCase().includes(headSearch.toLowerCase())
+      )
+    : unselectedPeople.slice(0, 10)
 
   const canManageDepartments = () => {
     return user && ['god_admin', 'admin', 'hr'].includes(user.role)
@@ -386,7 +443,7 @@ export default function DepartmentsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department Heads (Multiple allowed)
+                    Department Heads <span className="text-gray-400 font-normal">(Optional - Multiple allowed)</span>
                   </label>
                   
                   {/* Selected heads */}
@@ -414,32 +471,52 @@ export default function DepartmentsPage() {
                   )}
                   
                   {/* Search and add heads */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={headSearch}
-                      onChange={(e) => {
-                        setHeadSearch(e.target.value)
-                        setShowHeadDropdown(true)
-                      }}
-                      onFocus={() => setShowHeadDropdown(true)}
-                      placeholder="Search and add department heads..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
+                  <div className="relative" ref={dropdownRef}>
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        value={headSearch}
+                        onChange={(e) => {
+                          setHeadSearch(e.target.value)
+                          setShowHeadDropdown(true)
+                        }}
+                        onFocus={() => setShowHeadDropdown(true)}
+                        placeholder="Search and add department heads..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
                     
-                    {showHeadDropdown && headSearch && filteredEmployees.length > 0 && (
+                    {showHeadDropdown && filteredEmployees.length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                         {filteredEmployees.slice(0, 10).map(employee => (
                           <button
                             key={employee._id}
                             type="button"
                             onClick={() => addHead(employee)}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center justify-between"
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center justify-between text-gray-700"
                           >
-                            <span>{employee.firstName} {employee.lastName}</span>
-                            <span className="text-xs text-gray-500">{employee.employeeCode}</span>
+                            <span className="text-gray-800">{employee.firstName} {employee.lastName}</span>
+                            <span className="text-xs text-gray-500">{employee.employeeCode || employee.email}</span>
                           </button>
                         ))}
+                        {!headSearch.trim() && unselectedPeople.length > 10 && (
+                          <div className="px-4 py-2 text-xs text-gray-400 text-center border-t border-gray-100 bg-gray-50">
+                            Type to search {unselectedPeople.length - 10} more...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {showHeadDropdown && filteredEmployees.length === 0 && headSearch.trim() && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500 text-sm">
+                        No matches found for "{headSearch}"
+                      </div>
+                    )}
+                    
+                    {showHeadDropdown && filteredEmployees.length === 0 && !headSearch.trim() && availablePeople.length === 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500 text-sm">
+                        No employees or users found. You can create the department without heads and add them later.
                       </div>
                     )}
                   </div>

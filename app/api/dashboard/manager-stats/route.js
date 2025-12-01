@@ -29,7 +29,26 @@ export async function GET(request) {
     // Get user to find employee ID
     const user = await User.findById(decoded.userId).select('employeeId role').lean()
     if (!user || !user.employeeId) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+      // Return empty stats for users without employee records
+      return NextResponse.json({
+        success: true,
+        data: {
+          teamStrength: 0,
+          attendanceSummary: { present: 0, absent: 0, late: 0, halfDay: 0 },
+          presentToday: [],
+          inProgressToday: [],
+          onLeaveToday: [],
+          absentToday: [],
+          lateToday: [],
+          underperforming: [],
+          pendingLeaveApprovals: [],
+          performanceStats: { averageRating: 0, totalReviews: 0, excellentPerformers: 0, underPerformers: 0 },
+          recentActivities: [],
+          weeklyAttendance: [],
+          performanceTrend: []
+        },
+        message: 'No employee record linked to this user'
+      })
     }
 
     // Find the manager's employee record

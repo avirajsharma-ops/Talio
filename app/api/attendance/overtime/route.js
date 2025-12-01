@@ -8,7 +8,7 @@ import CompanySettings from '@/models/CompanySettings'
 import { calculateEffectiveWorkHours, determineAttendanceStatus } from '@/lib/attendanceShrinkage'
 import { sendPushToUser } from '@/lib/pushNotification'
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
 
 async function getUserFromToken(request) {
   const authHeader = request.headers.get('authorization')

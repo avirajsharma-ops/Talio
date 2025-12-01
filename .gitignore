@@ -86,3 +86,5 @@ public/releases/
 *.dmg
 *.exe
 *.blockmap
+CREDENTIALS.md
+scripts/create-admin.js

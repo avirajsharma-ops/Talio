@@ -57,9 +57,11 @@ export default function Header({ toggleSidebar }) {
 
       // Always fetch fresh employee data to ensure it's up to date
       // Handle both string ID and object with _id
-      const empId = typeof parsedUser.employeeId === 'object'
-        ? parsedUser.employeeId._id || parsedUser.employeeId
-        : parsedUser.employeeId
+      const empId = parsedUser.employeeId 
+        ? (typeof parsedUser.employeeId === 'object' 
+            ? (parsedUser.employeeId._id || parsedUser.employeeId) 
+            : parsedUser.employeeId)
+        : null
 
       if (empId) {
         fetchEmployeeData(empId)
@@ -327,9 +329,14 @@ export default function Header({ toggleSidebar }) {
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={toggleSidebar}
-              className="lg:hidden text-gray-600 hover:text-gray-900 focus:outline-none p-1"
+              className="lg:hidden focus:outline-none p-1"
             >
-              <FaBars className="w-8 h-8 sm:w-6 sm:h-6" />
+              <img 
+                src="/hamburger.png"
+                alt="Menu"
+                className="w-5 h-5"
+                style={{ filter: 'brightness(0) saturate(100%) invert(44%) sepia(8%) saturate(400%) hue-rotate(180deg)' }}
+              />
             </button>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
@@ -347,9 +354,14 @@ export default function Header({ toggleSidebar }) {
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
           <button
             onClick={toggleSidebar}
-            className="lg:hidden text-gray-600 hover:text-gray-900 focus:outline-none p-1"
+            className="lg:hidden focus:outline-none p-1"
           >
-            <FaBars className="w-8 h-8 sm:w-6 sm:h-6" />
+            <img 
+              src="/hamburger.png"
+              alt="Menu"
+              className="w-5 h-5"
+              style={{ filter: 'brightness(0) saturate(100%) invert(44%) sepia(8%) saturate(400%) hue-rotate(180deg)' }}
+            />
           </button>
 
           {/* Search bar - Desktop */}

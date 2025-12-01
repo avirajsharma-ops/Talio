@@ -3,7 +3,7 @@ import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 /**
  * DELETE /api/admin/clear-chats

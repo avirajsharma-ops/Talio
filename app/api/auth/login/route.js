@@ -18,8 +18,6 @@ export async function POST(request) {
 
     const { email, password } = await request.json()
 
-    console.log('Login attempt for:', email)
-
     // Validate input
     if (!email || !password) {
       return NextResponse.json(
@@ -30,8 +28,6 @@ export async function POST(request) {
 
     // Find user and include password field (without populate to avoid schema error)
     const user = await User.findOne({ email }).select('+password')
-
-    console.log('User found:', user ? 'Yes' : 'No')
 
     if (!user) {
       return NextResponse.json(
@@ -54,20 +50,15 @@ export async function POST(request) {
     try {
       isPasswordMatch = await user.comparePassword(password)
     } catch (error) {
-      console.log('Bcrypt comparison failed, trying plain text for legacy users:', error.message)
-      // Fallback for legacy users with plain text passwords
-      isPasswordMatch = user.password === password
-
-      // If plain text match, update to hashed password
-      if (isPasswordMatch) {
-        console.log('Legacy user detected, updating password hash')
+      // Fallback for legacy users with plain text passwords (one-time migration)
+      // This is a security migration feature - upgrades plain text to hashed
+      if (user.password === password) {
+        isPasswordMatch = true
+        // Upgrade to hashed password
         user.password = password // This will trigger the pre-save hook to hash it
         await user.save({ validateBeforeSave: false })
       }
     }
-
-    console.log('Password match:', isPasswordMatch)
-    console.log('User email:', user.email)
 
     if (!isPasswordMatch) {
       return NextResponse.json(

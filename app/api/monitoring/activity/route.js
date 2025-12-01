@@ -7,7 +7,7 @@ import KeystrokeLog from '@/models/KeystrokeLog';
 import WindowActivityLog from '@/models/WindowActivityLog';
 import { getCurrentISTDate } from '@/lib/timezone';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 /**
  * POST /api/monitoring/activity

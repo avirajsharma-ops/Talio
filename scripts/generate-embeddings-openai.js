@@ -4,8 +4,8 @@
  * Run: node scripts/generate-embeddings-openai.js
  */
 
-// Load environment variables from .env.local
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local') });
+// Load environment variables from .env
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const { MongoClient } = require('mongodb');
 const OpenAI = require('openai');
@@ -17,14 +17,14 @@ const DATABASE_NAME = process.env.MONGODB_DB_NAME || 'hrms_db';
 
 // Validate environment variables
 if (!MONGODB_URI) {
-  console.error('❌ Error: MONGODB_URI not found in .env.local');
-  console.error('Please add your MongoDB connection string to .env.local');
+  console.error('❌ Error: MONGODB_URI not found in .env');
+  console.error('Please add your MongoDB connection string to .env');
   process.exit(1);
 }
 
 if (!OPENAI_API_KEY) {
-  console.error('❌ Error: OPENAI_API_KEY or NEXT_PUBLIC_OPENAI_API_KEY not found in .env.local');
-  console.error('Please add your OpenAI API key to .env.local');
+  console.error('❌ Error: OPENAI_API_KEY or NEXT_PUBLIC_OPENAI_API_KEY not found in .env');
+  console.error('Please add your OpenAI API key to .env');
   process.exit(1);
 }
 

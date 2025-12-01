@@ -15,6 +15,16 @@ export default function BottomNav() {
   const bottomNavColor = '#FFFFFF' // White bottom nav
   const activeButtonColor = themes[currentTheme]?.primary?.[600] || '#3B82F6' // Active button uses theme color
 
+  // Check if current page is a bottom nav page (for showing the elevated button ring)
+  const isBottomNavPage = 
+    pathname === '/dashboard' || 
+    pathname.startsWith('/dashboard/tasks') || 
+    pathname.startsWith('/dashboard/leave') ||
+    pathname.startsWith('/dashboard/sandbox')
+
+  // Only show the ring shadow on bottom nav pages (excluding chat)
+  const shouldShowRing = isBottomNavPage && !pathname.startsWith('/dashboard/chat')
+
   const navItems = [
     {
       name: 'Home',
@@ -66,7 +76,7 @@ export default function BottomNav() {
             <div key={item.path} className="relative">
               <button
                 onClick={() => router.push(item.path)}
-                className={`relative p-0 h-14 w-14 rounded-full transition-all duration-300 ${
+                className={`relative p-0 h-14 w-14 rounded-full ${
                   isChat ? 'border-[1px] border-slate-300' : ''
                 } ${
                   item.active && !isChat
@@ -78,18 +88,21 @@ export default function BottomNav() {
                 style={{
                   margin: 0,
                   backgroundColor: item.active ? activeButtonColor : 'transparent',
-                  boxShadow: item.active && !isChat ? '0 0 0 10px var(--color-bg-main)' : 'none' // Use opaque bg color for shadow ring
+                  boxShadow: item.active && !isChat && shouldShowRing ? '0 0 0 10px var(--color-bg-main)' : 'none',
+                  opacity: 1,
+                  transition: 'background-color 0.6s ease-in-out, box-shadow 0.6s ease-in-out, border-color 0.6s ease-in-out, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease-in-out'
                 }}
               >
                 <img
                   src={item.icon}
                   width={24}
                   height={24}
-                  className="transition-transform duration-300"
                   style={{
                     filter: item.active
                       ? 'brightness(0) invert(1)' // White icon for active (on colored background)
-                      : 'brightness(0) saturate(100%) invert(44%) sepia(8%) saturate(400%) hue-rotate(180deg)' // Gray icon for inactive
+                      : 'brightness(0) saturate(100%) invert(44%) sepia(8%) saturate(400%) hue-rotate(180deg)', // Gray icon for inactive
+                    transition: 'filter 0.6s ease-in-out, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transform: item.active ? 'scale(1.1)' : 'scale(1)'
                   }}
                 />
               </button>

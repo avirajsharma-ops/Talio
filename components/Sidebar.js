@@ -135,24 +135,29 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   return (
     <>
-      {/* Mobile overlay with backdrop blur */}
+      {/* Mobile overlay with backdrop blur - smooth fade animation */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] lg:hidden animate-fade-in"
           onClick={() => setIsOpen(false)}
+          style={{
+            animation: 'fadeInBackdrop 0.5s ease-out forwards'
+          }}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - smooth slide animation */}
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-[60] lg:z-[7]
-          w-[70vw] md:w-[17rem] text-gray-800
-          transform transition-transform duration-300 ease-in-out
+          w-full md:w-[17rem] text-gray-800
+          transform flex flex-col h-screen shadow-lg
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col h-screen shadow-lg
         `}
-        style={{ backgroundColor: 'var(--color-bg-sidebar)' }}
+        style={{ 
+          backgroundColor: 'var(--color-bg-sidebar)',
+          transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)'
+        }}
       >
         {/* Sticky Logo Section - Height matched with header */}
         <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
@@ -178,9 +183,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           msOverflowStyle: 'none'
         }}>
           {menuItems.map((item) => (
-            <div key={item.name}>
+            <div key={item.name} className="w-full">
               {item.submenu ? (
-                <>
+                <div className="w-full">
                   <button
                     type="button"
                     onClick={() => toggleSubmenu(item.name)}
@@ -208,7 +213,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </div>
                   </button>
                   {expandedMenus[item.name] && (
-                    <div className="ml-4 mt-2 space-y-1 pl-4" style={{ borderLeft: '2px solid var(--color-primary-200)' }}>
+                    <div className="mt-2 space-y-1 ml-8 pl-3" style={{ borderLeft: '2px solid var(--color-primary-200)' }}>
                       {item.submenu.map((subItem) => (
                         <Link
                           key={subItem.path}
@@ -225,7 +230,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       ))}
                     </div>
                   )}
-                </>
+                </div>
               ) : (
                 <Link
                   href={item.path}
@@ -298,8 +303,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-[9999]"
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9999] animate-fade-in"
             onClick={() => setShowLogoutConfirm(false)}
+            style={{
+              animation: 'fadeInBackdrop 0.2s ease-out forwards'
+            }}
           />
 
           {/* Confirmation Modal */}

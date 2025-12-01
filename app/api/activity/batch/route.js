@@ -11,7 +11,7 @@ import AutoScreenCapture from '@/models/AutoScreenCapture';
 import { getCurrentISTDate } from '@/lib/timezone';
 import OpenAI from 'openai';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Lazy initialize OpenAI to avoid build errors
 let openai = null;

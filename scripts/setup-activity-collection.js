@@ -7,12 +7,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env.local') })
+dotenv.config({ path: path.join(__dirname, '../.env') })
 
 const MONGODB_URI = process.env.MONGODB_URI
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local')
+  throw new Error('Please define the MONGODB_URI environment variable inside .env')
 }
 
 // Define Activity Schema (same as in models/Activity.js)

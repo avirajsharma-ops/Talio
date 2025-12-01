@@ -18,10 +18,8 @@ const sharp = require('sharp');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables (try .env.local first, then .env)
-const envPath = require('fs').existsSync(path.join(__dirname, '..', '.env.local')) 
-  ? path.join(__dirname, '..', '.env.local')
-  : path.join(__dirname, '..', '.env');
+// Load environment variables
+const envPath = path.join(__dirname, '..', '.env');
 dotenv.config({ path: envPath });
 
 const MONGODB_URI = process.env.MONGODB_URI;

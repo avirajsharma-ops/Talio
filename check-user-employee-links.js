@@ -5,7 +5,7 @@
  * Verifies that users have properly linked employee profiles
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 const mongoose = require('mongoose');
 
 // ANSI colors

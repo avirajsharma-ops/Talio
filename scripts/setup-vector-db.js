@@ -24,14 +24,14 @@ async function main() {
   // Step 1: Check environment variables
   console.log('📋 Step 1: Environment Variables\n');
 
-  const envPath = path.join(__dirname, '..', '.env.local');
+  const envPath = path.join(__dirname, '..', '.env');
   let envContent = '';
 
   if (fs.existsSync(envPath)) {
     envContent = fs.readFileSync(envPath, 'utf8');
-    console.log('✅ Found .env.local file\n');
+    console.log('✅ Found .env file\n');
   } else {
-    console.log('⚠️  No .env.local file found. Creating one...\n');
+    console.log('⚠️  No .env file found. Creating one...\n');
   }
 
   // Check MongoDB URI
@@ -68,9 +68,9 @@ async function main() {
     console.log('✅ OPENAI_API_KEY found');
   }
 
-  // Save .env.local
+  // Save .env
   fs.writeFileSync(envPath, envContent.trim());
-  console.log('\n✅ Environment variables saved to .env.local\n');
+  console.log('\n✅ Environment variables saved to .env\n');
 
   // Step 2: MongoDB Atlas Index Setup
   console.log('📋 Step 2: MongoDB Atlas Vector Search Index\n');

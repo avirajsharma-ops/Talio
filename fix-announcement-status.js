@@ -5,7 +5,7 @@
  * Changes all draft announcements to published status
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 const mongoose = require('mongoose');
 
 // ANSI colors

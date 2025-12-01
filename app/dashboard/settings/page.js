@@ -517,7 +517,7 @@ function CompanySettingsTab() {
           <button
             type="submit"
             disabled={saving}
-            className="px-8 py-3 bg-primary-500 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
           >
             {saving ? (
               <span className="flex items-center gap-2">
@@ -797,7 +797,7 @@ function GeofenceLocationsManager() {
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-primary-600 transition-colors"
         >
           <FaMapMarkerAlt />
           Add Location
@@ -812,7 +812,7 @@ function GeofenceLocationsManager() {
           <p className="text-gray-600 mb-4">No locations configured yet</p>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-primary-600 transition-colors"
           >
             Add Your First Location
           </button>
@@ -1396,7 +1396,7 @@ function GeofencingTab() {
             <button
               type="button"
               onClick={addBreakTiming}
-              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
             >
               <span>+</span> Add Break
             </button>
@@ -1470,7 +1470,7 @@ function GeofencingTab() {
                           onClick={() => toggleBreakDay(index, day)}
                           className={`px-3 py-1 text-xs rounded-lg transition-colors ${
                             breakTiming.days?.includes(day)
-                              ? 'bg-primary-500 text-white'
+                              ? 'bg-blue-600 text-white'
                               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                           }`}
                         >
@@ -1489,7 +1489,7 @@ function GeofencingTab() {
           <button
             type="submit"
             disabled={saving}
-            className="px-8 py-3 bg-primary-500 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
           >
             {saving ? (
               <span className="flex items-center gap-2">
@@ -2635,15 +2635,15 @@ function NotificationsTab() {
                   checked={emailNotificationsEnabled}
                   onChange={handleGlobalEmailToggleChange}
                 />
-                <div className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
+                <div className={`relative w-11 h-6 rounded-full transition-all duration-500 ease-in-out ${
                   emailNotificationsEnabled
-                    ? 'bg-primary-500'
+                    ? 'bg-blue-600'
                     : 'bg-gray-300'
                 }`}>
-                  <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out transform ${
                     emailNotificationsEnabled
-                      ? 'left-7'
-                      : 'left-0.5'
+                      ? 'translate-x-5'
+                      : 'translate-x-0.5'
                   }`} />
                 </div>
               </label>
@@ -2676,17 +2676,17 @@ function NotificationsTab() {
                         onChange={handleEmailToggleChange(event.key)}
                         disabled={!canToggle}
                       />
-                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-500 ease-in-out ${
                         !canToggle
                           ? 'bg-gray-200 opacity-50'
                           : isEnabled
-                            ? 'bg-primary-500'
+                            ? 'bg-blue-600'
                             : 'bg-gray-300'
                       }`}>
-                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out ${
                           isEnabled
-                            ? 'left-5'
-                            : 'left-0.5'
+                            ? 'translate-x-5'
+                            : 'translate-x-0.5'
                         }`} />
                       </div>
                     </label>
@@ -2721,17 +2721,17 @@ function NotificationsTab() {
                         onChange={handleEmailToggleChange(event.key)}
                         disabled={!canToggle}
                       />
-                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-500 ease-in-out ${
                         !canToggle
                           ? 'bg-gray-200 opacity-50'
                           : isEnabled
-                            ? 'bg-primary-500'
+                            ? 'bg-blue-600'
                             : 'bg-gray-300'
                       }`}>
-                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out ${
                           isEnabled
-                            ? 'left-5'
-                            : 'left-0.5'
+                            ? 'translate-x-5'
+                            : 'translate-x-0.5'
                         }`} />
                       </div>
                     </label>
@@ -2760,17 +2760,17 @@ function NotificationsTab() {
                         onChange={handleEmailToggleChange(event.key)}
                         disabled={!canToggle}
                       />
-                      <div className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+                      <div className={`relative w-11 h-6 rounded-full transition-all duration-500 ease-in-out ${
                         !canToggle
                           ? 'bg-gray-200 opacity-50'
                           : isEnabled
-                            ? 'bg-primary-500'
+                            ? 'bg-blue-600'
                             : 'bg-gray-300'
                       }`}>
-                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out ${
                           isEnabled
-                            ? 'left-5'
-                            : 'left-0.5'
+                            ? 'translate-x-5'
+                            : 'translate-x-0.5'
                         }`} />
                       </div>
                     </label>
@@ -2794,7 +2794,7 @@ function NotificationsTab() {
           <button
             type="submit"
             disabled={!hasChanges || saving}
-            className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {saving ? (
               <span className="flex items-center gap-2">

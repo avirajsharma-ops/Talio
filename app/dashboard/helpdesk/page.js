@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
+import { MobilePageWrapper, MobileStatCard, MobileGrid, MobileTable, MobileLoader } from '@/components/mobile/MobileComponents'
 
 export default function HelpdeskPage() {
   const [tickets, setTickets] = useState([])
@@ -53,62 +54,47 @@ export default function HelpdeskPage() {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Helpdesk</h1>
-          <p className="text-gray-600 mt-1">Submit and track support tickets</p>
-        </div>
+    <MobilePageWrapper
+      title="Helpdesk"
+      subtitle="Submit and track support tickets"
+      actions={
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary flex items-center space-x-2"
+          className="btn-mobile bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
         >
-          <FaPlus />
+          <FaPlus className="w-4 h-4" />
           <span>Create Ticket</span>
         </button>
-      </div>
-
+      }
+    >
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Total Tickets</h3>
-            <FaTicketAlt className="text-primary-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800">{tickets.length}</div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Open</h3>
-            <FaClock className="text-yellow-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {tickets.filter(t => t.status === 'open').length}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">In Progress</h3>
-            <FaExclamationCircle className="text-blue-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {tickets.filter(t => t.status === 'in-progress').length}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Resolved</h3>
-            <FaCheckCircle className="text-green-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {tickets.filter(t => t.status === 'resolved').length}
-          </div>
-        </div>
-      </div>
+      <MobileGrid cols={4} className="mb-6">
+      <MobileGrid cols={4} className="mb-6">
+        <MobileStatCard
+          label="Total Tickets"
+          value={tickets.length}
+          icon={FaTicketAlt}
+          color="blue"
+        />
+        <MobileStatCard
+          label="Open"
+          value={tickets.filter(t => t.status === 'open').length}
+          icon={FaClock}
+          color="yellow"
+        />
+        <MobileStatCard
+          label="In Progress"
+          value={tickets.filter(t => t.status === 'in-progress').length}
+          icon={FaExclamationCircle}
+          color="blue"
+        />
+        <MobileStatCard
+          label="Resolved"
+          value={tickets.filter(t => t.status === 'resolved').length}
+          icon={FaCheckCircle}
+          color="green"
+        />
+      </MobileGrid>
 
       {/* Tickets Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">

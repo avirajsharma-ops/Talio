@@ -10,6 +10,12 @@ const nextConfig = {
     ],
   },
 
+  // Disable React dev overlay to prevent ShadowPortal DOM errors
+  devIndicators: {
+    buildActivity: false,
+    buildActivityPosition: 'bottom-right',
+  },
+
   // Skip ESLint checks during Docker build
   eslint: {
     ignoreDuringBuilds: true,

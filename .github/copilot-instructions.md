@@ -12,7 +12,7 @@ Talio is a comprehensive Next.js 14 (App Router) HRMS with a custom Node server 
 - **MAYA realtime**: Special socket events (`maya:*`) for AI assistant communications and screen monitoring
 
 ### Database Layer
-- **Connection**: `lib/mongodb.js` - cached Mongoose connection (checks `MONGODB_URI` from `.env.local`)
+- **Connection**: `lib/mongodb.js` - cached Mongoose connection (checks `MONGODB_URI` from `.env`)
 - **Models**: 50+ Mongoose schemas in `models/` including MAYA-specific models (`MayaMessage`, `MayaActionLog`, `MayaFormattedData`, etc.)
 - **Data access**: `lib/mayaDataAccess.js` provides role-based filtered queries for MAYA
 - **Auth helpers**: `lib/mayaPermissions.js` - check if user can access target data based on role/hierarchy
@@ -48,7 +48,7 @@ npm run start            # NODE_ENV=production node server.js
 ```bash
 npm run seed                    # Seed database (scripts/seed.js)
 npm run check-env              # Verify environment variables
-npm run setup-local            # Setup local .env.local
+npm run setup-local            # Setup local .env
 npm run migrate                # MongoDB Atlas migration helpers
 npm run migrate:levelnames     # Migrate designation level names
 ```
@@ -120,7 +120,7 @@ When adding features that MAYA should control:
 - `jspdf` / `jspdf-autotable` - PDF generation
 - `xlsx` - Excel export
 
-## Environment Variables (`.env.local`)
+## Environment Variables (`.env`)
 
 **Required for core functionality:**
 - `MONGODB_URI` - MongoDB connection string

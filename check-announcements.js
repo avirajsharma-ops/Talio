@@ -5,7 +5,7 @@
  * Checks what announcements exist in the database and their properties
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 const mongoose = require('mongoose');
 
 // ANSI colors

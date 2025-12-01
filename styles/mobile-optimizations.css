@@ -1,0 +1,442 @@
+/* Mobile-First Responsive Utilities for Talio HRMS */
+
+/* ============================================
+   GLOBAL AUTO-FIXES FOR ALL PAGES
+   These rules automatically apply mobile optimizations
+   ============================================ */
+
+/* Auto-fix ALL inputs to prevent iOS zoom (16px minimum) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 14px !important;
+  }
+}
+
+/* Auto-fix ALL tables for mobile horizontal scroll */
+@media (max-width: 767px) {
+  table:not(.no-mobile-scroll) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table:not(.no-mobile-scroll) thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+  }
+  
+  table:not(.no-mobile-scroll) th,
+  table:not(.no-mobile-scroll) td {
+    white-space: nowrap;
+    padding: 0.75rem;
+  }
+}
+
+/* ============================================
+   BASE MOBILE RESETS
+   ============================================ */
+
+/* Base mobile-first resets */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Improved touch targets (minimum 44x44px for mobile) */
+.btn,
+button,
+a,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive containers */
+.container-mobile {
+  @apply px-4 sm:px-6 lg:px-8;
+}
+
+/* Responsive text sizes */
+.text-responsive-xs {
+  @apply text-xs sm:text-sm;
+}
+
+.text-responsive-sm {
+  @apply text-sm sm:text-base;
+}
+
+.text-responsive-base {
+  @apply text-base sm:text-lg;
+}
+
+.text-responsive-lg {
+  @apply text-lg sm:text-xl lg:text-2xl;
+}
+
+.text-responsive-xl {
+  @apply text-xl sm:text-2xl lg:text-3xl;
+}
+
+.text-responsive-2xl {
+  @apply text-2xl sm:text-3xl lg:text-4xl;
+}
+
+/* Responsive spacing */
+.space-y-responsive {
+  @apply space-y-3 sm:space-y-4 lg:space-y-6;
+}
+
+.gap-responsive {
+  @apply gap-3 sm:gap-4 lg:gap-6;
+}
+
+.p-responsive {
+  @apply p-3 sm:p-4 lg:p-6;
+}
+
+.py-responsive {
+  @apply py-3 sm:py-4 lg:py-6;
+}
+
+.px-responsive {
+  @apply px-3 sm:px-4 lg:px-6;
+}
+
+/* Card responsive */
+.card-mobile {
+  @apply bg-white rounded-lg shadow-sm p-4 sm:p-6;
+}
+
+/* Responsive grid */
+.grid-responsive-1 {
+  @apply grid grid-cols-1;
+}
+
+.grid-responsive-2 {
+  @apply grid grid-cols-1 sm:grid-cols-2;
+}
+
+.grid-responsive-3 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+}
+
+.grid-responsive-4 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4;
+}
+
+/* Mobile-friendly tables */
+.table-mobile {
+  @apply w-full overflow-x-auto;
+}
+
+.table-mobile table {
+  @apply min-w-full;
+}
+
+/* Hide on mobile */
+.hide-mobile {
+  @apply hidden sm:block;
+}
+
+/* Show only on mobile */
+.show-mobile {
+  @apply block sm:hidden;
+}
+
+/* Responsive flex */
+.flex-responsive {
+  @apply flex flex-col sm:flex-row;
+}
+
+.flex-responsive-reverse {
+  @apply flex flex-col-reverse sm:flex-row;
+}
+
+/* Mobile-friendly forms */
+.form-mobile input,
+.form-mobile select,
+.form-mobile textarea {
+  @apply text-base; /* Prevents zoom on iOS */
+  font-size: 16px !important; /* Override to prevent zoom */
+}
+
+/* Smooth scrolling for mobile */
+.scroll-smooth-mobile {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Bottom padding for mobile navigation */
+.pb-mobile-nav {
+  @apply pb-20 md:pb-6;
+}
+
+/* Responsive modal */
+.modal-mobile {
+  @apply w-full max-w-full sm:max-w-lg lg:max-w-2xl mx-auto;
+}
+
+/* Mobile-friendly buttons */
+.btn-mobile {
+  @apply px-4 py-3 sm:px-6 sm:py-2 text-sm sm:text-base font-medium rounded-lg transition-colors;
+}
+
+.btn-mobile-sm {
+  @apply px-3 py-2 text-xs sm:text-sm font-medium rounded-md;
+}
+
+.btn-mobile-lg {
+  @apply px-6 py-4 sm:px-8 sm:py-3 text-base sm:text-lg font-semibold rounded-xl;
+}
+
+/* Mobile-friendly stat cards */
+.stat-card-mobile {
+  @apply bg-white rounded-lg p-4 shadow-sm;
+}
+
+.stat-card-mobile .stat-value {
+  @apply text-2xl sm:text-3xl lg:text-4xl font-bold;
+}
+
+.stat-card-mobile .stat-label {
+  @apply text-xs sm:text-sm text-gray-600;
+}
+
+/* Responsive sidebar width */
+.sidebar-mobile {
+  @apply w-64 sm:w-72 lg:w-80;
+}
+
+/* Mobile header height */
+.header-mobile {
+  @apply h-14 sm:h-16 lg:h-20;
+}
+
+/* Responsive dashboard grid */
+.dashboard-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+}
+
+/* Mobile-friendly dropdown */
+.dropdown-mobile {
+  @apply w-full sm:w-auto;
+}
+
+/* Responsive images */
+.img-responsive {
+  @apply w-full h-auto;
+}
+
+/* Mobile-safe fixed positioning */
+.fixed-mobile-safe {
+  position: fixed;
+  position: -webkit-sticky;
+  position: sticky;
+}
+
+/* Prevent horizontal overflow */
+.overflow-x-prevent {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Mobile-friendly tabs */
+.tabs-mobile {
+  @apply flex overflow-x-auto scrollbar-hide;
+}
+
+.tabs-mobile button {
+  @apply whitespace-nowrap px-4 py-2 sm:px-6 sm:py-3;
+}
+
+/* Responsive avatar */
+.avatar-mobile {
+  @apply w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12;
+}
+
+/* Mobile-friendly alerts */
+.alert-mobile {
+  @apply p-3 sm:p-4 rounded-lg text-sm sm:text-base;
+}
+
+/* Responsive badge */
+.badge-mobile {
+  @apply text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1;
+}
+
+/* Mobile-safe z-index layers */
+.z-mobile-modal {
+  @apply z-[100];
+}
+
+.z-mobile-drawer {
+  @apply z-[90];
+}
+
+.z-mobile-header {
+  @apply z-[80];
+}
+
+.z-mobile-bottom-nav {
+  @apply z-[70];
+}
+
+/* Smooth animations for mobile */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS safe area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pb-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pt-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Horizontal scrolling container */
+.scroll-horizontal-mobile {
+  @apply overflow-x-auto overflow-y-hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-horizontal-mobile::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile-friendly table alternative (card view) */
+.table-card-mobile {
+  @apply block sm:hidden;
+}
+
+.table-card-mobile .card {
+  @apply bg-white p-4 rounded-lg shadow-sm mb-3 border border-gray-200;
+}
+
+.table-desktop {
+  @apply hidden sm:table;
+}
+
+/* Sticky header for mobile tables */
+.table-sticky-header {
+  @apply sticky top-0 bg-white z-10 shadow-sm;
+}
+
+/* Mobile menu */
+.mobile-menu-button {
+  @apply p-2 rounded-lg hover:bg-gray-100 transition-colors;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Responsive page header */
+.page-header-mobile {
+  @apply mb-4 sm:mb-6 lg:mb-8;
+}
+
+.page-title-mobile {
+  @apply text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900;
+}
+
+.page-subtitle-mobile {
+  @apply text-sm sm:text-base text-gray-600 mt-1;
+}
+
+/* Mobile-friendly action buttons */
+.action-buttons-mobile {
+  @apply flex flex-col sm:flex-row gap-2 sm:gap-3;
+}
+
+.action-buttons-mobile button,
+.action-buttons-mobile a {
+  @apply w-full sm:w-auto justify-center sm:justify-start;
+}
+
+/* Responsive columns */
+.col-mobile-full {
+  @apply col-span-1 sm:col-span-2 lg:col-span-3;
+}
+
+/* Mobile search bar */
+.search-mobile {
+  @apply w-full sm:w-64 lg:w-96;
+}
+
+/* Loading spinner */
+.loading-mobile {
+  @apply w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12;
+}
+
+/* Responsive divider */
+.divider-mobile {
+  @apply my-4 sm:my-6 lg:my-8;
+}
+
+/* Mobile-friendly chip/tag */
+.chip-mobile {
+  @apply inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm;
+}
+
+/* Backdrop blur for mobile */
+.backdrop-mobile {
+  @apply backdrop-blur-sm bg-black/50;
+}
+
+/* Pull to refresh indicator space */
+.ptr-space {
+  @apply pt-16 sm:pt-0;
+}

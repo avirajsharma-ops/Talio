@@ -1,8 +1,17 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// ⚠️ DEVELOPMENT ONLY - This script should never run in production
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ ERROR: Seed script cannot run in production environment!');
+  process.exit(1);
+}
+
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hrms_db';
+
+// Default seed password - should be changed immediately after seeding
+const SEED_PASSWORD = process.env.SEED_PASSWORD || 'ChangeMe123!';
 
 // User Schema (simplified for seeding)
 const UserSchema = new mongoose.Schema({
@@ -154,12 +163,13 @@ async function seedDatabase() {
 
     console.log('✅ Employees created successfully!');
 
-    // Create users with plain text passwords (for testing)
-    console.log('🔐 Creating users with plain text passwords...');
+    // Create users with hashed passwords
+    console.log('🔐 Creating users with secure passwords...');
+    const hashedPassword = await bcrypt.hash(SEED_PASSWORD, 12);
 
     await User.create({
       email: 'admin@hrms.com',
-      password: 'admin123',
+      password: hashedPassword,
       role: 'admin',
       employeeId: adminEmployee._id,
       isActive: true,
@@ -167,7 +177,7 @@ async function seedDatabase() {
 
     await User.create({
       email: 'hr@hrms.com',
-      password: 'hr123',
+      password: hashedPassword,
       role: 'hr',
       employeeId: hrEmployee._id,
       isActive: true,
@@ -175,7 +185,7 @@ async function seedDatabase() {
 
     await User.create({
       email: 'manager@hrms.com',
-      password: 'manager123',
+      password: hashedPassword,
       role: 'manager',
       employeeId: managerEmployee._id,
       isActive: true,
@@ -183,7 +193,7 @@ async function seedDatabase() {
 
     await User.create({
       email: 'employee@hrms.com',
-      password: 'employee123',
+      password: hashedPassword,
       role: 'employee',
       employeeId: employeeUser._id,
       isActive: true,
@@ -194,23 +204,16 @@ async function seedDatabase() {
     console.log('\n🎉 Database seeded successfully!\n');
     console.log('📝 Login Credentials:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('👤 Admin:');
-    console.log('   Email: admin@hrms.com');
-    console.log('   Password: admin123');
+    console.log('⚠️  All users have the same password set via SEED_PASSWORD env var');
+    console.log('⚠️  Default password: ChangeMe123! (CHANGE IMMEDIATELY!)');
     console.log('');
-    console.log('👤 HR Manager:');
-    console.log('   Email: hr@hrms.com');
-    console.log('   Password: hr123');
-    console.log('');
-    console.log('👤 Team Manager:');
-    console.log('   Email: manager@hrms.com');
-    console.log('   Password: manager123');
-    console.log('');
-    console.log('👤 Employee:');
-    console.log('   Email: employee@hrms.com');
-    console.log('   Password: employee123');
+    console.log('👤 Admin: admin@hrms.com');
+    console.log('👤 HR Manager: hr@hrms.com');
+    console.log('👤 Team Manager: manager@hrms.com');
+    console.log('👤 Employee: employee@hrms.com');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('\n🚀 You can now login at: http://localhost:3000\n');
+    console.log('⚠️  IMPORTANT: Change all passwords after first login!\n');
 
   } catch (error) {
     console.error('❌ Error seeding database:', error);

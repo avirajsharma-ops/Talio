@@ -14,7 +14,7 @@
  */
 
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -52,7 +52,7 @@ async function main() {
   // Connect to MongoDB
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    console.error('❌ MONGODB_URI not found in .env.local');
+    console.error('❌ MONGODB_URI not found in .env');
     process.exit(1);
   }
 

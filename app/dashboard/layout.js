@@ -91,8 +91,18 @@ export default function DashboardLayout({ children }) {
     setSidebarOpen(!sidebarOpen)
   }
 
-  // Check if current page is chat
+  // Check if current page is a bottom nav page (excluding chat which doesn't show fade)
+  const isBottomNavPage = 
+    pathname === '/dashboard' || 
+    pathname?.startsWith('/dashboard/tasks') || 
+    pathname?.startsWith('/dashboard/leave') ||
+    pathname?.startsWith('/dashboard/sandbox')
+  
+  // Chat pages don't show the fade
   const isChatPage = pathname?.startsWith('/dashboard/chat')
+  
+  // Only show fade on bottom nav pages (not chat)
+  const shouldShowFade = isBottomNavPage && !isChatPage
 
   return (
     <SocketProvider>
@@ -117,12 +127,16 @@ export default function DashboardLayout({ children }) {
                 {children}
               </main>
 
-              {/* Gradient above bottom nav - Mobile only - Hide on chat page */}
-              {!isChatPage && (
-                <div className="md:hidden fixed bottom-[72px] left-0  right-0 h-[124px] pointer-events-none z-[39]"
-                  style={{ background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)` }}>
-                </div>
-              )}
+              {/* Gradient above bottom nav - Mobile only - Only on bottom nav pages (excluding chat) */}
+              <div 
+                className="md:hidden fixed bottom-[72px] left-0 right-0 h-[124px] pointer-events-none z-[39]"
+                style={{ 
+                  background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
+                  opacity: shouldShowFade ? 1 : 0,
+                  transform: shouldShowFade ? 'translateY(0)' : 'translateY(20px)',
+                  transition: 'opacity 0.6s ease-in-out, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}
+              />
 
               {/* Bottom Navigation for Mobile */}
               <BottomNav />

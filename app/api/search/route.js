@@ -17,7 +17,7 @@ import { getMenuItemsForRole } from '@/utils/roleBasedMenus'
 export const dynamic = 'force-dynamic'
 
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 
 // Synonym dictionary for better word matching
 const synonyms = {
