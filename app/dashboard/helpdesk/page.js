@@ -69,7 +69,6 @@ export default function HelpdeskPage() {
     >
       {/* Stats Cards */}
       <MobileGrid cols={4} className="mb-6">
-      <MobileGrid cols={4} className="mb-6">
         <MobileStatCard
           label="Total Tickets"
           value={tickets.length}
@@ -183,7 +182,7 @@ export default function HelpdeskPage() {
 
       {/* Create Ticket Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center style={{ zIndex: 99999 }}">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" style={{ zIndex: 99999 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Create Ticket</h2>
             <form>
@@ -251,7 +250,7 @@ export default function HelpdeskPage() {
           </div>
         </div>
       )}
-    </div>
+    </MobilePageWrapper>
   )
 }
 
