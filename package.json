@@ -11,7 +11,6 @@
     "lint": "next lint",
     "seed": "node scripts/seed.js",
     "migrate": "node scripts/migrate-to-atlas.js",
-    "check-env": "node scripts/fix-vercel-env.js",
     "setup-local": "node scripts/setup-local-env.js",
     "restore-atlas": "node scripts/restore-atlas-env.js",
     "migrate:levelnames": "node scripts/migrate-designation-levelnames.js",

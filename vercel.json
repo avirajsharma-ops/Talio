@@ -1,9 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/notifications/process?secret=production-cron-secret-change-this-to-random-string",
-      "schedule": "* * * * *"
-    }
-  ]
-}
-
