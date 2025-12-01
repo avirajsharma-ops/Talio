@@ -675,46 +675,73 @@ function extractDomainFromTitle(title) {
   return null;
 }
 
+// Track the last captured minute globally to persist across function calls
+let lastCapturedMinute = -1;
+let lastCaptureTime = 0;
+
 // Start periodic screenshot and data sync - aligned to minute boundaries
+// This runs in background even when window is hidden
 function startScreenMonitoring() {
   if (screenshotTimer || screenshotStartupTimer) return;
 
-  // Get current interval (global or from store) - default 1 minute
-  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (60 * 1000);
+  console.log('[Talio] 🚀 Starting screen monitoring (runs in background)');
 
-  // Track the last captured minute to avoid duplicate captures
-  let lastCapturedMinute = -1;
+  // Function to capture exactly at each minute boundary
+  const captureAtMinuteBoundary = async () => {
+    if (!authToken) {
+      console.log('[Talio] Skipping capture - not authenticated');
+      return;
+    }
 
-  // Function to capture only when minute changes
-  const captureOnMinuteChange = async () => {
     const now = new Date();
     const currentMinute = now.getMinutes();
+    const currentHour = now.getHours();
+    const minuteKey = currentHour * 60 + currentMinute; // Unique key per minute of day
     
-    // Only capture if the minute has changed since last capture
-    if (currentMinute !== lastCapturedMinute) {
-      lastCapturedMinute = currentMinute;
-      console.log(`[Talio] 📸 Minute changed to :${currentMinute.toString().padStart(2, '0')} - capturing screenshot`);
+    // Prevent duplicate captures within the same minute
+    const timeSinceLastCapture = Date.now() - lastCaptureTime;
+    if (minuteKey === lastCapturedMinute && timeSinceLastCapture < 55000) {
+      return; // Already captured this minute
+    }
+    
+    lastCapturedMinute = minuteKey;
+    lastCaptureTime = Date.now();
+    
+    const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
+    console.log(`[Talio] 📸 Capturing at ${timestamp} (minute :${currentMinute.toString().padStart(2, '0')})`);
+    
+    try {
       await captureAndSyncProductivity(false);
+    } catch (err) {
+      console.error('[Talio] Capture failed:', err.message);
     }
   };
 
-  // Calculate milliseconds until the next minute starts
-  const now = new Date();
-  const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-  
-  console.log(`[Talio] Screen monitoring starting in ${Math.round(msUntilNextMinute / 1000)}s (at next minute boundary)`);
+  // Schedule first capture at next minute boundary
+  const scheduleNextCapture = () => {
+    const now = new Date();
+    // Calculate exact milliseconds until next minute (at :00 seconds)
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    
+    console.log(`[Talio] Next capture in ${Math.round(msUntilNextMinute / 1000)}s`);
+    
+    screenshotStartupTimer = setTimeout(() => {
+      screenshotStartupTimer = null;
+      
+      // Capture now
+      captureAtMinuteBoundary();
+      
+      // Then set up recurring 60-second interval from this exact moment
+      // This ensures captures are exactly 60 seconds apart
+      screenshotTimer = setInterval(() => {
+        captureAtMinuteBoundary();
+      }, 60 * 1000);
+      
+      console.log('[Talio] ✅ Screen monitoring active (every 60 seconds exactly)');
+    }, msUntilNextMinute);
+  };
 
-  // Wait until the next minute boundary, then capture
-  screenshotStartupTimer = setTimeout(() => {
-    screenshotStartupTimer = null; // Clear startup timer reference
-    
-    // Capture immediately at the minute boundary
-    captureOnMinuteChange();
-    
-    // Then check every 5 seconds if the minute has changed (handles edge cases)
-    screenshotTimer = setInterval(captureOnMinuteChange, 5000);
-    console.log(`[Talio] Screen monitoring active (captures at each minute change)`);
-  }, msUntilNextMinute);
+  scheduleNextCapture();
 }
 
 // Sync all productivity data to server via API

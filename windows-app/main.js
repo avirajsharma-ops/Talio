@@ -918,15 +918,70 @@ async function captureAndSummarize() {
   await captureAndSyncProductivity(false);
 }
 
-// Start periodic screenshot and data sync
+// Track the last captured minute globally to persist across function calls
+let lastCapturedMinute = -1;
+let lastCaptureTime = 0;
+
+// Start periodic screenshot and data sync - aligned to minute boundaries
+// This runs in background even when window is hidden
 function startScreenMonitoring() {
   if (screenshotTimer) return;
 
-  const currentInterval = global.SCREENSHOT_INTERVAL || store.get('screenshotInterval') || (5 * 60 * 1000);
+  console.log('[Talio] 🚀 Starting screen monitoring (runs in background)');
 
-  setTimeout(() => captureAndSyncProductivity(false), 5000);
-  screenshotTimer = setInterval(() => captureAndSyncProductivity(false), currentInterval);
-  console.log(`[Talio] Screen monitoring started (${currentInterval / 60000} min intervals)`);
+  // Function to capture exactly at each minute boundary
+  const captureAtMinuteBoundary = async () => {
+    if (!authToken) {
+      console.log('[Talio] Skipping capture - not authenticated');
+      return;
+    }
+
+    const now = new Date();
+    const currentMinute = now.getMinutes();
+    const currentHour = now.getHours();
+    const minuteKey = currentHour * 60 + currentMinute; // Unique key per minute of day
+    
+    // Prevent duplicate captures within the same minute
+    const timeSinceLastCapture = Date.now() - lastCaptureTime;
+    if (minuteKey === lastCapturedMinute && timeSinceLastCapture < 55000) {
+      return; // Already captured this minute
+    }
+    
+    lastCapturedMinute = minuteKey;
+    lastCaptureTime = Date.now();
+    
+    const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
+    console.log(`[Talio] 📸 Capturing at ${timestamp} (minute :${currentMinute.toString().padStart(2, '0')})`);
+    
+    try {
+      await captureAndSyncProductivity(false);
+    } catch (err) {
+      console.error('[Talio] Capture failed:', err.message);
+    }
+  };
+
+  // Schedule first capture at next minute boundary
+  const scheduleNextCapture = () => {
+    const now = new Date();
+    // Calculate exact milliseconds until next minute (at :00 seconds)
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    
+    console.log(`[Talio] Next capture in ${Math.round(msUntilNextMinute / 1000)}s`);
+    
+    // Capture at next minute boundary, then every 60 seconds exactly
+    setTimeout(() => {
+      captureAtMinuteBoundary();
+      
+      // Set up recurring 60-second interval from this exact moment
+      screenshotTimer = setInterval(() => {
+        captureAtMinuteBoundary();
+      }, 60 * 1000);
+      
+      console.log('[Talio] ✅ Screen monitoring active (every 60 seconds exactly)');
+    }, msUntilNextMinute);
+  };
+
+  scheduleNextCapture();
 }
 
 // Start activity sync interval (now retries pending data)

@@ -53,6 +53,14 @@
   }
 }
 
+/* Touch manipulation for better tap responsiveness */
+.property-panel button,
+.touch-manipulation,
+[data-toolbar] button,
+[data-panel] button {
+  touch-action: manipulation;
+}
+
 /* PWA Window Controls Overlay - Hide default title bar */
 @media (display-mode: window-controls-overlay) {
   html {
@@ -250,6 +258,22 @@ main {
 
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
+}
+
+/* Property panel animations */
+@keyframes panel-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.property-panel {
+  animation: panel-fade-in 0.15s ease-out;
 }
 
 :root {
