@@ -1,7 +1,7 @@
 'use client'
 
 import { FaFileAlt, FaDownload, FaChartBar } from 'react-icons/fa'
-import { MobilePageWrapper, MobileGrid } from '@/components/mobile/MobileComponents'
+import MobilePageWrapper, { MobileGrid } from '@/components/mobile/MobileComponents'
 
 export default function ReportsPage() {
   const reports = [

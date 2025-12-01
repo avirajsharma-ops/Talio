@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
-import { MobilePageWrapper, MobileStatCard, MobileGrid, MobileTable, MobileLoader } from '@/components/mobile/MobileComponents'
+import MobilePageWrapper, { MobileStatCard, MobileGrid, MobileTable, MobileLoader } from '@/components/mobile/MobileComponents'
 
 export default function HelpdeskPage() {
   const [tickets, setTickets] = useState([])
