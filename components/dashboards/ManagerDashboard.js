@@ -30,6 +30,8 @@ export default function ManagerDashboard({ user }) {
   const [recentActivities, setRecentActivities] = useState([])
   const [todayAttendance, setTodayAttendance] = useState(null)
   const [attendanceLoading, setAttendanceLoading] = useState(false)
+  const [remainingTime, setRemainingTime] = useState(28800) // 8 hours in seconds (08:00)
+  const [isCountingDown, setIsCountingDown] = useState(false)
   // Use user's employeeId data as initial state for instant display
   const [employeeData, setEmployeeData] = useState(() => {
     // Try to get cached employee data from user object
@@ -73,6 +75,53 @@ export default function ManagerDashboard({ user }) {
     
     loadAllData()
   }, [])
+
+  // Countdown timer effect
+  useEffect(() => {
+    // Calculate remaining time based on check-in time
+    if (todayAttendance?.checkIn && !todayAttendance?.checkOut) {
+      const checkInTime = new Date(todayAttendance.checkIn).getTime()
+      const now = Date.now()
+      const elapsedSeconds = Math.floor((now - checkInTime) / 1000)
+      const remaining = Math.max(0, 28800 - elapsedSeconds) // 8 hours - elapsed time
+      
+      setRemainingTime(remaining)
+      setIsCountingDown(true)
+    } else if (todayAttendance?.checkOut) {
+      // User has checked out, stop countdown
+      setIsCountingDown(false)
+      setRemainingTime(0)
+    } else {
+      // No check-in yet, reset to 8 hours
+      setRemainingTime(28800)
+      setIsCountingDown(false)
+    }
+  }, [todayAttendance])
+
+  // Timer interval
+  useEffect(() => {
+    if (!isCountingDown || remainingTime <= 0) return
+
+    const interval = setInterval(() => {
+      setRemainingTime((prev) => {
+        if (prev <= 1) {
+          setIsCountingDown(false)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isCountingDown, remainingTime])
+
+  // Format countdown time as HH:MM:SS
+  const formatCountdown = (seconds) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
 
   const fetchManagerStats = async () => {
     try {
@@ -455,7 +504,43 @@ export default function ManagerDashboard({ user }) {
 
       {/* Quick Glance Section */}
       <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-2xl p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4">Quick Glance</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800">Quick Glance</h3>
+          
+          {/* Countdown Timer */}
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
+              isCountingDown 
+                ? remainingTime > 3600 
+                  ? 'bg-green-100' 
+                  : remainingTime > 1800 
+                    ? 'bg-yellow-100' 
+                    : 'bg-red-100'
+                : 'bg-gray-100'
+            }`}>
+              <FaClock className={`w-3.5 h-3.5 ${
+                isCountingDown 
+                  ? remainingTime > 3600 
+                    ? 'text-green-600' 
+                    : remainingTime > 1800 
+                      ? 'text-yellow-600' 
+                      : 'text-red-600'
+                  : 'text-gray-600'
+              }`} />
+              <span className={`text-sm sm:text-base font-bold ${
+                isCountingDown 
+                  ? remainingTime > 3600 
+                    ? 'text-green-700' 
+                    : remainingTime > 1800 
+                      ? 'text-yellow-700' 
+                      : 'text-red-700'
+                  : 'text-gray-700'
+              }`}>
+                {formatCountdown(remainingTime)}
+              </span>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Check In Time */}

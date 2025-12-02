@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server'
+import connectDB from '@/lib/mongodb'
+import PerformanceGoal from '@/models/PerformanceGoal'
+import Employee from '@/models/Employee'
 import { verifyToken } from '@/lib/auth'
 
 // GET - Fetch performance goals
@@ -11,144 +14,104 @@ export async function GET(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
+    await connectDB()
+
     const { searchParams } = new URL(request.url)
+    const goalId = searchParams.get('goalId')
+    
+    // If goalId is provided, return single goal
+    if (goalId) {
+      const goal = await PerformanceGoal.findById(goalId)
+        .populate('employee', 'firstName lastName employeeCode email department profileImage position')
+        .populate('createdBy', 'firstName lastName employeeCode')
+        .populate('department', 'name')
+        .lean()
+
+      if (!goal) {
+        return NextResponse.json({ success: false, message: 'Goal not found' }, { status: 404 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...goal,
+          isOverdue: goal.status !== 'completed' && goal.status !== 'cancelled' && new Date(goal.dueDate) < new Date(),
+          daysRemaining: Math.ceil((new Date(goal.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+        }
+      })
+    }
+
     const employeeId = searchParams.get('employeeId')
     const status = searchParams.get('status')
+    const department = searchParams.get('department')
     const page = parseInt(searchParams.get('page')) || 1
-    const limit = parseInt(searchParams.get('limit')) || 10
+    const limit = parseInt(searchParams.get('limit')) || 50
 
-    // Mock data for now - replace with actual database queries
-    const mockGoals = [
-      {
-        _id: '1',
-        employee: { 
-          _id: 'emp1',
-          firstName: 'John', 
-          lastName: 'Doe', 
-          employeeCode: 'EMP001',
-          department: 'Engineering'
-        },
-        title: 'Complete Project Alpha',
-        description: 'Lead the development of Project Alpha and deliver on time with high quality standards.',
-        category: 'Project Management',
-        priority: 'high',
-        status: 'in-progress',
-        progress: 75,
-        startDate: '2024-01-01T00:00:00.000Z',
-        dueDate: '2025-03-31T00:00:00.000Z',
-        createdBy: { 
-          _id: 'mgr1',
-          firstName: 'Jane', 
-          lastName: 'Smith' 
-        },
-        milestones: [
-          { title: 'Requirements gathering', completed: true, dueDate: '2024-02-01' },
-          { title: 'Development phase', completed: true, dueDate: '2024-06-01' },
-          { title: 'Testing phase', completed: false, dueDate: '2024-12-01' },
-          { title: 'Deployment', completed: false, dueDate: '2025-03-31' }
-        ],
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-12-01T00:00:00.000Z'
-      },
-      {
-        _id: '2',
-        employee: { 
-          _id: 'emp2',
-          firstName: 'Alice', 
-          lastName: 'Johnson', 
-          employeeCode: 'EMP002',
-          department: 'Marketing'
-        },
-        title: 'Improve Technical Skills',
-        description: 'Complete advanced JavaScript and React certification to enhance technical capabilities.',
-        category: 'Skill Development',
-        priority: 'medium',
-        status: 'not-started',
-        progress: 0,
-        startDate: '2024-02-01T00:00:00.000Z',
-        dueDate: '2025-06-30T00:00:00.000Z',
-        createdBy: { 
-          _id: 'mgr2',
-          firstName: 'Bob', 
-          lastName: 'Wilson' 
-        },
-        milestones: [
-          { title: 'Enroll in course', completed: false, dueDate: '2024-02-15' },
-          { title: 'Complete modules 1-5', completed: false, dueDate: '2024-04-30' },
-          { title: 'Complete final project', completed: false, dueDate: '2024-06-15' },
-          { title: 'Get certification', completed: false, dueDate: '2024-06-30' }
-        ],
-        createdAt: '2024-02-01T00:00:00.000Z',
-        updatedAt: '2024-02-01T00:00:00.000Z'
-      },
-      {
-        _id: '3',
-        employee: { 
-          _id: 'emp3',
-          firstName: 'Mike', 
-          lastName: 'Brown', 
-          employeeCode: 'EMP003',
-          department: 'Engineering'
-        },
-        title: 'Team Leadership Excellence',
-        description: 'Successfully lead a team of 5 developers and improve team productivity by 20%.',
-        category: 'Leadership',
-        priority: 'high',
-        status: 'completed',
-        progress: 100,
-        startDate: '2024-01-15T00:00:00.000Z',
-        dueDate: '2024-12-31T00:00:00.000Z',
-        createdBy: { 
-          _id: 'mgr3',
-          firstName: 'Sarah', 
-          lastName: 'Davis' 
-        },
-        milestones: [
-          { title: 'Team formation', completed: true, dueDate: '2024-02-01' },
-          { title: 'Process optimization', completed: true, dueDate: '2024-06-01' },
-          { title: 'Performance improvement', completed: true, dueDate: '2024-10-01' },
-          { title: 'Final evaluation', completed: true, dueDate: '2024-12-31' }
-        ],
-        createdAt: '2024-01-15T00:00:00.000Z',
-        updatedAt: '2024-12-31T00:00:00.000Z'
-      }
-    ]
-
-    // Filter based on role and parameters
-    let filteredGoals = mockGoals
+    // Build query based on role
+    let query = {}
 
     // Role-based filtering
     if (decoded.role === 'employee') {
       // Employees can only see their own goals
-      filteredGoals = mockGoals.filter(goal => goal.employee._id === decoded.employeeId)
-    } else if (decoded.role === 'manager') {
+      const employee = await Employee.findOne({ userId: decoded.userId }).select('_id')
+      if (employee) {
+        query.employee = employee._id
+      } else {
+        return NextResponse.json({ success: true, data: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0 } })
+      }
+    } else if (decoded.role === 'manager' || decoded.role === 'department_head') {
       // Managers can see goals for their team members
-      // For now, show all goals (in real implementation, filter by department/team)
-      filteredGoals = mockGoals
+      const manager = await Employee.findOne({ userId: decoded.userId }).select('_id department')
+      if (manager && manager.department) {
+        const teamMembers = await Employee.find({ 
+          $or: [
+            { department: manager.department },
+            { reportingManager: manager._id }
+          ]
+        }).select('_id')
+        query.employee = { $in: teamMembers.map(e => e._id) }
+      }
     }
-    // Admin and HR can see all goals
 
-    // Apply filters
+    // Apply additional filters
     if (employeeId) {
-      filteredGoals = filteredGoals.filter(goal => goal.employee._id === employeeId)
+      query.employee = employeeId
+    }
+    if (status) {
+      query.status = status
+    }
+    if (department) {
+      query.department = department
     }
 
-    if (status) {
-      filteredGoals = filteredGoals.filter(goal => goal.status === status)
-    }
+    // Build the query
+    let goalsQuery = PerformanceGoal.find(query)
+      .populate('employee', 'firstName lastName employeeCode email department profileImage')
+      .populate('createdBy', 'firstName lastName employeeCode')
+      .populate('department', 'name')
+      .sort({ createdAt: -1 })
 
     // Pagination
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedGoals = filteredGoals.slice(startIndex, endIndex)
+    const skip = (page - 1) * limit
+    const totalItems = await PerformanceGoal.countDocuments(query)
+    const totalPages = Math.ceil(totalItems / limit)
+
+    const goals = await goalsQuery.skip(skip).limit(limit).lean()
+
+    // Add computed fields
+    const goalsWithComputed = goals.map(goal => ({
+      ...goal,
+      isOverdue: goal.status !== 'completed' && goal.status !== 'cancelled' && new Date(goal.dueDate) < new Date(),
+      daysRemaining: Math.ceil((new Date(goal.dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+    }))
 
     return NextResponse.json({
       success: true,
-      data: paginatedGoals,
+      data: goalsWithComputed,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(filteredGoals.length / limit),
-        totalItems: filteredGoals.length,
+        totalPages,
+        totalItems,
         itemsPerPage: limit
       }
     })
@@ -172,10 +135,11 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
-    // Only admin, hr, and managers can create goals
-    if (!['admin', 'hr', 'manager'].includes(decoded.role)) {
+    if (!['admin', 'hr', 'manager', 'department_head', 'god_admin'].includes(decoded.role)) {
       return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
     }
+
+    await connectDB()
 
     const body = await request.json()
     const {
@@ -184,12 +148,17 @@ export async function POST(request) {
       description,
       category,
       priority,
+      status,
+      progress,
       startDate,
       dueDate,
-      milestones
+      milestones,
+      keyResults,
+      weightage,
+      alignedTo,
+      tags
     } = body
 
-    // Validate required fields
     if (!employeeId || !title || !dueDate) {
       return NextResponse.json(
         { success: false, message: 'Employee ID, title, and due date are required' },
@@ -197,44 +166,57 @@ export async function POST(request) {
       )
     }
 
-    // Mock creation - replace with actual database save
-    const newGoal = {
-      _id: Date.now().toString(),
-      employee: {
-        _id: employeeId,
-        firstName: 'Mock',
-        lastName: 'Employee',
-        employeeCode: 'EMP999',
-        department: 'Mock Department'
-      },
+    const targetEmployee = await Employee.findById(employeeId).select('_id department')
+    if (!targetEmployee) {
+      return NextResponse.json(
+        { success: false, message: 'Employee not found' },
+        { status: 404 }
+      )
+    }
+
+    const creator = await Employee.findOne({ userId: decoded.userId }).select('_id')
+    if (!creator) {
+      return NextResponse.json(
+        { success: false, message: 'Creator employee profile not found' },
+        { status: 404 }
+      )
+    }
+
+    const newGoal = await PerformanceGoal.create({
+      employee: employeeId,
       title,
       description: description || '',
       category: category || 'General',
       priority: priority || 'medium',
-      status: 'not-started',
-      progress: 0,
-      startDate: startDate || new Date().toISOString(),
+      status: status || 'not-started',
+      progress: progress || 0,
+      startDate: startDate || new Date(),
       dueDate,
-      createdBy: {
-        _id: decoded.employeeId,
-        firstName: decoded.firstName || 'Manager',
-        lastName: decoded.lastName || 'Name'
-      },
-      milestones: milestones || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+      milestones: (milestones || []).filter(m => m.title?.trim()),
+      keyResults: keyResults || [],
+      weightage: weightage || 10,
+      alignedTo: alignedTo || 'individual',
+      tags: tags || [],
+      createdBy: creator._id,
+      department: targetEmployee.department
+    })
+
+    const populatedGoal = await PerformanceGoal.findById(newGoal._id)
+      .populate('employee', 'firstName lastName employeeCode email')
+      .populate('createdBy', 'firstName lastName')
+      .populate('department', 'name')
+      .lean()
 
     return NextResponse.json({
       success: true,
       message: 'Performance goal created successfully',
-      data: newGoal
+      data: populatedGoal
     }, { status: 201 })
 
   } catch (error) {
     console.error('Create performance goal error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
@@ -250,8 +232,10 @@ export async function PUT(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
+    await connectDB()
+
     const body = await request.json()
-    const { goalId, ...originalUpdateData } = body
+    const { goalId, ...updateData } = body
 
     if (!goalId) {
       return NextResponse.json(
@@ -260,28 +244,50 @@ export async function PUT(request) {
       )
     }
 
-    // Employees can update their own goal progress, managers can update all fields
-    const canUpdateAll = ['admin', 'hr', 'manager'].includes(decoded.role)
+    const goal = await PerformanceGoal.findById(goalId)
+    if (!goal) {
+      return NextResponse.json(
+        { success: false, message: 'Goal not found' },
+        { status: 404 }
+      )
+    }
 
-    let updateData = originalUpdateData
-    if (!canUpdateAll && decoded.role === 'employee') {
-      // Employees can only update progress and status
-      const allowedFields = ['progress', 'status']
-      const filteredUpdateData = {}
-      allowedFields.forEach(field => {
-        if (originalUpdateData[field] !== undefined) {
-          filteredUpdateData[field] = originalUpdateData[field]
+    const canUpdateAll = ['admin', 'hr', 'manager', 'department_head', 'god_admin'].includes(decoded.role)
+    const employee = await Employee.findOne({ userId: decoded.userId }).select('_id')
+
+    if (!canUpdateAll) {
+      if (!employee || goal.employee.toString() !== employee._id.toString()) {
+        return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
+      }
+      const allowedFields = ['progress', 'status', 'updates']
+      Object.keys(updateData).forEach(key => {
+        if (!allowedFields.includes(key)) {
+          delete updateData[key]
         }
       })
-      updateData = filteredUpdateData
     }
 
-    // Mock update - replace with actual database update
-    const updatedGoal = {
-      _id: goalId,
-      ...updateData,
-      updatedAt: new Date().toISOString()
+    if (updateData.progress === 100 && goal.status !== 'completed') {
+      updateData.status = 'completed'
+      updateData.completedAt = new Date()
     }
+
+    if (updateData.milestones) {
+      updateData.milestones = updateData.milestones.map(m => ({
+        ...m,
+        completedAt: m.completed && !m.completedAt ? new Date() : m.completedAt
+      }))
+    }
+
+    const updatedGoal = await PerformanceGoal.findByIdAndUpdate(
+      goalId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
+      .populate('employee', 'firstName lastName employeeCode email')
+      .populate('createdBy', 'firstName lastName')
+      .populate('department', 'name')
+      .lean()
 
     return NextResponse.json({
       success: true,
@@ -292,7 +298,7 @@ export async function PUT(request) {
   } catch (error) {
     console.error('Update performance goal error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: error.message || 'Internal server error' },
       { status: 500 }
     )
   }
@@ -308,10 +314,11 @@ export async function DELETE(request) {
       return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
     }
 
-    // Only admin, hr, and managers can delete goals
-    if (!['admin', 'hr', 'manager'].includes(decoded.role)) {
+    if (!['admin', 'hr', 'manager', 'department_head', 'god_admin'].includes(decoded.role)) {
       return NextResponse.json({ success: false, message: 'Access denied' }, { status: 403 })
     }
+
+    await connectDB()
 
     const { searchParams } = new URL(request.url)
     const goalId = searchParams.get('goalId')
@@ -323,7 +330,16 @@ export async function DELETE(request) {
       )
     }
 
-    // Mock deletion - replace with actual database deletion
+    const goal = await PerformanceGoal.findById(goalId)
+    if (!goal) {
+      return NextResponse.json(
+        { success: false, message: 'Goal not found' },
+        { status: 404 }
+      )
+    }
+
+    await PerformanceGoal.findByIdAndDelete(goalId)
+
     return NextResponse.json({
       success: true,
       message: 'Performance goal deleted successfully'
@@ -332,7 +348,7 @@ export async function DELETE(request) {
   } catch (error) {
     console.error('Delete performance goal error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: error.message || 'Internal server error' },
       { status: 500 }
     )
   }

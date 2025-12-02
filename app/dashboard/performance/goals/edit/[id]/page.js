@@ -44,26 +44,38 @@ export default function EditGoalPage() {
 
   const fetchGoal = async () => {
     try {
-      // Mock data for now - replace with actual API call
-      const mockGoal = {
-        _id: params.id,
-        employeeId: 'emp1',
-        title: 'Complete Project Alpha',
-        description: 'Lead the development of Project Alpha and deliver on time',
-        category: 'Project Management',
-        priority: 'high',
-        status: 'in-progress',
-        progress: 75,
-        startDate: '2024-01-01',
-        dueDate: '2025-03-31',
-        milestones: [
-          { title: 'Requirements Gathering', description: 'Complete stakeholder interviews', dueDate: '2024-02-15', completed: true },
-          { title: 'System Design', description: 'Create technical architecture', dueDate: '2024-03-30', completed: true },
-          { title: 'Development Phase 1', description: 'Implement core functionality', dueDate: '2024-06-30', completed: false }
-        ]
-      }
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/performance/goals?goalId=' + params.id, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+
+      const data = await response.json()
       
-      setFormData(mockGoal)
+      if (data.success && data.data) {
+        const goal = data.data
+        setFormData({
+          employeeId: goal.employee?._id || goal.employee || '',
+          title: goal.title || '',
+          description: goal.description || '',
+          category: goal.category || '',
+          priority: goal.priority || 'medium',
+          status: goal.status || 'not-started',
+          progress: goal.progress || 0,
+          startDate: goal.startDate ? new Date(goal.startDate).toISOString().split('T')[0] : '',
+          dueDate: goal.dueDate ? new Date(goal.dueDate).toISOString().split('T')[0] : '',
+          milestones: goal.milestones && goal.milestones.length > 0 
+            ? goal.milestones.map(m => ({
+                title: m.title || '',
+                description: m.description || '',
+                dueDate: m.dueDate ? new Date(m.dueDate).toISOString().split('T')[0] : '',
+                completed: m.completed || false
+              }))
+            : [{ title: '', description: '', dueDate: '', completed: false }]
+        })
+      } else {
+        toast.error(data.message || 'Goal not found')
+        router.push('/dashboard/performance/goals')
+      }
     } catch (error) {
       console.error('Fetch goal error:', error)
       toast.error('Failed to fetch goal details')
@@ -124,13 +136,15 @@ export default function EditGoalPage() {
     setLoading(true)
     
     try {
-      const response = await fetch(`/api/performance/goals/${params.id}`, {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/performance/goals', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': 'Bearer ' + token
         },
         body: JSON.stringify({
+          goalId: params.id,
           ...formData,
           milestones: formData.milestones.filter(m => m.title.trim())
         })
@@ -140,7 +154,7 @@ export default function EditGoalPage() {
       
       if (data.success) {
         toast.success('Goal updated successfully')
-        router.push(`/dashboard/performance/goals/${params.id}`)
+        router.push('/dashboard/performance/goals/' + params.id)
       } else {
         toast.error(data.message || 'Failed to update goal')
       }

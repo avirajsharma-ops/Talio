@@ -55,8 +55,8 @@ export async function POST(request) {
       })
     }
 
-    // Check if user has permission (admin, hr, department_head role, or is a department head)
-    const hasPermission = ['admin', 'hr', 'department_head'].includes(decoded.role) ||
+    // Check if user has permission (admin, hr, god_admin, department_head role, or is a department head)
+    const hasPermission = ['admin', 'hr', 'god_admin', 'department_head'].includes(decoded.role) ||
                          !!userDepartment
 
     console.log('[Notifications] Permission check:', {
@@ -117,15 +117,15 @@ export async function POST(request) {
     const isDeptHead = decoded.role === 'department_head' || !!userDepartment
 
     // Department heads need an employee record to send notifications
-    if (isDeptHead && !['admin', 'hr'].includes(decoded.role) && !currentEmployee) {
+    if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && !currentEmployee) {
       return NextResponse.json(
         { success: false, message: 'Employee record not found. Please contact administrator.' },
         { status: 403 }
       )
     }
 
-    // Department heads (non-admin/hr) cannot use 'department' or 'role' target types
-    if (isDeptHead && !['admin', 'hr'].includes(decoded.role)) {
+    // Department heads (non-admin/hr/god_admin) cannot use 'department' or 'role' target types
+    if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role)) {
       if (targetType === 'department') {
         return NextResponse.json(
           { success: false, message: 'Department heads can only send to their own department members' },
@@ -145,7 +145,7 @@ export async function POST(request) {
 
     if (targetType === 'all') {
       // Department heads can only send to their department
-      if (isDeptHead && !['admin', 'hr'].includes(decoded.role)) {
+      if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role)) {
         const deptEmployees = await Employee.find({
           department: userDepartment._id,
           status: 'active'
@@ -162,7 +162,7 @@ export async function POST(request) {
     } else if (targetType === 'department') {
       // Department heads can only send to their own department
       let deptId = targetDepartment
-      if (isDeptHead && !['admin', 'hr'].includes(decoded.role)) {
+      if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role)) {
         deptId = userDepartment._id
       }
 
@@ -183,7 +183,7 @@ export async function POST(request) {
       }
 
       // Department heads can only send to users in their department
-      if (isDeptHead && !['admin', 'hr'].includes(decoded.role)) {
+      if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role)) {
         const deptEmployees = await Employee.find({
           department: userDepartment._id,
           status: 'active'
@@ -212,7 +212,7 @@ export async function POST(request) {
       }
 
       // Department heads can only send to users in their department
-      if (isDeptHead && !['admin', 'hr'].includes(decoded.role)) {
+      if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role)) {
         const deptEmployees = await Employee.find({
           department: userDepartment._id,
           status: 'active'
@@ -259,7 +259,7 @@ export async function POST(request) {
         message,
         url: url || '/dashboard',
         targetType,
-        targetDepartment: targetType === 'department' ? (isDeptHead && !['admin', 'hr'].includes(decoded.role) && userDepartment ? userDepartment._id : targetDepartment) : null,
+        targetDepartment: targetType === 'department' ? (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && userDepartment ? userDepartment._id : targetDepartment) : null,
         targetUsers: targetType === 'specific' ? userIds : [],
         targetRoles: targetType === 'role' ? targetRoles : [],
         scheduledFor: new Date(scheduledFor),
@@ -366,6 +366,30 @@ export async function POST(request) {
         { success: false, message: 'Failed to send notifications' },
         { status: 500 }
       )
+    }
+
+    // Save to ScheduledNotification for history tracking (immediate send)
+    try {
+      const ScheduledNotification = (await import('@/models/ScheduledNotification')).default
+      await ScheduledNotification.create({
+        title,
+        message,
+        url: url || '/dashboard',
+        targetType,
+        targetDepartment: targetType === 'department' ? (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && userDepartment ? userDepartment._id : targetDepartment) : null,
+        targetUsers: targetType === 'specific' ? userIds : [],
+        targetRoles: targetType === 'role' ? targetRoles : [],
+        scheduledFor: now,
+        sentAt: now,
+        createdBy: currentEmployee ? currentEmployee._id : decoded.userId,
+        createdByRole: decoded.role,
+        recipientCount: userIds.length,
+        status: 'sent'
+      })
+      console.log('[History] Saved notification to history')
+    } catch (historyError) {
+      console.error('[History] Error saving to history:', historyError)
+      // Don't fail the request if history save fails
     }
 
     return NextResponse.json({

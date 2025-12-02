@@ -7,7 +7,8 @@ import {
   FaTimes,
   FaUsers,
   FaCog,
-  FaSignOutAlt
+  FaSignOutAlt,
+  FaComments
 } from 'react-icons/fa'
 import { useState, useEffect, useMemo } from 'react'
 import { getMenuItemsForRole } from '@/utils/roleBasedMenus'
@@ -249,7 +250,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     }}
                   >
                     <item.icon className="w-4 h-4" />
-                    {item.name === 'Messages' && unreadCount > 0 && (
+                    {item.name === 'Chat' && unreadCount > 0 && (
                       <UnreadBadge count={unreadCount} />
                     )}
                   </div>

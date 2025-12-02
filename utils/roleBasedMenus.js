@@ -4,7 +4,7 @@ import {
   FaBox, FaReceipt, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
   FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
-  FaThLarge, FaTasks
+  FaThLarge, FaTasks, FaComments
 } from 'react-icons/fa'
 
 // Define menu items for each role
@@ -14,6 +14,7 @@ export const roleBasedMenus = {
   // ADMIN - Full access to everything
   admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -116,6 +117,7 @@ export const roleBasedMenus = {
   // HR - HR management focused
   hr: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -194,6 +196,8 @@ export const roleBasedMenus = {
   // MANAGER - Team management focused
   manager: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -237,6 +241,8 @@ export const roleBasedMenus = {
   // EMPLOYEE - Personal focused
   employee: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -280,6 +286,8 @@ export const roleBasedMenus = {
   // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
   department_head: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -325,6 +333,8 @@ export const roleBasedMenus = {
   // GOD ADMIN - Supreme access
   god_admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
+    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',

@@ -23,36 +23,51 @@ export async function GET(request) {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET)
     const { payload: decoded } = await jwtVerify(token, secret)
 
+    // Get query params
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status') // 'pending', 'sent', 'cancelled', 'failed'
+
+    // Get current user employee
+    const currentUser = await User.findById(decoded.userId).populate('employeeId')
+    let currentEmployee = null
+    if (currentUser && currentUser.employeeId) {
+      currentEmployee = await Employee.findById(currentUser.employeeId)
+    }
+
+    const isDeptHead = decoded.role === 'department_head' || currentEmployee?.isDepartmentHead
+
     // Check if user has permission
-    if (!['admin', 'hr', 'department_head'].includes(decoded.role)) {
+    if (!['admin', 'hr', 'god_admin'].includes(decoded.role) && !isDeptHead) {
       return NextResponse.json(
         { success: false, message: 'You do not have permission to view scheduled notifications' },
         { status: 403 }
       )
     }
 
-    const currentUser = await User.findById(decoded.userId).populate('employeeId')
-    const currentEmployee = await Employee.findById(currentUser.employeeId)
-
     // Build query based on role
     let query = {}
     
-    if (decoded.role === 'department_head') {
+    // Add status filter if provided
+    if (status) {
+      query.status = status
+    }
+    
+    if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && currentEmployee) {
       // Department heads can only see their own scheduled notifications
       query.createdBy = currentEmployee._id
-    } else if (decoded.role === 'hr') {
+    } else if (decoded.role === 'hr' && currentEmployee) {
       // HR can see their own and department-specific notifications
       query.$or = [
         { createdBy: currentEmployee._id },
         { targetDepartment: currentEmployee.department }
       ]
     }
-    // Admin can see all (no filter)
+    // Admin can see all (no role-based filter)
 
     const notifications = await ScheduledNotification.find(query)
       .populate('createdBy', 'firstName lastName')
       .populate('targetDepartment', 'name')
-      .sort({ scheduledFor: 1 })
+      .sort({ scheduledFor: status === 'sent' ? -1 : 1 }) // Sent: most recent first; Others: soonest first
 
     return NextResponse.json({
       success: true,

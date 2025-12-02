@@ -622,7 +622,7 @@ export default function ChatPage() {
   return (
     <>
       {/* Header - Hide on mobile when chat is selected, always show on desktop */}
-      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} fixed top-[72px] left-0 right-0 z-[45] bg-white md:relative md:top-auto md:left-auto md:right-auto md:z-auto md:px-0 md:pt-0 md:pb-0 md:mb-4 items-center justify-between md:bg-transparent md:page-container shadow-sm md:shadow-none`}>
+      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} fixed top-[72px] left-0 right-0 z-[45]  md:relative md:top-auto md:left-auto md:right-auto md:z-auto md:px-0 md:pt-0 md:pb-0 md:mb-4 items-center justify-between md:bg-transparent md:page-container shadow-sm md:shadow-none`}>
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Chat</h1>
           <p className="text-xs md:text-sm lg:text-base text-gray-600 mt-1">Connect with your team</p>
@@ -1053,7 +1053,7 @@ export default function ChatPage() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-50">
+              <div className="flex-1 flex items-center justify-center text-gray-400 ">
                 <div className="text-center">
                   <FaComments className="text-6xl mx-auto mb-4 opacity-30" />
                   <p className="text-base text-gray-400">Select a chat to start messaging</p>

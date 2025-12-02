@@ -463,29 +463,9 @@ export default function Header({ toggleSidebar }) {
 
         {/* Right side */}
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1 justify-end">
-          {/* Chat Button - Desktop Only */}
-          <div className="relative hidden md:block">
-            <button
-              onClick={() => router.push('/dashboard/chat')}
-              className="flex items-center gap-2 px-3.5 py-3 rounded-lg transition-colors border-[1px] border-gray-300"
-              style={{
-                color: 'var(--color-text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = primaryColor
-                e.currentTarget.style.backgroundColor = primaryLight
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--color-text-secondary)'
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-            >
-              <FaComments className="w-5 h-5" />
-              <span className="text-sm font-medium">Chat</span>
-            </button>
-            {unreadCount > 0 && (
-              <UnreadBadge count={unreadCount} className="top-1 right-1" />
-            )}
+          {/* Real-time Clock - Desktop Only */}
+          <div className="hidden md:flex items-center gap-2 px-4 py-2.5 " style={{ color: 'var(--color-text-secondary)' }}>
+            <RealTimeClock />
           </div>
 
           {/* PWA Status - Hidden */}
@@ -780,3 +760,43 @@ export default function Header({ toggleSidebar }) {
   )
 }
 
+// Real-time Clock Component
+function RealTimeClock() {
+  const [time, setTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    })
+  }
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        {formatTime(time)}
+      </div>
+      <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+        {formatDate(time)}
+      </div>
+    </div>
+  )
+}

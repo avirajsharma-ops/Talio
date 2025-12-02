@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FaBell, FaClock, FaRedo, FaPaperPlane, FaUsers, FaBuilding, FaUserTag, FaCalendar, FaTrash, FaEdit, FaPause, FaPlay, FaHistory } from 'react-icons/fa'
+import { FaBell, FaClock, FaRedo, FaPaperPlane, FaUsers, FaBuilding, FaUserTag, FaCalendar, FaTrash, FaEdit, FaPause, FaPlay, FaHistory, FaCheck, FaTimes, FaChevronDown, FaSync } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 
 export default function NotificationManagement() {
@@ -86,7 +86,7 @@ export default function NotificationManagement() {
   }
 
   // Check if user has access
-  const hasAccess = ['admin', 'hr', 'department_head'].includes(userRole) || isDepartmentHead
+  const hasAccess = ['admin', 'hr', 'department_head', 'god_admin'].includes(userRole) || isDepartmentHead
 
   if (loading) {
     return (
@@ -112,11 +112,6 @@ export default function NotificationManagement() {
     { id: 'history', name: 'History', icon: FaHistory }
   ]
 
-  // Add config tab for admin only
-  if (userRole === 'admin') {
-    tabs.push({ id: 'config', name: 'Configuration', icon: FaBell })
-  }
-
   return (
     <div>
       {/* Header */}
@@ -129,7 +124,7 @@ export default function NotificationManagement() {
       </div>
 
       {/* Firebase Status Banner */}
-      {!checkingApiKey && !apiKeyConfigured && userRole === 'admin' && (
+      {!checkingApiKey && !apiKeyConfigured && (
         <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
@@ -155,8 +150,8 @@ export default function NotificationManagement() {
         </div>
       )}
 
-      {/* Firebase Configured Success Banner */}
-      {!checkingApiKey && apiKeyConfigured && userRole === 'admin' && (
+      {/* Firebase Configured Success Banner - Admin only */}
+      {!checkingApiKey && apiKeyConfigured && ['admin', 'god_admin'].includes(userRole) && (
         <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
@@ -169,7 +164,7 @@ export default function NotificationManagement() {
                 Firebase Cloud Messaging is Active
               </h3>
               <p className="mt-1 text-sm text-green-700">
-                Your Firebase integration is configured and ready to send push notifications.
+                Push notifications are configured and ready to send.
               </p>
             </div>
           </div>
@@ -208,7 +203,6 @@ export default function NotificationManagement() {
         {activeTab === 'scheduled' && <ScheduledNotificationsTab userRole={userRole} userDepartment={userDepartment} isDepartmentHead={isDepartmentHead} />}
         {activeTab === 'recurring' && <RecurringNotificationsTab userRole={userRole} userDepartment={userDepartment} isDepartmentHead={isDepartmentHead} />}
         {activeTab === 'history' && <NotificationHistoryTab userRole={userRole} userDepartment={userDepartment} isDepartmentHead={isDepartmentHead} />}
-        {activeTab === 'config' && userRole === 'admin' && <ConfigurationTab apiKeyConfigured={apiKeyConfigured} onConfigUpdate={checkApiKeyStatus} />}
       </div>
     </div>
   )
@@ -230,11 +224,26 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
   const [sending, setSending] = useState(false)
   const [departments, setDepartments] = useState([])
   const [employees, setEmployees] = useState([])
+  const [employeePage, setEmployeePage] = useState(1)
+  const [employeeHasMore, setEmployeeHasMore] = useState(true)
+  const [employeeLoading, setEmployeeLoading] = useState(false)
+
+  // Check if user is admin/hr/god_admin
+  const isAdminOrHR = ['admin', 'hr', 'god_admin'].includes(userRole)
+  const isDeptHead = isDepartmentHead || userRole === 'department_head'
 
   useEffect(() => {
     fetchDepartments()
-    fetchEmployees()
-  }, [isDepartmentHead, userRole, userDepartment])
+  }, [])
+
+  // Fetch employees when component loads or when relevant props change
+  useEffect(() => {
+    // Only fetch employees if userRole is set (wait for parent to load user data)
+    if (userRole) {
+      console.log('Fetching employees - userRole:', userRole, 'isDeptHead:', isDeptHead, 'isAdminOrHR:', isAdminOrHR, 'userDepartment:', userDepartment)
+      fetchEmployees(1, false)
+    }
+  }, [userRole, userDepartment, isDepartmentHead])
 
   const fetchDepartments = async () => {
     try {
@@ -251,32 +260,42 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
     }
   }
 
-  const [employeePage, setEmployeePage] = useState(1)
-  const [employeeHasMore, setEmployeeHasMore] = useState(true)
-  const [employeeLoading, setEmployeeLoading] = useState(false)
-
   const fetchEmployees = async (page = 1, append = false) => {
     try {
       setEmployeeLoading(true)
       const token = localStorage.getItem('token')
+      
+      if (!token) {
+        console.error('No token found - cannot fetch employees')
+        return
+      }
 
-      // Build URL with department filter if department head
+      // Build URL with department filter if department head (not admin/hr/god_admin)
       let url = `/api/employees?limit=50&page=${page}&status=active`
-      if (isDepartmentHead && !['admin', 'hr'].includes(userRole) && userDepartment) {
+      if (isDeptHead && !isAdminOrHR && userDepartment) {
         url += `&department=${userDepartment}`
         console.log('Fetching employees for department:', userDepartment)
       }
 
+      console.log('Fetching employees from URL:', url)
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      if (!response.ok) {
+        console.error('Employees API error:', response.status, response.statusText)
+        toast.error('Failed to load employees - please refresh the page')
+        return
+      }
+      
       const data = await response.json()
       console.log('Employees API response:', {
         success: data.success,
         count: data.data?.length,
         page,
         total: data.pagination?.total,
-        isDepartmentHead,
+        isDeptHead,
+        isAdminOrHR,
         userDepartment,
         userRole
       })
@@ -293,6 +312,9 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
         // Check if there are more pages
         setEmployeeHasMore(data.pagination.page < data.pagination.pages)
         setEmployeePage(page)
+      } else {
+        console.error('Employees API returned success: false', data.message)
+        toast.error(data.message || 'Failed to load employees')
       }
     } catch (error) {
       console.error('Error fetching employees:', error)
@@ -347,8 +369,6 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
       setSending(false)
     }
   }
-
-  const isDeptHead = userRole === 'department_head' || isDepartmentHead
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -480,14 +500,14 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
             onChange={(e) => setFormData({ ...formData, targetType: e.target.value })}
             className="w-full px-3 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           >
-            <option value="all">{isDeptHead && !['admin', 'hr'].includes(userRole) ? 'All Department Members' : 'All Employees'}</option>
-            {!isDeptHead && <option value="department">Specific Department</option>}
-            {!isDeptHead && <option value="role">Specific Role</option>}
+            <option value="all">{isDeptHead && !isAdminOrHR ? 'All Department Members' : 'All Employees'}</option>
+            {isAdminOrHR && <option value="department">Specific Department</option>}
+            {isAdminOrHR && <option value="role">Specific Role</option>}
             <option value="specific">Specific Users</option>
           </select>
         </div>
 
-        {formData.targetType === 'department' && !isDeptHead && (
+        {formData.targetType === 'department' && isAdminOrHR && (
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Select Department
@@ -551,7 +571,7 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
               <div className="p-3 sm:p-4 max-h-64 sm:max-h-96 overflow-y-auto">
                 {employees.length === 0 && !employeeLoading ? (
                   <p className="text-xs sm:text-sm text-gray-500 text-center py-4">
-                    {isDeptHead && !['admin', 'hr'].includes(userRole) ? 'No employees found in your department' : 'No employees found'}
+                    {isDeptHead && !isAdminOrHR ? 'No employees found in your department' : 'No employees found'}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -684,26 +704,33 @@ function SendNotificationTab({ userRole, userDepartment, isDepartmentHead, apiKe
 function ScheduledNotificationsTab({ userRole, userDepartment, isDepartmentHead }) {
   const [scheduledNotifications, setScheduledNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     fetchScheduledNotifications()
   }, [])
 
-  const fetchScheduledNotifications = async () => {
+  const fetchScheduledNotifications = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true)
       const token = localStorage.getItem('token')
       const response = await fetch('/api/notifications/scheduled', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
       if (data.success) {
-        setScheduledNotifications(data.data)
+        // Filter only pending notifications
+        const pending = data.data.filter(n => n.status === 'pending')
+        // Sort by scheduled date (soonest first)
+        pending.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor))
+        setScheduledNotifications(pending)
       }
     } catch (error) {
       console.error('Error fetching scheduled notifications:', error)
       toast.error('Failed to load scheduled notifications')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -729,6 +756,34 @@ function ScheduledNotificationsTab({ userRole, userDepartment, isDepartmentHead 
     }
   }
 
+  const getTargetLabel = (notification) => {
+    if (notification.targetType === 'all') return 'All Employees'
+    if (notification.targetType === 'department') return notification.targetDepartment?.name || 'Department'
+    if (notification.targetType === 'role') return `Roles: ${notification.targetRoles?.join(', ') || 'N/A'}`
+    if (notification.targetType === 'specific') return `${notification.targetUsers?.length || 0} User(s)`
+    return 'Unknown'
+  }
+
+  const getTimeRemaining = (scheduledFor) => {
+    const now = new Date()
+    const scheduled = new Date(scheduledFor)
+    const diff = scheduled - now
+
+    if (diff <= 0) return 'Sending soon...'
+
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hours > 24) {
+      const days = Math.floor(hours / 24)
+      return `${days} day${days > 1 ? 's' : ''} left`
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m left`
+    }
+    return `${minutes}m left`
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -740,45 +795,57 @@ function ScheduledNotificationsTab({ userRole, userDepartment, isDepartmentHead 
 
   if (scheduledNotifications.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
         <FaClock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Scheduled Notifications</h3>
-        <p className="text-gray-500">You haven't scheduled any notifications yet</p>
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Pending Notifications</h3>
+        <p className="text-gray-500">Schedule a notification from the "Send Notification" tab</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Pending Notifications ({scheduledNotifications.length})
+        </h3>
+        <button
+          onClick={() => fetchScheduledNotifications(true)}
+          disabled={refreshing}
+          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          title="Refresh"
+        >
+          <FaSync className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
       {scheduledNotifications.map((notification) => (
-        <div key={notification._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-800">{notification.title}</h4>
-              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-              <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
-                <span className="flex items-center space-x-1">
+        <div key={notification._id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900">{notification.title}</h4>
+              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                <span className="flex items-center gap-1 text-gray-500">
                   <FaClock className="w-3 h-3" />
-                  <span>Scheduled: {new Date(notification.scheduledFor).toLocaleString()}</span>
+                  <span>{new Date(notification.scheduledFor).toLocaleString()}</span>
                 </span>
-                <span className={`px-2 py-1 rounded-full ${
-                  notification.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  notification.status === 'sent' ? 'bg-green-100 text-green-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {notification.status}
+                <span className="flex items-center gap-1 text-gray-500">
+                  <FaUsers className="w-3 h-3" />
+                  <span>{getTargetLabel(notification)}</span>
+                </span>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium">
+                  {getTimeRemaining(notification.scheduledFor)}
                 </span>
               </div>
             </div>
-            {notification.status === 'pending' && (
-              <button
-                onClick={() => handleCancel(notification._id)}
-                className="ml-4 px-3 py-1 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors flex items-center space-x-1"
-              >
-                <FaTrash className="w-3 h-3" />
-                <span>Cancel</span>
-              </button>
-            )}
+            <button
+              onClick={() => handleCancel(notification._id)}
+              className="px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"
+            >
+              <FaTimes className="w-3 h-3" />
+              <span>Cancel</span>
+            </button>
           </div>
         </div>
       ))}
@@ -1430,27 +1497,42 @@ function RecurringNotificationsTab({ userRole, userDepartment, isDepartmentHead 
 function NotificationHistoryTab({ userRole, userDepartment, isDepartmentHead }) {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     fetchHistory()
   }, [])
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true)
       const token = localStorage.getItem('token')
       const response = await fetch('/api/notifications/scheduled?status=sent', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
       if (data.success) {
-        setHistory(data.data)
+        // Sort by sentAt date (most recent first)
+        const sortedData = data.data.sort((a, b) => 
+          new Date(b.sentAt || b.scheduledFor) - new Date(a.sentAt || a.scheduledFor)
+        )
+        setHistory(sortedData)
       }
     } catch (error) {
       console.error('Error fetching history:', error)
       toast.error('Failed to load notification history')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
+  }
+
+  const getTargetLabel = (notification) => {
+    if (notification.targetType === 'all') return 'All Employees'
+    if (notification.targetType === 'department') return notification.targetDepartment?.name || 'Department'
+    if (notification.targetType === 'role') return `Roles: ${notification.targetRoles?.join(', ') || 'N/A'}`
+    if (notification.targetType === 'specific') return `${notification.recipientCount || notification.targetUsers?.length || 0} User(s)`
+    return 'Unknown'
   }
 
   if (loading) {
@@ -1464,33 +1546,56 @@ function NotificationHistoryTab({ userRole, userDepartment, isDepartmentHead }) 
 
   if (history.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
         <FaHistory className="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-700 mb-2">No Notification History</h3>
-        <p className="text-gray-500">No notifications have been sent yet</p>
+        <p className="text-gray-500">Sent notifications will appear here</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Sent Notifications ({history.length})
+        </h3>
+        <button
+          onClick={() => fetchHistory(true)}
+          disabled={refreshing}
+          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          title="Refresh"
+        >
+          <FaRedo className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
       {history.map((notification) => (
-        <div key={notification._id} className="border border-gray-200 rounded-lg p-4">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-800">{notification.title}</h4>
-              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-              <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
-                <span className="flex items-center space-x-1">
+        <div key={notification._id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900">{notification.title}</h4>
+              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                <span className="flex items-center gap-1 text-gray-500">
                   <FaClock className="w-3 h-3" />
-                  <span>Sent: {new Date(notification.sentAt).toLocaleString()}</span>
+                  <span>Sent: {new Date(notification.sentAt || notification.scheduledFor).toLocaleString()}</span>
                 </span>
-                <span className="text-green-600">
-                  ✓ {notification.successCount || 0} delivered
+                <span className="flex items-center gap-1 text-gray-500">
+                  <FaUsers className="w-3 h-3" />
+                  <span>{getTargetLabel(notification)}</span>
                 </span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium">
+                  ✓ Sent
+                </span>
+                {notification.successCount !== undefined && notification.successCount > 0 && (
+                  <span className="text-green-600 font-medium">
+                    {notification.successCount} delivered
+                  </span>
+                )}
                 {notification.failureCount > 0 && (
-                  <span className="text-red-600">
-                    ✗ {notification.failureCount} failed
+                  <span className="text-red-600 font-medium">
+                    {notification.failureCount} failed
                   </span>
                 )}
               </div>
@@ -1664,4 +1769,3 @@ function ConfigurationTab({ apiKeyConfigured, onConfigUpdate }) {
     </div>
   )
 }
-
