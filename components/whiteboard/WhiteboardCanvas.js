@@ -6,7 +6,34 @@ import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperat
 const generateId = () => `obj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 const getMidpoint = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
 
+// Helper to measure text dimensions
+const measureText = (text, fontSize, fontFamily, fontWeight) => {
+  const size = fontSize || 16;
+  if (!text) return { width: 100, height: size * 1.4 };
+  
+  // Create a temporary canvas for measuring
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = `${fontWeight || 'normal'} ${size}px '${fontFamily || 'Poppins'}', system-ui, sans-serif`;
+  
+  const lines = text.split('\n');
+  const lineHeight = size * 1.4;
+  let maxWidth = 0;
+  
+  lines.forEach(line => {
+    const metrics = ctx.measureText(line);
+    maxWidth = Math.max(maxWidth, metrics.width);
+  });
+  
+  return {
+    width: Math.max(maxWidth + 24, 60), // Add padding and minimum width
+    height: Math.max(lines.length * lineHeight + 10, size * 1.4)
+  };
+};
+
 const getBoundingBox = (obj) => {
+  if (!obj) return { x: 0, y: 0, width: 0, height: 0 };
+  
   if (obj.type === 'pencil' || obj.type === 'line' || obj.type.includes('rrow')) {
     if (!obj.points || obj.points.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
     const xs = obj.points.map(p => p.x);
@@ -15,7 +42,33 @@ const getBoundingBox = (obj) => {
     const minY = Math.min(...ys);
     return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
   }
-  return { x: obj.x, y: obj.y, width: obj.width || 0, height: obj.height || 0 };
+  
+  // Ensure x and y have default values
+  const x = obj.x ?? 0;
+  const y = obj.y ?? 0;
+  
+  // For text objects, calculate dimensions based on actual text content and font size
+  if (obj.type === 'text') {
+    const measured = measureText(obj.text, obj.fontSize, obj.fontFamily, obj.fontWeight);
+    return { 
+      x, 
+      y, 
+      width: Math.max(obj.width || 0, measured.width, 50),
+      height: Math.max(obj.height || 0, measured.height, 20)
+    };
+  }
+  
+  // For sticky notes, ensure minimum dimensions
+  if (obj.type === 'sticky') {
+    return {
+      x,
+      y,
+      width: obj.width || 200,
+      height: obj.height || 200
+    };
+  }
+  
+  return { x, y, width: obj.width || 0, height: obj.height || 0 };
 };
 
 // FigJam-style color palette
@@ -92,6 +145,39 @@ const WhiteboardCanvas = forwardRef(({
   const [fontSize, setFontSize] = useState(18);
   const [fontWeight, setFontWeight] = useState('normal');
   const [textColor, setTextColor] = useState('#1a1a1a');
+  const [fontFamily, setFontFamily] = useState('Poppins');
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [debouncedPanelPosition, setDebouncedPanelPosition] = useState(null);
+  const panelPositionTimeoutRef = useRef(null);
+  
+  // Font options for text/sticky notes
+  const FONT_OPTIONS = [
+    { name: 'Poppins', label: 'Aa', displayName: 'Poppins', style: 'sans-serif' },
+    { name: 'Caveat', label: 'Aa', displayName: 'Caveat', style: 'handwriting' },
+    { name: 'Dancing Script', label: 'Aa', displayName: 'Dancing', style: 'handwriting' },
+    { name: 'Indie Flower', label: 'Aa', displayName: 'Indie', style: 'handwriting' },
+    { name: 'Patrick Hand', label: 'Aa', displayName: 'Patrick', style: 'handwriting' },
+    { name: 'Shadows Into Light', label: 'Aa', displayName: 'Shadows', style: 'handwriting' },
+  ];
+  
+  // Load Google Fonts for canvas rendering
+  useEffect(() => {
+    const fontLink = document.createElement('link');
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Indie+Flower&family=Patrick+Hand&family=Poppins:wght@400;500;600;700&family=Shadows+Into+Light&display=swap';
+    fontLink.rel = 'stylesheet';
+    document.head.appendChild(fontLink);
+    
+    // Wait for fonts to load
+    document.fonts.ready.then(() => {
+      setFontsLoaded(true);
+    });
+    
+    return () => {
+      if (fontLink.parentNode) {
+        document.head.removeChild(fontLink);
+      }
+    };
+  }, []);
   
   const [touchStartDistance, setTouchStartDistance] = useState(null);
   const [touchStartZoom, setTouchStartZoom] = useState(1);
@@ -102,6 +188,7 @@ const WhiteboardCanvas = forwardRef(({
   const [isDirty, setIsDirty] = useState(false);
   const saveTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const imageCache = useRef(new Map()); // Cache for loaded images
   
   // AI Analysis state
   const [showAIPanel, setShowAIPanel] = useState(false);
@@ -117,10 +204,65 @@ const WhiteboardCanvas = forwardRef(({
   const [animatingIds, setAnimatingIds] = useState(new Set());
   const [animationProgress, setAnimationProgress] = useState({});
   const [isAnimatingZoom, setIsAnimatingZoom] = useState(false);
+  const [isScanningCanvas, setIsScanningCanvas] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState(0); // Trigger redraw when images load
 
   const currentPage = pages[currentPageIndex];
   const objects = currentPage?.objects || [];
   const isReadOnly = permission === 'view_only';
+
+  // Clear selection when board/page changes to avoid stale references
+  useEffect(() => {
+    setSelectedIds([]);
+    setResizeHandle(null);
+    setDragStart(null);
+    setIsDrawing(false);
+    setShowElementOptions(false);
+    setDebouncedPanelPosition(null);
+  }, [boardId, currentPageIndex]);
+
+  // Reset debounced panel position when selection changes
+  useEffect(() => {
+    setDebouncedPanelPosition(null);
+    // Clear any pending timeout
+    if (panelPositionTimeoutRef.current) {
+      clearTimeout(panelPositionTimeoutRef.current);
+    }
+  }, [selectedIds.length > 0 ? selectedIds.join(',') : '']);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (panelPositionTimeoutRef.current) {
+        clearTimeout(panelPositionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Preload images when objects change
+  useEffect(() => {
+    const imageObjects = objects.filter(obj => obj.type === 'image' && obj.image);
+    let loadedCount = 0;
+    
+    imageObjects.forEach(obj => {
+      if (!imageCache.current.has(obj.image)) {
+        const img = new Image();
+        img.onload = () => {
+          imageCache.current.set(obj.image, img);
+          loadedCount++;
+          if (loadedCount === imageObjects.length) {
+            setImagesLoaded(prev => prev + 1); // Trigger redraw
+          }
+        };
+        img.onerror = () => {
+          console.error('Failed to load image:', obj.image?.substring(0, 50));
+          loadedCount++;
+        };
+        img.src = obj.image;
+      }
+    });
+  }, [objects]);
 
   // Helper to close all property panels
   const closeAllPanels = useCallback(() => {
@@ -337,7 +479,7 @@ const WhiteboardCanvas = forwardRef(({
     }
     
     ctx.restore();
-  }, [objects, currentPath, selectedIds, selectionBox, showGrid, zoom, panX, panY, tool, eraserRadius, lastCanvasPoint, eraserPreviewPath, animatingIds, animationProgress]);
+  }, [objects, currentPath, selectedIds, selectionBox, showGrid, zoom, panX, panY, tool, eraserRadius, lastCanvasPoint, eraserPreviewPath, animatingIds, animationProgress, imagesLoaded]);
 
   const drawObject = useCallback((ctx, obj) => {
     ctx.save();
@@ -636,8 +778,9 @@ const WhiteboardCanvas = forwardRef(({
         
         // Calculate required height based on text content
         let calculatedHeight = obj.height || 120;
+        const objFontFamily = obj.fontFamily || 'Poppins';
         if (obj.text) {
-          ctx.font = `${obj.fontWeight || 'normal'} ${fontSize}px Inter, system-ui, sans-serif`;
+          ctx.font = `${obj.fontWeight || 'normal'} ${fontSize}px '${objFontFamily}', system-ui, sans-serif`;
           const maxWidth = stickyWidth - padding * 2;
           const words = obj.text.split(/\s+/);
           let line = '';
@@ -668,7 +811,7 @@ const WhiteboardCanvas = forwardRef(({
         // Draw text with word wrap
         if (obj.text) {
           ctx.fillStyle = obj.strokeColor || '#1a1a1a';
-          ctx.font = `${obj.fontWeight || 'normal'} ${fontSize}px Inter, system-ui, sans-serif`;
+          ctx.font = `${obj.fontWeight || 'normal'} ${fontSize}px '${objFontFamily}', system-ui, sans-serif`;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
           
@@ -693,7 +836,8 @@ const WhiteboardCanvas = forwardRef(({
         break;
         
       case 'text':
-        ctx.font = `${obj.fontWeight || 'normal'} ${obj.fontSize || 16}px Inter, system-ui, sans-serif`;
+        const textFontFamily = obj.fontFamily || 'Poppins';
+        ctx.font = `${obj.fontWeight || 'normal'} ${obj.fontSize || 16}px '${textFontFamily}', system-ui, sans-serif`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = obj.strokeColor || strokeColor;
@@ -708,10 +852,35 @@ const WhiteboardCanvas = forwardRef(({
       case 'image':
         if (obj.image) {
           try {
-            const img = new Image();
-            img.src = obj.image;
-            if (img.complete) {
+            // Use cached image if available
+            let img = imageCache.current.get(obj.image);
+            if (img && img.complete && img.naturalWidth > 0) {
               ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+            } else if (!img) {
+              // Start loading if not in cache
+              img = new Image();
+              img.onload = () => {
+                imageCache.current.set(obj.image, img);
+                setImagesLoaded(prev => prev + 1);
+              };
+              img.src = obj.image;
+              imageCache.current.set(obj.image, img); // Store immediately to prevent re-loading
+              
+              // Draw placeholder while loading
+              ctx.fillStyle = '#f5f5f5';
+              ctx.strokeStyle = '#e0e0e0';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([8, 4]);
+              ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+              ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+              ctx.setLineDash([]);
+              
+              // Loading indicator
+              ctx.fillStyle = '#9e9e9e';
+              ctx.font = '14px Inter, sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('Loading...', obj.x + obj.width / 2, obj.y + obj.height / 2);
             }
           } catch (e) {
             console.error('Failed to draw image', e);
@@ -785,8 +954,8 @@ const WhiteboardCanvas = forwardRef(({
     ctx.setLineDash([]);
     ctx.strokeRect(x, y, width, height);
     
-    // Corner handles - larger for touch
-    const handleSize = 16 / zoom; // Increased from 8 for better touch
+    // Corner handles - small circles
+    const handleRadius = 5 / zoom;
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#0d99ff';
     ctx.lineWidth = 2 / zoom;
@@ -797,9 +966,11 @@ const WhiteboardCanvas = forwardRef(({
       { x: x + width, y: y + height, corner: 'br' }
     ];
     handles.forEach(h => {
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, handleRadius, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
-      ctx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+      ctx.fill();
+      ctx.stroke();
     });
     
     // Rotation handle - circle at top center
@@ -821,7 +992,7 @@ const WhiteboardCanvas = forwardRef(({
     ctx.setLineDash([4 / zoom, 4 / zoom]);
     ctx.stroke();
     ctx.setLineDash([]);
-  }, [objects, selectedIds, zoom]);
+  }, [objects, selectedIds, zoom, fontsLoaded]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -854,7 +1025,7 @@ const WhiteboardCanvas = forwardRef(({
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
     
-    const handleSize = 24 / zoom; // Larger hit area for touch
+    const handleRadius = 12 / zoom; // Hit area slightly larger than visual for easier grabbing
     const handles = [
       { x: x, y: y, corner: 'tl' },
       { x: x + width, y: y, corner: 'tr' },
@@ -864,9 +1035,11 @@ const WhiteboardCanvas = forwardRef(({
     
     for (const handle of handles) {
       const dist = Math.sqrt(Math.pow(point.x - handle.x, 2) + Math.pow(point.y - handle.y, 2));
-      if (dist < handleSize / 2) {
+      if (dist < handleRadius) {
         return { 
           corner: handle.corner, 
+          handleX: handle.x,
+          handleY: handle.y,
           startBounds: { x, y, width, height },
           originalBounds: { minX, minY, maxX, maxY }
         };
@@ -944,8 +1117,11 @@ const WhiteboardCanvas = forwardRef(({
   const hitTest = useCallback((point) => {
     for (let i = objects.length - 1; i >= 0; i--) {
       const obj = objects[i];
+      if (!obj) continue;
       const bbox = getBoundingBox(obj);
-      const padding = (obj.strokeWidth || 2) / 2 + 5;
+      // Increase padding for text and sticky for easier selection
+      const basePadding = (obj.strokeWidth || 2) / 2 + 5;
+      const padding = (obj.type === 'text' || obj.type === 'sticky') ? Math.max(basePadding, 15) : basePadding;
       if (point.x >= bbox.x - padding && point.x <= bbox.x + bbox.width + padding &&
           point.y >= bbox.y - padding && point.y <= bbox.y + bbox.height + padding) {
         return obj;
@@ -1156,12 +1332,17 @@ const WhiteboardCanvas = forwardRef(({
     const point = getCanvasPoint(e);
     setStartPoint(point);
     
-    // Close all property panels when starting to draw
+    // Close ALL toolbox panels when clicking on canvas (except MAYA panel)
     setShowElementOptions(false);
     setShowLineOptions(false);
     setShowShapeOptions(false);
     setShowHighlighterOptions(false);
     setShowShapesMenu(false);
+    setShowPenOptions(false);
+    setShowArrowMenu(false);
+    setShowArrowOptions(false);
+    setShowEraserOptions(false);
+    setShowTextOptions(false);
     
     // Capture pointer to continue drawing even when pointer moves over other elements
     if (e.target && e.target.setPointerCapture) {
@@ -1248,10 +1429,19 @@ const WhiteboardCanvas = forwardRef(({
       // Check for resize handle
       const handle = getResizeHandle(point);
       if (handle) {
+        // Store original object states for proper resize calculation
+        const selectedObjs = objects.filter(o => selectedIds.includes(o.id));
+        const originalObjectStates = selectedObjs.map(obj => ({
+          id: obj.id,
+          ...JSON.parse(JSON.stringify(obj)) // Deep clone
+        }));
+        
+        saveHistory();
         setResizeHandle({ 
-          ...handle, 
+          corner: handle.corner,
+          originalBounds: handle.originalBounds,
           startPoint: point,
-          originalBounds: handle.originalBounds 
+          originalObjects: originalObjectStates
         });
         setIsDrawing(true);
         return;
@@ -1260,7 +1450,13 @@ const WhiteboardCanvas = forwardRef(({
       const hit = hitTest(point);
       if (hit) {
         if (!selectedIds.includes(hit.id)) {
-          setSelectedIds(e.shiftKey ? [...selectedIds, hit.id] : [hit.id]);
+          // If the hit object is part of a group, select all objects in that group
+          if (hit.groupId && !e.shiftKey) {
+            const groupIds = objects.filter(o => o.groupId === hit.groupId).map(o => o.id);
+            setSelectedIds(groupIds);
+          } else {
+            setSelectedIds(e.shiftKey ? [...selectedIds, hit.id] : [hit.id]);
+          }
         }
         // Save initial positions for drag calculation
         saveHistory();
@@ -1283,27 +1479,14 @@ const WhiteboardCanvas = forwardRef(({
       if (hit && (hit.type === 'text' || hit.type === 'sticky')) {
         setTextEditing({ id: hit.id, x: hit.x, y: hit.y, type: hit.type, editing: true });
         setTextValue(hit.text || '');
-      } else if (hit) {
-        // Clicked on any other element - select it
-        setSelectedIds([hit.id]);
-        setShowElementOptions(true);
-        setTool('select');
-        return;
       }
+      // Don't select other elements - just ignore clicks on them when in text/sticky mode
       setIsDrawing(false);
       return;
     }
     
-    // For shape/line/arrow tools, check if clicking on existing element to select it
-    if (['rect', 'ellipse', 'diamond', 'triangle', 'star', 'hexagon', 'pentagon', 'line', 'arrow', 'image'].includes(tool)) {
-      const hit = hitTest(point);
-      if (hit) {
-        setSelectedIds([hit.id]);
-        setShowElementOptions(true);
-        setTool('select');
-        return;
-      }
-    }
+    // For shape/line/arrow tools, do NOT select existing elements - just draw new ones
+    // Selection should only work with the select tool
     
     saveHistory();
     setIsDrawing(true);
@@ -1331,7 +1514,7 @@ const WhiteboardCanvas = forwardRef(({
         borderRadius: tool === 'rect' ? borderRadius : undefined
       });
     }
-  }, [isReadOnly, tool, getCanvasPoint, hitTest, selectedIds, panX, panY, saveHistory, strokeColor, strokeWidth, fillColor, objects, updateObjects, arrowType, arrowLineStyle]);
+  }, [isReadOnly, tool, getCanvasPoint, hitTest, getResizeHandle, getRotationHandle, selectedIds, panX, panY, saveHistory, strokeColor, strokeWidth, fillColor, objects, updateObjects, arrowType, arrowLineStyle, borderRadius, highlighterColor, highlighterOpacity, eraserRadius]);
 
   const handlePointerMove = useCallback((e) => {
     if (!isDrawing) return;
@@ -1355,15 +1538,13 @@ const WhiteboardCanvas = forwardRef(({
       return;
     }
     
-    // Handle resize - cursor position directly controls corner position
+    // Handle resize - cursor directly controls the corner position
     if (resizeHandle) {
-      const { originalBounds, corner, startPoint } = resizeHandle;
+      const { originalBounds, corner, originalObjects } = resizeHandle;
       
-      // Calculate the delta from the start point
-      const deltaX = point.x - startPoint.x;
-      const deltaY = point.y - startPoint.y;
+      if (!originalObjects || originalObjects.length === 0) return;
       
-      // Start from original bounds and apply delta to the appropriate corner
+      // The cursor position IS the new corner position (direct manipulation)
       let newMinX = originalBounds.minX;
       let newMinY = originalBounds.minY;
       let newMaxX = originalBounds.maxX;
@@ -1371,23 +1552,23 @@ const WhiteboardCanvas = forwardRef(({
       
       const minSize = 20; // Minimum size
       
-      // Apply delta based on which corner is being dragged
+      // Set the corner being dragged to the current cursor position
       switch (corner) {
         case 'tl':
-          newMinX = Math.min(originalBounds.minX + deltaX, originalBounds.maxX - minSize);
-          newMinY = Math.min(originalBounds.minY + deltaY, originalBounds.maxY - minSize);
+          newMinX = Math.min(point.x, originalBounds.maxX - minSize);
+          newMinY = Math.min(point.y, originalBounds.maxY - minSize);
           break;
         case 'tr':
-          newMaxX = Math.max(originalBounds.maxX + deltaX, originalBounds.minX + minSize);
-          newMinY = Math.min(originalBounds.minY + deltaY, originalBounds.maxY - minSize);
+          newMaxX = Math.max(point.x, originalBounds.minX + minSize);
+          newMinY = Math.min(point.y, originalBounds.maxY - minSize);
           break;
         case 'bl':
-          newMinX = Math.min(originalBounds.minX + deltaX, originalBounds.maxX - minSize);
-          newMaxY = Math.max(originalBounds.maxY + deltaY, originalBounds.minY + minSize);
+          newMinX = Math.min(point.x, originalBounds.maxX - minSize);
+          newMaxY = Math.max(point.y, originalBounds.minY + minSize);
           break;
         case 'br':
-          newMaxX = Math.max(originalBounds.maxX + deltaX, originalBounds.minX + minSize);
-          newMaxY = Math.max(originalBounds.maxY + deltaY, originalBounds.minY + minSize);
+          newMaxX = Math.max(point.x, originalBounds.minX + minSize);
+          newMaxY = Math.max(point.y, originalBounds.minY + minSize);
           break;
       }
       
@@ -1396,31 +1577,40 @@ const WhiteboardCanvas = forwardRef(({
       const origWidth = originalBounds.maxX - originalBounds.minX;
       const origHeight = originalBounds.maxY - originalBounds.minY;
       
+      // Avoid division by zero
+      if (origWidth === 0 || origHeight === 0) return;
+      
+      // Create a map of original object states for quick lookup
+      const originalMap = new Map(originalObjects.map(o => [o.id, o]));
+      
       const updatedObjects = objects.map(obj => {
         if (!selectedIds.includes(obj.id)) return obj;
         
-        const bbox = getBoundingBox(obj);
+        // Get the ORIGINAL state of this object (not the current state)
+        const origObj = originalMap.get(obj.id);
+        if (!origObj) return obj;
         
-        if (obj.points) {
-          // Scale point-based objects
-          const scaledPoints = obj.points.map(p => ({
+        if (origObj.points) {
+          // Scale point-based objects from their ORIGINAL positions
+          const scaledPoints = origObj.points.map(p => ({
             x: newMinX + ((p.x - originalBounds.minX) / origWidth) * newWidth,
             y: newMinY + ((p.y - originalBounds.minY) / origHeight) * newHeight
           }));
           return { ...obj, points: scaledPoints };
         } else {
-          // Scale positioned objects - calculate relative position within original bounds
-          const relX = (bbox.x - originalBounds.minX) / origWidth;
-          const relY = (bbox.y - originalBounds.minY) / origHeight;
-          const relW = bbox.width / origWidth;
-          const relH = bbox.height / origHeight;
+          // Scale positioned objects from their ORIGINAL positions
+          const origBbox = getBoundingBox(origObj);
+          const relX = (origBbox.x - originalBounds.minX) / origWidth;
+          const relY = (origBbox.y - originalBounds.minY) / origHeight;
+          const relW = origBbox.width / origWidth;
+          const relH = origBbox.height / origHeight;
           
           return {
             ...obj,
-            x: newMinX + relX * newWidth,
-            y: newMinY + relY * newHeight,
-            width: relW * newWidth,
-            height: relH * newHeight
+            x: Number(newMinX + relX * newWidth) || 0,
+            y: Number(newMinY + relY * newHeight) || 0,
+            width: Math.max(minSize, relW * newWidth),
+            height: Math.max(minSize, relH * newHeight)
           };
         }
       });
@@ -1530,7 +1720,10 @@ const WhiteboardCanvas = forwardRef(({
       updateObjects(objects.map(obj => {
         if (!selectedIds.includes(obj.id)) return obj;
         if (obj.points) return { ...obj, points: obj.points.map(p => ({ x: p.x + dx, y: p.y + dy })) };
-        return { ...obj, x: obj.x + dx, y: obj.y + dy };
+        // Ensure x and y are numbers before adding
+        const currentX = Number(obj.x) || 0;
+        const currentY = Number(obj.y) || 0;
+        return { ...obj, x: currentX + dx, y: currentY + dy };
       }));
       setDragStart(point);
       return;
@@ -1562,7 +1755,7 @@ const WhiteboardCanvas = forwardRef(({
         }));
       }
     }
-  }, [isDrawing, tool, getCanvasPoint, dragStart, currentPath, selectionBox, selectedIds, startPoint, objects, updateObjects, resizeHandle, eraserRadius]);
+  }, [isDrawing, tool, getCanvasPoint, dragStart, currentPath, selectionBox, selectedIds, startPoint, objects, updateObjects, resizeHandle, eraserRadius, isRotating, rotationCenter, isAnimatingZoom, arrowType, zoom, panX, panY]);
 
   const handlePointerUp = useCallback((e) => {
     // Release pointer capture
@@ -1581,7 +1774,7 @@ const WhiteboardCanvas = forwardRef(({
     }
     
     if (resizeHandle) {
-      saveHistory();
+      // History was saved at the start of resize, just clean up
       setResizeHandle(null);
     }
     
@@ -1641,9 +1834,22 @@ const WhiteboardCanvas = forwardRef(({
       saveHistory();
       
       if (textEditing.id) {
-        // Editing existing text/sticky
+        // Editing existing text/sticky - recalculate dimensions
         const updatedObjects = objects.map(obj => {
           if (obj.id === textEditing.id) {
+            if (obj.type === 'text') {
+              const measured = measureText(textValue, obj.fontSize, obj.fontFamily, obj.fontWeight);
+              return { ...obj, text: textValue, width: measured.width, height: measured.height };
+            }
+            // Auto-resize sticky notes to fit text content
+            if (obj.type === 'sticky') {
+              const actualFontSize = obj.fontSize || 18;
+              const measured = measureText(textValue, actualFontSize, obj.fontFamily || 'Poppins', obj.fontWeight || 'normal');
+              // Ensure sticky is large enough for text with generous padding
+              const newWidth = Math.max(150, measured.width + 50);
+              const newHeight = Math.max(150, measured.height + 70);
+              return { ...obj, text: textValue, width: newWidth, height: newHeight };
+            }
             return { ...obj, text: textValue };
           }
           return obj;
@@ -1651,18 +1857,22 @@ const WhiteboardCanvas = forwardRef(({
         updateObjects(updatedObjects);
       } else {
         // Creating new text/sticky with full formatting properties
+        const measured = measureText(textValue, fontSize, fontFamily, fontWeight);
+        // For sticky notes, auto-size based on text content with generous padding
+        const stickyWidth = Math.max(150, measured.width + 50);
+        const stickyHeight = Math.max(150, measured.height + 70);
         const newObj = textEditing.type === 'sticky' ? {
           id: generateId(), 
           type: 'sticky', 
           x: textEditing.x, 
           y: textEditing.y,
-          width: 200, 
-          height: 200, 
+          width: stickyWidth, 
+          height: stickyHeight, 
           text: textValue, 
           fillColor: fillColor === 'transparent' ? '#ffc700' : fillColor, 
           fontSize: fontSize,
           fontWeight: fontWeight,
-          fontFamily: 'Inter',
+          fontFamily: fontFamily,
           textAlign: 'left',
           opacity: 1
         } : {
@@ -1670,13 +1880,13 @@ const WhiteboardCanvas = forwardRef(({
           type: 'text', 
           x: textEditing.x, 
           y: textEditing.y,
-          width: 200, 
-          height: 40,
+          width: measured.width, 
+          height: measured.height,
           text: textValue, 
           strokeColor, 
           fontSize: fontSize,
           fontWeight: fontWeight,
-          fontFamily: 'Inter',
+          fontFamily: fontFamily,
           textAlign: 'left',
           opacity: 1
         };
@@ -1685,7 +1895,7 @@ const WhiteboardCanvas = forwardRef(({
     }
     setTextEditing(null);
     setTextValue('');
-  }, [textEditing, textValue, strokeColor, fillColor, fontSize, fontWeight, objects, updateObjects, saveHistory]);
+  }, [textEditing, textValue, strokeColor, fillColor, fontSize, fontWeight, fontFamily, objects, updateObjects, saveHistory]);
 
   const copySelected = useCallback(() => {
     if (selectedIds.length === 0) return;
@@ -1696,14 +1906,16 @@ const WhiteboardCanvas = forwardRef(({
   const pasteFromClipboard = useCallback(() => {
     if (!clipboard || clipboard.length === 0) return;
     saveHistory();
-    const offset = 20;
+    const offset = 40; // Increased offset so pasted elements don't overlap original
     const newObjects = clipboard.map(obj => {
       const newObj = { ...obj, id: generateId() };
+      // Clear any group assignment when pasting
+      delete newObj.groupId;
       if (newObj.points) {
         newObj.points = newObj.points.map(p => ({ x: p.x + offset, y: p.y + offset }));
       } else {
-        newObj.x += offset;
-        newObj.y += offset;
+        newObj.x = (Number(newObj.x) || 0) + offset;
+        newObj.y = (Number(newObj.y) || 0) + offset;
       }
       return newObj;
     });
@@ -1713,9 +1925,56 @@ const WhiteboardCanvas = forwardRef(({
 
   const duplicateSelected = useCallback(() => {
     if (selectedIds.length === 0) return;
-    copySelected();
-    setTimeout(() => pasteFromClipboard(), 50);
-  }, [selectedIds, copySelected, pasteFromClipboard]);
+    saveHistory();
+    const offset = 40; // Offset so duplicates don't overlap originals
+    const selectedObjects = objects.filter(o => selectedIds.includes(o.id));
+    const newObjects = selectedObjects.map(obj => {
+      const newObj = { ...JSON.parse(JSON.stringify(obj)), id: generateId() };
+      // Clear any group assignment when duplicating
+      delete newObj.groupId;
+      if (newObj.points) {
+        newObj.points = newObj.points.map(p => ({ x: p.x + offset, y: p.y + offset }));
+      } else {
+        newObj.x = (Number(newObj.x) || 0) + offset;
+        newObj.y = (Number(newObj.y) || 0) + offset;
+      }
+      return newObj;
+    });
+    updateObjects([...objects, ...newObjects]);
+    setSelectedIds(newObjects.map(o => o.id));
+  }, [selectedIds, objects, updateObjects, saveHistory]);
+
+  // Group selected elements
+  const groupSelected = useCallback(() => {
+    if (selectedIds.length < 2) return;
+    saveHistory();
+    const groupId = `group-${Date.now()}`;
+    const updatedObjects = objects.map(obj => {
+      if (selectedIds.includes(obj.id)) {
+        return { ...obj, groupId };
+      }
+      return obj;
+    });
+    updateObjects(updatedObjects);
+  }, [selectedIds, objects, updateObjects, saveHistory]);
+
+  // Ungroup selected elements
+  const ungroupSelected = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    saveHistory();
+    const updatedObjects = objects.map(obj => {
+      if (selectedIds.includes(obj.id) && obj.groupId) {
+        const { groupId, ...rest } = obj;
+        return rest;
+      }
+      return obj;
+    });
+    updateObjects(updatedObjects);
+  }, [selectedIds, objects, updateObjects, saveHistory]);
+
+  // Check if selected items are grouped
+  const hasGroupedItems = selectedIds.length > 0 && objects.some(obj => selectedIds.includes(obj.id) && obj.groupId);
+  const canGroup = selectedIds.length >= 2;
 
   const deleteSelected = useCallback(() => {
     if (selectedIds.length === 0) return;
@@ -1744,6 +2003,8 @@ const WhiteboardCanvas = forwardRef(({
       else if (isMod && e.key === 'v') { e.preventDefault(); pasteFromClipboard(); }
       else if (isMod && e.key === 'd') { e.preventDefault(); duplicateSelected(); }
       else if (isMod && e.key === 'a') { e.preventDefault(); selectAll(); }
+      else if (isMod && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); }
+      else if (isMod && e.key === 'g' && e.shiftKey) { e.preventDefault(); ungroupSelected(); }
       else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedIds.length > 0) {
           e.preventDefault(); saveHistory();
@@ -2004,6 +2265,57 @@ const WhiteboardCanvas = forwardRef(({
     }
   }, []);
 
+  // Capture canvas screenshot for AI vision
+  const captureCanvasScreenshot = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    
+    try {
+      // Create a higher quality screenshot for AI vision (800x600 for good detail)
+      const screenshotCanvas = document.createElement('canvas');
+      const screenshotWidth = 1024;
+      const screenshotHeight = 768;
+      screenshotCanvas.width = screenshotWidth;
+      screenshotCanvas.height = screenshotHeight;
+      
+      const ctx = screenshotCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, screenshotWidth, screenshotHeight);
+      
+      return screenshotCanvas.toDataURL('image/png', 0.9);
+    } catch (err) {
+      console.log('Error capturing canvas screenshot:', err);
+      return null;
+    }
+  }, []);
+
+  // Animate scanning wave effect
+  const startScanAnimation = useCallback(() => {
+    setIsScanningCanvas(true);
+    setScanProgress(0);
+    
+    const startTime = performance.now();
+    const duration = 1200; // 1.2 seconds for the scan
+    
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      setScanProgress(progress);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // Fade out
+        setTimeout(() => {
+          setIsScanningCanvas(false);
+          setScanProgress(0);
+        }, 200);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, []);
+
   // Auto-save with debounce
   useEffect(() => {
     if (!isDirty || !onSave) return;
@@ -2055,6 +2367,12 @@ const WhiteboardCanvas = forwardRef(({
     setAiLoading(true);
     setAiError(null);
     
+    // Start scanning animation
+    startScanAnimation();
+    
+    // Capture canvas screenshot for visual AI analysis
+    const canvasScreenshot = captureCanvasScreenshot();
+    
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/whiteboard/${boardId}/analyze`, {
@@ -2063,7 +2381,10 @@ const WhiteboardCanvas = forwardRef(({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ action: 'analyze' })
+        body: JSON.stringify({ 
+          action: 'analyze',
+          canvasScreenshot 
+        })
       });
       
       const data = await response.json();
@@ -2079,7 +2400,7 @@ const WhiteboardCanvas = forwardRef(({
     } finally {
       setAiLoading(false);
     }
-  }, [boardId, objects.length]);
+  }, [boardId, objects.length, startScanAnimation, captureCanvasScreenshot]);
 
   // Smoothly zoom and pan to fit all content
   const smoothZoomToFitContent = useCallback((newObjects = []) => {
@@ -2218,6 +2539,12 @@ const WhiteboardCanvas = forwardRef(({
     setAiLoading(true);
     setAiError(null);
     
+    // Start scanning animation for visual processing
+    startScanAnimation();
+    
+    // Capture canvas screenshot for visual AI analysis
+    const canvasScreenshot = captureCanvasScreenshot();
+    
     // Optimistically add user message
     setAiAnalysis(prev => ({
       ...prev,
@@ -2230,7 +2557,7 @@ const WhiteboardCanvas = forwardRef(({
       
       // Use 'generate' action for agent mode to create actual canvas objects
       if (showAgentMode) {
-        const requestBody = { action: 'generate', message };
+        const requestBody = { action: 'generate', message, canvasScreenshot };
         if (templateType) {
           requestBody.templateType = templateType;
         }
@@ -2275,14 +2602,14 @@ const WhiteboardCanvas = forwardRef(({
           }, 1500);
         }
       } else {
-        // Regular chat mode
+        // Regular chat mode - also send screenshot for visual context
         const response = await fetch(`/api/whiteboard/${boardId}/analyze`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ action: 'chat', message })
+          body: JSON.stringify({ action: 'chat', message, canvasScreenshot })
         });
         
         const data = await response.json();
@@ -2304,7 +2631,7 @@ const WhiteboardCanvas = forwardRef(({
     } finally {
       setAiLoading(false);
     }
-  }, [boardId, showAgentMode, saveHistory, setPages, animateNewObjects, smoothZoomToFitContent]);
+  }, [boardId, showAgentMode, saveHistory, setPages, animateNewObjects, smoothZoomToFitContent, startScanAnimation, captureCanvasScreenshot]);
 
   // Send AI message with a template type (mindmap, flowchart, planning, ideas)
   const sendAIMessageWithTemplate = useCallback(async (templateType, promptMessage) => {
@@ -2629,6 +2956,9 @@ const WhiteboardCanvas = forwardRef(({
     
     saveHistory();
     
+    const defaultText = 'Double-click to edit';
+    const measured = measureText(defaultText, fontSize, fontFamily || 'Poppins', fontWeight);
+    
     const newObj = type === 'sticky' ? {
       id: generateId(),
       type: 'sticky',
@@ -2640,18 +2970,20 @@ const WhiteboardCanvas = forwardRef(({
       fillColor: '#ffc700',
       fontSize: fontSize,
       fontWeight: fontWeight,
+      fontFamily: fontFamily || 'Poppins',
       opacity: 1
     } : {
       id: generateId(),
       type: 'text',
-      x: centerX - 50,
-      y: centerY - 20,
-      width: 200,
-      height: 40,
-      text: 'Double-click to edit',
+      x: centerX - measured.width / 2,
+      y: centerY - measured.height / 2,
+      width: measured.width,
+      height: measured.height,
+      text: defaultText,
       strokeColor: textColor,
       fontSize: fontSize,
       fontWeight: fontWeight,
+      fontFamily: fontFamily || 'Poppins',
       opacity: 1
     };
     
@@ -2660,7 +2992,7 @@ const WhiteboardCanvas = forwardRef(({
     // Close element options and show only text options (avoid duplicate panels)
     setShowElementOptions(false);
     setShowTextOptions(true);
-  }, [panX, panY, zoom, saveHistory, textColor, fontSize, fontWeight, objects, updateObjects]);
+  }, [panX, panY, zoom, saveHistory, textColor, fontSize, fontWeight, fontFamily, objects, updateObjects]);
 
   // Tool button component
   const ToolButton = ({ id, icon, label, shortcut, onClick: customOnClick }) => {
@@ -2804,6 +3136,41 @@ const WhiteboardCanvas = forwardRef(({
           className="absolute inset-0 touch-none"
           style={{ cursor: tool === 'pan' ? 'grab' : tool === 'eraser' ? 'none' : tool === 'select' ? 'default' : 'crosshair' }}
         />
+        
+        {/* MAYA Scanning Wave Effect */}
+        {isScanningCanvas && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Scanning wave line */}
+            <div 
+              className="absolute left-0 right-0 h-1"
+              style={{
+                top: `${scanProgress * 100}%`,
+                background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), rgba(147, 197, 253, 0.8), rgba(59, 130, 246, 0.6), transparent)',
+                boxShadow: '0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3), 0 0 60px rgba(59, 130, 246, 0.1)',
+                opacity: 1 - (scanProgress * 0.3),
+                transform: 'translateY(-50%)',
+              }}
+            />
+            {/* Trailing glow effect */}
+            <div 
+              className="absolute left-0 right-0"
+              style={{
+                top: 0,
+                height: `${scanProgress * 100}%`,
+                background: `linear-gradient(to bottom, transparent ${Math.max(0, 100 - 30)}%, rgba(59, 130, 246, 0.05) 100%)`,
+                opacity: 1 - scanProgress,
+              }}
+            />
+            {/* Edge glow */}
+            <div 
+              className="absolute inset-0"
+              style={{
+                boxShadow: 'inset 0 0 100px rgba(59, 130, 246, 0.1)',
+                opacity: 1 - scanProgress,
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* FigJam-style floating toolbar */}
@@ -3444,8 +3811,116 @@ const WhiteboardCanvas = forwardRef(({
         // Get current values from first selected object
         const firstObj = selectedObjs[0];
         
+        // Calculate dynamic position based on selection bounding box
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        selectedObjs.forEach(obj => {
+          const bbox = getBoundingBox(obj);
+          minX = Math.min(minX, bbox.x);
+          minY = Math.min(minY, bbox.y);
+          maxX = Math.max(maxX, bbox.x + bbox.width);
+          maxY = Math.max(maxY, bbox.y + bbox.height);
+        });
+        
+        // Convert to screen coordinates
+        const screenMinX = minX * zoom + panX;
+        const screenMinY = minY * zoom + panY;
+        const screenMaxX = maxX * zoom + panX;
+        const screenMaxY = maxY * zoom + panY;
+        const selectionCenterX = (screenMinX + screenMaxX) / 2;
+        
+        // Panel dimensions (approximate)
+        const panelWidth = 320;
+        const panelHeight = 400; // Approximate max height
+        const padding = 16;
+        
+        // Get viewport dimensions
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+        const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+        
+        // Calculate optimal position
+        let calculatedPosition = {};
+        
+        // Try to position to the right of the selection first
+        if (screenMaxX + padding + panelWidth < viewportWidth - padding) {
+          // Position to the right
+          calculatedPosition = {
+            left: Math.max(padding, screenMaxX + padding),
+            top: Math.max(padding, Math.min(screenMinY, viewportHeight - panelHeight - padding)),
+          };
+        } 
+        // Try to position to the left
+        else if (screenMinX - padding - panelWidth > padding) {
+          calculatedPosition = {
+            left: screenMinX - padding - panelWidth,
+            top: Math.max(padding, Math.min(screenMinY, viewportHeight - panelHeight - padding)),
+          };
+        }
+        // Try to position below the selection
+        else if (screenMaxY + padding + panelHeight < viewportHeight - padding) {
+          calculatedPosition = {
+            left: Math.max(padding, Math.min(selectionCenterX - panelWidth / 2, viewportWidth - panelWidth - padding)),
+            top: screenMaxY + padding,
+          };
+        }
+        // Try to position above the selection
+        else if (screenMinY - padding - panelHeight > padding) {
+          calculatedPosition = {
+            left: Math.max(padding, Math.min(selectionCenterX - panelWidth / 2, viewportWidth - panelWidth - padding)),
+            top: screenMinY - padding - panelHeight,
+          };
+        }
+        // Fallback: position at a corner that doesn't overlap
+        else {
+          calculatedPosition = {
+            right: padding,
+            top: padding + 60, // Below potential toolbar
+            useRight: true,
+          };
+        }
+        
+        // Debounce position update - delay 800ms after last change
+        if (panelPositionTimeoutRef.current) {
+          clearTimeout(panelPositionTimeoutRef.current);
+        }
+        
+        // If no debounced position exists, set it immediately (first render)
+        if (!debouncedPanelPosition) {
+          // Use setTimeout with 0 to avoid setState during render
+          setTimeout(() => setDebouncedPanelPosition(calculatedPosition), 0);
+        } else {
+          // Schedule debounced update
+          panelPositionTimeoutRef.current = setTimeout(() => {
+            setDebouncedPanelPosition(calculatedPosition);
+          }, 800);
+        }
+        
+        // Use debounced position or fallback to calculated
+        const positionToUse = debouncedPanelPosition || calculatedPosition;
+        
+        const panelStyle = positionToUse.useRight 
+          ? {
+              position: 'fixed',
+              right: `${positionToUse.right}px`,
+              top: `${positionToUse.top}px`,
+              transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+              opacity: debouncedPanelPosition ? 1 : 0,
+              transform: debouncedPanelPosition ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(-10px)',
+            }
+          : {
+              position: 'fixed',
+              left: `${positionToUse.left}px`,
+              top: `${positionToUse.top}px`,
+              transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+              opacity: debouncedPanelPosition ? 1 : 0,
+              transform: debouncedPanelPosition ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(-10px)',
+            };
+        
         return (
-          <div data-panel className="property-panel fixed bottom-24 left-1/2 -translate-x-1/2 p-3 bg-white rounded-xl shadow-lg border border-gray-200 z-50 min-w-[280px] max-w-[320px]">
+          <div 
+            data-panel 
+            className="property-panel p-3 bg-white rounded-xl shadow-lg border border-gray-200 z-50 min-w-[280px] max-w-[320px] max-h-[calc(100vh-100px)] overflow-y-auto"
+            style={panelStyle}
+          >
             <div className="space-y-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700">
@@ -3480,7 +3955,22 @@ const WhiteboardCanvas = forwardRef(({
                           const newSize = Number(e.target.value);
                           const updatedObjects = objects.map(obj => {
                             if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
-                              return { ...obj, fontSize: newSize };
+                              // Recalculate text dimensions with new font size
+                              const measured = measureText(obj.text, newSize, obj.fontFamily, obj.fontWeight);
+                              if (obj.type === 'sticky') {
+                                return { 
+                                  ...obj, 
+                                  fontSize: newSize,
+                                  width: Math.max(150, measured.width + 50),
+                                  height: Math.max(150, measured.height + 70)
+                                };
+                              }
+                              return { 
+                                ...obj, 
+                                fontSize: newSize,
+                                width: measured.width,
+                                height: measured.height
+                              };
                             }
                             return obj;
                           });
@@ -3498,13 +3988,28 @@ const WhiteboardCanvas = forwardRef(({
                         onClick={() => {
                           const updatedObjects = objects.map(obj => {
                             if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
-                              return { ...obj, fontWeight: 'normal' };
+                              // Recalculate text dimensions with normal weight
+                              const measured = measureText(obj.text, obj.fontSize, obj.fontFamily, 'normal');
+                              if (obj.type === 'sticky') {
+                                return { 
+                                  ...obj, 
+                                  fontWeight: 'normal',
+                                  width: Math.max(150, measured.width + 50),
+                                  height: Math.max(150, measured.height + 70)
+                                };
+                              }
+                              return { 
+                                ...obj, 
+                                fontWeight: 'normal',
+                                width: measured.width,
+                                height: measured.height
+                              };
                             }
                             return obj;
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 px-3 py-1.5 text-xs rounded-lg border ${firstObj?.fontWeight !== 'bold' ? 'bg-[#0d99ff] text-white border-[#0d99ff]' : 'border-gray-200 hover:bg-gray-50'}`}
+                        className={`flex-1 px-3 py-1.5 text-xs rounded-lg border ${firstObj?.fontWeight !== 'bold' ? 'bg-[#0d99ff] text-white border-[#0d99ff]' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                       >
                         Normal
                       </button>
@@ -3512,16 +4017,73 @@ const WhiteboardCanvas = forwardRef(({
                         onClick={() => {
                           const updatedObjects = objects.map(obj => {
                             if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
-                              return { ...obj, fontWeight: 'bold' };
+                              // Recalculate text dimensions with bold weight
+                              const measured = measureText(obj.text, obj.fontSize, obj.fontFamily, 'bold');
+                              if (obj.type === 'sticky') {
+                                return { 
+                                  ...obj, 
+                                  fontWeight: 'bold',
+                                  width: Math.max(150, measured.width + 50),
+                                  height: Math.max(150, measured.height + 70)
+                                };
+                              }
+                              return { 
+                                ...obj, 
+                                fontWeight: 'bold',
+                                width: measured.width,
+                                height: measured.height
+                              };
                             }
                             return obj;
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 px-3 py-1.5 text-xs rounded-lg border font-bold ${firstObj?.fontWeight === 'bold' ? 'bg-[#0d99ff] text-white border-[#0d99ff]' : 'border-gray-200 hover:bg-gray-50'}`}
+                        className={`flex-1 px-3 py-1.5 text-xs rounded-lg border font-bold ${firstObj?.fontWeight === 'bold' ? 'bg-[#0d99ff] text-white border-[#0d99ff]' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                       >
                         Bold
                       </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-2 block">Font Style</label>
+                    <div className="grid grid-cols-3 gap-1">
+                      {FONT_OPTIONS.map(font => (
+                        <button
+                          key={font.name}
+                          onClick={() => {
+                            const updatedObjects = objects.map(obj => {
+                              if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
+                                // Recalculate text dimensions with new font family
+                                const measured = measureText(obj.text, obj.fontSize, font.name, obj.fontWeight);
+                                if (obj.type === 'sticky') {
+                                  return { 
+                                    ...obj, 
+                                    fontFamily: font.name,
+                                    width: Math.max(150, measured.width + 50),
+                                    height: Math.max(150, measured.height + 70)
+                                  };
+                                }
+                                return { 
+                                  ...obj, 
+                                  fontFamily: font.name,
+                                  width: measured.width,
+                                  height: measured.height
+                                };
+                              }
+                              return obj;
+                            });
+                            updateObjects(updatedObjects);
+                          }}
+                          className={`py-1.5 px-1 rounded-lg transition-colors flex flex-col items-center ${
+                            (firstObj?.fontFamily || 'Poppins') === font.name 
+                              ? 'bg-[#0d99ff] text-white' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="text-base leading-none" style={{ fontFamily: `'${font.name}', cursive, sans-serif` }}>{font.label}</span>
+                          <span className="text-[9px] mt-0.5 opacity-70">{font.displayName}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -3599,7 +4161,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           (firstObj?.arrowType || 'straight') === 'straight' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3622,7 +4184,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           firstObj?.arrowType === 'curved' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3645,7 +4207,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           firstObj?.arrowType === 'elbow' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3674,7 +4236,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           (firstObj?.lineStyle || 'solid') === 'solid' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3693,7 +4255,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           firstObj?.lineStyle === 'dashed' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3716,7 +4278,7 @@ const WhiteboardCanvas = forwardRef(({
                           });
                           updateObjects(updatedObjects);
                         }}
-                        className={`flex-1 p-2 rounded-lg border-2 transition-all ${
+                        className={`flex-1 p-2 rounded-lg border-2 transition-all text-gray-700 ${
                           firstObj?.lineStyle === 'dotted' 
                             ? 'border-[#0d99ff] bg-blue-50' 
                             : 'border-gray-200 hover:border-gray-300'
@@ -3961,8 +4523,15 @@ const WhiteboardCanvas = forwardRef(({
         </div>
       )}
 
-      {/* Text/Sticky options */}
-      {showTextOptions && (
+      {/* Text/Sticky options - only show when text tool is active but no text/sticky element is selected */}
+      {showTextOptions && (() => {
+        // Check if any text/sticky element is selected - if so, use element properties panel instead
+        const hasSelectedTextOrSticky = selectedIds.length > 0 && objects.some(obj => 
+          selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')
+        );
+        if (hasSelectedTextOrSticky) return null;
+        
+        return (
         <div data-panel className="property-panel fixed bottom-24 left-1/2 -translate-x-1/2 p-3 bg-white rounded-xl shadow-lg border border-gray-200 z-50 min-w-[280px]">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -3983,10 +4552,24 @@ const WhiteboardCanvas = forwardRef(({
                 onChange={(e) => {
                   const newSize = Number(e.target.value);
                   setFontSize(newSize);
-                  // Update selected text objects
+                  // Update selected text objects with recalculated dimensions
                   const updatedObjects = objects.map(obj => {
                     if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
-                      return { ...obj, fontSize: newSize };
+                      const measured = measureText(obj.text, newSize, obj.fontFamily, obj.fontWeight);
+                      if (obj.type === 'sticky') {
+                        return { 
+                          ...obj, 
+                          fontSize: newSize,
+                          width: Math.max(150, measured.width + 50),
+                          height: Math.max(150, measured.height + 70)
+                        };
+                      }
+                      return { 
+                        ...obj, 
+                        fontSize: newSize,
+                        width: measured.width,
+                        height: measured.height
+                      };
                     }
                     return obj;
                   });
@@ -4006,7 +4589,21 @@ const WhiteboardCanvas = forwardRef(({
                       setFontWeight(weight);
                       const updatedObjects = objects.map(obj => {
                         if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
-                          return { ...obj, fontWeight: weight };
+                          const measured = measureText(obj.text, obj.fontSize, obj.fontFamily, weight);
+                          if (obj.type === 'sticky') {
+                            return { 
+                              ...obj, 
+                              fontWeight: weight,
+                              width: Math.max(150, measured.width + 50),
+                              height: Math.max(150, measured.height + 70)
+                            };
+                          }
+                          return { 
+                            ...obj, 
+                            fontWeight: weight,
+                            width: measured.width,
+                            height: measured.height
+                          };
                         }
                         return obj;
                       });
@@ -4020,6 +4617,48 @@ const WhiteboardCanvas = forwardRef(({
                     style={{ fontWeight: weight }}
                   >
                     {weight === 'normal' ? 'Regular' : 'Bold'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-2 block">Font Style</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {FONT_OPTIONS.map(font => (
+                  <button
+                    key={font.name}
+                    onClick={() => {
+                      setFontFamily(font.name);
+                      const updatedObjects = objects.map(obj => {
+                        if (selectedIds.includes(obj.id) && (obj.type === 'text' || obj.type === 'sticky')) {
+                          const measured = measureText(obj.text, obj.fontSize, font.name, obj.fontWeight);
+                          if (obj.type === 'sticky') {
+                            return { 
+                              ...obj, 
+                              fontFamily: font.name,
+                              width: Math.max(150, measured.width + 50),
+                              height: Math.max(150, measured.height + 70)
+                            };
+                          }
+                          return { 
+                            ...obj, 
+                            fontFamily: font.name,
+                            width: measured.width,
+                            height: measured.height
+                          };
+                        }
+                        return obj;
+                      });
+                      updateObjects(updatedObjects);
+                    }}
+                    className={`py-2 px-1 rounded-lg transition-colors flex flex-col items-center ${
+                      fontFamily === font.name 
+                        ? 'bg-[#0d99ff] text-white ring-2 ring-[#0d99ff] ring-offset-1' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span className="text-lg leading-none" style={{ fontFamily: `'${font.name}', cursive, sans-serif` }}>{font.label}</span>
+                    <span className="text-[10px] mt-0.5 opacity-70">{font.displayName}</span>
                   </button>
                 ))}
               </div>
@@ -4050,7 +4689,8 @@ const WhiteboardCanvas = forwardRef(({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Center to drawing button */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2">
@@ -4092,6 +4732,38 @@ const WhiteboardCanvas = forwardRef(({
             </svg>
             <span className="text-[10px] font-medium">Duplicate</span>
           </button>
+
+          {/* Group button - show when 2+ elements selected and not all grouped */}
+          {canGroup && !hasGroupedItems && (
+            <button
+              onClick={groupSelected}
+              className="p-3 rounded-lg hover:bg-blue-50 text-blue-600 flex flex-col items-center gap-1"
+              title="Group (Cmd+G)"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                <path d="M10 7h4M10 17h4M7 10v4M17 10v4" strokeDasharray="2 2"/>
+              </svg>
+              <span className="text-[10px] font-medium">Group</span>
+            </button>
+          )}
+
+          {/* Ungroup button - show when grouped elements are selected */}
+          {hasGroupedItems && (
+            <button
+              onClick={ungroupSelected}
+              className="p-3 rounded-lg hover:bg-orange-50 text-orange-600 flex flex-col items-center gap-1"
+              title="Ungroup (Cmd+Shift+G)"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                <path d="M12 8l-2 2m0 0l2 2m-2-2h4M12 16l-2-2m0 0l2-2m-2 2h4"/>
+              </svg>
+              <span className="text-[10px] font-medium">Ungroup</span>
+            </button>
+          )}
 
           <button
             onClick={deleteSelected}
@@ -4287,7 +4959,7 @@ const WhiteboardCanvas = forwardRef(({
       {showAIPanel && (
         <div
           ref={aiPanelRef}
-          className="fixed bottom-36 right-6 z-50 w-96 max-h-[65vh] flex flex-col
+          className="fixed bottom-20 sm:bottom-36 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 max-h-[calc(100vh-120px)] sm:max-h-[calc(100vh-180px)] flex flex-col
             backdrop-blur-[5px] bg-white/25
             border border-white/40
             rounded-2xl
@@ -4335,7 +5007,7 @@ const WhiteboardCanvas = forwardRef(({
           </div>
 
           {/* Messages area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[180px] max-h-[350px] bg-white/5">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[120px] sm:min-h-[180px] bg-white/5">
             {aiAnalysis.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-6 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100/80 to-purple-100/80 flex items-center justify-center mb-3">
@@ -4431,7 +5103,7 @@ const WhiteboardCanvas = forwardRef(({
           )}
 
           {/* Input area */}
-          <div className="p-4 border-t border-white/20 bg-white/10">
+          <div className="p-3 sm:p-4 border-t border-white/20 bg-white/10">
             <div className="flex gap-2">
               <textarea
                 value={aiInput}
@@ -4444,8 +5116,8 @@ const WhiteboardCanvas = forwardRef(({
                   }
                 }}
                 placeholder={showAgentMode ? "Describe what to create...\n(Ctrl+Enter to send)" : "Ask MAYA about your canvas...\n(Ctrl+Enter to send)"}
-                rows={3}
-                className="flex-1 px-4 py-2.5 rounded-xl
+                rows={2}
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl
                   bg-white/50 backdrop-blur-[5px]
                   border border-white/40
                   text-sm text-gray-800 placeholder-gray-400
@@ -4643,8 +5315,9 @@ const WhiteboardCanvas = forwardRef(({
                   if (e.key === 'Enter' && e.metaKey) { handleTextSubmit(); }
                 }}
                 autoFocus
-                className="w-full h-full bg-transparent resize-none outline-none text-sm font-sans"
+                className="w-full h-full bg-transparent resize-none outline-none"
                 placeholder="Type something..."
+                style={{ fontFamily: `'${fontFamily}', cursive, sans-serif`, fontSize: `${fontSize}px`, fontWeight: fontWeight }}
               />
             </div>
           ) : (
@@ -4657,9 +5330,9 @@ const WhiteboardCanvas = forwardRef(({
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSubmit(); }
               }}
               autoFocus
-              className="min-w-[150px] min-h-[40px] p-2 bg-white border-2 border-[#0d99ff] rounded-lg outline-none text-lg resize-none shadow-lg"
+              className="min-w-[150px] min-h-[40px] p-2 bg-white border-2 border-[#0d99ff] rounded-lg outline-none resize-none shadow-lg"
               placeholder="Type here..."
-              style={{ color: strokeColor, transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+              style={{ color: strokeColor, transform: `scale(${zoom})`, transformOrigin: 'top left', fontFamily: `'${fontFamily}', cursive, sans-serif`, fontSize: `${fontSize}px`, fontWeight: fontWeight }}
             />
           )}
         </div>

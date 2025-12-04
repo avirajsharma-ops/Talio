@@ -1,4 +1,4 @@
-import { Inter } from 'next/font/google'
+import { Inter, Poppins, Caveat, Dancing_Script, Indie_Flower, Patrick_Hand, Shadows_Into_Light } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import '../styles/mobile-responsive.css'
@@ -10,6 +10,36 @@ import { Providers } from '@/components/Providers'
 import ErrorPageCache from '@/components/ErrorPageCache'
 
 const inter = Inter({ subsets: ['latin'] })
+
+// Whiteboard handwriting fonts
+const poppins = Poppins({ 
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins'
+})
+const caveat = Caveat({ 
+  subsets: ['latin'],
+  variable: '--font-caveat'
+})
+const dancingScript = Dancing_Script({ 
+  subsets: ['latin'],
+  variable: '--font-dancing-script'
+})
+const indieFlower = Indie_Flower({ 
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-indie-flower'
+})
+const patrickHand = Patrick_Hand({ 
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-patrick-hand'
+})
+const shadowsIntoLight = Shadows_Into_Light({ 
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-shadows-into-light'
+})
 
 export const metadata = {
   title: 'Talio HRMS - Human Resource Management System',
@@ -73,7 +103,7 @@ export default function RootLayout({ children }) {
         }} />
       </head>
 
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${inter.className} ${poppins.variable} ${caveat.variable} ${dancingScript.variable} ${indieFlower.variable} ${patrickHand.variable} ${shadowsIntoLight.variable}`} suppressHydrationWarning>
         {/* Socket.IO Client - Load globally for messaging system */}
         <Script 
           src="https://cdn.socket.io/4.8.1/socket.io.min.js" 

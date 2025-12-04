@@ -259,7 +259,7 @@ function cleanAIResponse(text) {
     .trim();
 }
 
-// Call Gemini API
+// Call Gemini API - text only
 async function callGeminiAPI(prompt, context = '') {
   if (!GEMINI_API_KEY) {
     throw new Error('Gemini API key not configured');
@@ -300,6 +300,64 @@ async function callGeminiAPI(prompt, context = '') {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
 }
 
+// Call Gemini API with vision - accepts canvas screenshot
+async function callGeminiVisionAPI(prompt, imageBase64, context = '') {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key not configured');
+  }
+  
+  const parts = [];
+  
+  // Add text prompt
+  parts.push({
+    text: context ? `${context}\n\n${prompt}` : prompt
+  });
+  
+  // Add image if provided
+  if (imageBase64) {
+    // Remove data URL prefix if present
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    parts.push({
+      inline_data: {
+        mime_type: 'image/png',
+        data: base64Data
+      }
+    });
+  }
+  
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 4096,
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+      ]
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Failed to call Gemini Vision API');
+  }
+  
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+}
+
 // POST - Analyze canvas or continue chat
 export async function POST(request, { params }) {
   try {
@@ -312,7 +370,7 @@ export async function POST(request, { params }) {
     
     const { id } = await params;
     const body = await request.json();
-    const { action, message } = body;
+    const { action, message, canvasScreenshot } = body;
     
     const whiteboard = await Whiteboard.findById(id);
     if (!whiteboard) {
@@ -340,7 +398,10 @@ export async function POST(request, { params }) {
         }, { status: 400 });
       }
       
-      const prompt = `You are MAYA, an insightful AI assistant analyzing a collaborative whiteboard. Look at the canvas contents and provide genuine, thoughtful analysis like a knowledgeable colleague would.
+      // Use vision API if screenshot is provided for deeper visual understanding
+      const hasScreenshot = canvasScreenshot && canvasScreenshot.length > 100;
+      
+      const prompt = `You are MAYA, an insightful AI assistant analyzing a collaborative whiteboard. ${hasScreenshot ? 'You can see the actual canvas screenshot for visual context.' : ''} Look at the canvas contents and provide genuine, thoughtful analysis like a knowledgeable colleague would.
 
 Canvas Elements:
 ${canvasDescription}
@@ -348,6 +409,7 @@ ${canvasDescription}
 Provide your analysis as natural, flowing prose without any markdown formatting, bullet points, asterisks, dashes, emojis, or special characters. Write in a conversational but professional tone.
 
 Focus on:
+${hasScreenshot ? '- What you can actually SEE in the canvas image - the visual layout, colors, design choices, and overall composition' : ''}
 What this whiteboard seems to be about and what the creator is working on
 The relationships and connections between different elements
 Any patterns or themes you notice
@@ -356,7 +418,13 @@ Practical suggestions that could enhance or extend their ideas
 
 Be genuinely helpful and insightful rather than just describing what you see. Share perspectives that add value.`;
 
-      let summary = await callGeminiAPI(prompt);
+      // Use vision API if screenshot provided, otherwise text-only API
+      let summary;
+      if (hasScreenshot) {
+        summary = await callGeminiVisionAPI(prompt, canvasScreenshot);
+      } else {
+        summary = await callGeminiAPI(prompt);
+      }
       summary = cleanAIResponse(summary);
       
       // Update the whiteboard with the new analysis
@@ -387,7 +455,10 @@ Be genuinely helpful and insightful rather than just describing what you see. Sh
         `${m.role === 'user' ? 'User' : 'MAYA'}: ${m.content}`
       ).join('\n\n');
       
-      const context = `You are MAYA, an insightful AI assistant helping with a collaborative whiteboard. Respond naturally without any markdown formatting, bullet points, asterisks, dashes, numbered lists, emojis, or special characters. Write in flowing prose like a helpful colleague.
+      // Check if screenshot was provided for visual context
+      const hasScreenshot = canvasScreenshot && canvasScreenshot.length > 100;
+      
+      const context = `You are MAYA, an insightful AI assistant helping with a collaborative whiteboard. ${hasScreenshot ? 'You can see the actual canvas screenshot for visual understanding.' : ''} Respond naturally without any markdown formatting, bullet points, asterisks, dashes, numbered lists, emojis, or special characters. Write in flowing prose like a helpful colleague.
 
 Canvas Contents:
 ${canvasDescription}
@@ -399,9 +470,14 @@ Current understanding: ${whiteboard.aiAnalysis.summary || 'Not yet analyzed'}`;
 
       const prompt = `User: ${message}
 
-Respond helpfully and naturally. If sharing multiple points, weave them into coherent paragraphs rather than lists. Be insightful and add genuine value to the conversation.`;
+${hasScreenshot ? 'I can see your canvas now. ' : ''}Respond helpfully and naturally. If sharing multiple points, weave them into coherent paragraphs rather than lists. Be insightful and add genuine value to the conversation.`;
 
-      let response = await callGeminiAPI(prompt, context);
+      let response;
+      if (hasScreenshot) {
+        response = await callGeminiVisionAPI(prompt, canvasScreenshot, context);
+      } else {
+        response = await callGeminiAPI(prompt, context);
+      }
       response = cleanAIResponse(response);
       
       // Save the new messages

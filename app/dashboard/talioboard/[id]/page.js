@@ -61,15 +61,11 @@ export default function WhiteboardEditorPage() {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
       
-      // Only go back to dashboard if user manually exits fullscreen (not due to file picker)
+      // If user exits fullscreen (ESC key or other), re-enter fullscreen on next interaction
+      // Don't navigate back - just allow re-entry on user action
       if (!isNowFullscreen && hasEnteredFullscreen && !isFilePickerOpen) {
-        // Force save before navigating away
-        if (canvasRef.current?.isDirty) {
-          canvasRef.current.forceSave();
-          // Wait briefly for save to complete
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        router.push('/dashboard/talioboard');
+        // Don't navigate away - we'll re-enter fullscreen on next user interaction
+        // This prevents confusion and allows imports to work properly
       }
       
       // Re-enter fullscreen after file picker closes
@@ -87,6 +83,27 @@ export default function WhiteboardEditorPage() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [hasEnteredFullscreen, router, isFilePickerOpen, enterFullscreen]);
+
+  // Re-enter fullscreen on any user interaction when not in fullscreen
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      if (hasEnteredFullscreen && !document.fullscreenElement && !isFilePickerOpen) {
+        enterFullscreen();
+      }
+    };
+
+    // Listen for various user interactions
+    const events = ['mousedown', 'touchstart', 'keydown'];
+    events.forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { once: true });
+    });
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserInteraction);
+      });
+    };
+  }, [hasEnteredFullscreen, isFilePickerOpen, enterFullscreen, isFullscreen]);
 
   // Auto-enter fullscreen when board loads
   useEffect(() => {
@@ -293,11 +310,28 @@ export default function WhiteboardEditorPage() {
     }
     
     if (document.fullscreenElement) {
-      exitFullscreen();
-    } else {
-      router.push('/dashboard/talioboard');
+      await document.exitFullscreen();
     }
-  }, [exitFullscreen, router]);
+    router.push('/dashboard/talioboard');
+  }, [router]);
+
+  // Handle Escape key to close board and navigate to dashboard
+  useEffect(() => {
+    const handleEscapeKey = async (e) => {
+      if (e.key === 'Escape') {
+        // Don't handle if user is in a text input or modal
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (showShareModal || showRenameModal) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        await handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscapeKey);
+    return () => window.removeEventListener('keydown', handleEscapeKey);
+  }, [showShareModal, showRenameModal, handleClose]);
 
   // Toggle fullscreen
   const toggleFullscreen = () => {

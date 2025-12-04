@@ -147,9 +147,17 @@ export async function GET(request) {
       .sort({ date: -1 })
       .lean()
 
+    // Get start of today for past-day checks
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
     // Auto-fix: Correct any records stuck in 'in-progress' that have both checkIn and checkOut
-    // This handles edge cases where clock-out didn't properly update the status
+    // Also fix past-day records that are still 'in-progress' without checkOut
     const fixedData = attendance.map(record => {
+      const recordDate = new Date(record.date)
+      const isPastDay = recordDate < todayStart
+      
+      // Case 1: Has checkOut but still showing in-progress
       if (record.status === 'in-progress' && record.checkIn && record.checkOut && record.workHours) {
         // Determine correct status based on work hours
         let correctedStatus = 'absent'
@@ -167,6 +175,13 @@ export async function GET(request) {
         
         return { ...record, status: correctedStatus }
       }
+      
+      // Case 2: Past day, has checkIn but no checkOut - mark as incomplete (will be handled by scheduler)
+      if (isPastDay && record.status === 'in-progress' && record.checkIn && !record.checkOut) {
+        // This will be fixed by the scheduler, but flag it in the response
+        return { ...record, _needsAutoCorrection: true }
+      }
+      
       return record
     })
 
