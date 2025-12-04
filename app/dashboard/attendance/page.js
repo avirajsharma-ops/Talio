@@ -147,6 +147,25 @@ export default function AttendancePage() {
     setSubmittingCorrection(true)
     try {
       const token = localStorage.getItem('token')
+      
+      // Get the date from the selected record (use selectedDayForEdit or record date)
+      const recordDate = selectedDayForEdit || selectedRecord.date
+      const dateOnly = new Date(recordDate).toISOString().split('T')[0]
+      
+      // Build the full datetime strings using the record's date and user's time input
+      let requestedCheckIn = undefined
+      let requestedCheckOut = undefined
+      
+      if (correctionForm.requestedCheckIn && ['check-in', 'both'].includes(correctionForm.correctionType)) {
+        // Combine the record date with the time input
+        requestedCheckIn = `${dateOnly}T${correctionForm.requestedCheckIn}:00`
+      }
+      
+      if (correctionForm.requestedCheckOut && ['check-out', 'both'].includes(correctionForm.correctionType)) {
+        // Combine the record date with the time input
+        requestedCheckOut = `${dateOnly}T${correctionForm.requestedCheckOut}:00`
+      }
+      
       const response = await fetch('/api/attendance/corrections', {
         method: 'POST',
         headers: {
@@ -156,8 +175,8 @@ export default function AttendancePage() {
         body: JSON.stringify({
           attendanceId: selectedRecord._id,
           correctionType: correctionForm.correctionType,
-          requestedCheckIn: correctionForm.requestedCheckIn || undefined,
-          requestedCheckOut: correctionForm.requestedCheckOut || undefined,
+          requestedCheckIn,
+          requestedCheckOut,
           requestedStatus: correctionForm.requestedStatus || undefined,
           reason: correctionForm.reason
         })
@@ -168,6 +187,7 @@ export default function AttendancePage() {
         toast.success('Correction request submitted successfully')
         setShowCorrectionModal(false)
         setSelectedRecord(null)
+        setSelectedDayForEdit(null)
         setCorrectionForm({ correctionType: 'both', requestedCheckIn: '', requestedCheckOut: '', requestedStatus: '', reason: '' })
         fetchMyCorrections()
       } else {
@@ -182,7 +202,10 @@ export default function AttendancePage() {
   }
 
   const handleMissingEntryRequest = async () => {
-    if (!missingEntryForm.date || !missingEntryForm.reason) {
+    // Use selectedDayForMissingEntry if available, otherwise use form date
+    const dateToUse = selectedDayForMissingEntry || missingEntryForm.date
+    
+    if (!dateToUse || !missingEntryForm.reason) {
       toast.error('Please provide date and reason')
       return
     }
@@ -197,10 +220,10 @@ export default function AttendancePage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          date: missingEntryForm.date,
+          date: dateToUse,
           correctionType: 'missing-entry',
-          requestedCheckIn: missingEntryForm.checkIn ? `${missingEntryForm.date}T${missingEntryForm.checkIn}` : undefined,
-          requestedCheckOut: missingEntryForm.checkOut ? `${missingEntryForm.date}T${missingEntryForm.checkOut}` : undefined,
+          requestedCheckIn: missingEntryForm.checkIn ? `${dateToUse}T${missingEntryForm.checkIn}:00` : undefined,
+          requestedCheckOut: missingEntryForm.checkOut ? `${dateToUse}T${missingEntryForm.checkOut}:00` : undefined,
           reason: missingEntryForm.reason
         })
       })
@@ -209,6 +232,7 @@ export default function AttendancePage() {
       if (data.success) {
         toast.success('Missing entry request submitted successfully')
         setShowMissingEntryModal(false)
+        setSelectedDayForMissingEntry(null)
         setMissingEntryForm({ date: '', checkIn: '', checkOut: '', reason: '' })
         fetchMyCorrections()
       } else {
@@ -242,6 +266,12 @@ export default function AttendancePage() {
       if (data.success) {
         toast.success(`Correction ${action}d successfully`)
         fetchPendingCorrections()
+        fetchMyCorrections()
+        // Refresh attendance data to show updated values after approval
+        if (user && action === 'approve') {
+          fetchAttendance(getEmployeeId(user))
+          fetchTodayAttendance(getEmployeeId(user))
+        }
       } else {
         toast.error(data.message || `Failed to ${action} correction`)
       }
@@ -251,12 +281,46 @@ export default function AttendancePage() {
     }
   }
 
+  // Helper function to format datetime for input (preserves local time)
+  const formatDateTimeForInput = (dateString) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    // Format as YYYY-MM-DDTHH:MM in local time
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
+  // Helper function to format time only for input (HH:MM)
+  const formatTimeForInput = (dateString) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${hours}:${minutes}`
+  }
+
+  // Helper function to format date as YYYY-MM-DD in local timezone
+  const formatDateLocal = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // State to track selected day for missing entry
+  const [selectedDayForMissingEntry, setSelectedDayForMissingEntry] = useState(null)
+
   const openCorrectionModal = (record) => {
     setSelectedRecord(record)
+    setSelectedDayForEdit(record.date) // Store the date for the correction
     setCorrectionForm({
       correctionType: 'both',
-      requestedCheckIn: record.checkIn ? new Date(record.checkIn).toISOString().slice(0, 16) : '',
-      requestedCheckOut: record.checkOut ? new Date(record.checkOut).toISOString().slice(0, 16) : '',
+      requestedCheckIn: formatTimeForInput(record.checkIn),
+      requestedCheckOut: formatTimeForInput(record.checkOut),
       requestedStatus: record.status,
       reason: ''
     })
@@ -322,6 +386,65 @@ export default function AttendancePage() {
     }
   }
 
+  // Helper to format date as YYYY-MM-DD in local timezone (for use outside useMemo)
+  const getLocalDateKeyHelper = (d) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  // Create pending corrections lookup map by date and attendance ID
+  const pendingCorrectionsMap = useMemo(() => {
+    const map = { byDate: {}, byAttendanceId: {} }
+    myCorrections.forEach(correction => {
+      if (correction.status === 'pending') {
+        // Map by date
+        if (correction.date) {
+          const dateKey = getLocalDateKeyHelper(new Date(correction.date))
+          map.byDate[dateKey] = correction
+        }
+        // Map by attendance ID
+        if (correction.attendance?._id || correction.attendance) {
+          const attendanceId = correction.attendance?._id || correction.attendance
+          map.byAttendanceId[attendanceId] = correction
+        }
+      }
+    })
+    return map
+  }, [myCorrections])
+
+  // Helper to check if a day has a pending correction
+  const getPendingCorrectionForDay = (dayData) => {
+    if (!dayData) return null
+    // Check by attendance ID first
+    if (dayData.record?._id && pendingCorrectionsMap.byAttendanceId[dayData.record._id]) {
+      return pendingCorrectionsMap.byAttendanceId[dayData.record._id]
+    }
+    // Check by date
+    if (dayData.date && pendingCorrectionsMap.byDate[dayData.date]) {
+      return pendingCorrectionsMap.byDate[dayData.date]
+    }
+    return null
+  }
+
+  // Helper to check if a record has a pending correction
+  const getPendingCorrectionForRecord = (record) => {
+    if (!record) return null
+    // Check by attendance ID
+    if (record._id && pendingCorrectionsMap.byAttendanceId[record._id]) {
+      return pendingCorrectionsMap.byAttendanceId[record._id]
+    }
+    // Check by date
+    if (record.date) {
+      const dateKey = getLocalDateKeyHelper(new Date(record.date))
+      if (pendingCorrectionsMap.byDate[dateKey]) {
+        return pendingCorrectionsMap.byDate[dateKey]
+      }
+    }
+    return null
+  }
+
   // Calendar data generation
   const calendarData = useMemo(() => {
     const year = currentMonth.getFullYear()
@@ -331,10 +454,22 @@ export default function AttendancePage() {
     const daysInMonth = lastDay.getDate()
     const startDayOfWeek = firstDay.getDay()
 
+    // Helper to format date as YYYY-MM-DD in local timezone
+    const getLocalDateKey = (d) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    // Get today's date in local format
+    const todayKey = getLocalDateKey(new Date())
+
     // Create attendance lookup map
     const attendanceMap = {}
     attendance.forEach(record => {
-      const dateKey = new Date(record.date).toISOString().split('T')[0]
+      const recordDate = new Date(record.date)
+      const dateKey = getLocalDateKey(recordDate)
       attendanceMap[dateKey] = record
     })
 
@@ -346,13 +481,16 @@ export default function AttendancePage() {
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day)
-      const dateKey = date.toISOString().split('T')[0]
+      const dateKey = getLocalDateKey(date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      date.setHours(0, 0, 0, 0)
       days.push({
         day,
         date: dateKey,
         record: attendanceMap[dateKey] || null,
-        isToday: dateKey === new Date().toISOString().split('T')[0],
-        isFuture: date > new Date()
+        isToday: dateKey === todayKey,
+        isFuture: date > today
       })
     }
 
@@ -362,16 +500,16 @@ export default function AttendancePage() {
   // Get status color for calendar cell
   const getStatusColor = (record, isFuture) => {
     if (isFuture) return 'bg-gray-50'
-    if (!record) return 'bg-gray-100' // No record - potentially absent
+    if (!record) return 'bg-gray-100/80' // No record - potentially absent
     switch (record.status) {
-      case 'present': return 'bg-green-100 border-green-400'
-      case 'in-progress': return 'bg-orange-100 border-orange-400'
-      case 'half-day': return 'bg-yellow-100 border-yellow-400'
-      case 'late': return 'bg-amber-100 border-amber-400'
-      case 'absent': return 'bg-red-100 border-red-400'
-      case 'on-leave': return 'bg-blue-100 border-blue-400'
-      case 'holiday': return 'bg-purple-100 border-purple-400'
-      default: return 'bg-gray-100'
+      case 'present': return 'bg-green-100/70'
+      case 'in-progress': return 'bg-orange-100/70'
+      case 'half-day': return 'bg-yellow-100/70'
+      case 'late': return 'bg-amber-100/70'
+      case 'absent': return 'bg-red-100/70'
+      case 'on-leave': return 'bg-blue-100/70'
+      case 'holiday': return 'bg-purple-100/70'
+      default: return 'bg-gray-100/70'
     }
   }
 
@@ -394,6 +532,7 @@ export default function AttendancePage() {
       openCorrectionModal(dayData.record)
     } else {
       // No record - open missing entry modal for this date
+      setSelectedDayForMissingEntry(dayData.date)
       setMissingEntryForm({
         date: dayData.date,
         checkIn: '',
@@ -831,64 +970,88 @@ export default function AttendancePage() {
             
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1">
-              {calendarData.map((dayData, index) => (
-                <div
-                  key={index}
-                  className={`
-                    min-h-[100px] p-2 rounded-lg border transition-all
-                    ${dayData.day === null ? 'bg-transparent border-transparent' : 
-                      `${getStatusColor(dayData.record, dayData.isFuture)} border-2 ${!dayData.isFuture ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}`
-                    }
-                    ${dayData.isToday ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
-                  `}
-                  onClick={() => dayData.day && openDayEditModal(dayData)}
-                >
-                  {dayData.day && (
-                    <>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className={`text-sm font-bold ${dayData.isToday ? 'text-blue-600' : 'text-gray-700'}`}>
-                          {dayData.day}
-                        </span>
-                        {!dayData.isFuture && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openDayEditModal(dayData)
-                            }}
-                            className="p-1 rounded hover:bg-white/50 text-gray-400 hover:text-gray-600"
-                            title="Edit"
-                          >
-                            <FaEdit className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                      
-                      {dayData.record ? (
-                        <div className="space-y-1">
-                          <span className={`text-xs font-medium capitalize ${getStatusTextColor(dayData.record.status)}`}>
-                            {dayData.record.status === 'in-progress' ? 'In Progress' : dayData.record.status}
+              {calendarData.map((dayData, index) => {
+                const pendingCorrection = dayData.day ? getPendingCorrectionForDay(dayData) : null
+                const hasPending = !!pendingCorrection
+                
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      min-h-[100px] p-2 rounded-lg transition-all
+                      ${dayData.day === null ? 'bg-transparent' : 
+                        `${getStatusColor(dayData.record, dayData.isFuture)} ${!dayData.isFuture && !hasPending ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}`
+                      }
+                      ${dayData.isToday ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+                      ${hasPending ? 'bg-yellow-50/50' : ''}
+                    `}
+                    onClick={() => dayData.day && !hasPending && openDayEditModal(dayData)}
+                  >
+                    {dayData.day && (
+                      <>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className={`text-sm font-bold ${dayData.isToday ? 'text-blue-600' : 'text-gray-700'}`}>
+                            {dayData.day}
                           </span>
-                          <div className="text-[10px] text-gray-500">
-                            {dayData.record.checkIn && (
-                              <div>In: {formatTime(dayData.record.checkIn)}</div>
-                            )}
-                            {dayData.record.checkOut && (
-                              <div>Out: {formatTime(dayData.record.checkOut)}</div>
-                            )}
-                            {dayData.record.workHours && (
-                              <div className="font-medium">{dayData.record.workHours}h</div>
+                          {!dayData.isFuture && (
+                            hasPending ? (
+                              <span 
+                                className="px-1.5 py-0.5 text-[9px] font-semibold bg-yellow-100 text-yellow-700 rounded border border-yellow-300"
+                                title="Correction request pending"
+                              >
+                                Pending
+                              </span>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openDayEditModal(dayData)
+                                }}
+                                className="p-1 rounded hover:bg-white/50 text-gray-400 hover:text-gray-600"
+                                title="Edit"
+                              >
+                                <FaEdit className="w-3 h-3" />
+                              </button>
+                            )
+                          )}
+                        </div>
+                        
+                        {dayData.record ? (
+                          <div className="space-y-1">
+                            <span className={`text-xs font-medium capitalize ${getStatusTextColor(dayData.record.status)}`}>
+                              {dayData.record.status === 'in-progress' ? 'In Progress' : dayData.record.status}
+                            </span>
+                            <div className="text-[10px] text-gray-500">
+                              {dayData.record.checkIn && (
+                                <div>In: {formatTime(dayData.record.checkIn)}</div>
+                              )}
+                              {dayData.record.checkOut && (
+                                <div>Out: {formatTime(dayData.record.checkOut)}</div>
+                              )}
+                              {dayData.record.workHours && (
+                                <div className="font-medium">{dayData.record.workHours}h</div>
+                              )}
+                            </div>
+                            {hasPending && (
+                              <div className="text-[9px] text-yellow-600 font-medium mt-1">
+                                Edit requested
+                              </div>
                             )}
                           </div>
-                        </div>
-                      ) : !dayData.isFuture ? (
-                        <div className="text-xs text-gray-400 mt-1">
-                          No record
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              ))}
+                        ) : !dayData.isFuture ? (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {hasPending ? (
+                              <span className="text-yellow-600">Entry requested</span>
+                            ) : (
+                              'No record'
+                            )}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ) : (
@@ -913,37 +1076,49 @@ export default function AttendancePage() {
                     </td>
                   </tr>
                 ) : (
-                  attendance.map((record) => (
-                    <tr key={record._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(record.date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(record.checkIn)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(record.checkOut)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.workHours ? `${record.workHours}h` : 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          record.status === 'present' ? 'bg-green-100 text-green-800' :
-                          record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                          record.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' :
-                          record.status === 'in-progress' ? 'bg-orange-100 text-orange-800' :
-                          record.status === 'late' ? 'bg-amber-100 text-amber-800' :
-                          record.status === 'on-leave' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {record.status === 'in-progress' ? 'In Progress' : record.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => openCorrectionModal(record)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          title="Request Correction"
-                        >
-                          <FaEdit />
-                          <span className="text-sm">Correct</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  attendance.map((record) => {
+                    const pendingCorrection = getPendingCorrectionForRecord(record)
+                    const hasPending = !!pendingCorrection
+                    
+                    return (
+                      <tr key={record._id} className={`hover:bg-gray-50 ${hasPending ? 'bg-yellow-50' : ''}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(record.date)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(record.checkIn)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(record.checkOut)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.workHours ? `${record.workHours}h` : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            record.status === 'present' ? 'bg-green-100 text-green-800' :
+                            record.status === 'absent' ? 'bg-red-100 text-red-800' :
+                            record.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' :
+                            record.status === 'in-progress' ? 'bg-orange-100 text-orange-800' :
+                            record.status === 'late' ? 'bg-amber-100 text-amber-800' :
+                            record.status === 'on-leave' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {record.status === 'in-progress' ? 'In Progress' : record.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {hasPending ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium border border-yellow-300">
+                              <FaClock className="w-3 h-3" />
+                              <span>Pending</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => openCorrectionModal(record)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                              title="Request Correction"
+                            >
+                              <FaEdit />
+                              <span className="text-sm">Correct</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -987,7 +1162,17 @@ export default function AttendancePage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Request Attendance Correction</h3>
-            <p className="text-sm text-gray-600 mb-4">Date: {formatDate(selectedRecord.date)}</p>
+            
+            {/* Display the date from selectedRecord - not editable */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm font-medium text-blue-800">
+                <FaCalendarAlt className="inline mr-2" />
+                Date: {formatDate(selectedRecord.date)}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Current: {formatTime(selectedRecord.checkIn)} - {formatTime(selectedRecord.checkOut)} ({selectedRecord.status})
+              </p>
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -1008,7 +1193,7 @@ export default function AttendancePage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Correct Check-In Time</label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     value={correctionForm.requestedCheckIn}
                     onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckIn: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -1020,7 +1205,7 @@ export default function AttendancePage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Correct Check-Out Time</label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     value={correctionForm.requestedCheckOut}
                     onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckOut: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -1060,6 +1245,7 @@ export default function AttendancePage() {
                 onClick={() => {
                   setShowCorrectionModal(false)
                   setSelectedRecord(null)
+                  setSelectedDayForEdit(null)
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
@@ -1085,16 +1271,26 @@ export default function AttendancePage() {
             <p className="text-sm text-gray-600 mb-4">Submit a request to add attendance for a day you forgot to clock in/out.</p>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                <input
-                  type="date"
-                  value={missingEntryForm.date}
-                  onChange={(e) => setMissingEntryForm({ ...missingEntryForm, date: e.target.value })}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {/* Show date as read-only info box when selected from calendar */}
+              {selectedDayForMissingEntry ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-orange-800">
+                    <FaCalendarAlt className="inline mr-2" />
+                    Date: {formatDate(selectedDayForMissingEntry)}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    value={missingEntryForm.date}
+                    onChange={(e) => setMissingEntryForm({ ...missingEntryForm, date: e.target.value })}
+                    max={formatDateLocal(new Date())}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Check-In Time</label>
@@ -1132,6 +1328,7 @@ export default function AttendancePage() {
               <button
                 onClick={() => {
                   setShowMissingEntryModal(false)
+                  setSelectedDayForMissingEntry(null)
                   setMissingEntryForm({ date: '', checkIn: '', checkOut: '', reason: '' })
                 }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
@@ -1140,7 +1337,7 @@ export default function AttendancePage() {
               </button>
               <button
                 onClick={handleMissingEntryRequest}
-                disabled={submittingCorrection || !missingEntryForm.date || !missingEntryForm.reason}
+                disabled={submittingCorrection || (!selectedDayForMissingEntry && !missingEntryForm.date) || !missingEntryForm.reason}
                 className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
               >
                 {submittingCorrection ? 'Submitting...' : 'Submit Request'}

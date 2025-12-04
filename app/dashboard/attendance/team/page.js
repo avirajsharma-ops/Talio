@@ -160,6 +160,14 @@ export default function TeamAttendancePage() {
     }
   }
 
+  // Helper function to format date as YYYY-MM-DD in local timezone
+  const getLocalDateKey = (d) => {
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   // Calendar data generation
   const calendarData = useMemo(() => {
     const year = currentMonth.getFullYear()
@@ -169,9 +177,13 @@ export default function TeamAttendancePage() {
     const daysInMonth = lastDay.getDate()
     const startDayOfWeek = firstDay.getDay()
 
+    // Get today's date in local format
+    const todayKey = getLocalDateKey(new Date())
+
     const attendanceMap = {}
     attendance.forEach(record => {
-      const dateKey = new Date(record.date).toISOString().split('T')[0]
+      const recordDate = new Date(record.date)
+      const dateKey = getLocalDateKey(recordDate)
       attendanceMap[dateKey] = record
     })
 
@@ -181,13 +193,16 @@ export default function TeamAttendancePage() {
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day)
-      const dateKey = date.toISOString().split('T')[0]
+      const dateKey = getLocalDateKey(date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      date.setHours(0, 0, 0, 0)
       days.push({
         day,
         date: dateKey,
         record: attendanceMap[dateKey] || null,
-        isToday: dateKey === new Date().toISOString().split('T')[0],
-        isFuture: date > new Date()
+        isToday: dateKey === todayKey,
+        isFuture: date > today
       })
     }
     return days
