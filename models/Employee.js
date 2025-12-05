@@ -55,6 +55,10 @@ const EmployeeSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Designation',
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+  },
   reportingManager: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',

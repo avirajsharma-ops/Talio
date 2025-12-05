@@ -157,18 +157,34 @@ export async function POST(request) {
       )
     }
 
+    // Prepare employee data - ensure company is properly set
+    const employeeData = { ...data }
+    if (!employeeData.company || employeeData.company === '') {
+      delete employeeData.company // Remove empty company to avoid validation issues
+    }
+
     // Create employee first
-    const employee = await Employee.create(data)
+    const employee = await Employee.create(employeeData)
 
     // Create user account for the employee
     const password = data.password || 'employee123' // Default password if not provided
 
-    const user = await User.create({
+    const userData = {
       email: data.email,
       password: password, // Let the pre-save hook handle hashing
       role: data.role || 'employee', // Default role is employee
       employeeId: employee._id,
-    })
+    }
+
+    // Add company to user if provided (same company as employee)
+    if (data.company && data.company !== '') {
+      userData.company = data.company
+    }
+
+    const user = await User.create(userData)
+
+    // Update employee with userId reference
+    await Employee.findByIdAndUpdate(employee._id, { userId: user._id })
 
     const populatedEmployee = await Employee.findById(employee._id)
       .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status')

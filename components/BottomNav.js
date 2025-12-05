@@ -18,7 +18,7 @@ export default function BottomNav() {
   // Check if current page is a bottom nav page (for showing the elevated button ring)
   const isBottomNavPage = 
     pathname === '/dashboard' || 
-    pathname.startsWith('/dashboard/tasks') || 
+    pathname.startsWith('/dashboard/projects') || 
     pathname.startsWith('/dashboard/leave') ||
     pathname.startsWith('/dashboard/sandbox')
 
@@ -35,8 +35,8 @@ export default function BottomNav() {
     {
       name: 'Projects',
       icon: '/assets/Bottom Bar/Frame 69.svg',
-      path: '/dashboard/tasks/my-tasks',
-      active: pathname.startsWith('/dashboard/tasks')
+      path: '/dashboard/projects/my-tasks',
+      active: pathname.startsWith('/dashboard/projects')
     },
     {
       name: 'Chat',

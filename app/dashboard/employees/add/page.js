@@ -10,6 +10,7 @@ export default function AddEmployeePage() {
   const [loading, setLoading] = useState(false)
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
+  const [companies, setCompanies] = useState([])
   const [formData, setFormData] = useState({
     employeeCode: '',
     firstName: '',
@@ -21,6 +22,7 @@ export default function AddEmployeePage() {
     dateOfJoining: '',
     department: '',
     designation: '',
+    company: '',
     employmentType: 'full-time',
     status: 'active',
     password: '',
@@ -30,6 +32,7 @@ export default function AddEmployeePage() {
   useEffect(() => {
     fetchDepartments()
     fetchDesignations()
+    fetchCompanies()
   }, [])
 
   const fetchDepartments = async () => {
@@ -59,6 +62,21 @@ export default function AddEmployeePage() {
       }
     } catch (error) {
       console.error('Fetch designations error:', error)
+    }
+  }
+
+  const fetchCompanies = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/companies', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanies(data.data)
+      }
+    } catch (error) {
+      console.error('Fetch companies error:', error)
     }
   }
 
@@ -134,36 +152,39 @@ export default function AddEmployeePage() {
             />
           </div>
 
-          {/* First Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              First Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="John"
-            />
-          </div>
+          {/* First Name & Last Name - Side by Side */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* First Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                First Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="First Name"
+              />
+            </div>
 
-          {/* Last Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Last Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="Doe"
-            />
+            {/* Last Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Last Name"
+              />
+            </div>
           </div>
 
           {/* Email */}
@@ -178,7 +199,7 @@ export default function AddEmployeePage() {
               onChange={handleChange}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="john.doe@company.com"
+              placeholder="employee@mushroomworldgroup.com"
             />
           </div>
 
@@ -280,6 +301,26 @@ export default function AddEmployeePage() {
               {designations.map((desig) => (
                 <option key={desig._id} value={desig._id}>
                   {desig.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Company */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company
+            </label>
+            <select
+              name="company"
+              value={formData.company}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="">Select Company</option>
+              {companies.map((company) => (
+                <option key={company._id} value={company._id}>
+                  {company.name} ({company.code})
                 </option>
               ))}
             </select>
