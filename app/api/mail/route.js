@@ -4,19 +4,22 @@ import connectDB from '@/lib/mongodb';
 import EmailAccount from '@/models/EmailAccount';
 import { google } from 'googleapis';
 
-// Create OAuth2 client - uses NEXT_PUBLIC_GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID from .env
+// Production URL - must match Google Cloud Console
+const PRODUCTION_URL = 'https://app.talio.in';
+
+// The SAME redirect URI that's already whitelisted for Google Sign-In
+const REDIRECT_URI = `${PRODUCTION_URL}/api/auth/google/callback`;
+
+// Create OAuth2 client
 function getOAuth2Client() {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  // Use production URL for OAuth to match Google Cloud Console configuration
-  const baseUrl = 'https://app.talio.in';
-  const redirectUri = `${baseUrl}/api/auth/callback/google-mail`;
   
   if (!clientId || !clientSecret) {
-    throw new Error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env');
+    throw new Error('Google OAuth credentials not configured');
   }
   
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  return new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI);
 }
 
 // GET - Check if email is connected and get email account info
@@ -65,28 +68,40 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const oauth2Client = getOAuth2Client();
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    
+    if (!clientId) {
+      return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 });
+    }
 
-    // Generate a state token to prevent CSRF
-    // Use userId from JWT payload (not _id)
+    // Generate a state token to identify this as a mail connection request
     const state = Buffer.from(JSON.stringify({
+      type: 'mail_connect',  // This tells the callback it's for mail
       userId: payload.userId,
       timestamp: Date.now()
     })).toString('base64');
 
+    // Gmail scopes for reading, sending, and modifying emails
     const scopes = [
+      'openid',
+      'email',
+      'profile',
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/gmail.modify',
-      'https://www.googleapis.com/auth/userinfo.email'
+      'https://www.googleapis.com/auth/gmail.modify'
     ];
 
-    const authUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: scopes,
-      state: state,
-      prompt: 'consent'
-    });
+    // Build the OAuth URL manually - same pattern as login page
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+      `response_type=code&` +
+      `scope=${encodeURIComponent(scopes.join(' '))}&` +
+      `access_type=offline&` +
+      `prompt=consent&` +
+      `state=${encodeURIComponent(state)}`;
+
+    console.log('[Mail OAuth] Generated auth URL with redirect:', REDIRECT_URI);
 
     return NextResponse.json({ authUrl, state });
 

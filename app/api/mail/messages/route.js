@@ -4,15 +4,16 @@ import connectDB from '@/lib/mongodb';
 import EmailAccount from '@/models/EmailAccount';
 import { google } from 'googleapis';
 
-// Create OAuth2 client with user's tokens - uses NEXT_PUBLIC_GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID from .env
+// Production URL and redirect URI - must match Google Cloud Console
+const PRODUCTION_URL = 'https://app.talio.in';
+const REDIRECT_URI = `${PRODUCTION_URL}/api/auth/google/callback`;
+
+// Create OAuth2 client with user's tokens
 async function getAuthenticatedClient(emailAccount) {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  // Use production URL for OAuth to match Google Cloud Console configuration
-  const baseUrl = 'https://app.talio.in';
-  const redirectUri = `${baseUrl}/api/auth/callback/google-mail`;
   
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI);
 
   oauth2Client.setCredentials({
     access_token: emailAccount.accessToken,

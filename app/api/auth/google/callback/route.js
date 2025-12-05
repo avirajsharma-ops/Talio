@@ -2,41 +2,56 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
+import EmailAccount from '@/models/EmailAccount'
 import { SignJWT } from 'jose'
 
 // Mark this route as dynamic
 export const dynamic = 'force-dynamic'
+
+// Helper to check if this is a mail connection request
+function parseMailState(stateParam) {
+  if (!stateParam) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(stateParam, 'base64').toString());
+    if (decoded.type === 'mail_connect') {
+      return decoded;
+    }
+  } catch (e) {
+    // Not a mail state, that's fine
+  }
+  return null;
+}
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const error = searchParams.get('error')
+    const state = searchParams.get('state')
 
     console.log('🔵 Google OAuth Callback - Start')
     console.log('Code received:', code ? 'Yes' : 'No')
     console.log('Error from Google:', error)
-    console.log('Request origin:', request.nextUrl.origin)
-    console.log('Request URL:', request.url)
+    console.log('State received:', state ? 'Yes' : 'No')
 
     // Always use production URL for Google OAuth to avoid localhost issues
-    // The redirect URI must match what's configured in Google Cloud Console
     const productionUrl = 'https://app.talio.in'
-    
-    // Check if request is from production domain or localhost
     const isProduction = request.nextUrl.origin.includes('app.talio.in') || 
       request.nextUrl.origin.includes('talio.in')
     const isLocalhost = request.nextUrl.origin.includes('localhost')
-    
-    // Use production URL for:
-    // 1. Production requests
-    // 2. Localhost requests (to ensure redirect goes to production)
-    // 3. Any request without proper NEXT_PUBLIC_APP_URL set
     const baseUrl = (isProduction || isLocalhost) ? productionUrl : (process.env.NEXT_PUBLIC_APP_URL || productionUrl)
 
+    // Check if this is a mail connection request
+    const mailState = parseMailState(state);
+    
+    if (mailState) {
+      console.log('📧 This is a MAIL connection request')
+      return handleMailCallback(request, code, error, mailState, baseUrl);
+    }
+
+    console.log('🔐 This is a LOGIN request')
+    console.log('Request origin:', request.nextUrl.origin)
     console.log('Base URL:', baseUrl)
-    console.log('Is Production:', isProduction)
-    console.log('Is Localhost:', isLocalhost)
 
     if (error) {
       console.error('Google OAuth error:', error)
@@ -242,4 +257,100 @@ export async function GET(request) {
   }
 }
 
+// Handle mail connection callback
+async function handleMailCallback(request, code, error, mailState, baseUrl) {
+  try {
+    console.log('📧 Mail OAuth Callback - Processing')
+    console.log('User ID from state:', mailState.userId)
 
+    if (error) {
+      console.error('📧 Mail OAuth error:', error)
+      return NextResponse.redirect(new URL(`/dashboard/mail?error=${encodeURIComponent(error)}`, baseUrl))
+    }
+
+    if (!code) {
+      console.error('📧 No authorization code received')
+      return NextResponse.redirect(new URL('/dashboard/mail?error=no_code', baseUrl))
+    }
+
+    // Check if state is not too old (10 minutes max for mail)
+    if (Date.now() - mailState.timestamp > 10 * 60 * 1000) {
+      console.error('📧 State token expired')
+      return NextResponse.redirect(new URL('/dashboard/mail?error=expired', baseUrl))
+    }
+
+    const redirectUri = `${baseUrl}/api/auth/google/callback`
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+
+    console.log('📧 Exchanging code for tokens...')
+    console.log('📧 Redirect URI:', redirectUri)
+
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    })
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      console.error('📧 Token exchange failed:', errorText)
+      return NextResponse.redirect(new URL('/dashboard/mail?error=token_exchange_failed', baseUrl))
+    }
+
+    const tokens = await tokenResponse.json()
+    console.log('📧 Tokens received successfully')
+
+    // Get user's email from Google
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    })
+
+    if (!userInfoResponse.ok) {
+      console.error('📧 Failed to get user info')
+      return NextResponse.redirect(new URL('/dashboard/mail?error=user_info_failed', baseUrl))
+    }
+
+    const googleUser = await userInfoResponse.json()
+    console.log('📧 Google user email:', googleUser.email)
+
+    await connectDB()
+
+    // Save or update email account
+    await EmailAccount.findOneAndUpdate(
+      { user: mailState.userId },
+      {
+        user: mailState.userId,
+        email: googleUser.email,
+        provider: 'gmail',
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        isConnected: true,
+        lastSynced: new Date(),
+        syncError: null
+      },
+      { upsert: true, new: true }
+    )
+
+    console.log('📧 Email account saved successfully for:', googleUser.email)
+
+    // Redirect back to mail page with success
+    return NextResponse.redirect(new URL('/dashboard/mail?connected=true', baseUrl))
+
+  } catch (error) {
+    console.error('📧 Mail OAuth callback error:', error)
+    return NextResponse.redirect(new URL(`/dashboard/mail?error=${encodeURIComponent('Failed to connect email')}`, baseUrl))
+  }
+}
