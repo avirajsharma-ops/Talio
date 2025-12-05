@@ -191,17 +191,35 @@ function startAttendanceScheduler() {
   // Run every minute to check for scheduled notifications
   setInterval(async () => {
     try {
-      const response = await fetch(`http://localhost:${port}/api/attendance/scheduler`, {
+      // 1. Process attendance-based notifications
+      const attendanceResponse = await fetch(`http://localhost:${port}/api/attendance/scheduler`, {
         method: 'GET',
         headers: {
           'x-cron-secret': 'internal'
         }
       })
       
-      if (response.ok) {
-        const data = await response.json()
+      if (attendanceResponse.ok) {
+        const data = await attendanceResponse.json()
         if (data.data?.triggered?.length > 0) {
-          console.log('📬 Notifications triggered:', data.data.triggered)
+          console.log('📬 Attendance notifications triggered:', data.data.triggered)
+        }
+      }
+
+      // 2. Process scheduled/custom notifications (if CRON_SECRET is set)
+      if (process.env.CRON_SECRET) {
+        const scheduledResponse = await fetch(`http://localhost:${port}/api/cron/process-scheduled-notifications`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`
+          }
+        })
+        
+        if (scheduledResponse.ok) {
+          const data = await scheduledResponse.json()
+          if (data.processedCount > 0) {
+            console.log('📬 Scheduled notifications processed:', data.processedCount)
+          }
         }
       }
     } catch (error) {

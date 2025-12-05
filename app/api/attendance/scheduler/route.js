@@ -13,8 +13,11 @@ export async function GET(request) {
     const authHeader = request.headers.get('authorization')
     const cronSecret = request.headers.get('x-cron-secret')
     
-    // Only allow calls with valid CRON_SECRET
-    if (!process.env.CRON_SECRET || cronSecret !== process.env.CRON_SECRET) {
+    // Allow internal calls from server.js or calls with valid CRON_SECRET
+    const isInternalCall = cronSecret === 'internal'
+    const isValidCronSecret = process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET
+    
+    if (!isInternalCall && !isValidCronSecret) {
       // For external calls, verify admin token
       if (!authHeader) {
         return NextResponse.json(

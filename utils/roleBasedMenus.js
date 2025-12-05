@@ -4,7 +4,7 @@ import {
   FaBox, FaReceipt, FaHeadset, FaBook, FaGraduationCap,
   FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
   FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
-  FaThLarge, FaTasks, FaComments
+  FaThLarge, FaTasks, FaComments, FaEnvelope
 } from 'react-icons/fa'
 
 // Define menu items for each role
@@ -15,6 +15,7 @@ export const roleBasedMenus = {
   admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -119,6 +120,7 @@ export const roleBasedMenus = {
   hr: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -199,7 +201,7 @@ export const roleBasedMenus = {
   manager: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -244,7 +246,7 @@ export const roleBasedMenus = {
   employee: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -289,7 +291,7 @@ export const roleBasedMenus = {
   department_head: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -336,7 +338,7 @@ export const roleBasedMenus = {
   god_admin: [
     { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
     { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-
+    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
     { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
