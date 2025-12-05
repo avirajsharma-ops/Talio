@@ -26,8 +26,13 @@ export async function GET(request, { params }) {
         options: { strictPopulate: false, lean: true }
       })
       .populate({
+        path: 'departments',
+        select: 'name code',
+        options: { strictPopulate: false, lean: true }
+      })
+      .populate({
         path: 'designation',
-        select: 'title levelName',
+        select: 'title levelName level',
         options: { strictPopulate: false, lean: true }
       })
       .populate({
@@ -48,8 +53,13 @@ export async function GET(request, { params }) {
             options: { strictPopulate: false, lean: true }
           })
           .populate({
+            path: 'departments',
+            select: 'name code',
+            options: { strictPopulate: false, lean: true }
+          })
+          .populate({
             path: 'designation',
-            select: 'title levelName',
+            select: 'title levelName level',
             options: { strictPopulate: false, lean: true }
           })
           .populate({
@@ -141,14 +151,49 @@ export async function PUT(request, { params }) {
       }
     }
 
+    // Handle multiple departments
+    if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
+      // Filter out empty strings
+      data.departments = data.departments.filter(d => d && d !== '')
+      // Set primary department as the first one if not explicitly set
+      if (!data.department || data.department === '') {
+        data.department = data.departments[0]
+      }
+    } else if (data.department && data.department !== '') {
+      // If only single department is provided, also add it to departments array
+      data.departments = [data.department]
+    }
+
+    // Handle designation level
+    if (data.designationLevel) {
+      data.designationLevel = parseInt(data.designationLevel) || 1
+    }
+
     const updatedEmployee = await Employee.findByIdAndUpdate(
       params.id,
       data,
       { new: true, runValidators: true }
     )
-      .populate('department', 'name')
-      .populate('designation', 'title levelName')
-      .populate('reportingManager', 'firstName lastName')
+      .populate({
+        path: 'department',
+        select: 'name',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'departments',
+        select: 'name code',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'designation',
+        select: 'title levelName level',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'reportingManager',
+        select: 'firstName lastName',
+        options: { strictPopulate: false }
+      })
       .lean()
 
     // Clear cache for this employee and list

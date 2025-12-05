@@ -47,6 +47,12 @@ const EmployeeSchema = new mongoose.Schema({
     relationship: String,
     phone: String,
   },
+  // Support multiple departments - employee can work in multiple departments
+  departments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
+  }],
+  // Legacy single department field for backward compatibility
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
@@ -54,6 +60,15 @@ const EmployeeSchema = new mongoose.Schema({
   designation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Designation',
+  },
+  // Designation level - stored separately for quick access
+  designationLevel: {
+    type: Number,
+    default: 1,
+  },
+  designationLevelName: {
+    type: String,
+    trim: true,
   },
   company: {
     type: mongoose.Schema.Types.ObjectId,
@@ -168,6 +183,7 @@ EmployeeSchema.virtual('fullName').get(function () {
 
 // Indexes for performance optimization
 EmployeeSchema.index({ department: 1, status: 1 }); // Common filter combination
+EmployeeSchema.index({ departments: 1 }); // Multiple departments queries
 EmployeeSchema.index({ status: 1, createdAt: -1 }); // List queries with sorting
 EmployeeSchema.index({ reportingManager: 1 }); // Manager queries
 EmployeeSchema.index({ firstName: 'text', lastName: 'text', email: 'text' }); // Text search

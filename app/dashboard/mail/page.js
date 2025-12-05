@@ -3,17 +3,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   FaInbox, FaPaperPlane, FaFile, FaTrash, FaStar, FaSearch,
-  FaPen, FaTimes, FaSync, FaEnvelope, FaEnvelopeOpen, FaReply,
-  FaReplyAll, FaForward, FaPaperclip, FaExclamationTriangle,
-  FaPlug, FaCheck, FaArchive, FaChevronLeft, FaSpinner, FaGoogle
+  FaTimes, FaEnvelope, FaReply,
+  FaForward, FaPaperclip, FaChevronLeft, 
+  FaSpinner, FaRegStar,
+  FaRegEnvelope, FaRegEnvelopeOpen, FaAngleLeft, FaAngleRight,
+  FaExpandAlt, FaCompressAlt, FaMinus, FaBold
 } from 'react-icons/fa';
+import { 
+  MdRefresh, MdMoreVert, MdArchive, MdDelete,
+  MdSchedule, MdCheckBoxOutlineBlank, MdKeyboardArrowDown,
+  MdStar, MdStarBorder, MdLabelImportant, MdAttachFile, MdClose,
+  MdSend, MdInsertPhoto, MdInsertLink,
+  MdInsertEmoticon, MdArrowDropDown, MdInbox,
+  MdOutlineDrafts, MdOutlineSend, MdLabel, MdMoveToInbox
+} from 'react-icons/md';
+import { HiOutlinePencilAlt } from 'react-icons/hi';
 
 const folders = [
-  { id: 'inbox', name: 'Inbox', icon: FaInbox },
-  { id: 'sent', name: 'Sent', icon: FaPaperPlane },
-  { id: 'drafts', name: 'Drafts', icon: FaFile },
-  { id: 'starred', name: 'Starred', icon: FaStar },
-  { id: 'trash', name: 'Trash', icon: FaTrash },
+  { id: 'inbox', name: 'Inbox', icon: MdInbox },
+  { id: 'starred', name: 'Starred', icon: MdStarBorder },
+  { id: 'sent', name: 'Sent', icon: MdOutlineSend },
+  { id: 'drafts', name: 'Drafts', icon: MdOutlineDrafts },
+  { id: 'trash', name: 'Trash', icon: MdDelete },
 ];
 
 export default function MailPage() {
@@ -27,10 +38,14 @@ export default function MailPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCompose, setShowCompose] = useState(false);
+  const [composeMinimized, setComposeMinimized] = useState(false);
+  const [composeFullscreen, setComposeFullscreen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [pageToken, setPageToken] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingEmails, setLoadingEmails] = useState(false);
+  const [showSearchFocused, setShowSearchFocused] = useState(false);
+  const [error, setError] = useState(null);
 
   // Compose email state
   const [composeData, setComposeData] = useState({
@@ -40,6 +55,7 @@ export default function MailPage() {
     subject: '',
     body: ''
   });
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
 
   const getToken = () => {
@@ -61,8 +77,8 @@ export default function MailPage() {
       setIsConnected(data.isConnected || false);
       setConnectedEmail(data.email || '');
       setUnreadCount(data.unreadCount || 0);
-    } catch (error) {
-      console.error('Error checking email status:', error);
+    } catch (err) {
+      console.error('Error checking email status:', err);
     } finally {
       setLoading(false);
     }
@@ -74,10 +90,11 @@ export default function MailPage() {
     
     try {
       setLoadingEmails(true);
+      setError(null);
       const token = getToken();
       const params = new URLSearchParams({
         folder,
-        maxResults: '20',
+        maxResults: '50',
         ...(pageToken && !reset ? { pageToken } : {})
       });
 
@@ -90,7 +107,8 @@ export default function MailPage() {
           setIsConnected(false);
           return;
         }
-        throw new Error('Failed to fetch emails');
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to fetch emails');
       }
 
       const data = await res.json();
@@ -104,8 +122,9 @@ export default function MailPage() {
       setPageToken(data.nextPageToken || null);
       setHasMore(!!data.nextPageToken);
       setUnreadCount(data.unreadCount || 0);
-    } catch (error) {
-      console.error('Error fetching emails:', error);
+    } catch (err) {
+      console.error('Error fetching emails:', err);
+      setError(err.message);
     } finally {
       setLoadingEmails(false);
       setSyncing(false);
@@ -124,11 +143,10 @@ export default function MailPage() {
       const data = await res.json();
 
       if (data.authUrl) {
-        // Redirect to Google OAuth
         window.location.href = data.authUrl;
       }
-    } catch (error) {
-      console.error('Error connecting email:', error);
+    } catch (err) {
+      console.error('Error connecting email:', err);
       alert('Failed to initiate email connection');
     } finally {
       setConnectingEmail(false);
@@ -150,8 +168,8 @@ export default function MailPage() {
       setConnectedEmail('');
       setEmails([]);
       setSelectedEmail(null);
-    } catch (error) {
-      console.error('Error disconnecting email:', error);
+    } catch (err) {
+      console.error('Error disconnecting email:', err);
     }
   };
 
@@ -185,23 +203,99 @@ export default function MailPage() {
 
       setShowCompose(false);
       setComposeData({ to: '', cc: '', bcc: '', subject: '', body: '' });
-      alert('Email sent successfully!');
+      setShowCcBcc(false);
       
-      // Refresh sent folder if currently viewing it
       if (selectedFolder === 'sent') {
         setPageToken(null);
         setHasMore(true);
         fetchEmails('sent', true);
       }
-    } catch (error) {
-      console.error('Error sending email:', error);
+    } catch (err) {
+      console.error('Error sending email:', err);
       alert('Failed to send email');
     } finally {
       setSending(false);
     }
   };
 
-  // Mark email as read/unread
+  // Toggle star
+  const toggleStar = async (email, e) => {
+    e?.stopPropagation();
+    try {
+      const token = getToken();
+      await fetch('/api/mail/messages', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messageId: email.messageId,
+          action: email.isStarred ? 'unstar' : 'star'
+        })
+      });
+
+      setEmails(prev => prev.map(e => 
+        e.messageId === email.messageId ? { ...e, isStarred: !e.isStarred } : e
+      ));
+    } catch (err) {
+      console.error('Error toggling star:', err);
+    }
+  };
+
+  // Archive email
+  const archiveEmail = async (email, e) => {
+    e?.stopPropagation();
+    try {
+      const token = getToken();
+      await fetch('/api/mail/messages', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messageId: email.messageId,
+          action: 'archive'
+        })
+      });
+
+      setEmails(prev => prev.filter(e => e.messageId !== email.messageId));
+      if (selectedEmail?.messageId === email.messageId) {
+        setSelectedEmail(null);
+      }
+    } catch (err) {
+      console.error('Error archiving email:', err);
+    }
+  };
+
+  // Delete email
+  const deleteEmail = async (email, e) => {
+    e?.stopPropagation();
+    try {
+      const token = getToken();
+      await fetch('/api/mail/messages', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messageId: email.messageId,
+          action: selectedFolder === 'trash' ? 'untrash' : 'trash'
+        })
+      });
+
+      setEmails(prev => prev.filter(e => e.messageId !== email.messageId));
+      if (selectedEmail?.messageId === email.messageId) {
+        setSelectedEmail(null);
+      }
+    } catch (err) {
+      console.error('Error deleting email:', err);
+    }
+  };
+
+  // Mark as read/unread
   const toggleRead = async (email, e) => {
     e?.stopPropagation();
     try {
@@ -227,85 +321,8 @@ export default function MailPage() {
       } else {
         setUnreadCount(prev => prev + 1);
       }
-    } catch (error) {
-      console.error('Error toggling read status:', error);
-    }
-  };
-
-  // Toggle star
-  const toggleStar = async (email, e) => {
-    e?.stopPropagation();
-    try {
-      const token = getToken();
-      await fetch('/api/mail/messages', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messageId: email.messageId,
-          action: email.isStarred ? 'unstar' : 'star'
-        })
-      });
-
-      setEmails(prev => prev.map(e => 
-        e.messageId === email.messageId ? { ...e, isStarred: !e.isStarred } : e
-      ));
-    } catch (error) {
-      console.error('Error toggling star:', error);
-    }
-  };
-
-  // Archive email
-  const archiveEmail = async (email, e) => {
-    e?.stopPropagation();
-    try {
-      const token = getToken();
-      await fetch('/api/mail/messages', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messageId: email.messageId,
-          action: 'archive'
-        })
-      });
-
-      setEmails(prev => prev.filter(e => e.messageId !== email.messageId));
-      if (selectedEmail?.messageId === email.messageId) {
-        setSelectedEmail(null);
-      }
-    } catch (error) {
-      console.error('Error archiving email:', error);
-    }
-  };
-
-  // Delete email (move to trash)
-  const deleteEmail = async (email, e) => {
-    e?.stopPropagation();
-    try {
-      const token = getToken();
-      await fetch('/api/mail/messages', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messageId: email.messageId,
-          action: selectedFolder === 'trash' ? 'untrash' : 'trash'
-        })
-      });
-
-      setEmails(prev => prev.filter(e => e.messageId !== email.messageId));
-      if (selectedEmail?.messageId === email.messageId) {
-        setSelectedEmail(null);
-      }
-    } catch (error) {
-      console.error('Error deleting email:', error);
+    } catch (err) {
+      console.error('Error toggling read status:', err);
     }
   };
 
@@ -324,55 +341,64 @@ export default function MailPage() {
     setPageToken(null);
     setHasMore(true);
     setEmails([]);
+    setError(null);
     fetchEmails(folderId, true);
   };
 
-  // Format date
+  // Format date Gmail style
   const formatDate = (date) => {
     const d = new Date(date);
     const now = new Date();
     const diff = now - d;
     
-    // Today
     if (diff < 86400000 && d.getDate() === now.getDate()) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
     }
-    // This year
     if (d.getFullYear() === now.getFullYear()) {
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
     return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Check for connection status on mount and URL params
+  // Get sender avatar color
+  const getSenderAvatar = (from) => {
+    const name = from?.name || from?.email || '?';
+    const initial = name[0].toUpperCase();
+    const colors = [
+      '#1a73e8', '#ea4335', '#fbbc04', '#34a853', '#673ab7',
+      '#e91e63', '#00bcd4', '#ff5722', '#795548', '#607d8b'
+    ];
+    const colorIndex = name.charCodeAt(0) % colors.length;
+    return { initial, color: colors[colorIndex] };
+  };
+
+  // Check for connection status on mount
   useEffect(() => {
     checkConnectionStatus();
     
-    // Check for OAuth callback params
     const params = new URLSearchParams(window.location.search);
     const connected = params.get('connected');
-    const error = params.get('error');
+    const urlError = params.get('error');
     
     if (connected === 'true') {
       setIsConnected(true);
-      // Clean URL
       window.history.replaceState({}, '', '/dashboard/mail');
     }
     
-    if (error) {
-      alert(`Failed to connect email: ${error}`);
+    if (urlError) {
+      alert(`Failed to connect email: ${urlError}`);
       window.history.replaceState({}, '', '/dashboard/mail');
     }
   }, [checkConnectionStatus]);
 
-  // Fetch emails when connected and folder changes
+  // Fetch emails when connected
   useEffect(() => {
     if (isConnected && !loading) {
       fetchEmails(selectedFolder, true);
     }
   }, [isConnected, loading, selectedFolder]);
 
-  // Filter emails by search
+  // Filter emails
   const filteredEmails = emails.filter(email => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -386,42 +412,55 @@ export default function MailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-120px)]">
+      <div className="flex items-center justify-center h-[calc(100vh-120px)] bg-white dark:bg-[#1f1f1f]">
         <FaSpinner className="animate-spin text-4xl text-gray-400" />
       </div>
     );
   }
 
-  // Not connected - show connect screen
+  // Not connected - Gmail style connect screen
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)]">
-        <div className="bg-white dark:bg-dark-card rounded-2xl p-8 shadow-lg max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <FaEnvelope className="text-4xl text-blue-600 dark:text-blue-400" />
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-[#f6f8fc] dark:bg-[#1f1f1f]">
+        <div className="text-center max-w-md">
+          <div className="mb-8">
+            <div className="w-24 h-24 mx-auto relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500 via-yellow-500 to-green-500 rounded-2xl opacity-20"></div>
+              <div className="absolute inset-2 bg-white dark:bg-[#2d2d2d] rounded-xl flex items-center justify-center">
+                <FaEnvelope className="text-4xl text-red-500" />
+              </div>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Connect Your Email
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
-            Connect your Gmail account to view and manage your emails directly from Talio HRMS.
+          
+          <h1 className="text-3xl font-normal text-gray-800 dark:text-white mb-2">
+            Welcome to Mail
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 text-base">
+            Connect your Gmail account to access your emails directly from Talio
           </p>
+          
           <button
             onClick={connectEmail}
             disabled={connectingEmail}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 dark:bg-dark-card px-6 py-3 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-3 bg-white dark:bg-[#2d2d2d] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-8 py-3 rounded-full font-medium hover:bg-gray-50 dark:hover:bg-[#3d3d3d] hover:shadow-md transition-all disabled:opacity-50 text-base"
           >
             {connectingEmail ? (
               <FaSpinner className="animate-spin" />
             ) : (
               <>
-                <FaGoogle className="text-xl" />
-                Connect with Google
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Sign in with Google
               </>
             )}
           </button>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">
-            We only request access to read and send emails on your behalf. 
+          
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-6">
+            We'll only access your emails with your permission.<br/>
             You can disconnect at any time.
           </p>
         </div>
@@ -430,424 +469,645 @@ export default function MailPage() {
   }
 
   return (
-    <>
-      <div className="h-[calc(100vh-100px)] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mail</h1>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {connectedEmail}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={syncEmails}
-              disabled={syncing}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Sync emails"
-            >
-              <FaSync className={`${syncing ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={disconnectEmail}
-              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              title="Disconnect email"
-            >
-              <FaPlug />
-            </button>
+    <div className="h-[calc(100vh-80px)] flex flex-col bg-[#f6f8fc] dark:bg-[#1f1f1f] -m-4 md:-m-6">
+      {/* Gmail Style Header/Search Bar */}
+      <div className="flex items-center gap-2 px-2 py-2 bg-[#f6f8fc] dark:bg-[#1f1f1f]">
+        <div className={`flex-1 max-w-3xl mx-auto transition-all ${showSearchFocused ? 'shadow-lg' : 'shadow'}`}>
+          <div className={`flex items-center bg-[#eaf1fb] dark:bg-[#3c4043] rounded-full px-4 py-2.5 ${showSearchFocused ? 'bg-white dark:bg-[#2d2d2d]' : ''}`}>
+            <FaSearch className="text-gray-500 mr-3" />
+            <input
+              type="text"
+              placeholder="Search mail"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setShowSearchFocused(true)}
+              onBlur={() => setShowSearchFocused(false)}
+              className="flex-1 bg-transparent focus:outline-none text-gray-800 dark:text-white placeholder-gray-500 text-base"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-gray-700">
+                <FaTimes />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-56 flex-shrink-0 flex flex-col">
-            {/* Compose Button */}
-            <button
-              onClick={() => setShowCompose(true)}
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 rounded-xl font-medium mb-4 hover:shadow-lg transition-all"
-            >
-              <FaPen />
-              Compose
-            </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={syncEmails}
+            disabled={syncing}
+            className="p-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#3c4043] rounded-full transition-colors"
+            title="Refresh"
+          >
+            <MdRefresh className={`text-xl ${syncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={disconnectEmail}
+            className="p-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#3c4043] rounded-full transition-colors"
+            title="Disconnect"
+          >
+            <MdMoreVert className="text-xl" />
+          </button>
+        </div>
+      </div>
 
-            {/* Folders */}
-            <div className="bg-white dark:bg-dark-card rounded-xl p-2 flex-1">
-              {folders.map(folder => (
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - Gmail Style */}
+        <div className="w-64 flex-shrink-0 py-2 pl-2 hidden md:block">
+          {/* Compose Button */}
+          <button
+            onClick={() => setShowCompose(true)}
+            className="flex items-center gap-3 bg-white dark:bg-[#2d2d2d] text-gray-700 dark:text-gray-200 rounded-2xl shadow hover:shadow-md transition-all mb-4 px-6 py-4"
+          >
+            <HiOutlinePencilAlt className="text-2xl" />
+            <span className="font-medium">Compose</span>
+          </button>
+
+          {/* Folders */}
+          <nav className="space-y-0.5">
+            {folders.map(folder => {
+              const Icon = folder.icon;
+              const isActive = selectedFolder === folder.id;
+              return (
                 <button
                   key={folder.id}
                   onClick={() => handleFolderChange(folder.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    selectedFolder === folder.id
-                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  className={`w-full flex items-center gap-4 px-3 py-2 rounded-r-full transition-colors text-sm ${
+                    isActive
+                      ? 'bg-[#d3e3fd] dark:bg-[#004a77] text-[#001d35] dark:text-[#c2e7ff] font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3c4043]'
                   }`}
                 >
-                  <folder.icon className="text-lg" />
+                  <Icon className="text-xl" />
                   <span className="flex-1 text-left">{folder.name}</span>
                   {folder.id === 'inbox' && unreadCount > 0 && (
-                    <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                      {unreadCount}
-                    </span>
+                    <span className="text-xs font-medium">{unreadCount}</span>
                   )}
                 </button>
-              ))}
-            </div>
-          </div>
+              );
+            })}
+          </nav>
 
+          {/* Connected Email */}
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 px-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{connectedEmail}</p>
+          </div>
+        </div>
+
+        {/* Mobile Sidebar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#2d2d2d] border-t border-gray-200 dark:border-gray-700 z-40 flex justify-around py-2">
+          {folders.slice(0, 4).map(folder => {
+            const Icon = folder.icon;
+            const isActive = selectedFolder === folder.id;
+            return (
+              <button
+                key={folder.id}
+                onClick={() => handleFolderChange(folder.id)}
+                className={`flex flex-col items-center p-2 rounded-lg ${
+                  isActive ? 'text-[#1a73e8]' : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                <Icon className="text-xl" />
+                <span className="text-xs mt-1">{folder.name}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setShowCompose(true)}
+            className="flex flex-col items-center p-2 rounded-lg text-[#1a73e8]"
+          >
+            <HiOutlinePencilAlt className="text-xl" />
+            <span className="text-xs mt-1">Compose</span>
+          </button>
+        </div>
+
+        {/* Email List & Detail */}
+        <div className="flex-1 flex overflow-hidden bg-white dark:bg-[#2d2d2d] rounded-tl-2xl md:rounded-tl-2xl">
           {/* Email List */}
-          <div className={`${selectedEmail ? 'hidden md:flex' : 'flex'} flex-col w-80 flex-shrink-0`}>
-            {/* Search */}
-            <div className="relative mb-3">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search emails..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:text-white"
-              />
+          <div className={`${selectedEmail ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-[400px] xl:w-[450px] flex-shrink-0 border-r border-gray-200 dark:border-gray-700`}>
+            {/* Toolbar */}
+            <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded">
+                <MdCheckBoxOutlineBlank className="text-xl text-gray-600 dark:text-gray-400" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded">
+                <MdKeyboardArrowDown className="text-xl text-gray-600 dark:text-gray-400" />
+              </button>
+              <div className="h-5 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
+              <button 
+                onClick={syncEmails}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                title="Refresh"
+              >
+                <MdRefresh className={`text-xl text-gray-600 dark:text-gray-400 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded">
+                <MdMoreVert className="text-xl text-gray-600 dark:text-gray-400" />
+              </button>
+              <div className="flex-1"></div>
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
+                {filteredEmails.length > 0 ? `1-${filteredEmails.length}` : '0'}
+              </span>
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded opacity-50" disabled>
+                <FaAngleLeft className="text-gray-600 dark:text-gray-400" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded opacity-50" disabled>
+                <FaAngleRight className="text-gray-600 dark:text-gray-400" />
+              </button>
             </div>
 
             {/* Email List */}
-            <div className="flex-1 bg-white dark:bg-dark-card rounded-xl overflow-y-auto">
-              {loadingEmails && emails.length === 0 ? (
+            <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+              {error ? (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500 p-4">
+                  <MdInbox className="text-6xl mb-4 opacity-30" />
+                  <p className="text-lg mb-2">Unable to load emails</p>
+                  <p className="text-sm text-center text-red-500">{error}</p>
+                  <button 
+                    onClick={syncEmails}
+                    className="mt-4 px-4 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1557b0]"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : loadingEmails && emails.length === 0 ? (
                 <div className="flex items-center justify-center h-40">
                   <FaSpinner className="animate-spin text-2xl text-gray-400" />
                 </div>
               ) : filteredEmails.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                  <FaInbox className="text-4xl mb-2" />
-                  <p>No emails found</p>
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <MdInbox className="text-6xl mb-4 opacity-30" />
+                  <p className="text-lg">No emails in {selectedFolder}</p>
                 </div>
               ) : (
-                <>
-                  {filteredEmails.map(email => (
+                filteredEmails.map(email => {
+                  return (
                     <div
                       key={email.messageId}
                       onClick={() => {
                         setSelectedEmail(email);
                         if (!email.isRead) toggleRead(email);
                       }}
-                      className={`p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                      className={`flex items-center gap-2 px-2 py-2 border-b border-gray-100 dark:border-gray-700/50 cursor-pointer group transition-colors ${
                         selectedEmail?.messageId === email.messageId
-                          ? 'bg-blue-50 dark:bg-blue-900/20'
+                          ? 'bg-[#c2dbff] dark:bg-[#174ea6]'
                           : !email.isRead
-                          ? 'bg-blue-50/50 dark:bg-blue-900/10'
-                          : ''
+                          ? 'bg-[#f2f6fc] dark:bg-[#3c4043] hover:shadow-sm'
+                          : 'hover:bg-gray-50 dark:hover:bg-[#3c4043]/50'
                       }`}
                     >
-                      <div className="flex items-start gap-2">
-                        <button
-                          onClick={(e) => toggleStar(email, e)}
-                          className={`mt-1 ${
-                            email.isStarred
-                              ? 'text-yellow-500'
-                              : 'text-gray-300 hover:text-yellow-500'
-                          }`}
-                        >
-                          <FaStar />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`text-sm truncate ${
-                              !email.isRead ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'
-                            }`}>
-                              {email.from?.name || email.from?.email}
-                            </span>
-                            <span className="text-xs text-gray-500 flex-shrink-0">
-                              {formatDate(email.date)}
-                            </span>
-                          </div>
-                          <p className={`text-sm truncate ${
-                            !email.isRead ? 'font-medium text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400'
-                          }`}>
-                            {email.subject}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {/* Checkbox */}
+                      <button 
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block"
+                      >
+                        <MdCheckBoxOutlineBlank className="text-lg text-gray-500" />
+                      </button>
+
+                      {/* Star */}
+                      <button
+                        onClick={(e) => toggleStar(email, e)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      >
+                        {email.isStarred ? (
+                          <MdStar className="text-lg text-yellow-500" />
+                        ) : (
+                          <MdStarBorder className="text-lg text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+                        )}
+                      </button>
+
+                      {/* Important */}
+                      <button className="p-1 opacity-0 group-hover:opacity-100 hidden sm:block">
+                        <MdLabelImportant className="text-lg text-gray-400 hover:text-yellow-600" />
+                      </button>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center">
+                        {/* Sender */}
+                        <div className={`sm:w-44 truncate text-sm ${!email.isRead ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                          {email.from?.name || email.from?.email?.split('@')[0]}
+                        </div>
+
+                        {/* Subject & Snippet */}
+                        <div className="flex-1 flex items-center min-w-0 gap-1">
+                          <span className={`truncate text-sm ${!email.isRead ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {email.subject || '(no subject)'}
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400 text-sm hidden sm:inline">-</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-sm truncate flex-1 hidden sm:inline">
                             {email.snippet}
-                          </p>
+                          </span>
                         </div>
                       </div>
+
+                      {/* Actions on hover */}
+                      <div className="hidden sm:group-hover:flex items-center gap-0.5">
+                        <button 
+                          onClick={(e) => archiveEmail(email, e)}
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          title="Archive"
+                        >
+                          <MdArchive className="text-lg text-gray-500" />
+                        </button>
+                        <button 
+                          onClick={(e) => deleteEmail(email, e)}
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          title="Delete"
+                        >
+                          <MdDelete className="text-lg text-gray-500" />
+                        </button>
+                        <button 
+                          onClick={(e) => toggleRead(email, e)}
+                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          title={email.isRead ? 'Mark as unread' : 'Mark as read'}
+                        >
+                          {email.isRead ? (
+                            <FaRegEnvelope className="text-sm text-gray-500" />
+                          ) : (
+                            <FaRegEnvelopeOpen className="text-sm text-gray-500" />
+                          )}
+                        </button>
+                        <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded" title="Snooze">
+                          <MdSchedule className="text-lg text-gray-500" />
+                        </button>
+                      </div>
+
+                      {/* Date */}
+                      <div className={`text-xs text-gray-500 dark:text-gray-400 w-16 text-right sm:group-hover:hidden ${!email.isRead ? 'font-semibold text-gray-900 dark:text-white' : ''}`}>
+                        {formatDate(email.date)}
+                      </div>
+
+                      {/* Attachment indicator */}
                       {email.attachments?.length > 0 && (
-                        <div className="flex items-center gap-1 mt-1 ml-6 text-xs text-gray-500">
-                          <FaPaperclip />
-                          {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
-                        </div>
+                        <MdAttachFile className="text-gray-400 -rotate-45 sm:group-hover:hidden" />
                       )}
                     </div>
-                  ))}
-                  {hasMore && (
-                    <button
-                      onClick={() => fetchEmails(selectedFolder, false)}
-                      disabled={loadingEmails}
-                      className="w-full py-3 text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      {loadingEmails ? (
-                        <FaSpinner className="animate-spin mx-auto" />
-                      ) : (
-                        'Load more'
-                      )}
-                    </button>
-                  )}
-                </>
+                  );
+                })
+              )}
+              
+              {hasMore && !loadingEmails && !error && (
+                <button
+                  onClick={() => fetchEmails(selectedFolder, false)}
+                  className="w-full py-4 text-[#1a73e8] dark:text-[#8ab4f8] hover:bg-gray-50 dark:hover:bg-[#3c4043] text-sm font-medium"
+                >
+                  Load more
+                </button>
+              )}
+              
+              {loadingEmails && emails.length > 0 && (
+                <div className="flex items-center justify-center py-4">
+                  <FaSpinner className="animate-spin text-gray-400" />
+                </div>
               )}
             </div>
           </div>
 
-          {/* Email Detail */}
-          <div className={`${selectedEmail ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-white dark:bg-dark-card rounded-xl overflow-hidden`}>
+          {/* Email Detail View */}
+          <div className={`${selectedEmail ? 'flex' : 'hidden lg:flex'} flex-1 flex-col min-w-0`}>
             {selectedEmail ? (
               <>
-                {/* Email Header */}
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                {/* Detail Toolbar */}
+                <div className="flex items-center gap-1 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => setSelectedEmail(null)}
-                    className="md:hidden flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-3"
+                    className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded mr-2"
                   >
-                    <FaChevronLeft />
-                    Back
+                    <FaChevronLeft className="text-gray-600 dark:text-gray-400" />
                   </button>
-                  <div className="flex items-start justify-between gap-4">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {selectedEmail.subject}
-                    </h2>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={(e) => toggleStar(selectedEmail, e)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          selectedEmail.isStarred
-                            ? 'text-yellow-500'
-                            : 'text-gray-400 hover:text-yellow-500'
-                        }`}
-                      >
-                        <FaStar />
-                      </button>
-                      <button
-                        onClick={(e) => archiveEmail(selectedEmail, e)}
-                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
-                        title="Archive"
-                      >
-                        <FaArchive />
-                      </button>
-                      <button
-                        onClick={(e) => deleteEmail(selectedEmail, e)}
-                        className="p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
-                        title={selectedFolder === 'trash' ? 'Restore' : 'Delete'}
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
+                  <button 
+                    onClick={(e) => archiveEmail(selectedEmail, e)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                    title="Archive"
+                  >
+                    <MdArchive className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button 
+                    onClick={(e) => deleteEmail(selectedEmail, e)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                    title="Delete"
+                  >
+                    <MdDelete className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <div className="h-5 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                  <button 
+                    onClick={(e) => toggleRead(selectedEmail, e)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                    title={selectedEmail.isRead ? 'Mark as unread' : 'Mark as read'}
+                  >
+                    <FaRegEnvelope className="text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded" title="Snooze">
+                    <MdSchedule className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded" title="Move to">
+                    <MdMoveToInbox className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded" title="Labels">
+                    <MdLabel className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded">
+                    <MdMoreVert className="text-xl text-gray-600 dark:text-gray-400" />
+                  </button>
+                </div>
+
+                {/* Email Content */}
+                <div className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+                  {/* Subject */}
+                  <div className="flex items-start justify-between mb-4">
+                    <h1 className="text-xl md:text-2xl font-normal text-gray-900 dark:text-white flex-1">
+                      {selectedEmail.subject || '(no subject)'}
+                    </h1>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded ml-2 hidden md:block">
+                      <FaExpandAlt className="text-gray-500 text-sm" />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                      {(selectedEmail.from?.name || selectedEmail.from?.email || '?')[0].toUpperCase()}
+
+                  {/* Sender Info */}
+                  <div className="flex items-start gap-3 mb-4">
+                    {/* Avatar */}
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0"
+                      style={{ backgroundColor: getSenderAvatar(selectedEmail.from).color }}
+                    >
+                      {getSenderAvatar(selectedEmail.from).initial}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-gray-900 dark:text-white">
                           {selectedEmail.from?.name || selectedEmail.from?.email}
                         </span>
                         {selectedEmail.from?.name && (
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
                             &lt;{selectedEmail.from?.email}&gt;
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">
-                        to {selectedEmail.to?.map(t => t.name || t.email).join(', ')}
-                      </p>
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      {new Date(selectedEmail.date).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Email Body */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  {selectedEmail.bodyHtml ? (
-                    <div 
-                      className="prose dark:prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }}
-                    />
-                  ) : (
-                    <pre className="whitespace-pre-wrap font-sans text-gray-700 dark:text-gray-300">
-                      {selectedEmail.body || selectedEmail.snippet}
-                    </pre>
-                  )}
-
-                  {/* Attachments */}
-                  {selectedEmail.attachments?.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Attachments ({selectedEmail.attachments.length})
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedEmail.attachments.map((att, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm"
-                          >
-                            <FaPaperclip className="text-gray-400" />
-                            <span className="text-gray-700 dark:text-gray-300">{att.filename}</span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                        <span>to me</span>
+                        <MdKeyboardArrowDown className="text-lg" />
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Quick Reply */}
-                <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex gap-2">
-                    <button
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                        {new Date(selectedEmail.date).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                      <button 
+                        onClick={(e) => toggleStar(selectedEmail, e)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                      >
+                        {selectedEmail.isStarred ? (
+                          <MdStar className="text-xl text-yellow-500" />
+                        ) : (
+                          <MdStarBorder className="text-xl text-gray-400" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setComposeData({
+                            to: selectedEmail.from?.email || '',
+                            cc: '',
+                            bcc: '',
+                            subject: `Re: ${selectedEmail.subject}`,
+                            body: ''
+                          });
+                          setShowCompose(true);
+                        }}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                        title="Reply"
+                      >
+                        <FaReply className="text-gray-500" />
+                      </button>
+                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block">
+                        <MdMoreVert className="text-xl text-gray-500" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Email Body */}
+                  <div className="md:ml-13 md:pl-10">
+                    {selectedEmail.bodyHtml ? (
+                      <div 
+                        className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+                        dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }}
+                      />
+                    ) : (
+                      <pre className="whitespace-pre-wrap font-sans text-gray-800 dark:text-gray-200 text-sm md:text-base leading-relaxed">
+                        {selectedEmail.body || selectedEmail.snippet}
+                      </pre>
+                    )}
+
+                    {/* Attachments */}
+                    {selectedEmail.attachments?.length > 0 && (
+                      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex flex-wrap gap-2">
+                          {selectedEmail.attachments.map((att, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-[#3c4043] rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-[#4c4c4c] cursor-pointer"
+                            >
+                              <MdAttachFile className="text-gray-500 -rotate-45" />
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{att.filename}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reply Box */}
+                  <div className="mt-8 md:ml-10 border border-gray-300 dark:border-gray-600 rounded-2xl overflow-hidden">
+                    <div 
                       onClick={() => {
                         setComposeData({
                           to: selectedEmail.from?.email || '',
                           cc: '',
                           bcc: '',
                           subject: `Re: ${selectedEmail.subject}`,
-                          body: `\n\n-------- Original Message --------\nFrom: ${selectedEmail.from?.name || selectedEmail.from?.email}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\n\n${selectedEmail.body || selectedEmail.snippet}`
+                          body: ''
                         });
                         setShowCompose(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      className="px-4 py-3 text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3c4043]"
                     >
-                      <FaReply />
-                      Reply
-                    </button>
-                    <button
-                      onClick={() => {
-                        setComposeData({
-                          to: '',
-                          cc: '',
-                          bcc: '',
-                          subject: `Fwd: ${selectedEmail.subject}`,
-                          body: `\n\n-------- Forwarded Message --------\nFrom: ${selectedEmail.from?.name || selectedEmail.from?.email}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.body || selectedEmail.snippet}`
-                        });
-                        setShowCompose(true);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <FaForward />
-                      Forward
-                    </button>
+                      Click here to Reply
+                    </div>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-                <FaEnvelope className="text-6xl mb-4 opacity-20" />
-                <p>Select an email to read</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                <MdInbox className="text-8xl mb-4 opacity-20" />
+                <p className="text-lg">Select an email to read</p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Compose Modal */}
+      {/* Compose Modal - Gmail Style */}
       {showCompose && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-dark-card rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
-            {/* Compose Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                New Message
-              </h3>
-              <button
-                onClick={() => setShowCompose(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            {/* Compose Form */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-                <label className="w-12 text-sm text-gray-500">To:</label>
-                <input
-                  type="text"
-                  value={composeData.to}
-                  onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
-                  placeholder="recipient@example.com"
-                  className="flex-1 bg-transparent focus:outline-none dark:text-white"
-                />
-              </div>
-              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-                <label className="w-12 text-sm text-gray-500">Cc:</label>
-                <input
-                  type="text"
-                  value={composeData.cc}
-                  onChange={(e) => setComposeData(prev => ({ ...prev, cc: e.target.value }))}
-                  placeholder="cc@example.com"
-                  className="flex-1 bg-transparent focus:outline-none dark:text-white"
-                />
-              </div>
-              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-                <label className="w-12 text-sm text-gray-500">Bcc:</label>
-                <input
-                  type="text"
-                  value={composeData.bcc}
-                  onChange={(e) => setComposeData(prev => ({ ...prev, bcc: e.target.value }))}
-                  placeholder="bcc@example.com"
-                  className="flex-1 bg-transparent focus:outline-none dark:text-white"
-                />
-              </div>
-              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2">
-                <label className="w-12 text-sm text-gray-500">Subject:</label>
-                <input
-                  type="text"
-                  value={composeData.subject}
-                  onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
-                  placeholder="Subject"
-                  className="flex-1 bg-transparent focus:outline-none dark:text-white"
-                />
-              </div>
-              <textarea
-                value={composeData.body}
-                onChange={(e) => setComposeData(prev => ({ ...prev, body: e.target.value }))}
-                placeholder="Write your message here..."
-                rows={12}
-                className="w-full bg-transparent focus:outline-none resize-none dark:text-white"
-              />
-            </div>
-
-            {/* Compose Footer */}
-            <div className="flex items-center justify-between p-4 border-t border-gray-100 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors">
-                  <FaPaperclip />
+        <div className={`fixed ${composeFullscreen ? 'inset-0 p-4' : 'bottom-0 right-0 sm:right-8 left-0 sm:left-auto'} z-50`}>
+          <div className={`bg-white dark:bg-[#2d2d2d] rounded-t-lg sm:rounded-lg shadow-2xl flex flex-col ${
+            composeFullscreen 
+              ? 'w-full h-full rounded-lg' 
+              : composeMinimized 
+                ? 'w-72 h-10 hidden sm:flex' 
+                : 'w-full sm:w-[560px] h-[70vh] sm:h-[480px]'
+          }`}>
+            {/* Header */}
+            <div 
+              className={`flex items-center justify-between px-3 py-2 bg-[#404040] dark:bg-[#404040] text-white rounded-t-lg cursor-pointer ${composeMinimized ? 'rounded-b-lg' : ''}`}
+              onClick={() => composeMinimized && setComposeMinimized(false)}
+            >
+              <span className="font-medium text-sm truncate">{composeData.subject || 'New Message'}</span>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setComposeMinimized(!composeMinimized); }}
+                  className="p-1.5 hover:bg-gray-600 rounded hidden sm:block"
+                >
+                  <FaMinus className="text-xs" />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setComposeFullscreen(!composeFullscreen); setComposeMinimized(false); }}
+                  className="p-1.5 hover:bg-gray-600 rounded hidden sm:block"
+                >
+                  {composeFullscreen ? <FaCompressAlt className="text-xs" /> : <FaExpandAlt className="text-xs" />}
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowCompose(false); setComposeData({ to: '', cc: '', bcc: '', subject: '', body: '' }); }}
+                  className="p-1.5 hover:bg-gray-600 rounded"
+                >
+                  <MdClose className="text-base" />
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowCompose(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  Discard
-                </button>
-                <button
-                  onClick={sendEmail}
-                  disabled={sending}
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50"
-                >
-                  {sending ? (
-                    <FaSpinner className="animate-spin" />
-                  ) : (
-                    <>
-                      <FaPaperPlane />
-                      Send
-                    </>
+            </div>
+
+            {!composeMinimized && (
+              <>
+                {/* Form */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* To */}
+                  <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                    <span className="px-3 text-sm text-gray-500">To</span>
+                    <input
+                      type="text"
+                      value={composeData.to}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
+                      className="flex-1 px-2 py-2 bg-transparent focus:outline-none text-gray-900 dark:text-white text-sm"
+                    />
+                    {!showCcBcc && (
+                      <button 
+                        onClick={() => setShowCcBcc(true)}
+                        className="px-3 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      >
+                        Cc Bcc
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Cc */}
+                  {showCcBcc && (
+                    <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                      <span className="px-3 text-sm text-gray-500">Cc</span>
+                      <input
+                        type="text"
+                        value={composeData.cc}
+                        onChange={(e) => setComposeData(prev => ({ ...prev, cc: e.target.value }))}
+                        className="flex-1 px-2 py-2 bg-transparent focus:outline-none text-gray-900 dark:text-white text-sm"
+                      />
+                    </div>
                   )}
-                </button>
-              </div>
-            </div>
+
+                  {/* Bcc */}
+                  {showCcBcc && (
+                    <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                      <span className="px-3 text-sm text-gray-500">Bcc</span>
+                      <input
+                        type="text"
+                        value={composeData.bcc}
+                        onChange={(e) => setComposeData(prev => ({ ...prev, bcc: e.target.value }))}
+                        className="flex-1 px-2 py-2 bg-transparent focus:outline-none text-gray-900 dark:text-white text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Subject */}
+                  <div className="flex items-center border-b border-gray-200 dark:border-gray-700">
+                    <input
+                      type="text"
+                      value={composeData.subject}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
+                      placeholder="Subject"
+                      className="flex-1 px-3 py-2 bg-transparent focus:outline-none text-gray-900 dark:text-white text-sm"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <textarea
+                    value={composeData.body}
+                    onChange={(e) => setComposeData(prev => ({ ...prev, body: e.target.value }))}
+                    className="flex-1 px-3 py-2 bg-transparent focus:outline-none resize-none text-gray-900 dark:text-white text-sm"
+                    placeholder="Write your message here..."
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={sendEmail}
+                      disabled={sending}
+                      className="flex items-center gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white px-6 py-2 rounded font-medium text-sm disabled:opacity-50"
+                    >
+                      {sending ? <FaSpinner className="animate-spin" /> : 'Send'}
+                    </button>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block">
+                      <MdArrowDropDown className="text-xl text-gray-600 dark:text-gray-400" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center gap-0.5">
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block" title="Formatting options">
+                      <FaBold className="text-gray-500 text-sm" />
+                    </button>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded" title="Attach files">
+                      <MdAttachFile className="text-xl text-gray-500 -rotate-45" />
+                    </button>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block" title="Insert link">
+                      <MdInsertLink className="text-xl text-gray-500" />
+                    </button>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block" title="Insert emoji">
+                      <MdInsertEmoticon className="text-xl text-gray-500" />
+                    </button>
+                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded hidden sm:block" title="Insert photo">
+                      <MdInsertPhoto className="text-xl text-gray-500" />
+                    </button>
+                    <div className="flex-1"></div>
+                    <button 
+                      onClick={() => { setShowCompose(false); setComposeData({ to: '', cc: '', bcc: '', subject: '', body: '' }); }}
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-[#3c4043] rounded"
+                      title="Discard draft"
+                    >
+                      <MdDelete className="text-xl text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

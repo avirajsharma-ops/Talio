@@ -50,10 +50,15 @@ export async function GET(request) {
 
     // Optimized: Use select() to fetch only needed fields and lean() for plain objects
     const employees = await Employee.find(query)
-      .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status profilePicture')
+      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status profilePicture')
       .populate({
         path: 'department',
         select: 'name _id',
+        options: { strictPopulate: false, lean: true }
+      })
+      .populate({
+        path: 'departments',
+        select: 'name code _id',
         options: { strictPopulate: false, lean: true }
       })
       .populate({
@@ -163,6 +168,24 @@ export async function POST(request) {
       delete employeeData.company // Remove empty company to avoid validation issues
     }
 
+    // Handle multiple departments
+    if (employeeData.departments && Array.isArray(employeeData.departments) && employeeData.departments.length > 0) {
+      // Filter out empty strings
+      employeeData.departments = employeeData.departments.filter(d => d && d !== '')
+      // Set primary department as the first one if not explicitly set
+      if (!employeeData.department || employeeData.department === '') {
+        employeeData.department = employeeData.departments[0]
+      }
+    } else if (employeeData.department && employeeData.department !== '') {
+      // If only single department is provided, also add it to departments array
+      employeeData.departments = [employeeData.department]
+    }
+
+    // Handle designation level
+    if (employeeData.designationLevel) {
+      employeeData.designationLevel = parseInt(employeeData.designationLevel) || 1
+    }
+
     // Create employee first
     const employee = await Employee.create(employeeData)
 
@@ -187,10 +210,27 @@ export async function POST(request) {
     await Employee.findByIdAndUpdate(employee._id, { userId: user._id })
 
     const populatedEmployee = await Employee.findById(employee._id)
-      .select('employeeCode firstName lastName email phone department designation reportingManager dateOfJoining status')
-      .populate('department', 'name')
-      .populate('designation', 'title levelName')
-      .populate('reportingManager', 'firstName lastName')
+      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status')
+      .populate({
+        path: 'department',
+        select: 'name',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'departments',
+        select: 'name code',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'designation',
+        select: 'title levelName level',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'reportingManager',
+        select: 'firstName lastName',
+        options: { strictPopulate: false }
+      })
       .lean()
 
     // Clear employee list cache

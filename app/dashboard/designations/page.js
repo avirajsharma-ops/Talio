@@ -12,7 +12,6 @@ export default function DesignationsPage() {
   const [editingDesig, setEditingDesig] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
-    level: '',
     description: '',
   })
 
@@ -51,31 +50,13 @@ export default function DesignationsPage() {
         : '/api/designations'
       const method = editingDesig ? 'PUT' : 'POST'
 
-      // Map level to levelName (capitalize first letter)
-      const levelNameMap = {
-        'entry': 'Entry Level',
-        'junior': 'Junior',
-        'mid': 'Mid Level',
-        'senior': 'Senior',
-        'lead': 'Lead',
-        'manager': 'Manager',
-        'director': 'Director',
-        'executive': 'Executive'
-      }
-
-      // Prepare data with levelName automatically set from level
-      const submitData = {
-        ...formData,
-        levelName: levelNameMap[formData.level] || formData.level
-      }
-
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(submitData),
+        body: JSON.stringify(formData),
       })
 
       const data = await response.json()
@@ -84,7 +65,7 @@ export default function DesignationsPage() {
         toast.success(data.message)
         setShowModal(false)
         setEditingDesig(null)
-        setFormData({ title: '', level: '', description: '' })
+        setFormData({ title: '', description: '' })
         fetchDesignations()
       } else {
         toast.error(data.message)
@@ -97,10 +78,8 @@ export default function DesignationsPage() {
 
   const handleEdit = (desig) => {
     setEditingDesig(desig)
-    const numToKey = { 1: 'entry', 2: 'junior', 3: 'mid', 4: 'senior', 5: 'lead', 6: 'manager', 7: 'director', 8: 'executive' }
     setFormData({
       title: desig.title,
-      level: numToKey[desig.level] || '',
       description: desig.description || '',
     })
     setShowModal(true)
@@ -133,7 +112,7 @@ export default function DesignationsPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingDesig(null)
-    setFormData({ title: '', level: '', description: '' })
+    setFormData({ title: '', description: '' })
   }
 
   return (
@@ -195,10 +174,6 @@ export default function DesignationsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Title
                   </th>
-
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Level
-                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Description
                   </th>
@@ -210,7 +185,7 @@ export default function DesignationsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {designations.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
                       No designations found
                     </td>
                   </tr>
@@ -226,12 +201,6 @@ export default function DesignationsPage() {
                             {desig.title}
                           </div>
                         </div>
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {desig.level || 'N/A'}
-                        </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                         {desig.description || 'No description'}
@@ -280,29 +249,6 @@ export default function DesignationsPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="e.g., Software Engineer"
                   />
-                </div>
-
-
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Level
-                  </label>
-                  <select
-                    value={formData.level}
-                    onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Select Level</option>
-                    <option value="entry">Entry Level</option>
-                    <option value="junior">Junior</option>
-                    <option value="mid">Mid Level</option>
-                    <option value="senior">Senior</option>
-                    <option value="lead">Lead</option>
-                    <option value="manager">Manager</option>
-                    <option value="director">Director</option>
-                    <option value="executive">Executive</option>
-                  </select>
                 </div>
 
                 <div>

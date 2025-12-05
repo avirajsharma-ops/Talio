@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FaSave, FaTimes } from 'react-icons/fa'
+import { FaSave, FaTimes, FaChevronDown, FaCheck, FaTimes as FaX } from 'react-icons/fa'
 
 export default function AddEmployeePage() {
   const router = useRouter()
@@ -11,6 +11,21 @@ export default function AddEmployeePage() {
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
   const [companies, setCompanies] = useState([])
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false)
+  const deptDropdownRef = useRef(null)
+  
+  // Static levels list
+  const levels = [
+    { level: 1, levelName: 'Entry Level' },
+    { level: 2, levelName: 'Junior' },
+    { level: 3, levelName: 'Mid Level' },
+    { level: 4, levelName: 'Senior' },
+    { level: 5, levelName: 'Lead' },
+    { level: 6, levelName: 'Manager' },
+    { level: 7, levelName: 'Director' },
+    { level: 8, levelName: 'Executive' },
+  ]
+  
   const [formData, setFormData] = useState({
     employeeCode: '',
     firstName: '',
@@ -20,8 +35,11 @@ export default function AddEmployeePage() {
     dateOfBirth: '',
     gender: '',
     dateOfJoining: '',
-    department: '',
+    departments: [], // Changed to array for multiple departments
+    department: '', // Primary department (first selected)
     designation: '',
+    designationLevel: '',
+    designationLevelName: '',
     company: '',
     employmentType: 'full-time',
     status: 'active',
@@ -33,6 +51,17 @@ export default function AddEmployeePage() {
     fetchDepartments()
     fetchDesignations()
     fetchCompanies()
+  }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target)) {
+        setShowDeptDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchDepartments = async () => {
@@ -81,9 +110,45 @@ export default function AddEmployeePage() {
   }
 
   const handleChange = (e) => {
+    const { name, value } = e.target
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
+    })
+  }
+
+  // Handle department toggle (multi-select)
+  const handleDepartmentToggle = (deptId) => {
+    setFormData(prev => {
+      const currentDepts = prev.departments || []
+      let newDepts
+      
+      if (currentDepts.includes(deptId)) {
+        // Remove department
+        newDepts = currentDepts.filter(id => id !== deptId)
+      } else {
+        // Add department
+        newDepts = [...currentDepts, deptId]
+      }
+      
+      return {
+        ...prev,
+        departments: newDepts,
+        // Set primary department as the first selected
+        department: newDepts.length > 0 ? newDepts[0] : '',
+      }
+    })
+  }
+
+  // Remove a specific department
+  const removeDepartment = (deptId) => {
+    setFormData(prev => {
+      const newDepts = (prev.departments || []).filter(id => id !== deptId)
+      return {
+        ...prev,
+        departments: newDepts,
+        department: newDepts.length > 0 ? newDepts[0] : '',
+      }
     })
   }
 
@@ -266,44 +331,133 @@ export default function AddEmployeePage() {
             />
           </div>
 
-          {/* Department */}
-          <div>
+          {/* Department - Multi-select */}
+          <div className="md:col-span-2" ref={deptDropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Department
+              Departments <span className="text-gray-400 text-xs">(can select multiple)</span>
             </label>
-            <select
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="">Select Department</option>
-              {departments.map((dept) => (
-                <option key={dept._id} value={dept._id}>
-                  {dept.name}
-                </option>
-              ))}
-            </select>
+            
+            {/* Selected Departments Tags */}
+            {formData.departments && formData.departments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formData.departments.map(deptId => {
+                  const dept = departments.find(d => d._id === deptId)
+                  return dept ? (
+                    <span 
+                      key={deptId} 
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm"
+                    >
+                      {dept.name}
+                      <button
+                        type="button"
+                        onClick={() => removeDepartment(deptId)}
+                        className="ml-1 text-primary-500 hover:text-primary-700"
+                      >
+                        <FaX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : null
+                })}
+              </div>
+            )}
+            
+            {/* Dropdown Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between bg-white"
+              >
+                <span className={formData.departments?.length > 0 ? 'text-gray-700' : 'text-gray-400'}>
+                  {formData.departments?.length > 0 
+                    ? `${formData.departments.length} department(s) selected` 
+                    : 'Select Departments'}
+                </span>
+                <FaChevronDown className={`text-gray-400 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Dropdown List */}
+              {showDeptDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {departments.length === 0 ? (
+                    <div className="px-4 py-2 text-gray-500 text-sm">No departments available</div>
+                  ) : (
+                    departments.map(dept => (
+                      <label
+                        key={dept._id}
+                        className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.departments?.includes(dept._id) || false}
+                          onChange={() => handleDepartmentToggle(dept._id)}
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                        />
+                        <span className="ml-3 text-gray-700">{dept.name}</span>
+                        {dept.code && (
+                          <span className="ml-2 text-xs text-gray-400">({dept.code})</span>
+                        )}
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Designation */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Designation
-            </label>
-            <select
-              name="designation"
-              value={formData.designation}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="">Select Designation</option>
-              {designations.map((desig) => (
-                <option key={desig._id} value={desig._id}>
-                  {desig.title}
-                </option>
-              ))}
-            </select>
+          {/* Designation & Level - Side by Side */}
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Designation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Designation
+              </label>
+              <select
+                name="designation"
+                value={formData.designation}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Select Designation</option>
+                {designations.map((desig) => (
+                  <option key={desig._id} value={desig._id}>
+                    {desig.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Level - Auto-populated from designation but can be overridden */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Level
+              </label>
+              <select
+                name="designationLevel"
+                value={formData.designationLevel}
+                onChange={(e) => {
+                  const selectedLevel = levels.find(l => l.level === parseInt(e.target.value))
+                  setFormData({
+                    ...formData,
+                    designationLevel: e.target.value,
+                    designationLevelName: selectedLevel?.levelName || '',
+                  })
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="">Select Level</option>
+                {levels.map((level) => (
+                  <option key={level.level} value={level.level}>
+                    {level.levelName}
+                  </option>
+                ))}
+              </select>
+              {formData.designationLevelName && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Current: {formData.designationLevelName}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Company */}
