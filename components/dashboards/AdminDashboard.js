@@ -59,6 +59,7 @@ export default function AdminDashboard({ user }) {
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [remainingTime, setRemainingTime] = useState(28800) // 8 hours in seconds (08:00)
   const [isCountingDown, setIsCountingDown] = useState(false)
+  const [companySettings, setCompanySettings] = useState(null)
   // Initialize with cached user data for instant display
   const [employeeData, setEmployeeData] = useState(() => {
     if (user?.employeeId && typeof user.employeeId === 'object') return user.employeeId
@@ -74,7 +75,7 @@ export default function AdminDashboard({ user }) {
   useEffect(() => {
     // Load all data in parallel
     const loadAllData = async () => {
-      const promises = [fetchDashboardData()]
+      const promises = [fetchDashboardData(), fetchCompanySettings()]
       if (employeeIdStr) {
         promises.push(fetchTodayAttendance())
         promises.push(fetchEmployeeData())
@@ -83,6 +84,21 @@ export default function AdminDashboard({ user }) {
     }
     loadAllData()
   }, [])
+
+  const fetchCompanySettings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/settings/company', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanySettings(data.data)
+      }
+    } catch (error) {
+      console.error('Fetch company settings error:', error)
+    }
+  }
 
   // Countdown timer effect
   useEffect(() => {
@@ -448,6 +464,7 @@ export default function AdminDashboard({ user }) {
         remainingTime={remainingTime}
         isCountingDown={isCountingDown}
         formatCountdown={formatCountdown}
+        companySettings={companySettings}
       />
     ),
     'kpi-stats': (

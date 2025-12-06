@@ -1,14 +1,18 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { FaUserPlus, FaUsers, FaTimes, FaFile, FaImage, FaFilePdf, FaUser, FaComments, FaArrowDown, FaArrowLeft } from 'react-icons/fa'
 import { useSocket } from '@/contexts/SocketContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useChatWidget } from '@/contexts/ChatWidgetContext'
 import UnreadBadge from '@/components/UnreadBadge'
 import { playNotificationSound } from '@/utils/audio'
 
 export default function ChatPage() {
+  const router = useRouter()
+  const { openWidget } = useChatWidget()
   const [chats, setChats] = useState([])
   const [selectedChat, setSelectedChat] = useState(null)
   const [messages, setMessages] = useState([])
@@ -39,6 +43,14 @@ export default function ChatPage() {
   const touchStartY = useRef(0)
   const longPressTimer = useRef(null)
   const { currentTheme, themes } = useTheme()
+
+  // Redirect desktop users to dashboard and open chat widget
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      openWidget()
+      router.push('/dashboard')
+    }
+  }, [openWidget, router])
 
   // Available reactions
   const reactions = ['👍', '❤️', '😂', '😮', '😢', '🙏']
@@ -648,7 +660,7 @@ export default function ChatPage() {
       {/* Chat Container - Full screen edge-to-edge on mobile */}
       <div className={`${
         selectedChat
-          ? 'fixed top-[60px] left-0 right-0 bottom-[72px] z-[60] md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto'
+          ? 'fixed top-[60px] left-0 right-0 bottom-[72px] z-[60] md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:h-100%'
           : 'fixed top-[140px] left-0 right-0 bottom-[72px] z-[40] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto md:mt-0'
       }`} style={{
         height: 'auto',

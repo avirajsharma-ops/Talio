@@ -240,6 +240,7 @@ function CompanySettingsTab() {
         checkOutTime: formData.get('checkOutTime'),
         workingDays: Array.from(formData.getAll('workingDays')),
         lateThreshold: parseInt(formData.get('lateThreshold')) || 15,
+        absentThresholdMinutes: parseInt(formData.get('absentThresholdMinutes')) || 60,
         halfDayHours: parseFloat(formData.get('halfDayHours')) || 4,
         fullDayHours: parseFloat(formData.get('fullDayHours')) || 8,
       }
@@ -448,7 +449,7 @@ function CompanySettingsTab() {
           </div>
 
           {/* Attendance Thresholds */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Late Coming Threshold (minutes)</label>
               <input
@@ -461,6 +462,19 @@ function CompanySettingsTab() {
                 placeholder="15"
               />
               <p className="text-xs text-gray-500 mt-1">Grace period before marking as late</p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Absent Threshold (minutes)</label>
+              <input
+                type="number"
+                name="absentThresholdMinutes"
+                defaultValue={settings?.absentThresholdMinutes || 60}
+                min="15"
+                max="480"
+                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                placeholder="60"
+              />
+              <p className="text-xs text-gray-500 mt-1">Minutes after check-in time to auto-mark absent</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Half Day Hours</label>

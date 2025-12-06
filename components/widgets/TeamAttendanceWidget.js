@@ -4,6 +4,30 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FaUsers, FaCheck, FaTimes, FaClock } from 'react-icons/fa'
 
+// Helper to get display label and colors for status
+const getStatusDisplay = (status) => {
+  switch (status) {
+    case 'present':
+      return { label: 'Present', bgColor: 'bg-green-100', textColor: 'text-green-700' }
+    case 'in-progress':
+      return { label: 'Working', bgColor: 'bg-blue-100', textColor: 'text-blue-700' }
+    case 'half-day':
+      return { label: 'Half Day', bgColor: 'bg-yellow-100', textColor: 'text-yellow-700' }
+    case 'absent':
+      return { label: 'Absent', bgColor: 'bg-red-100', textColor: 'text-red-700' }
+    case 'on-leave':
+      return { label: 'On Leave', bgColor: 'bg-purple-100', textColor: 'text-purple-700' }
+    case 'not-checked-in':
+      return { label: 'Not Checked In', bgColor: 'bg-amber-100', textColor: 'text-amber-700' }
+    case 'not-started':
+      return { label: 'Not Started', bgColor: 'bg-gray-100', textColor: 'text-gray-500' }
+    case 'late':
+      return { label: 'Late', bgColor: 'bg-orange-100', textColor: 'text-orange-700' }
+    default:
+      return { label: status, bgColor: 'bg-gray-100', textColor: 'text-gray-600' }
+  }
+}
+
 export default function TeamAttendanceWidget() {
   const router = useRouter()
   const [teamAttendance, setTeamAttendance] = useState([])
@@ -79,22 +103,22 @@ export default function TeamAttendanceWidget() {
 
       {/* Team List */}
       <div className="space-y-2 max-h-48 overflow-y-auto">
-        {teamAttendance.slice(0, 6).map((member, index) => (
-          <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium">
-                {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+        {teamAttendance.slice(0, 6).map((member, index) => {
+          const statusDisplay = getStatusDisplay(member.status)
+          return (
+            <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium">
+                  {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                </div>
+                <span className="text-sm text-gray-700">{member.firstName} {member.lastName}</span>
               </div>
-              <span className="text-sm text-gray-700">{member.firstName} {member.lastName}</span>
+              <span className={`px-2 py-0.5 text-xs rounded-full ${statusDisplay.bgColor} ${statusDisplay.textColor}`}>
+                {statusDisplay.label}
+              </span>
             </div>
-            <span className={`px-2 py-0.5 text-xs rounded-full ${member.status === 'present' || member.status === 'in-progress'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-              }`}>
-              {member.status === 'in-progress' ? 'Working' : member.status}
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
