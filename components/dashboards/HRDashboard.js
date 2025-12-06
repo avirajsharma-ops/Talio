@@ -14,6 +14,7 @@ import { formatDesignation } from '@/lib/formatters'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
 import { getEmployeeId } from '@/utils/userHelper'
 import ProjectTasksWidget from './ProjectTasksWidget'
+import DraggableKPIGrid from '@/components/dashboard/DraggableKPIGrid'
 
 // Fetch HR dashboard data
 const fetchHRStats = async () => {
@@ -60,7 +61,7 @@ export default function HRDashboard({ user }) {
               profilePicture: parsed.profilePicture
             })
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -85,7 +86,7 @@ export default function HRDashboard({ user }) {
       const now = Date.now()
       const elapsedSeconds = Math.floor((now - checkInTime) / 1000)
       const remaining = Math.max(0, 28800 - elapsedSeconds) // 8 hours - elapsed time
-      
+
       setRemainingTime(remaining)
       setIsCountingDown(true)
     } else if (todayAttendance?.checkOut) {
@@ -404,9 +405,9 @@ export default function HRDashboard({ user }) {
             </p>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
               {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
-               (user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : 'User')}
+                (user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : 'User')}
             </h2>
             {(employeeData?.designation || user?.designation) && (
               <p className="text-xs text-gray-300 mt-0.5">
@@ -440,36 +441,33 @@ export default function HRDashboard({ user }) {
       <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-2xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base sm:text-lg font-bold text-gray-800">Quick Glance</h3>
-          
+
           {/* Countdown Timer */}
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
-              isCountingDown 
-                ? remainingTime > 3600 
-                  ? 'bg-green-100' 
-                  : remainingTime > 1800 
-                    ? 'bg-yellow-100' 
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${isCountingDown
+                ? remainingTime > 3600
+                  ? 'bg-green-100'
+                  : remainingTime > 1800
+                    ? 'bg-yellow-100'
                     : 'bg-red-100'
                 : 'bg-gray-100'
-            }`}>
-              <FaClock className={`w-3.5 h-3.5 ${
-                isCountingDown 
-                  ? remainingTime > 3600 
-                    ? 'text-green-600' 
-                    : remainingTime > 1800 
-                      ? 'text-yellow-600' 
+              }`}>
+              <FaClock className={`w-3.5 h-3.5 ${isCountingDown
+                  ? remainingTime > 3600
+                    ? 'text-green-600'
+                    : remainingTime > 1800
+                      ? 'text-yellow-600'
                       : 'text-red-600'
                   : 'text-gray-600'
-              }`} />
-              <span className={`text-sm sm:text-base font-bold ${
-                isCountingDown 
-                  ? remainingTime > 3600 
-                    ? 'text-green-700' 
-                    : remainingTime > 1800 
-                      ? 'text-yellow-700' 
+                }`} />
+              <span className={`text-sm sm:text-base font-bold ${isCountingDown
+                  ? remainingTime > 3600
+                    ? 'text-green-700'
+                    : remainingTime > 1800
+                      ? 'text-yellow-700'
                       : 'text-red-700'
                   : 'text-gray-700'
-              }`}>
+                }`}>
                 {formatCountdown(remainingTime)}
               </span>
             </div>
@@ -489,10 +487,10 @@ export default function HRDashboard({ user }) {
               <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
                 {todayAttendance?.checkIn
                   ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })
                   : '--:--'}
               </p>
             </div>
@@ -510,10 +508,10 @@ export default function HRDashboard({ user }) {
               <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
                 {todayAttendance?.checkOut
                   ? new Date(todayAttendance.checkOut).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })
                   : '--:--'}
               </p>
             </div>
@@ -547,11 +545,11 @@ export default function HRDashboard({ user }) {
             <div className="rounded-lg p-3" style={{ backgroundColor: 'var(--color-primary-50)' }}>
               <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 capitalize">
                 {todayAttendance?.workFromHome ? 'WFH' :
-                 todayAttendance?.status === 'present' ? 'Present' :
-                 todayAttendance?.status === 'half-day' ? 'Half Day' :
-                 todayAttendance?.status === 'in-progress' ? 'In Progress' :
-                 todayAttendance?.status === 'on-leave' ? 'On Leave' :
-                 'Absent'}
+                  todayAttendance?.status === 'present' ? 'Present' :
+                    todayAttendance?.status === 'half-day' ? 'Half Day' :
+                      todayAttendance?.status === 'in-progress' ? 'In Progress' :
+                        todayAttendance?.status === 'on-leave' ? 'On Leave' :
+                          'Absent'}
               </p>
             </div>
           </div>
@@ -584,35 +582,13 @@ export default function HRDashboard({ user }) {
         )}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        {hrStatsData.map((stat, index) => (
-          <div key={index} className="rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-gray-500 text-xs sm:text-sm font-medium truncate">{stat.title}</p>
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2">{stat.value}</h3>
-                <div className="flex items-center mt-1 sm:mt-2">
-                  {stat.trend === 'up' ? (
-                    <FaArrowUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 mr-1 flex-shrink-0" />
-                  ) : stat.trend === 'down' ? (
-                    <FaArrowDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 mr-1 flex-shrink-0" />
-                  ) : null}
-                  <span className={`text-xs sm:text-sm font-medium truncate ${
-                    stat.trend === 'up' ? 'text-green-500' :
-                    stat.trend === 'down' ? 'text-red-500' : 'text-gray-500'
-                  }`}>
-                    {stat.change}
-                  </span>
-                </div>
-              </div>
-              <div className={`${stat.color} p-2 sm:p-4 rounded-lg flex-shrink-0`}>
-                <stat.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Stats Grid - Draggable KPI Cards */}
+      <DraggableKPIGrid
+        stats={hrStatsData}
+        userId={user?._id || 'hr'}
+        showTrend={true}
+        gridClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6"
+      />
 
       {/* Department Distribution & Gender Ratio */}
       {stats && (

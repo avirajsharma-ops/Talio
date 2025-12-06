@@ -1,0 +1,101 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { FaUsers, FaCheck, FaTimes, FaClock } from 'react-icons/fa'
+
+export default function TeamAttendanceWidget() {
+  const router = useRouter()
+  const [teamAttendance, setTeamAttendance] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchTeamAttendance()
+  }, [])
+
+  const fetchTeamAttendance = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/attendance/team-today', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setTeamAttendance(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching team attendance:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-12 bg-gray-200 rounded"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const present = teamAttendance.filter(e => e.status === 'present' || e.status === 'in-progress')
+  const absent = teamAttendance.filter(e => e.status === 'absent')
+
+  return (
+    <div className="p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base sm:text-lg font-bold text-gray-800">Team Attendance Today</h3>
+        <button
+          onClick={() => router.push('/dashboard/attendance')}
+          className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+        >
+          View All
+        </button>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="bg-blue-50 rounded-lg p-3 text-center">
+          <FaUsers className="w-4 h-4 mx-auto text-blue-600 mb-1" />
+          <p className="text-lg font-bold text-blue-700">{teamAttendance.length}</p>
+          <p className="text-xs text-blue-600">Total</p>
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 text-center">
+          <FaCheck className="w-4 h-4 mx-auto text-green-600 mb-1" />
+          <p className="text-lg font-bold text-green-700">{present.length}</p>
+          <p className="text-xs text-green-600">Present</p>
+        </div>
+        <div className="bg-red-50 rounded-lg p-3 text-center">
+          <FaTimes className="w-4 h-4 mx-auto text-red-600 mb-1" />
+          <p className="text-lg font-bold text-red-700">{absent.length}</p>
+          <p className="text-xs text-red-600">Absent</p>
+        </div>
+      </div>
+
+      {/* Team List */}
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {teamAttendance.slice(0, 6).map((member, index) => (
+          <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium">
+                {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+              </div>
+              <span className="text-sm text-gray-700">{member.firstName} {member.lastName}</span>
+            </div>
+            <span className={`px-2 py-0.5 text-xs rounded-full ${member.status === 'present' || member.status === 'in-progress'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-red-100 text-red-700'
+              }`}>
+              {member.status === 'in-progress' ? 'Working' : member.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

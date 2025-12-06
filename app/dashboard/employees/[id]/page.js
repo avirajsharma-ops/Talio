@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaEdit, FaArrowLeft, FaBriefcase, FaCalendarAlt } from 'react-icons/fa'
-import { formatDesignation } from '@/lib/formatters'
+import { formatDesignation, formatDepartments } from '@/lib/formatters'
 
 export default function EmployeeDetailPage() {
   const params = useParams()
@@ -97,14 +97,13 @@ export default function EmployeeDetailPage() {
               {employee.firstName} {employee.lastName}
             </h1>
             <p className="text-lg text-gray-600 mt-1">
-              {formatDesignation(employee.designation)} • {employee.department?.name || 'N/A'}
+              {formatDesignation(employee.designation, employee)} • {formatDepartments(employee)}
             </p>
             <div className="flex items-center space-x-4 mt-4">
-              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                employee.status === 'active' ? 'bg-green-100 text-green-800' :
-                employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                'bg-red-100 text-red-800'
-              }`}>
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${employee.status === 'active' ? 'bg-green-100 text-green-800' :
+                  employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                    'bg-red-100 text-red-800'
+                }`}>
                 {employee.status}
               </span>
               <span className="text-gray-600">
@@ -170,8 +169,8 @@ export default function EmployeeDetailPage() {
             <div className="flex items-center space-x-3">
               <FaBriefcase className="text-gray-400" />
               <div>
-                <p className="text-sm text-gray-600">Department</p>
-                <p className="font-medium text-gray-800">{employee.department?.name || 'N/A'}</p>
+                <p className="text-sm text-gray-600">Department(s)</p>
+                <p className="font-medium text-gray-800">{formatDepartments(employee)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -179,7 +178,7 @@ export default function EmployeeDetailPage() {
               <div>
                 <p className="text-sm text-gray-600">Designation</p>
                 <p className="font-medium text-gray-800">
-                  {formatDesignation(employee.designation)}
+                  {formatDesignation(employee.designation, employee)}
                 </p>
               </div>
             </div>

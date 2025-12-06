@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { 
+import {
   FaArrowLeft, FaSave, FaCalendarAlt, FaUsers, FaTimes,
   FaPlus, FaSearch
 } from 'react-icons/fa'
+import { formatDepartments } from '@/lib/formatters'
 
 export default function CreateProjectPage() {
   const router = useRouter()
@@ -83,14 +84,14 @@ export default function CreateProjectPage() {
       toast.error('Project head is automatically added as a member')
       return
     }
-    
+
     setFormData(prev => ({
       ...prev,
       members: [...prev.members, {
         userId: employee._id,
         name: `${employee.firstName} ${employee.lastName}`,
         profilePicture: employee.profilePicture,
-        department: employee.department?.name,
+        department: formatDepartments(employee),
         role: 'member'
       }]
     }))
@@ -177,11 +178,11 @@ export default function CreateProjectPage() {
 
   const filteredEmployees = employees.filter(emp => {
     const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase()
-    const matchesSearch = searchEmployee === '' || 
+    const matchesSearch = searchEmployee === '' ||
       fullName.includes(searchEmployee.toLowerCase()) ||
       emp.email?.toLowerCase().includes(searchEmployee.toLowerCase()) ||
       emp.employeeCode?.toLowerCase().includes(searchEmployee.toLowerCase())
-    
+
     // Exclude already added members and project head
     const notAlreadyAdded = !formData.members.some(m => m.userId === emp._id)
     const notProjectHead = emp._id !== formData.projectHeadId
@@ -210,7 +211,7 @@ export default function CreateProjectPage() {
       <form onSubmit={handleSubmit}>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Project Name */}
             <div className="md:col-span-2">
@@ -353,7 +354,7 @@ export default function CreateProjectPage() {
           <h2 className="text-lg font-semibold text-gray-800 mb-4">
             Project Head <span className="text-red-500">*</span>
           </h2>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Project Head
@@ -378,8 +379,8 @@ export default function CreateProjectPage() {
             <div className="mt-4 p-4 bg-primary-50 rounded-lg flex items-center">
               <div className="w-12 h-12 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium overflow-hidden">
                 {selectedProjectHead.profilePicture ? (
-                  <img 
-                    src={selectedProjectHead.profilePicture} 
+                  <img
+                    src={selectedProjectHead.profilePicture}
                     alt=""
                     className="w-full h-full object-cover"
                   />
@@ -494,7 +495,7 @@ export default function CreateProjectPage() {
                 <FaTimes />
               </button>
             </div>
-            
+
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
                 <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

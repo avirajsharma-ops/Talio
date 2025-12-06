@@ -152,9 +152,13 @@ export async function PUT(request, { params }) {
     }
 
     // Handle multiple departments
+    console.log('Received departments:', data.departments)
+    console.log('Received department (legacy):', data.department)
+
     if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
       // Filter out empty strings
       data.departments = data.departments.filter(d => d && d !== '')
+      console.log('After filtering departments:', data.departments)
       // Set primary department as the first one if not explicitly set
       if (!data.department || data.department === '') {
         data.department = data.departments[0]
@@ -163,6 +167,9 @@ export async function PUT(request, { params }) {
       // If only single department is provided, also add it to departments array
       data.departments = [data.department]
     }
+
+    console.log('Final departments to save:', data.departments)
+    console.log('Final department (primary) to save:', data.department)
 
     // Handle designation level
     if (data.designationLevel) {

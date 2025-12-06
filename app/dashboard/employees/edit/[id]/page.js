@@ -14,7 +14,7 @@ export default function EditEmployeePage() {
   const [designations, setDesignations] = useState([])
   const [showDeptDropdown, setShowDeptDropdown] = useState(false)
   const deptDropdownRef = useRef(null)
-  
+
   // Static levels list
   const levels = [
     { level: 1, levelName: 'Entry Level' },
@@ -72,10 +72,23 @@ export default function EditEmployeePage() {
       const data = await response.json()
       if (data.success) {
         const emp = data.data
-        // Get departments as array of IDs
-        const deptIds = emp.departments?.map(d => typeof d === 'object' ? d._id : d) || []
-        const primaryDept = emp.department?._id || (deptIds.length > 0 ? deptIds[0] : '')
-        
+        console.log('Fetched employee data:', emp)
+        console.log('Employee departments:', emp.departments)
+        console.log('Employee department (legacy):', emp.department)
+
+        // Get departments as array of IDs (ensure string format for comparison)
+        const deptIds = emp.departments?.map(d => {
+          if (typeof d === 'object' && d !== null) {
+            return d._id?.toString() || d.toString()
+          }
+          return d?.toString() || d
+        }).filter(Boolean) || []
+
+        const primaryDept = emp.department?._id?.toString() || emp.department?.toString() || (deptIds.length > 0 ? deptIds[0] : '')
+
+        console.log('Extracted deptIds:', deptIds)
+        console.log('Primary department:', primaryDept)
+
         setFormData({
           firstName: emp.firstName || '',
           lastName: emp.lastName || '',
@@ -86,7 +99,7 @@ export default function EditEmployeePage() {
           address: emp.address || '',
           departments: deptIds.length > 0 ? deptIds : (primaryDept ? [primaryDept] : []),
           department: primaryDept,
-          designation: emp.designation?._id || '',
+          designation: emp.designation?._id?.toString() || emp.designation?.toString() || '',
           designationLevel: emp.designationLevel || emp.designation?.level || '',
           designationLevelName: emp.designationLevelName || emp.designation?.levelName || '',
           dateOfJoining: emp.dateOfJoining ? new Date(emp.dateOfJoining).toISOString().split('T')[0] : '',
@@ -139,6 +152,11 @@ export default function EditEmployeePage() {
 
     try {
       const token = localStorage.getItem('token')
+
+      // Log what we're sending
+      console.log('Submitting formData:', formData)
+      console.log('Departments being sent:', formData.departments)
+
       const response = await fetch(`/api/employees/${params.id}`, {
         method: 'PUT',
         headers: {
@@ -149,6 +167,7 @@ export default function EditEmployeePage() {
       })
 
       const data = await response.json()
+      console.log('Update response:', data)
 
       if (data.success) {
         toast.success('Employee updated successfully!')
@@ -301,22 +320,23 @@ export default function EditEmployeePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Departments <span className="text-gray-400 text-xs">(can select multiple)</span>
                 </label>
-                
+
                 {/* Selected Departments Tags */}
                 {formData.departments && formData.departments.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {formData.departments.map(deptId => {
-                      const dept = departments.find(d => d._id === deptId)
+                      const deptIdStr = deptId?.toString() || deptId
+                      const dept = departments.find(d => (d._id?.toString() || d._id) === deptIdStr)
                       return dept ? (
-                        <span 
-                          key={deptId} 
+                        <span
+                          key={deptIdStr}
                           className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm"
                         >
                           {dept.name}
                           <button
                             type="button"
                             onClick={() => {
-                              const newDepts = formData.departments.filter(id => id !== deptId)
+                              const newDepts = formData.departments.filter(id => (id?.toString() || id) !== deptIdStr)
                               setFormData({
                                 ...formData,
                                 departments: newDepts,
@@ -332,7 +352,7 @@ export default function EditEmployeePage() {
                     })}
                   </div>
                 )}
-                
+
                 {/* Dropdown Button */}
                 <div className="relative">
                   <button
@@ -341,49 +361,54 @@ export default function EditEmployeePage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-left flex items-center justify-between bg-white"
                   >
                     <span className={formData.departments?.length > 0 ? 'text-gray-700' : 'text-gray-400'}>
-                      {formData.departments?.length > 0 
-                        ? `${formData.departments.length} department(s) selected` 
+                      {formData.departments?.length > 0
+                        ? `${formData.departments.length} department(s) selected`
                         : 'Select Departments'}
                     </span>
                     <FaChevronDown className={`text-gray-400 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} />
                   </button>
-                  
+
                   {/* Dropdown List */}
                   {showDeptDropdown && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {departments.length === 0 ? (
                         <div className="px-4 py-2 text-gray-500 text-sm">No departments available</div>
                       ) : (
-                        departments.map(dept => (
-                          <label
-                            key={dept._id}
-                            className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.departments?.includes(dept._id) || false}
-                              onChange={() => {
-                                const currentDepts = formData.departments || []
-                                let newDepts
-                                if (currentDepts.includes(dept._id)) {
-                                  newDepts = currentDepts.filter(id => id !== dept._id)
-                                } else {
-                                  newDepts = [...currentDepts, dept._id]
-                                }
-                                setFormData({
-                                  ...formData,
-                                  departments: newDepts,
-                                  department: newDepts.length > 0 ? newDepts[0] : '',
-                                })
-                              }}
-                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                            />
-                            <span className="ml-3 text-gray-700">{dept.name}</span>
-                            {dept.code && (
-                              <span className="ml-2 text-xs text-gray-400">({dept.code})</span>
-                            )}
-                          </label>
-                        ))
+                        departments.map(dept => {
+                          const deptId = dept._id?.toString() || dept._id
+                          const isChecked = formData.departments?.some(d => d?.toString() === deptId) || false
+                          return (
+                            <label
+                              key={dept._id}
+                              className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  const currentDepts = formData.departments || []
+                                  let newDepts
+                                  if (currentDepts.some(d => d?.toString() === deptId)) {
+                                    newDepts = currentDepts.filter(id => id?.toString() !== deptId)
+                                  } else {
+                                    newDepts = [...currentDepts, deptId]
+                                  }
+                                  console.log('Department toggled:', deptId, 'New departments:', newDepts)
+                                  setFormData({
+                                    ...formData,
+                                    departments: newDepts,
+                                    department: newDepts.length > 0 ? newDepts[0] : '',
+                                  })
+                                }}
+                                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                              />
+                              <span className="ml-3 text-gray-700">{dept.name}</span>
+                              {dept.code && (
+                                <span className="ml-2 text-xs text-gray-400">({dept.code})</span>
+                              )}
+                            </label>
+                          )
+                        })
                       )}
                     </div>
                   )}

@@ -3,11 +3,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { 
-  FaMoneyBillWave, FaArrowLeft, FaCalculator, FaEye, FaDownload, 
+import {
+  FaMoneyBillWave, FaArrowLeft, FaCalculator, FaEye, FaDownload,
   FaFilter, FaSync, FaExclamationTriangle, FaCheckCircle, FaClock,
   FaUserClock, FaCalendarCheck, FaInfoCircle
 } from 'react-icons/fa'
+import { formatDepartments } from '@/lib/formatters'
 
 export default function GeneratePayrollPage() {
   const router = useRouter()
@@ -56,7 +57,7 @@ export default function GeneratePayrollPage() {
   const fetchInitialData = async () => {
     try {
       const token = localStorage.getItem('token')
-      
+
       // Fetch employees and company settings in parallel
       const [employeesRes, settingsRes] = await Promise.all([
         fetch('/api/employees?limit=1000&status=active', {
@@ -123,7 +124,7 @@ export default function GeneratePayrollPage() {
       )
 
       const data = await response.json()
-      
+
       if (data.success && data.data) {
         // Process attendance data per employee with detailed tracking
         data.data.forEach(record => {
@@ -152,11 +153,11 @@ export default function GeneratePayrollPage() {
           const status = record.status?.toLowerCase() || ''
           const checkInStatus = record.checkInStatus?.toLowerCase() || ''
           const checkOutStatus = record.checkOutStatus?.toLowerCase() || ''
-          
+
           if (status === 'present' || status === 'approved' || status === 'in-progress') {
             attendanceMap[empId].presentDays++
             attendanceMap[empId].totalWorkHours += record.workHours || 0
-            
+
             if (checkInStatus === 'early') {
               attendanceMap[empId].earlyCheckIns++
             } else if (checkInStatus === 'late') {
@@ -164,7 +165,7 @@ export default function GeneratePayrollPage() {
             } else if (checkInStatus === 'on-time') {
               attendanceMap[empId].onTimeCheckIns++
             }
-            
+
             if (checkOutStatus === 'early') {
               attendanceMap[empId].earlyCheckOuts++
             } else if (checkOutStatus === 'late') {
@@ -259,11 +260,11 @@ export default function GeneratePayrollPage() {
     if (payrollSettings.lateDeduction?.enabled) {
       const graceLates = payrollSettings.lateDeduction.graceLatesPerMonth || 0
       chargeableLates = Math.max(0, attendance.lateDays - graceLates)
-      
+
       if (chargeableLates > 0) {
         const deductionType = payrollSettings.lateDeduction.type
         const deductionValue = payrollSettings.lateDeduction.value || 0
-        
+
         if (deductionType === 'fixed') {
           lateDeduction = chargeableLates * deductionValue
         } else if (deductionType === 'percentage' || deductionType === 'per-day-salary') {
@@ -276,7 +277,7 @@ export default function GeneratePayrollPage() {
     if (payrollSettings.halfDayDeduction?.enabled && attendance.halfDays > 0) {
       const deductionType = payrollSettings.halfDayDeduction.type
       const deductionValue = payrollSettings.halfDayDeduction.value || 50
-      
+
       if (deductionType === 'fixed') {
         halfDayDeduction = attendance.halfDays * deductionValue
       } else if (deductionType === 'percentage' || deductionType === 'half-day-salary') {
@@ -288,7 +289,7 @@ export default function GeneratePayrollPage() {
     if (payrollSettings.absentDeduction?.enabled && attendance.absentDays > 0) {
       const deductionType = payrollSettings.absentDeduction.type
       const deductionValue = payrollSettings.absentDeduction.value || 100
-      
+
       if (deductionType === 'fixed') {
         absentDeduction = attendance.absentDays * deductionValue
       } else if (deductionType === 'percentage' || deductionType === 'full-day-salary') {
@@ -371,7 +372,7 @@ export default function GeneratePayrollPage() {
 
     try {
       const token = localStorage.getItem('token')
-      
+
       const promises = calculatedPayrollData.map(async (payroll) => {
         const payrollData = {
           employee: payroll.employee._id,
@@ -426,7 +427,7 @@ export default function GeneratePayrollPage() {
       })
 
       await Promise.all(promises)
-      
+
       toast.success('Payroll generated for ' + selectedEmployees.length + ' employees!')
       router.push('/dashboard/payroll')
     } catch (error) {
@@ -493,7 +494,7 @@ export default function GeneratePayrollPage() {
             <FaInfoCircle className="text-blue-600 mr-2" />
             <h2 className="text-lg font-bold text-gray-800">Synced Company Settings</h2>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
             <div className="bg-white p-3 rounded-lg shadow-sm">
               <p className="text-xs text-gray-500 uppercase mb-1">Check-In Time</p>
@@ -549,24 +550,24 @@ export default function GeneratePayrollPage() {
             <div className="flex flex-wrap gap-2 text-xs">
               {payrollConfig.lateDeduction?.enabled && (
                 <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
-                  Late: {payrollConfig.lateDeduction.type === 'fixed' 
-                    ? formatCurrency(payrollConfig.lateDeduction.value) 
+                  Late: {payrollConfig.lateDeduction.type === 'fixed'
+                    ? formatCurrency(payrollConfig.lateDeduction.value)
                     : payrollConfig.lateDeduction.value + '% per day'}
-                  {(payrollConfig.lateDeduction.graceLatesPerMonth || 0) > 0 && 
+                  {(payrollConfig.lateDeduction.graceLatesPerMonth || 0) > 0 &&
                     ' (' + payrollConfig.lateDeduction.graceLatesPerMonth + ' grace/month)'}
                 </span>
               )}
               {payrollConfig.halfDayDeduction?.enabled && (
                 <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded">
-                  Half-Day: {payrollConfig.halfDayDeduction.type === 'fixed' 
-                    ? formatCurrency(payrollConfig.halfDayDeduction.value) 
+                  Half-Day: {payrollConfig.halfDayDeduction.type === 'fixed'
+                    ? formatCurrency(payrollConfig.halfDayDeduction.value)
                     : payrollConfig.halfDayDeduction.value + '% per day'}
                 </span>
               )}
               {payrollConfig.absentDeduction?.enabled && (
                 <span className="px-2 py-1 bg-red-100 text-red-700 rounded">
-                  Absent: {payrollConfig.absentDeduction.type === 'fixed' 
-                    ? formatCurrency(payrollConfig.absentDeduction.value) 
+                  Absent: {payrollConfig.absentDeduction.type === 'fixed'
+                    ? formatCurrency(payrollConfig.absentDeduction.value)
                     : payrollConfig.absentDeduction.value + '% per day'}
                 </span>
               )}
@@ -700,7 +701,7 @@ export default function GeneratePayrollPage() {
                         <div className="font-medium text-gray-900">{employee.firstName} {employee.lastName}</div>
                         <div className="text-xs text-gray-500">{employee.employeeCode}</div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{employee.department?.name || 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDepartments(employee)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-gray-900">{formatCurrency(employee.salary)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-center bg-green-50">
                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{attendance.presentDays || 0}</span>

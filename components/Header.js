@@ -8,6 +8,7 @@ import { PWAStatus } from '@/components/PWAInstaller'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import UnreadBadge from '@/components/UnreadBadge'
+import { formatDesignation as formatDesignationLib, formatDepartments, getLevelNameFromNumber } from '@/lib/formatters'
 
 export default function Header({ toggleSidebar }) {
   const { theme } = useTheme()
@@ -57,10 +58,10 @@ export default function Header({ toggleSidebar }) {
 
       // Always fetch fresh employee data to ensure it's up to date
       // Handle both string ID and object with _id
-      const empId = parsedUser.employeeId 
-        ? (typeof parsedUser.employeeId === 'object' 
-            ? (parsedUser.employeeId._id || parsedUser.employeeId) 
-            : parsedUser.employeeId)
+      const empId = parsedUser.employeeId
+        ? (typeof parsedUser.employeeId === 'object'
+          ? (parsedUser.employeeId._id || parsedUser.employeeId)
+          : parsedUser.employeeId)
         : null
 
       if (empId) {
@@ -70,38 +71,13 @@ export default function Header({ toggleSidebar }) {
   }, [])
 
   // Helper function to format designation with level name
-  const formatDesignation = (designation) => {
-    if (!designation) return 'N/A'
-
-    // Handle if designation is a string
-    if (typeof designation === 'string') return designation
-
-    // Handle if designation is an object
-    const title = designation.title || designation
-    const levelName = designation.levelName || getLevelNameFromNumber(designation.level)
-
-    // Format: (Level Name) - Title
-    if (levelName && title) {
-      return `(${levelName}) - ${title}`
-    }
-
-    return title || 'N/A'
+  // Uses employee data if available for accurate level info
+  const formatDesignation = (designation, employee = null) => {
+    return formatDesignationLib(designation, employee)
   }
 
-  // Get level name from level number
-  const getLevelNameFromNumber = (level) => {
-    const levelMap = {
-      1: 'Entry Level',
-      2: 'Junior',
-      3: 'Mid Level',
-      4: 'Senior',
-      5: 'Lead',
-      6: 'Manager',
-      7: 'Director',
-      8: 'Executive'
-    }
-    return levelMap[level] || ''
-  }
+  // Get level name from level number (kept for backward compatibility)
+  const getLevelNameFromNumber2 = getLevelNameFromNumber
 
   const fetchEmployeeData = async (employeeId) => {
     try {
@@ -115,9 +91,11 @@ export default function Header({ toggleSidebar }) {
         console.log('Designation Object:', result.data.designation)
         console.log('Designation Title:', result.data.designation?.title)
         console.log('Designation Level Name:', result.data.designation?.levelName)
+        console.log('Employee Designation Level:', result.data.designationLevel)
+        console.log('Employee Designation Level Name:', result.data.designationLevelName)
         setEmployeeData(result.data)
 
-        // Sync user data in localStorage with employee data
+        // Sync user data in localStorage with employee data (including new fields)
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
         const syncedUser = {
           ...currentUser,
@@ -125,11 +103,14 @@ export default function Header({ toggleSidebar }) {
           lastName: result.data.lastName,
           profilePicture: result.data.profilePicture,
           designation: result.data.designation,
+          designationLevel: result.data.designationLevel,
+          designationLevelName: result.data.designationLevelName,
           department: result.data.department,
+          departments: result.data.departments,
           employeeNumber: result.data.employeeNumber,
         }
         console.log('Synced User Data:', syncedUser)
-        console.log('Formatted Designation:', formatDesignation(result.data.designation))
+        console.log('Formatted Designation:', formatDesignation(result.data.designation, result.data))
         localStorage.setItem('user', JSON.stringify(syncedUser))
         setUser(syncedUser)
       }
@@ -331,7 +312,7 @@ export default function Header({ toggleSidebar }) {
               onClick={toggleSidebar}
               className="lg:hidden focus:outline-none p-1"
             >
-              <img 
+              <img
                 src="/hamburger.png"
                 alt="Menu"
                 className="w-5 h-5"
@@ -356,7 +337,7 @@ export default function Header({ toggleSidebar }) {
             onClick={toggleSidebar}
             className="lg:hidden focus:outline-none p-1"
           >
-            <img 
+            <img
               src="/hamburger.png"
               alt="Menu"
               className="w-5 h-5"
@@ -563,7 +544,7 @@ export default function Header({ toggleSidebar }) {
                       user?.email || 'User'}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
+                  {formatDesignation(employeeData?.designation || user?.designation, employeeData) || user?.role || 'Employee'}
                 </p>
               </div>
             </button>
@@ -593,7 +574,7 @@ export default function Header({ toggleSidebar }) {
                               user?.email || 'User'}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
-                          {formatDesignation(employeeData?.designation || user?.designation) || user?.role || 'Employee'}
+                          {formatDesignation(employeeData?.designation || user?.designation, employeeData) || user?.role || 'Employee'}
                         </p>
                       </div>
                     </div>

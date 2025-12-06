@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaEdit, FaSave, FaTimes, FaCheck, FaCamera, FaSearchPlus, FaSearchMinus, FaUndo, FaRedo, FaSun, FaAdjust } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import ModalPortal from '@/components/ModalPortal'
+import { formatDesignation, formatDepartments, getLevelNameFromNumber } from '@/lib/formatters'
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
@@ -15,20 +16,8 @@ export default function ProfilePage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const fileInputRef = useRef(null)
 
-  // Helper to get level name from level number
-  const getLevelName = (level) => {
-    const levelMap = {
-      1: 'Entry Level',
-      2: 'Junior',
-      3: 'Mid Level',
-      4: 'Senior',
-      5: 'Lead',
-      6: 'Manager',
-      7: 'Director',
-      8: 'Executive'
-    }
-    return levelMap[level] || ''
-  }
+  // Use imported getLevelNameFromNumber for level name lookup
+  const getLevelName = getLevelNameFromNumber
 
   // Image editor state
   const [showImageEditor, setShowImageEditor] = useState(false)
@@ -368,7 +357,7 @@ export default function ProfilePage() {
           {/* <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">My Profile</h1> */}
           {/* <p className="text-sm sm:text-base text-gray-600 mt-1">View and manage your profile information</p> */}
         </div>
-        
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -449,11 +438,10 @@ export default function ProfilePage() {
             <div className="flex gap-3 sm:gap-4">
               {/* Status Badge - Green */}
               <div className="flex-1">
-                <button className={`w-full h-12 sm:h-14 px-4 rounded-xl text-base sm:text-lg font-bold text-center transition-colors ${
-                  employee.status === 'active'
+                <button className={`w-full h-12 sm:h-14 px-4 rounded-xl text-base sm:text-lg font-bold text-center transition-colors ${employee.status === 'active'
                     ? 'bg-[#4CAF50] hover:bg-[#45a049] text-white'
                     : 'bg-gray-500 hover:bg-gray-600 text-white'
-                }`}>
+                  }`}>
                   {employee.status === 'active' ? 'Active' : employee.status?.toUpperCase() || 'ACTIVE'}
                 </button>
               </div>
@@ -658,22 +646,16 @@ export default function ProfilePage() {
               </div>
 
               <div className="p-3 rounded-lg bg-gray-50">
-                <p className="text-xs text-gray-500 mb-1">Department</p>
+                <p className="text-xs text-gray-500 mb-1">Department(s)</p>
                 <p className="font-semibold text-gray-800 text-sm">
-                  {employee.department?.name || 'N/A'}
+                  {formatDepartments(employee)}
                 </p>
               </div>
 
               <div className="p-3 rounded-lg bg-gray-50">
                 <p className="text-xs text-gray-500 mb-1">Designation</p>
                 <p className="font-semibold text-gray-800 text-sm">
-                  {employee.designation ? (
-                    <>
-                      {employee.designation.levelName || getLevelName(employee.designation.level)
-                        ? `(${employee.designation.levelName || getLevelName(employee.designation.level)}) - ${employee.designation.title}`
-                        : employee.designation.title || 'N/A'}
-                    </>
-                  ) : 'N/A'}
+                  {formatDesignation(employee.designation, employee)}
                 </p>
               </div>
 

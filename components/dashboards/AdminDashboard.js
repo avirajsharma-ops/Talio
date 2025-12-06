@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
@@ -16,6 +16,23 @@ import { useTheme } from '@/contexts/ThemeContext'
 import CustomTooltip, { CustomPieTooltip } from '@/components/charts/CustomTooltip'
 import { getEmployeeId } from '@/utils/userHelper'
 import ProjectTasksWidget from './ProjectTasksWidget'
+import DraggableDashboard from '@/components/dashboard/DraggableDashboard'
+import DraggableKPIGrid from '@/components/dashboard/DraggableKPIGrid'
+import { CustomizableDashboard } from '@/components/dashboard'
+import {
+  CheckInOutWidget,
+  QuickGlanceWidget,
+  KPIStatsWidget,
+  LeaveRequestsWidget,
+  DepartmentChartWidget,
+  ProjectTasksWidgetWrapper,
+  AttendanceSummaryWidget,
+  TeamAttendanceWidget,
+  EmployeeDirectoryWidget,
+  LeaveBalanceWidget,
+  QuickActionsWidget,
+  AnnouncementsWidget
+} from '@/components/widgets'
 
 export default function AdminDashboard({ user }) {
   const router = useRouter()
@@ -75,7 +92,7 @@ export default function AdminDashboard({ user }) {
       const now = Date.now()
       const elapsedSeconds = Math.floor((now - checkInTime) / 1000)
       const remaining = Math.max(0, 28800 - elapsedSeconds) // 8 hours - elapsed time
-      
+
       setRemainingTime(remaining)
       setIsCountingDown(true)
     } else if (todayAttendance?.checkOut) {
@@ -409,6 +426,106 @@ export default function AdminDashboard({ user }) {
     setShowEmployeeModal(true)
   }
 
+  const statsData = getStatsData()
+
+  // Widget components mapping for the customizable dashboard
+  // Must be defined before any conditional returns to follow React hooks rules
+  const widgetComponents = useMemo(() => ({
+    'check-in-out': (
+      <CheckInOutWidget
+        user={user}
+        employeeData={employeeData}
+        todayAttendance={todayAttendance}
+        attendanceLoading={attendanceLoading}
+        onClockIn={handleClockIn}
+        onClockOut={handleClockOut}
+        formatDesignation={formatDesignation}
+      />
+    ),
+    'quick-glance': (
+      <QuickGlanceWidget
+        todayAttendance={todayAttendance}
+        remainingTime={remainingTime}
+        isCountingDown={isCountingDown}
+        formatCountdown={formatCountdown}
+      />
+    ),
+    'kpi-stats': (
+      <KPIStatsWidget
+        statsData={statsData}
+        onCardClick={(stat) => router.push(stat.href)}
+      />
+    ),
+    'leave-requests': (
+      <LeaveRequestsWidget
+        leaveRequests={dashboardData.leaveRequests}
+        onApprove={(id) => handleLeaveAction(id, 'approve')}
+        onReject={(id) => handleLeaveAction(id, 'reject', 'Rejected by admin')}
+        onViewAll={() => router.push('/dashboard/leave/approvals')}
+      />
+    ),
+    'department-distribution': (
+      <DepartmentChartWidget
+        departmentStats={dashboardData.departmentStats}
+      />
+    ),
+    'project-tasks': (
+      <ProjectTasksWidgetWrapper
+        limit={5}
+        showPendingAcceptance={true}
+      />
+    ),
+    'employee-directory': (
+      <EmployeeDirectoryWidget
+        employees={dashboardData.employees}
+        onViewDetails={viewEmployeeDetails}
+        onEdit={(employee) => router.push(`/dashboard/employees/edit/${employee._id}`)}
+        onViewAll={() => router.push('/dashboard/employees')}
+      />
+    ),
+    'quick-actions': (
+      <QuickActionsWidget
+        actions={[
+          { name: 'Add Employee', icon: 'FaUserPlus', href: '/dashboard/employees/add', color: 'green' },
+          { name: 'Manage Departments', icon: 'FaBuilding', href: '/dashboard/departments', color: 'blue' },
+          { name: 'Leave Types', icon: 'FaCalendarAlt', href: '/dashboard/leave-types', color: 'purple' },
+          { name: 'Leave Allocations', icon: 'FaMoneyBillWave', href: '/dashboard/leave/allocations', color: 'red' },
+        ]}
+      />
+    ),
+    'team-attendance': (
+      <TeamAttendanceWidget />
+    ),
+    'announcements': (
+      <AnnouncementsWidget />
+    ),
+    'attendance-summary': (
+      <AttendanceSummaryWidget
+        userId={user?._id}
+      />
+    ),
+    'leave-balance': (
+      <LeaveBalanceWidget
+        userId={user?._id}
+      />
+    ),
+  }), [
+    user,
+    employeeData,
+    todayAttendance,
+    attendanceLoading,
+    remainingTime,
+    isCountingDown,
+    dashboardData,
+    statsData,
+    router,
+    handleClockIn,
+    handleClockOut,
+    handleLeaveAction,
+    viewEmployeeDetails,
+    formatCountdown
+  ])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -417,443 +534,15 @@ export default function AdminDashboard({ user }) {
     )
   }
 
-  const statsData = getStatsData()
-
   return (
-    <div className="page-container space-y-5 sm:space-y-8">
-      {/* Check-In/Check-Out Section */}
-      <div style={{ background: 'var(--color-accent-gradient)' }} className="rounded-2xl shadow-md p-4 sm:p-6 text-white">
-        {/* User Profile Section */}
-        <div className="flex items-center gap-3 mb-4">
-          {/* Profile Picture */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center flex-shrink-0">
-            {employeeData?.profilePicture ? (
-              <img
-                src={employeeData.profilePicture}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <FaUser className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-            )}
-          </div>
+    <div className="page-container">
+      <CustomizableDashboard
+        userId={user?._id || 'admin'}
+        userRole={user?.role || 'admin'}
+        widgetComponents={widgetComponents}
+      />
 
-          {/* User Name and ID */}
-          <div>
-            <p className="text-xs text-gray-300 mb-0.5">
-              ID: {employeeData?.employeeCode || user?.employeeCode || user?.employeeNumber || '---'}
-            </p>
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide">
-              {employeeData ? `${employeeData.firstName} ${employeeData.lastName}` :
-               (user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : 'User')}
-            </h2>
-            {(employeeData?.designation || user?.designation) && (
-              <p className="text-xs text-gray-300 mt-0.5">
-                {formatDesignation(employeeData?.designation || user?.designation)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 sm:gap-3">
-          <button
-            onClick={handleClockIn}
-            disabled={attendanceLoading || (todayAttendance && todayAttendance.checkIn)}
-            className="btn-theme-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
-          >
-            <span>Check In</span>
-          </button>
-
-          <button
-            onClick={handleClockOut}
-            disabled={attendanceLoading || !todayAttendance || !todayAttendance.checkIn || todayAttendance.checkOut}
-            className="btn-theme-secondary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center flex-1"
-          >
-            <span>Check Out</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Glance Section */}
-      <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-2xl p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base sm:text-lg font-bold text-gray-800">Quick Glance</h3>
-          
-          {/* Countdown Timer */}
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
-              isCountingDown 
-                ? remainingTime > 3600 
-                  ? 'bg-green-100' 
-                  : remainingTime > 1800 
-                    ? 'bg-yellow-100' 
-                    : 'bg-red-100'
-                : 'bg-gray-100'
-            }`}>
-              <FaClock className={`w-3.5 h-3.5 ${
-                isCountingDown 
-                  ? remainingTime > 3600 
-                    ? 'text-green-600' 
-                    : remainingTime > 1800 
-                      ? 'text-yellow-600' 
-                      : 'text-red-600'
-                  : 'text-gray-600'
-              }`} />
-              <span className={`text-sm sm:text-base font-bold ${
-                isCountingDown 
-                  ? remainingTime > 3600 
-                    ? 'text-green-700' 
-                    : remainingTime > 1800 
-                      ? 'text-yellow-700' 
-                      : 'text-red-700'
-                  : 'text-gray-700'
-              }`}>
-                {formatCountdown(remainingTime)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {/* Check In Time */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-                <FaSignInAlt className="w-2.5 h-2.5 text-gray-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600">Check In Time</p>
-            </div>
-            <div className="bg-green-100 rounded-lg p-3">
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
-                {todayAttendance?.checkIn
-                  ? new Date(todayAttendance.checkIn).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })
-                  : '--:--'}
-              </p>
-            </div>
-          </div>
-
-          {/* Check Out Time */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-                <FaSignOutAlt className="w-2.5 h-2.5 text-gray-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600">Check Out Time</p>
-            </div>
-            <div className="bg-red-100 rounded-lg p-3">
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
-                {todayAttendance?.checkOut
-                  ? new Date(todayAttendance.checkOut).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })
-                  : '--:--'}
-              </p>
-            </div>
-          </div>
-
-          {/* Work Hours */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-                <FaClock className="w-2.5 h-2.5 text-gray-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600">Work Hours</p>
-            </div>
-            <div className="bg-yellow-100 rounded-lg p-3">
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
-                {todayAttendance?.workHours
-                  ? `${todayAttendance.workHours}h`
-                  : '--:--'}
-              </p>
-            </div>
-          </div>
-
-          {/* Work Status */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center">
-                <FaCheckCircle className="w-2.5 h-2.5 text-gray-600" />
-              </div>
-              <p className="text-xs font-medium text-gray-600">Work Status</p>
-            </div>
-            <div className={`rounded-lg p-3 ${
-              todayAttendance?.status === 'present' ? 'bg-green-100' :
-              todayAttendance?.status === 'half-day' ? 'bg-yellow-100' :
-              todayAttendance?.status === 'in-progress' ? 'bg-blue-100' :
-              todayAttendance?.workFromHome ? 'bg-purple-100' :
-              todayAttendance?.status === 'on-leave' ? 'bg-orange-100' :
-              'bg-red-100'
-            }`}>
-              <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 capitalize">
-                {todayAttendance?.workFromHome ? 'WFH' :
-                 todayAttendance?.status === 'present' ? 'Present' :
-                 todayAttendance?.status === 'half-day' ? 'Half Day' :
-                 todayAttendance?.status === 'in-progress' ? 'In Progress' :
-                 todayAttendance?.status === 'on-leave' ? 'On Leave' :
-                 'Absent'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Welcome Section */}
-     
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {statsData.map((stat, index) => (
-          <div
-            key={index}
-            className="rounded-lg shadow-md p-3 sm:p-6 hover:shadow-lg transition-shadow cursor-pointer"
-            style={{ backgroundColor: 'var(--color-bg-card)' }}
-            onClick={() => router.push(stat.href)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-gray-500 text-xs sm:text-sm font-medium truncate">{stat.title}</p>
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2 truncate">{stat.value}</h3>
-              </div>
-              <div className={`${stat.color} p-2 sm:p-4 rounded-lg flex-shrink-0`}>
-                <stat.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
-        {/* Department Distribution */}
-        <div style={{ backgroundColor: 'var(--color-bg-card)' }} className="rounded-lg overflow-hidden">
-          <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
-            <h3 className="text-sm sm:text-base font-bold text-gray-800">Department Distribution</h3>
-          </div>
-          {(Array.isArray(dashboardData.departmentStats) && dashboardData.departmentStats.length > 0) ? (
-            <div className="h-80 sm:h-80 pr-4 sm:pr-6 pb-4 sm:pb-6">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dashboardData.departmentStats}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {dashboardData.departmentStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomPieTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500 pb-4">
-              No department data available
-            </div>
-          )}
-        </div>
-
-        {/* Recent Leave Requests */}
-        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Leave Requests</h3>
-            <button
-              onClick={() => router.push('/dashboard/leave/approvals')}
-              className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-            >
-              View All
-            </button>
-          </div>
-          <div className="space-y-4 max-h-64 overflow-y-auto">
-            {(Array.isArray(dashboardData.leaveRequests) ? dashboardData.leaveRequests : []).slice(0, 5).map((request) => (
-              <div key={request._id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {request.employee?.firstName?.charAt(0)}{request.employee?.lastName?.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {request.employee?.firstName} {request.employee?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {request.leaveType?.name} - {request.numberOfDays} day(s)
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {request.status}
-                  </span>
-                  {request.status === 'pending' && (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleLeaveAction(request._id, 'approve')}
-                        className="text-green-600 hover:text-green-800 p-1"
-                        title="Approve"
-                      >
-                        <FaCheck className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleLeaveAction(request._id, 'reject', 'Rejected by admin')}
-                        className="text-red-600 hover:text-red-800 p-1"
-                        title="Reject"
-                      >
-                        <FaTimes className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {(!Array.isArray(dashboardData.leaveRequests) || dashboardData.leaveRequests.length === 0) && (
-              <div className="text-center text-gray-500 py-8">
-                No leave requests found
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Employee Management Section */}
-      <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-        <div className="md:flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold  md:mt-0 mt-3 md:mb-0 mb-4 text-gray-900">Employee Management</h3>
-          <div className="flex space-x-3">
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={employeeSearch}
-                onChange={(e) => setEmployeeSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              onClick={() => router.push('/dashboard/employees')}
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-            >
-              View All
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-              {(Array.isArray(dashboardData.employees) ? dashboardData.employees : [])
-                .filter(emp =>
-                  employeeSearch === '' ||
-                  `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-                  emp.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())
-                )
-                .slice(0, 10)
-                .map((employee) => (
-                <tr key={employee._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {employee.firstName?.charAt(0)}{employee.lastName?.charAt(0)}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {employee.firstName} {employee.lastName}
-                        </div>
-                        <div className="text-sm text-gray-500">{employee.employeeCode}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {employee.department?.name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      employee.status === 'active' ? 'bg-green-100 text-green-800' :
-                      employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {employee.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => viewEmployeeDetails(employee)}
-                        className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                        title="View Details"
-                      >
-                        <FaEye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => router.push(`/dashboard/employees/edit/${employee._id}`)}
-                        className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors"
-                        title="Edit Employee"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Admin Quick Actions */}
-      <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { name: 'Add Employee', icon: FaUserPlus, href: '/dashboard/employees/add', color: 'stat-icon-green' },
-            { name: 'Manage Departments', icon: FaBuilding, href: '/dashboard/departments', color: 'stat-icon-blue' },
-            { name: 'Leave Types', icon: FaCalendarAlt, href: '/dashboard/leave-types', color: 'stat-icon-purple' },
-            { name: 'Leave Allocations', icon: FaMoneyBillWave, href: '/dashboard/leave/allocations', color: 'stat-icon-red' },
-          ].map((action, index) => (
-            <button
-              key={index}
-              onClick={() => router.push(action.href)}
-              className="flex flex-col items-center justify-center p-6 rounded-lg transition-all duration-200 cursor-pointer quick-action-blue"
-            >
-              <div className={`${action.color} p-3 rounded-lg mb-3`}>
-                <action.icon className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-sm font-medium text-center text">{action.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Project Tasks Widget */}
-      <ProjectTasksWidget limit={5} showPendingAcceptance={true} />
-
-      {/* Employee Details Modal */}
+      {/* Employee Details Modal - kept outside draggable area */}
       {showEmployeeModal && selectedEmployee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-card)' }}>
@@ -907,10 +596,9 @@ export default function AdminDashboard({ user }) {
                   </div>
                   <div>
                     <span className="text-gray-600">Status:</span>
-                    <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                      selectedEmployee.status === 'active' ? 'bg-green-100 text-green-800' :
+                    <span className={`ml-2 px-2 py-1 text-xs rounded-full ${selectedEmployee.status === 'active' ? 'bg-green-100 text-green-800' :
                       'bg-red-100 text-red-800'
-                    }`}>
+                      }`}>
                       {selectedEmployee.status}
                     </span>
                   </div>
