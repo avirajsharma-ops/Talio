@@ -262,38 +262,6 @@ export default function FloatingChatWidget() {
   return (
     <>
       <style>{animationStyles}</style>
-      
-      {/* Floating Chat Button - Bottom right corner */}
-      <button
-        onClick={() => toggleWidget('button')}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all z-[9998] hidden md:flex overflow-visible"
-        style={{ 
-          backgroundColor: primaryColor,
-          boxShadow: `0 4px 20px ${primaryColor}50`,
-          animation: totalUnread > 0 ? 'float 3s ease-in-out infinite' : 'none',
-          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)'
-          e.currentTarget.style.boxShadow = `0 8px 30px ${primaryColor}60`
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)'
-          e.currentTarget.style.boxShadow = `0 4px 20px ${primaryColor}50`
-        }}
-      >
-        <FaComments className="w-6 h-6 text-white" />
-        {totalUnread > 0 && (
-          <span 
-            className="absolute -top-2 -right-2 min-w-[24px] h-[24px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold px-1.5 shadow-lg"
-            style={{
-              animation: 'pulseNotification 2s infinite, bounceIn 0.5s ease-out',
-            }}
-          >
-            {totalUnread > 99 ? '99+' : totalUnread}
-          </span>
-        )}
-      </button>
 
       {/* Chat List Widget - Glass UI */}
       {isWidgetOpen && (

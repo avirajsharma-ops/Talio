@@ -301,8 +301,34 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           ))}
         </nav>
 
-        {/* Settings and Logout Section - Fixed at bottom */}
+        {/* Chat, Settings and Logout Section - Fixed at bottom */}
         <div className="flex flex-row gap-2 py-2 px-4 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
+          {/* Chat Button - Desktop only */}
+          {isDesktop && (
+            <button
+              onClick={() => toggleWidget('sidebar')}
+              className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group cursor-pointer relative"
+              style={{
+                backgroundColor: 'transparent',
+                color: '#111827'
+              }}
+            >
+              <div
+                className="p-1.5 rounded-lg transition-colors relative"
+                style={{
+                  backgroundColor: 'var(--color-primary-100)',
+                  color: 'var(--color-primary-700)'
+                }}
+              >
+                <FaComments className="w-3.5 h-3.5" />
+                {unreadCount > 0 && (
+                  <UnreadBadge count={unreadCount} />
+                )}
+              </div>
+              <span className="text-xs sm:text-sm font-medium">Chat</span>
+            </button>
+          )}
+
           {/* Settings Button */}
           <Link
             href="/dashboard/settings"

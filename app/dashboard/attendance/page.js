@@ -958,7 +958,7 @@ export default function AttendancePage() {
 
         {viewMode === 'calendar' ? (
           /* Calendar View */
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-visible p-2 -m-2">
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (

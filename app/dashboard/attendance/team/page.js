@@ -492,7 +492,7 @@ export default function TeamAttendancePage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible p-2 -m-2">
               {/* Day Headers */}
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
