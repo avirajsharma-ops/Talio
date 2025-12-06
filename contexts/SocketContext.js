@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
+import toast from 'react-hot-toast'
 
 const SocketContext = createContext()
 
@@ -16,11 +17,16 @@ export function SocketProvider({ children }) {
     let userId = null
     if (userData) {
       const user = JSON.parse(userData)
-      // Ensure we get a string ID, not an object
-      const rawId = user.employeeId || user._id
-      userId = typeof rawId === 'object' ? rawId._id || rawId.toString() : rawId
+      // Use the User's _id (not employeeId) for socket authentication
+      // This matches how notifications are stored in the database
+      userId = user.userId || user._id || user.id
+      // Ensure it's a string
+      if (typeof userId === 'object' && userId._id) {
+        userId = userId._id
+      }
+      userId = userId?.toString()
       setCurrentUserId(userId)
-      console.log('🔑 [Socket.IO Client] User ID:', userId)
+      console.log('🔑 [Socket.IO Client] User ID for notifications:', userId)
     }
 
     // Initialize Socket.IO connection
@@ -64,6 +70,50 @@ export function SocketProvider({ children }) {
       if (userId) {
         socketInstance.emit('authenticate', userId)
       }
+    })
+
+    // Handle new-notification events from scheduled/recurring notifications
+    socketInstance.on('new-notification', (data) => {
+      console.log('🔔 [Socket.IO Client] New notification received:', data)
+
+      // Show toast notification
+      toast.custom((t) => (
+        <div
+          className={`${t.visible ? 'animate-enter' : 'animate-leave'
+            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
+        >
+          <div className="flex-1 w-0 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                  <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  {data.title || 'New Notification'}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {data.message || ''}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex border-l border-gray-200">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-blue-600 hover:text-blue-500 focus:outline-none"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ), {
+        duration: 5000,
+        position: 'top-right',
+      })
     })
 
     setSocket(socketInstance)
@@ -315,6 +365,14 @@ export function SocketProvider({ children }) {
     }
   }, [socket])
 
+  // Subscribe to new notification events (for scheduled/recurring notifications)
+  const onNewNotification = useCallback((callback) => {
+    if (socket) {
+      socket.on('new-notification', callback)
+      return () => socket.off('new-notification', callback)
+    }
+  }, [socket])
+
   const value = {
     socket,
     isConnected,
@@ -346,7 +404,8 @@ export function SocketProvider({ children }) {
     onAssetUpdate,
     onPayrollUpdate,
     onOnboardingUpdate,
-    onOffboardingUpdate
+    onOffboardingUpdate,
+    onNewNotification
   }
 
   return (

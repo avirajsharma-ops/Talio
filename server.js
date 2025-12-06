@@ -1,15 +1,37 @@
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
+const mongoose = require('mongoose')
+const { initializeScheduler, shutdownScheduler } = require('./lib/scheduler')
+
+// Load environment variables
+require('dotenv').config()
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || '0.0.0.0' // Listen on all interfaces in production
 const port = parseInt(process.env.PORT || '3000', 10)
 
+// Connect to MongoDB for scheduler
+async function connectMongoDB() {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      console.log('📦 MongoDB already connected')
+      return
+    }
+    await mongoose.connect(process.env.MONGODB_URI)
+    console.log('📦 MongoDB connected for scheduler')
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message)
+  }
+}
+
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare().then(() => {
+app.prepare().then(async () => {
+  // Connect MongoDB before starting server
+  await connectMongoDB()
+
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true)
@@ -32,12 +54,12 @@ app.prepare().then(() => {
       origin: dev
         ? 'http://localhost:3000'
         : [
-            'https://mwg.talio.in',
-            'http://mwg.talio.in',
-            // keep existing domains if used elsewhere
-            'https://zenova.sbs',
-            'https://www.zenova.sbs'
-          ],
+          'https://mwg.talio.in',
+          'http://mwg.talio.in',
+          // keep existing domains if used elsewhere
+          'https://zenova.sbs',
+          'https://www.zenova.sbs'
+        ],
       methods: ['GET', 'POST'],
       credentials: true
     },
@@ -120,7 +142,7 @@ app.prepare().then(() => {
     // ========================================
     // PRODUCTIVITY MONITORING SOCKET HANDLERS
     // ========================================
-    
+
     // Desktop app confirms it's ready to handle screen capture requests
     socket.on('desktop-app-ready', (data) => {
       const { userId } = data
@@ -128,7 +150,7 @@ app.prepare().then(() => {
       socket.join(`user:${userId}`)
       socket.isDesktopApp = true
       console.log(`📸 [Socket.IO] Desktop app ready for user ${userId}, socket: ${socket.id}`)
-      
+
       // Confirm to the desktop app that it's registered
       socket.emit('registration-confirmed', { userId, socketId: socket.id })
     })
@@ -179,57 +201,29 @@ app.prepare().then(() => {
     console.log(`🚀 Server ready on http://${hostname}:${port}`)
     console.log(`🔌 Socket.IO ready on path: /api/socketio`)
 
-    // Start the attendance notification scheduler (runs every minute)
-    startAttendanceScheduler()
+    // Initialize the notification scheduler (using node-schedule)
+    // Wait a bit for server to be fully ready before starting scheduler
+    setTimeout(() => {
+      initializeScheduler(port)
+    }, 2000)
+  })
+
+  // Graceful shutdown handling
+  process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully...')
+    shutdownScheduler()
+    server.close(() => {
+      console.log('✅ Server closed')
+      process.exit(0)
+    })
+  })
+
+  process.on('SIGINT', () => {
+    console.log('🛑 SIGINT received, shutting down gracefully...')
+    shutdownScheduler()
+    server.close(() => {
+      console.log('✅ Server closed')
+      process.exit(0)
+    })
   })
 })
-
-// Attendance notification scheduler
-function startAttendanceScheduler() {
-  console.log('📅 Starting attendance notification scheduler...')
-  
-  // Run every minute to check for scheduled notifications
-  setInterval(async () => {
-    try {
-      // 1. Process attendance-based notifications
-      const attendanceResponse = await fetch(`http://localhost:${port}/api/attendance/scheduler`, {
-        method: 'GET',
-        headers: {
-          'x-cron-secret': 'internal'
-        }
-      })
-      
-      if (attendanceResponse.ok) {
-        const data = await attendanceResponse.json()
-        if (data.data?.triggered?.length > 0) {
-          console.log('📬 Attendance notifications triggered:', data.data.triggered)
-        }
-      }
-
-      // 2. Process scheduled/custom notifications (if CRON_SECRET is set)
-      if (process.env.CRON_SECRET) {
-        const scheduledResponse = await fetch(`http://localhost:${port}/api/cron/process-scheduled-notifications`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${process.env.CRON_SECRET}`
-          }
-        })
-        
-        if (scheduledResponse.ok) {
-          const data = await scheduledResponse.json()
-          if (data.processedCount > 0) {
-            console.log('📬 Scheduled notifications processed:', data.processedCount)
-          }
-        }
-      }
-    } catch (error) {
-      // Silently handle errors during startup when server isn't ready
-      if (!error.message?.includes('ECONNREFUSED')) {
-        console.error('Scheduler error:', error.message)
-      }
-    }
-  }, 60000) // Every 60 seconds
-  
-  console.log('✅ Attendance scheduler started (checking every minute)')
-}
-

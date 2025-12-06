@@ -1,4 +1,4 @@
-  import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 import connectDB from '@/lib/mongodb'
 import RecurringNotification from '@/models/RecurringNotification'
@@ -138,9 +138,47 @@ export async function POST(request) {
       data.targetDepartment = null
     }
 
+    // Validate required fields
+    if (!data.title || !data.message) {
+      return NextResponse.json(
+        { success: false, message: 'Title and message are required' },
+        { status: 400 }
+      )
+    }
+
+    if (!data.frequency) {
+      return NextResponse.json(
+        { success: false, message: 'Frequency is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate frequency-specific fields
+    if (data.frequency === 'weekly' && (!data.weeklyDays || data.weeklyDays.length === 0)) {
+      return NextResponse.json(
+        { success: false, message: 'Please select at least one day for weekly notifications' },
+        { status: 400 }
+      )
+    }
+
     // Set default startDate if not provided (start immediately)
     if (!data.startDate) {
       data.startDate = new Date()
+    } else {
+      // Convert string date to Date object
+      data.startDate = new Date(data.startDate)
+    }
+
+    // Convert endDate if provided
+    if (data.endDate && data.endDate !== '') {
+      data.endDate = new Date(data.endDate)
+    } else {
+      data.endDate = null
+    }
+
+    // Ensure targetType has a default
+    if (!data.targetType) {
+      data.targetType = 'all'
     }
 
     // Create recurring notification
@@ -202,7 +240,7 @@ export async function PUT(request) {
     }
 
     const notification = await RecurringNotification.findById(id)
-    
+
     if (!notification) {
       return NextResponse.json(
         { success: false, message: 'Notification not found' },
@@ -230,12 +268,12 @@ export async function PUT(request) {
 
     // Update notification
     Object.assign(notification, data)
-    
+
     // Recalculate next scheduled time if schedule changed
     if (data.frequency || data.dailyTime || data.weeklyDays || data.weeklyTime || data.monthlyDay || data.monthlyTime || data.customDays || data.customTimes) {
       notification.nextScheduledAt = notification.calculateNextSchedule()
     }
-    
+
     await notification.save()
 
     const populated = await RecurringNotification.findById(notification._id)
@@ -251,6 +289,87 @@ export async function PUT(request) {
     console.error('Update recurring notification error:', error)
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to update recurring notification' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Toggle active status
+export async function PATCH(request) {
+  try {
+    await connectDB()
+
+    // Verify authentication
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    const { payload: decoded } = await jwtVerify(token, secret)
+
+    const data = await request.json()
+    const { id, isActive } = data
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Notification ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const notification = await RecurringNotification.findById(id)
+
+    if (!notification) {
+      return NextResponse.json(
+        { success: false, message: 'Notification not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check permission
+    const currentUser = await User.findById(decoded.userId).populate('employeeId')
+    let currentEmployee = null
+    if (currentUser && currentUser.employeeId) {
+      currentEmployee = await Employee.findById(currentUser.employeeId)
+    }
+
+    const isDeptHead = decoded.role === 'department_head' || currentEmployee?.isDepartmentHead
+
+    if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && currentEmployee && notification.createdBy.toString() !== currentEmployee._id.toString()) {
+      return NextResponse.json(
+        { success: false, message: 'You can only update your own recurring notifications' },
+        { status: 403 }
+      )
+    }
+
+    // Update isActive status
+    notification.isActive = isActive
+
+    // If activating, recalculate next scheduled time
+    if (isActive) {
+      notification.nextScheduledAt = notification.calculateNextSchedule()
+    }
+
+    await notification.save()
+
+    const populated = await RecurringNotification.findById(notification._id)
+      .populate('createdBy', 'firstName lastName')
+      .populate('targetDepartment', 'name')
+
+    return NextResponse.json({
+      success: true,
+      message: isActive ? 'Notification resumed' : 'Notification paused',
+      data: populated
+    })
+  } catch (error) {
+    console.error('Toggle recurring notification error:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to update notification' },
       { status: 500 }
     )
   }
@@ -285,7 +404,7 @@ export async function DELETE(request) {
     }
 
     const notification = await RecurringNotification.findById(id)
-    
+
     if (!notification) {
       return NextResponse.json(
         { success: false, message: 'Notification not found' },

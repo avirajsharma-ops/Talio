@@ -1,9 +1,7 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/process-scheduled-notifications",
-      "schedule": "* * * * *"
+  "functions": {
+    "app/**/*.js": {
+      "maxDuration": 60
     }
-  ]
+  }
 }
-

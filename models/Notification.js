@@ -33,7 +33,7 @@ const NotificationSchema = new mongoose.Schema({
   // Type and category
   type: {
     type: String,
-    enum: ['custom', 'task', 'leave', 'attendance', 'announcement', 'system', 'chat', 'approval'],
+    enum: ['custom', 'task', 'leave', 'attendance', 'announcement', 'system', 'chat', 'approval', 'scheduled', 'recurring'],
     default: 'custom'
   },
   priority: {
