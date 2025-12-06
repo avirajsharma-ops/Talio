@@ -14,11 +14,11 @@ const REDIRECT_URI = `${PRODUCTION_URL}/api/auth/google/callback`;
 function getOAuth2Client() {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     throw new Error('Google OAuth credentials not configured');
   }
-  
+
   return new google.auth.OAuth2(clientId, clientSecret, REDIRECT_URI);
 }
 
@@ -27,29 +27,49 @@ export async function GET(request) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1];
     const payload = await verifyToken(token);
-    
+
     if (!payload) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    const emailAccount = await EmailAccount.findOne({ user: payload.userId });
+    // Get all connected email accounts for this user
+    const emailAccounts = await EmailAccount.find({ user: payload.userId, isConnected: true });
 
-    if (!emailAccount) {
+    if (!emailAccounts || emailAccounts.length === 0) {
       return NextResponse.json({
         isConnected: false,
-        email: null
+        email: null,
+        accounts: []
       });
     }
 
+    // Find the primary account or use the first one
+    const primaryAccount = emailAccounts.find(acc => acc.isPrimary) || emailAccounts[0];
+
+    // Calculate total counts across all accounts
+    const totalUnreadCount = emailAccounts.reduce((sum, acc) => sum + (acc.unreadCount || 0), 0);
+    const totalSpamCount = emailAccounts.reduce((sum, acc) => sum + (acc.spamCount || 0), 0);
+
     return NextResponse.json({
-      isConnected: emailAccount.isConnected,
-      email: emailAccount.email,
-      provider: emailAccount.provider,
-      lastSynced: emailAccount.lastSynced,
-      unreadCount: emailAccount.unreadCount,
-      settings: emailAccount.settings
+      isConnected: true,
+      email: primaryAccount.email,
+      provider: primaryAccount.provider,
+      lastSynced: primaryAccount.lastSynced,
+      unreadCount: totalUnreadCount,
+      spamCount: totalSpamCount,
+      settings: primaryAccount.settings,
+      accounts: emailAccounts.map(acc => ({
+        id: acc._id,
+        email: acc.email,
+        provider: acc.provider,
+        isPrimary: acc.isPrimary,
+        unreadCount: acc.unreadCount || 0,
+        spamCount: acc.spamCount || 0,
+        lastSynced: acc.lastSynced
+      })),
+      activeAccountId: primaryAccount._id
     });
 
   } catch (error) {
@@ -63,13 +83,13 @@ export async function POST(request) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1];
     const payload = await verifyToken(token);
-    
+
     if (!payload) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    
+
     if (!clientId) {
       return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 });
     }
@@ -116,7 +136,7 @@ export async function DELETE(request) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1];
     const payload = await verifyToken(token);
-    
+
     if (!payload) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

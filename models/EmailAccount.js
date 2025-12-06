@@ -61,8 +61,7 @@ const EmailAccountSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true
+    required: true
   },
   email: {
     type: String,
@@ -89,12 +88,20 @@ const EmailAccountSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isPrimary: {
+    type: Boolean,
+    default: false
+  },
   lastSynced: Date,
   syncError: String,
   // Cached emails for quick access
   cachedEmails: [EmailMessageSchema],
   // Stats
   unreadCount: {
+    type: Number,
+    default: 0
+  },
+  spamCount: {
     type: Number,
     default: 0
   },
@@ -109,7 +116,9 @@ const EmailAccountSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes (user index not needed here as unique: true in schema already creates it)
+// Indexes - compound index for user + email uniqueness
+EmailAccountSchema.index({ user: 1, email: 1 }, { unique: true });
+EmailAccountSchema.index({ user: 1, isPrimary: 1 });
 EmailAccountSchema.index({ email: 1 });
 EmailAccountSchema.index({ 'cachedEmails.date': -1 });
 EmailAccountSchema.index({ 'cachedEmails.isRead': 1 });

@@ -46,12 +46,12 @@ export async function GET(request) {
 
     // Build query based on role
     let query = {}
-    
+
     // Add status filter if provided
     if (status) {
       query.status = status
     }
-    
+
     if (isDeptHead && !['admin', 'hr', 'god_admin'].includes(decoded.role) && currentEmployee) {
       // Department heads can only see their own scheduled notifications
       query.createdBy = currentEmployee._id
@@ -77,6 +77,89 @@ export async function GET(request) {
     console.error('Get scheduled notifications error:', error)
     return NextResponse.json(
       { success: false, message: 'Failed to fetch scheduled notifications' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Create scheduled notification
+export async function POST(request) {
+  try {
+    await connectDB()
+
+    // Verify authentication
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    const { payload: decoded } = await jwtVerify(token, secret)
+
+    const currentUser = await User.findById(decoded.userId).populate('employeeId')
+    let currentEmployee = null
+    if (currentUser && currentUser.employeeId) {
+      currentEmployee = await Employee.findById(currentUser.employeeId)
+    }
+
+    const isDeptHead = decoded.role === 'department_head' || currentEmployee?.isDepartmentHead
+
+    // Check if user has permission
+    if (!['admin', 'hr', 'god_admin'].includes(decoded.role) && !isDeptHead) {
+      return NextResponse.json(
+        { success: false, message: 'You do not have permission to create scheduled notifications' },
+        { status: 403 }
+      )
+    }
+
+    const data = await request.json()
+    const { title, message, url, targetType, targetDepartment, targetUsers, targetRoles, scheduledFor } = data
+
+    // Validate required fields
+    if (!title || !message || !scheduledFor) {
+      return NextResponse.json(
+        { success: false, message: 'Title, message, and scheduled time are required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate scheduled time is in the future
+    const scheduleDate = new Date(scheduledFor)
+    if (scheduleDate <= new Date()) {
+      return NextResponse.json(
+        { success: false, message: 'Scheduled time must be in the future' },
+        { status: 400 }
+      )
+    }
+
+    // Create scheduled notification
+    const scheduledNotification = await ScheduledNotification.create({
+      title,
+      message,
+      url: url || '/dashboard',
+      targetType: targetType || 'all',
+      targetDepartment: targetType === 'department' ? targetDepartment : null,
+      targetUsers: targetType === 'specific' ? targetUsers : [],
+      targetRoles: targetType === 'role' ? targetRoles : [],
+      scheduledFor: scheduleDate,
+      createdBy: currentEmployee ? currentEmployee._id : decoded.userId,
+      createdByRole: decoded.role,
+      status: 'pending'
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Notification scheduled for ${scheduleDate.toLocaleString()}`,
+      data: scheduledNotification
+    })
+  } catch (error) {
+    console.error('Create scheduled notification error:', error)
+    return NextResponse.json(
+      { success: false, message: 'Failed to create scheduled notification' },
       { status: 500 }
     )
   }
@@ -111,7 +194,7 @@ export async function DELETE(request) {
     }
 
     const notification = await ScheduledNotification.findById(id)
-    
+
     if (!notification) {
       return NextResponse.json(
         { success: false, message: 'Notification not found' },
