@@ -10,7 +10,7 @@ import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import UnreadBadge from '@/components/UnreadBadge'
 import { formatDesignation as formatDesignationLib, formatDepartments, getLevelNameFromNumber } from '@/lib/formatters'
 
-export default function Header({ toggleSidebar }) {
+export default function Header({ toggleSidebar, sidebarCollapsed }) {
   const { theme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
@@ -32,10 +32,21 @@ export default function Header({ toggleSidebar }) {
   const [searching, setSearching] = useState(false)
   const [pageTitle, setPageTitle] = useState('HOME')
   const [employeeData, setEmployeeData] = useState(null)
+  const [isDesktop, setIsDesktop] = useState(false)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
   const searchRef = useRef(null)
   const searchTimeoutRef = useRef(null)
+
+  // Check if desktop for header left positioning
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024)
+    }
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -305,7 +316,10 @@ export default function Header({ toggleSidebar }) {
   // Don't render user-specific content until mounted to avoid hydration mismatch
   if (!mounted) {
     return (
-      <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200 ">
+      <header 
+        className="bg-white fixed top-0 right-0 z-[50] border-b border-gray-200 transition-all duration-300"
+        style={{ left: isDesktop ? (sidebarCollapsed ? '4.5rem' : '17rem') : '0' }}
+      >
         <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] h-[60px]">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
@@ -329,7 +343,10 @@ export default function Header({ toggleSidebar }) {
   }
 
   return (
-    <header className="bg-white fixed top-0 left-0 lg:left-[17rem] right-0 z-[50] border-b border-gray-200">
+    <header 
+      className="bg-white fixed top-0 right-0 z-[50] border-b border-gray-200 transition-all duration-300"
+      style={{ left: isDesktop ? (sidebarCollapsed ? '4.5rem' : '17rem') : '0' }}
+    >
       <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] h-[60px]">
         {/* Left side */}
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1">

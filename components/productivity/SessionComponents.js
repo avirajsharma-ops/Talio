@@ -1162,7 +1162,7 @@ function SessionDetailModal({ session, onClose }) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gray-800 px-6 py-4 flex items-center overflow-hidden justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">
               Session: {formatLocalTime(sessionData.sessionStart)} - {formatLocalTime(sessionData.sessionEnd)}
@@ -1183,7 +1183,7 @@ function SessionDetailModal({ session, onClose }) {
             </div>
           </div>
         ) : (
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Screenshot Carousel */}
             <div>

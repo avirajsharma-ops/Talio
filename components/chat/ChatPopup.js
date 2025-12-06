@@ -9,7 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { playNotificationSound } from '@/utils/audio'
 
 export default function ChatPopup({ chat, index }) {
-  const { closeChat, chatPositions, updateChatPosition, bringToFront, triggerSource, widgetPosition, getZIndex, focusedChatId } = useChatWidget()
+  const { closeChat, chatPositions, updateChatPosition, bringToFront, triggerSource, widgetPosition, getZIndex, focusedChatId, sidebarCollapsed, isAutoMinimized } = useChatWidget()
   const { isConnected, joinChat, leaveChat, onNewMessage, sendTyping, sendStopTyping, onUserTyping, onUserStopTyping } = useSocket()
   const { markChatAsRead, unreadChats } = useUnreadMessages()
   const { theme } = useTheme()
@@ -45,6 +45,18 @@ export default function ChatPopup({ chat, index }) {
   
   // Get unread count for this chat
   const unreadCount = unreadChats?.[chat._id] || 0
+
+  // Check if this chat should be auto-minimized
+  const shouldAutoMinimize = isAutoMinimized(chat._id)
+  
+  // Sync auto-minimize state with local state
+  useEffect(() => {
+    if (shouldAutoMinimize && !isMinimized) {
+      setIsMinimized(true)
+      setAnimationState('minimizing')
+      setTimeout(() => setAnimationState('normal'), 300)
+    }
+  }, [shouldAutoMinimize, isMinimized])
 
   // Glass morphism styles
   const glassStyle = {
@@ -411,13 +423,14 @@ export default function ChatPopup({ chat, index }) {
   const getDefaultPosition = () => {
     if (typeof window === 'undefined') return { x: 640, y: 100 }
     
-    const chatWidth = isExpanded ? 480 : 360
-    const chatHeight = isExpanded ? 580 : 450
+    const chatWidth = isExpanded ? 480 : (isMinimized ? 220 : 360)
+    const chatHeight = isExpanded ? 580 : (isMinimized ? 52 : 450)
     const gap = 16 // Equal gap between chat windows
     const screenPadding = 20 // Padding from screen edges
     const bottomOffset = 24 // Distance from bottom
     const widgetWidth = 340
     const widgetHeight = 480
+    const sidebarWidth = sidebarCollapsed ? 72 : 272 // 4.5rem or 17rem in pixels
     
     // Get widget's actual position
     let widgetX, widgetY
@@ -427,8 +440,8 @@ export default function ChatPopup({ chat, index }) {
       widgetX = widgetPosition.x
       widgetY = widgetPosition.y
     } else if (triggerSource === 'sidebar') {
-      // Widget is near sidebar (left: 280px)
-      widgetX = 280
+      // Widget is near sidebar - use dynamic sidebar width
+      widgetX = sidebarWidth + 16
       widgetY = window.innerHeight - widgetHeight - bottomOffset
     } else {
       // Widget is near floating button (bottom right)

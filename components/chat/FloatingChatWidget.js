@@ -14,7 +14,8 @@ export default function FloatingChatWidget() {
     openChat,
     widgetPosition,
     updateWidgetPosition,
-    triggerSource
+    triggerSource,
+    sidebarCollapsed
   } = useChatWidget()
   const { unreadChats } = useUnreadMessages()
   const { theme } = useTheme()
@@ -213,8 +214,10 @@ export default function FloatingChatWidget() {
     }
     
     if (triggerSource === 'sidebar') {
+      // Position based on sidebar collapsed state
+      const sidebarWidth = sidebarCollapsed ? '4.5rem' : '17rem'
       return {
-        left: '280px',
+        left: `calc(${sidebarWidth} + 16px)`,
         bottom: '24px',
       }
     }

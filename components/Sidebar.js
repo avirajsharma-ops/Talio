@@ -17,7 +17,7 @@ import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { useChatWidget } from '@/contexts/ChatWidgetContext'
 import UnreadBadge from './UnreadBadge'
 
-export default function Sidebar({ isOpen, setIsOpen }) {
+export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) {
   const pathname = usePathname()
   const router = useRouter()
   const [expandedMenus, setExpandedMenus] = useState({})
@@ -164,35 +164,59 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-[60] lg:z-[7]
-          w-full md:w-[17rem] text-gray-800
+          text-gray-800
           transform flex flex-col h-screen shadow-lg
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          w-full md:w-[17rem]
+          ${isDesktop && isCollapsed ? 'lg:!w-[4.5rem]' : ''}
         `}
         style={{ 
           backgroundColor: 'var(--color-bg-sidebar)',
-          transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)'
+          transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), width 0.3s cubic-bezier(0.23, 1, 0.32, 1)'
         }}
       >
         {/* Sticky Logo Section - Height matched with header */}
         <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
-          <div className="flex items-center justify-between w-full px-3 sm:px-4">
-            <img
-              src="/assets/logo.png"
-              alt="Talio Logo"
-              className="h-10 w-auto object-contain"
-            />
-            <button
-              onClick={() => setIsOpen(false)}
-              className="lg:hidden hover:opacity-70 focus:outline-none"
-              style={{ color: '#374151' }}
-            >
-              <FaTimes className="w-4 h-4" strokeWidth="0.5" />
-            </button>
+          <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-center px-0' : 'justify-between px-3 sm:px-4'}`}>
+            {/* Logo - show small icon when collapsed, full logo when expanded */}
+            {isDesktop && isCollapsed ? (
+              <button
+                onClick={() => setIsCollapsed(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Expand sidebar"
+              >
+                <FaChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            ) : (
+              <>
+                <img
+                  src="/assets/logo.png"
+                  alt="Talio Logo"
+                  className="h-10 w-auto object-contain"
+                />
+                {/* Desktop collapse button */}
+                <button
+                  onClick={() => setIsCollapsed(true)}
+                  className="hidden lg:block p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="Collapse sidebar"
+                >
+                  <FaChevronRight className="w-4 h-4 text-gray-600 rotate-180" />
+                </button>
+                {/* Mobile close button */}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="lg:hidden hover:opacity-70 focus:outline-none"
+                  style={{ color: '#374151' }}
+                >
+                  <FaTimes className="w-4 h-4" strokeWidth="0.5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {/* Scrollable Menu Section */}
-        <nav className="px-3 sm:px-4 pt-4 pb-0 space-y-2 flex-1 overflow-y-auto scrollbar-hide" style={{
+        <nav className={`pt-4 pb-0 space-y-2 flex-1 overflow-y-auto scrollbar-hide ${isDesktop && isCollapsed ? 'px-2' : 'px-3 sm:px-4'}`} style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}>
@@ -202,14 +226,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 <div className="w-full">
                   <button
                     type="button"
-                    onClick={() => toggleSubmenu(item.name)}
-                    className="w-full flex items-center justify-between px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group"
+                    onClick={() => {
+                      if (isDesktop && isCollapsed) {
+                        setIsCollapsed(false)
+                        setTimeout(() => toggleSubmenu(item.name), 100)
+                      } else {
+                        toggleSubmenu(item.name)
+                      }
+                    }}
+                    className={`w-full flex items-center rounded-xl transition-all duration-200 group ${isDesktop && isCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-3 sm:px-4 py-3'}`}
                     style={{
                       backgroundColor: expandedMenus[item.name] ? 'var(--color-bg-hover)' : 'transparent',
                       color: '#111827'
                     }}
+                    title={isDesktop && isCollapsed ? item.name : ''}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className={`flex items-center ${isDesktop && isCollapsed ? '' : 'space-x-3'}`}>
                       <div
                         className="p-2 rounded-lg transition-colors"
                         style={{
@@ -219,14 +251,15 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       >
                         <item.icon className="w-4 h-4" />
                       </div>
-                      <span className="text-sm font-medium">{item.name}</span>
+                      {!(isDesktop && isCollapsed) && <span className="text-sm font-medium">{item.name}</span>}
                     </div>
-                    <div className={`transition-transform duration-200 ${expandedMenus[item.name] ? 'rotate-90' : ''
-                      }`}>
-                      <FaChevronRight className="w-3 h-3" />
-                    </div>
+                    {!(isDesktop && isCollapsed) && (
+                      <div className={`transition-transform duration-200 ${expandedMenus[item.name] ? 'rotate-90' : ''}`}>
+                        <FaChevronRight className="w-3 h-3" />
+                      </div>
+                    )}
                   </button>
-                  {expandedMenus[item.name] && (
+                  {expandedMenus[item.name] && !(isDesktop && isCollapsed) && (
                     <div className="mt-2 space-y-1 ml-8 pl-3" style={{ borderLeft: '2px solid var(--color-primary-200)' }}>
                       {item.submenu.map((subItem) => (
                         <Link
@@ -252,11 +285,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     toggleWidget('sidebar')
                     handleLinkClick()
                   }}
-                  className="w-full flex items-center space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group cursor-pointer relative"
+                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-3 sm:px-4 py-3'}`}
                   style={{
                     backgroundColor: 'transparent',
                     color: '#111827'
                   }}
+                  title={isDesktop && isCollapsed ? item.name : ''}
                 >
                   <div
                     className="p-2 rounded-lg transition-colors relative"
@@ -270,17 +304,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       <UnreadBadge count={unreadCount} />
                     )}
                   </div>
-                  <span className="text-sm font-medium">{item.name}</span>
+                  {!(isDesktop && isCollapsed) && <span className="text-sm font-medium">{item.name}</span>}
                 </button>
               ) : (
                 <Link
                   href={item.path}
                   onClick={handleLinkClick}
-                  className="w-full flex items-center space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group cursor-pointer relative"
+                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center px-2 py-3' : 'space-x-3 px-3 sm:px-4 py-3'}`}
                   style={{
                     backgroundColor: pathname === item.path ? 'var(--color-primary-500)' : 'transparent',
                     color: pathname === item.path ? 'white' : '#111827'
                   }}
+                  title={isDesktop && isCollapsed ? item.name : ''}
                 >
                   <div
                     className="p-2 rounded-lg transition-colors relative"
@@ -294,7 +329,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       <UnreadBadge count={unreadCount} />
                     )}
                   </div>
-                  <span className="text-sm font-medium">{item.name}</span>
+                  {!(isDesktop && isCollapsed) && <span className="text-sm font-medium">{item.name}</span>}
                 </Link>
               )}
             </div>
@@ -302,16 +337,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* Chat, Settings and Logout Section - Fixed at bottom */}
-        <div className="flex flex-row gap-2 py-2 px-4 flex-shrink-0" style={{ borderTop: '1px solid var(--color-primary-200)' }}>
+        <div className={`py-2 flex-shrink-0 ${isDesktop && isCollapsed ? 'flex flex-col gap-1 px-2' : 'flex flex-row gap-2 px-4'}`} style={{ borderTop: '1px solid var(--color-primary-200)' }}>
           {/* Chat Button - Desktop only */}
           {isDesktop && (
             <button
               onClick={() => toggleWidget('sidebar')}
-              className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group cursor-pointer relative"
+              className={`flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center p-3' : 'flex-1 justify-center space-x-2 px-2 sm:px-3 h-14'}`}
               style={{
                 backgroundColor: 'transparent',
                 color: '#111827'
               }}
+              title={isDesktop && isCollapsed ? 'Chat' : ''}
             >
               <div
                 className="p-1.5 rounded-lg transition-colors relative"
@@ -325,7 +361,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   <UnreadBadge count={unreadCount} />
                 )}
               </div>
-              <span className="text-xs sm:text-sm font-medium">Chat</span>
+              {!(isDesktop && isCollapsed) && <span className="text-xs sm:text-sm font-medium">Chat</span>}
             </button>
           )}
 
@@ -333,11 +369,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           <Link
             href="/dashboard/settings"
             onClick={handleLinkClick}
-            className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group cursor-pointer"
+            className={`flex items-center rounded-xl transition-all duration-200 group cursor-pointer ${isDesktop && isCollapsed ? 'justify-center p-3' : 'flex-1 justify-center space-x-2 px-2 sm:px-3 h-14'}`}
             style={{
               backgroundColor: pathname === '/dashboard/settings' ? 'var(--color-primary-500)' : 'transparent',
               color: pathname === '/dashboard/settings' ? 'white' : '#111827'
             }}
+            title={isDesktop && isCollapsed ? 'Settings' : ''}
           >
             <div
               className="p-1.5 rounded-lg transition-colors"
@@ -348,19 +385,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             >
               <FaCog className="w-3.5 h-3.5" />
             </div>
-            <span className="text-xs sm:text-sm font-medium">Settings</span>
+            {!(isDesktop && isCollapsed) && <span className="text-xs sm:text-sm font-medium">Settings</span>}
           </Link>
 
           {/* Logout Button */}
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="flex-1 flex items-center justify-center space-x-2 px-2 sm:px-3 h-14 rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md"
+            className={`flex items-center rounded-xl transition-all duration-200 group hover:bg-red-600 hover:text-white hover:shadow-md ${isDesktop && isCollapsed ? 'justify-center p-3' : 'flex-1 justify-center space-x-2 px-2 sm:px-3 h-14'}`}
             style={{ color: '#111827' }}
+            title={isDesktop && isCollapsed ? 'Logout' : ''}
           >
             <div className="p-1.5 rounded-lg transition-colors group-hover:bg-red-700 group-hover:text-white" style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}>
               <FaSignOutAlt className="w-3.5 h-3.5" />
             </div>
-            <span className="text-xs sm:text-sm font-medium">Logout</span>
+            {!(isDesktop && isCollapsed) && <span className="text-xs sm:text-sm font-medium">Logout</span>}
           </button>
         </div>
       </aside>

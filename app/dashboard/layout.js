@@ -14,11 +14,23 @@ import useGeofencing from '@/hooks/useGeofencing'
 import { SocketProvider } from '@/contexts/SocketContext'
 import { UnreadMessagesProvider } from '@/contexts/UnreadMessagesContext'
 import { InAppNotificationProvider } from '@/contexts/InAppNotificationContext'
-import { ChatWidgetProvider } from '@/contexts/ChatWidgetContext'
+import { ChatWidgetProvider, useChatWidget } from '@/contexts/ChatWidgetContext'
 import { getCurrentUser, getEmployeeId, syncUserData, getToken } from '@/utils/userHelper'
+
+// Component to sync sidebar state with chat widget context
+function SidebarStateSync({ sidebarCollapsed }) {
+  const { updateSidebarCollapsed } = useChatWidget()
+  
+  useEffect(() => {
+    updateSidebarCollapsed(sidebarCollapsed)
+  }, [sidebarCollapsed, updateSidebarCollapsed])
+  
+  return null
+}
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Desktop sidebar starts collapsed
   const [userId, setUserId] = useState(null)
   const pathname = usePathname()
 
@@ -111,19 +123,21 @@ export default function DashboardLayout({ children }) {
       <UnreadMessagesProvider>
         <InAppNotificationProvider>
           <ChatWidgetProvider>
+            {/* Sync sidebar state to chat widget context */}
+            <SidebarStateSync sidebarCollapsed={sidebarCollapsed} />
             <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
 
 
               {/* Offline Detector - Monitors connection and redirects to offline page */}
               <OfflineDetector />
 
-              <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+              <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />
 
               <div className="flex-1 flex flex-col overflow-hidden relative">
                 {/* Offline Indicator */}
                 <OfflineIndicator />
 
-                <Header toggleSidebar={toggleSidebar} />
+                <Header toggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
                 {/* Main content with padding for fixed header and bottom nav */}
                 <main className={`flex-1 overflow-y-auto md:mb-0 mb-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0 ${isChatPage ? 'px-0 md:px-4 lg:px-8 bg-white md:bg-transparent' : 'px-4 sm:px-6 lg:px-8'}`}>

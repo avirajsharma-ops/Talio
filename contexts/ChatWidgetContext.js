@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 
 const ChatWidgetContext = createContext(null)
 
@@ -11,7 +11,45 @@ export function ChatWidgetProvider({ children }) {
   const [chatPositions, setChatPositions] = useState({}) // { chatId: { x, y } }
   const [triggerSource, setTriggerSource] = useState('button') // 'button' or 'sidebar'
   const [focusedChatId, setFocusedChatId] = useState(null) // Track which chat is on top
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Track sidebar state
+  const [minimizedChats, setMinimizedChats] = useState(new Set()) // Track auto-minimized chats
   const zIndexCounter = useRef(10000) // Counter for z-index management
+
+  // Calculate available width and auto-minimize chats when needed
+  useEffect(() => {
+    const calculateMinimizedChats = () => {
+      if (typeof window === 'undefined') return
+      
+      const screenWidth = window.innerWidth
+      const sidebarWidth = sidebarCollapsed ? 72 : 272 // 4.5rem or 17rem
+      const widgetWidth = 340
+      const chatWidth = 360
+      const gap = 16
+      const padding = 40
+      
+      // Available width for chats (right of widget)
+      const widgetStartX = triggerSource === 'sidebar' ? sidebarWidth + 16 : screenWidth - 88 - widgetWidth
+      const availableWidth = screenWidth - widgetStartX - widgetWidth - gap - padding
+      
+      // How many chats can fit without minimizing
+      const maxChatsVisible = Math.max(1, Math.floor(availableWidth / (chatWidth + gap)))
+      
+      // Auto-minimize older chats (first opened) when we exceed available space
+      const newMinimized = new Set()
+      if (openChats.length > maxChatsVisible) {
+        // Minimize from the first (oldest) chat, keeping recent ones expanded
+        for (let i = 0; i < openChats.length - maxChatsVisible; i++) {
+          newMinimized.add(openChats[i]._id)
+        }
+      }
+      
+      setMinimizedChats(newMinimized)
+    }
+    
+    calculateMinimizedChats()
+    window.addEventListener('resize', calculateMinimizedChats)
+    return () => window.removeEventListener('resize', calculateMinimizedChats)
+  }, [openChats, sidebarCollapsed, triggerSource])
 
   // Toggle main chat list widget - always reset position to open near source
   const toggleWidget = useCallback((source = 'button') => {
@@ -98,6 +136,18 @@ export function ChatWidgetProvider({ children }) {
     return 10000
   }, [focusedChatId])
 
+  // Check if a chat is auto-minimized
+  const isAutoMinimized = useCallback((chatId) => {
+    return minimizedChats.has(chatId)
+  }, [minimizedChats])
+
+  // Update sidebar collapsed state (called from layout)
+  const updateSidebarCollapsed = useCallback((collapsed) => {
+    setSidebarCollapsed(collapsed)
+    // Reset chat positions when sidebar state changes
+    setChatPositions({})
+  }, [])
+
   const value = {
     isWidgetOpen,
     openChats,
@@ -105,6 +155,8 @@ export function ChatWidgetProvider({ children }) {
     chatPositions,
     triggerSource,
     focusedChatId,
+    sidebarCollapsed,
+    minimizedChats,
     toggleWidget,
     openWidget,
     closeWidget,
@@ -115,7 +167,9 @@ export function ChatWidgetProvider({ children }) {
     updateChatPosition,
     bringToFront,
     resetChatPositions,
-    getZIndex
+    getZIndex,
+    isAutoMinimized,
+    updateSidebarCollapsed
   }
 
   return (
