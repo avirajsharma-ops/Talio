@@ -5,7 +5,7 @@ import WhiteboardDashboard from '@/components/whiteboard/WhiteboardDashboard';
 export default function TalioBoardPage() {
   return (
     <div 
-      className="talioboard-container fixed z-[5]"
+      className="talioboard-container fixed z-[5] overflow-y-auto"
       style={{
         top: '60.5px',
         left: '0',

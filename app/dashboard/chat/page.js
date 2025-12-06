@@ -622,7 +622,7 @@ export default function ChatPage() {
   return (
     <>
       {/* Header - Hide on mobile when chat is selected, always show on desktop */}
-      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} fixed top-[72px] left-0 right-0 z-[45]  md:relative md:top-auto md:left-auto md:right-auto md:z-auto md:px-0 md:pt-0 md:pb-0 md:mb-4 items-center justify-between md:bg-transparent md:page-container shadow-sm md:shadow-none`}>
+      <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} fixed top-[72px] left-0 right-0 z-[45] bg-white px-4 py-3 md:relative md:top-auto md:left-auto md:right-auto md:z-auto md:px-0 md:pt-0 md:pb-0 md:mb-4 items-center justify-between md:bg-transparent md:page-container shadow-sm md:shadow-none`}>
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Chat</h1>
           <p className="text-xs md:text-sm lg:text-base text-gray-600 mt-1">Connect with your team</p>
@@ -645,22 +645,22 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Chat Container - Full screen edge-to-edge when chat selected */}
+      {/* Chat Container - Full screen edge-to-edge on mobile */}
       <div className={`${
         selectedChat
-          ? 'fixed top-[60px] left-0 right-0 bottom-[70px] z-[60] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto'
-          : '-m-2 mt-[3em] p-0 md:mt-0 md:mx-0 md:rounded-2xl md:shadow-md bg-white'
+          ? 'fixed top-[60px] left-0 right-0 bottom-[72px] z-[60] md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto'
+          : 'fixed top-[140px] left-0 right-0 bottom-[72px] z-[40] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto md:mt-0'
       }`} style={{
-        height: selectedChat ? 'calc(100vh - 130px)' : 'calc(100vh - 232px)',
-        maxHeight: selectedChat ? 'calc(100vh - 130px)' : 'calc(100vh - 160px)'
+        height: 'auto',
+        maxHeight: 'none'
       }}>
-        <div className="grid grid-cols-1 md:grid-cols-3 h-full -ml-4 -mr-4 md:ml-0 md:mr-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 h-full m-0 p-0">
           {/* Chat List - Hide on mobile when chat is selected */}
-          <div className={`border-r border-gray-100 flex flex-col h-full bg-white ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`border-r border-gray-100 flex flex-col h-full m-0 p-0 ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
             {/* Chat list - no header, just the list */}
-            <div className="overflow-y-auto flex-1">
+            <div className="overflow-y-auto flex-1 m-0 p-0">
               {filteredChats.length === 0 ? (
-                <div className="p-4 text-center text-gray-500 text-sm">
+                <div className="px-4 py-4 text-center text-gray-500 text-sm">
                   No chats yet. Start a new conversation!
                 </div>
               ) : (
@@ -669,7 +669,7 @@ export default function ChatPage() {
                     <div
                       key={chat._id}
                       onClick={() => setSelectedChat(chat)}
-                      className={`py-3.5 md:py-4 md:px-[1em] cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0 ${
+                      className={`py-4 px-0 md:py-4 md:px-4 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
                         selectedChat?._id === chat._id ? 'bg-gray-50' : ''
                       }`}
                     >
@@ -691,7 +691,7 @@ export default function ChatPage() {
                             <UnreadBadge count={unreadChats[chat._id]} />
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 pr-2">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className={`font-semibold truncate text-[15px] ${unreadChats[chat._id] > 0 ? 'text-gray-900' : 'text-gray-900'}`}>{getChatName(chat)}</h3>
                             <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{chat.lastMessageAt ? formatTime(chat.lastMessageAt) : ''}</span>

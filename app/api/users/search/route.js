@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Employee from '@/models/Employee';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
 
@@ -39,23 +40,76 @@ export async function GET(request) {
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit') || '10');
 
-    let filter = {};
+    // Build aggregation pipeline to search users and their linked employee data
+    const pipeline = [
+      // Exclude current user
+      { $match: { _id: { $ne: new (await import('mongoose')).default.Types.ObjectId(user.id) } } },
+      // Lookup employee data
+      {
+        $lookup: {
+          from: 'employees',
+          localField: 'employeeId',
+          foreignField: '_id',
+          as: 'employee'
+        }
+      },
+      // Unwind employee (will be null if no employee linked)
+      {
+        $unwind: {
+          path: '$employee',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      // Add computed name field
+      {
+        $addFields: {
+          name: {
+            $cond: {
+              if: { $and: ['$employee.firstName', '$employee.lastName'] },
+              then: { $concat: ['$employee.firstName', ' ', '$employee.lastName'] },
+              else: {
+                $cond: {
+                  if: '$employee.firstName',
+                  then: '$employee.firstName',
+                  else: { $ifNull: ['$email', 'Unknown User'] }
+                }
+              }
+            }
+          },
+          avatar: { $ifNull: ['$employee.avatar', null] }
+        }
+      }
+    ];
+
+    // Add search filter if query provided
     if (query) {
-      filter = {
-        $or: [
-          { name: { $regex: query, $options: 'i' } },
-          { email: { $regex: query, $options: 'i' } }
-        ]
-      };
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'employee.firstName': { $regex: query, $options: 'i' } },
+            { 'employee.lastName': { $regex: query, $options: 'i' } },
+            { email: { $regex: query, $options: 'i' } },
+            { name: { $regex: query, $options: 'i' } }
+          ]
+        }
+      });
     }
 
-    // Exclude current user from results
-    filter._id = { $ne: user.id };
+    // Project only needed fields
+    pipeline.push({
+      $project: {
+        _id: 1,
+        name: 1,
+        email: 1,
+        avatar: 1,
+        role: 1
+      }
+    });
 
-    const users = await User.find(filter)
-      .select('name email avatar role')
-      .limit(limit)
-      .lean();
+    // Limit results
+    pipeline.push({ $limit: limit });
+
+    const users = await User.aggregate(pipeline);
 
     return NextResponse.json({
       users,

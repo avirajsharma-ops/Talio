@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }) {
               <Header toggleSidebar={toggleSidebar} />
 
               {/* Main content with padding for fixed header and bottom nav */}
-              <main className="flex-1 overflow-y-auto md:mb-0 mb-8 px-4 sm:px-6 lg:px-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0">
+              <main className={`flex-1 overflow-y-auto md:mb-0 mb-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0 ${isChatPage ? 'px-0 md:px-4 lg:px-8 bg-white md:bg-transparent' : 'px-4 sm:px-6 lg:px-8'}`}>
                 {children}
               </main>
 

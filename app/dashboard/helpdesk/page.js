@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
-import MobilePageWrapper, { MobileStatCard, MobileGrid, MobileTable, MobileLoader } from '@/components/mobile/MobileComponents'
 
 export default function HelpdeskPage() {
   const [tickets, setTickets] = useState([])
@@ -53,47 +52,70 @@ export default function HelpdeskPage() {
     }
   }
 
+  const stats = [
+    {
+      label: 'Total Tickets',
+      value: tickets.length,
+      icon: FaTicketAlt,
+      bgColor: 'bg-blue-100',
+      iconColor: 'text-blue-600'
+    },
+    {
+      label: 'Open',
+      value: tickets.filter(t => t.status === 'open').length,
+      icon: FaClock,
+      bgColor: 'bg-yellow-100',
+      iconColor: 'text-yellow-600'
+    },
+    {
+      label: 'In Progress',
+      value: tickets.filter(t => t.status === 'in-progress').length,
+      icon: FaExclamationCircle,
+      bgColor: 'bg-orange-100',
+      iconColor: 'text-orange-600'
+    },
+    {
+      label: 'Resolved',
+      value: tickets.filter(t => t.status === 'resolved').length,
+      icon: FaCheckCircle,
+      bgColor: 'bg-green-100',
+      iconColor: 'text-green-600'
+    }
+  ]
+
   return (
-    <MobilePageWrapper
-      title="Helpdesk"
-      subtitle="Submit and track support tickets"
-      actions={
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Helpdesk</h1>
+          <p className="text-sm text-gray-600 mt-1">Submit and track support tickets</p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="btn-mobile bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
           <FaPlus className="w-4 h-4" />
           <span>Create Ticket</span>
         </button>
-      }
-    >
+      </div>
+
       {/* Stats Cards */}
-      <MobileGrid cols={4} className="mb-6">
-        <MobileStatCard
-          label="Total Tickets"
-          value={tickets.length}
-          icon={FaTicketAlt}
-          color="blue"
-        />
-        <MobileStatCard
-          label="Open"
-          value={tickets.filter(t => t.status === 'open').length}
-          icon={FaClock}
-          color="yellow"
-        />
-        <MobileStatCard
-          label="In Progress"
-          value={tickets.filter(t => t.status === 'in-progress').length}
-          icon={FaExclamationCircle}
-          color="blue"
-        />
-        <MobileStatCard
-          label="Resolved"
-          value={tickets.filter(t => t.status === 'resolved').length}
-          icon={FaCheckCircle}
-          color="green"
-        />
-      </MobileGrid>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat, index) => (
+          <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
+              </div>
+              <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                <stat.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${stat.iconColor}`} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Tickets Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -234,15 +256,15 @@ export default function HelpdeskPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-4 mt-6">
+              <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn-secondary"
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
                   Create Ticket
                 </button>
               </div>
@@ -250,7 +272,7 @@ export default function HelpdeskPage() {
           </div>
         </div>
       )}
-    </MobilePageWrapper>
+    </div>
   )
 }
 
