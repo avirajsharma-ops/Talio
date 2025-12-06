@@ -35,6 +35,8 @@ export default function ChatPage() {
   const [replyingTo, setReplyingTo] = useState(null)
   const [showReactionPicker, setShowReactionPicker] = useState(null)
   const [swipedMessage, setSwipedMessage] = useState(null)
+  const [showMembersModal, setShowMembersModal] = useState(false)
+  const [memberSearchQuery, setMemberSearchQuery] = useState('')
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -747,7 +749,20 @@ export default function ChatPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 text-lg md:text-base truncate">{getChatName(selectedChat)}</h3>
+                    {selectedChat.isGroup && (
+                      <p className="text-xs text-gray-500">{selectedChat.participants?.length || 0} members</p>
+                    )}
                   </div>
+                  {/* View Members Button - Only for group chats */}
+                  {selectedChat.isGroup && (
+                    <button
+                      onClick={() => setShowMembersModal(true)}
+                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                      title="View Members"
+                    >
+                      <FaUsers className="text-lg" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Messages Area - Clean white background with scroll */}
@@ -1045,19 +1060,22 @@ export default function ChatPage() {
                     <button
                       onClick={handleSendMessage}
                       disabled={sending || !message.trim()}
-                      className="text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 p-2.5 rounded-full w-10 h-10 flex items-center justify-center"
+                      className="transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
                       style={{
-                        background: (sending || !message.trim())
-                          ? '#D1D5DB'
-                          : `linear-gradient(135deg, ${themes[currentTheme]?.primary?.[600] || '#2563EB'} 0%, ${themes[currentTheme]?.primary?.[500] || '#3B82F6'} 100%)`
+                        color: (sending || !message.trim())
+                          ? '#9CA3AF'
+                          : themes[currentTheme]?.primary?.[600] || '#2563EB'
                       }}
                       title="Send message"
                     >
                       {sending ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <div 
+                          className="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent"
+                          style={{ borderColor: themes[currentTheme]?.primary?.[600] || '#2563EB', borderTopColor: 'transparent' }}
+                        ></div>
                       ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-6 h-6" fill="currentColor">
+                          <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
                         </svg>
                       )}
                     </button>
@@ -1237,6 +1255,143 @@ export default function ChatPage() {
               className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Group Members Modal */}
+      {showMembersModal && selectedChat?.isGroup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div 
+              className="px-5 py-4 flex items-center justify-between border-b border-gray-100"
+              style={{
+                background: `linear-gradient(135deg, ${themes[currentTheme]?.primary?.[600] || '#2563EB'} 0%, ${themes[currentTheme]?.primary?.[500] || '#3B82F6'} 100%)`
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <FaUsers className="text-white text-lg" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">{selectedChat.name}</h2>
+                  <p className="text-white/80 text-xs">{selectedChat.participants?.length || 0} members</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowMembersModal(false)} 
+                className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <FaTimes className="text-lg" />
+              </button>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="px-4 pt-3 pb-2">
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" fill="#9CA3AF">
+                  <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                </svg>
+                <input
+                  type="text"
+                  value={memberSearchQuery}
+                  onChange={(e) => setMemberSearchQuery(e.target.value)}
+                  placeholder="Search members..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all"
+                  style={{ focusRing: themes[currentTheme]?.primary?.[500] }}
+                />
+              </div>
+            </div>
+            
+            {/* Members List */}
+            <div className="px-4 pb-4 overflow-y-auto max-h-[50vh] space-y-2">
+              {selectedChat.participants?.filter((member) => {
+                if (!memberSearchQuery.trim()) return true
+                const fullName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase()
+                const code = (member.employeeCode || '').toLowerCase()
+                const query = memberSearchQuery.toLowerCase()
+                return fullName.includes(query) || code.includes(query)
+              }).map((member) => {
+                const isAdmin = selectedChat.admin?._id === member._id || selectedChat.admin === member._id
+                const isCurrentUser = member._id === currentUserId
+                
+                return (
+                  <div
+                    key={member._id}
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
+                      isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div 
+                      className="w-11 h-11 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${themes[currentTheme]?.primary?.[600] || '#2563EB'} 0%, ${themes[currentTheme]?.primary?.[500] || '#3B82F6'} 100%)`
+                      }}
+                    >
+                      {member.profilePicture ? (
+                        <img src={member.profilePicture} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-semibold text-sm">
+                          {member.firstName?.[0]}{member.lastName?.[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 text-sm truncate">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        {isCurrentUser && (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
+                            You
+                          </span>
+                        )}
+                        {isAdmin && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      {member.employeeCode && (
+                        <p className="text-xs text-gray-500 truncate">{member.employeeCode}</p>
+                      )}
+                    </div>
+                    {/* Send Message Button - Only for other members */}
+                    {!isCurrentUser && (
+                      <button
+                        onClick={async () => {
+                          // Start or open direct chat with this member
+                          await handleStartChat(member._id)
+                          setShowMembersModal(false)
+                          setMemberSearchQuery('')
+                        }}
+                        className="flex-shrink-0 transition-colors hover:opacity-70"
+                        style={{ color: themes[currentTheme]?.primary?.[600] || '#2563EB' }}
+                        title={`Message ${member.firstName}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-5 h-5" fill="currentColor">
+                          <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowMembersModal(false)
+                  setMemberSearchQuery('')
+                }}
+                className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium text-sm transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

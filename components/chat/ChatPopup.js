@@ -25,6 +25,8 @@ export default function ChatPopup({ chat, index }) {
   const [typingUsers, setTypingUsers] = useState({})
   const [animationState, setAnimationState] = useState('normal') // 'normal', 'minimizing', 'maximizing'
   const [minimizedUnread, setMinimizedUnread] = useState(0) // Track unread while minimized
+  const [showMembersPanel, setShowMembersPanel] = useState(false) // Show group members panel
+  const [memberSearchQuery, setMemberSearchQuery] = useState('') // Search members in panel
 
   const popupRef = useRef(null)
   const messagesEndRef = useRef(null)
@@ -609,10 +611,26 @@ export default function ChatPopup({ chat, index }) {
             </div>
             <div className="min-w-0">
               <span className="font-medium text-sm truncate block">{getChatName()}</span>
-              <span className="text-[10px] text-white/70">Online</span>
+              <span className="text-[10px] text-white/70">{chat.isGroup ? `${chat.participants?.length || 0} members` : 'Online'}</span>
             </div>
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            {/* View Members Button - Only for group chats */}
+            {chat.isGroup && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowMembersPanel(!showMembersPanel)
+                }}
+                className={`p-2 rounded-lg transition-all hover:scale-110 ${showMembersPanel ? 'ring-2 ring-white/50' : ''}`}
+                style={{ backgroundColor: 'white' }}
+                title="View Members"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" className="w-3.5 h-3.5" fill={primaryDark}>
+                  <path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192h42.7c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0H21.3C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7h42.7C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3H405.3zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352H378.7C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7H154.7c-14.7 0-26.7-11.9-26.7-26.7z"/>
+                </svg>
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -660,6 +678,135 @@ export default function ChatPopup({ chat, index }) {
             </button>
           </div>
         </div>
+
+        {/* Group Members Panel - Slide over messages when open */}
+        {showMembersPanel && chat.isGroup && (
+          <div 
+            className="absolute inset-x-0 top-[52px] bottom-0 z-10 overflow-hidden rounded-b-2xl"
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(16px)',
+              animation: 'slideIn 0.2s ease-out',
+            }}
+          >
+            {/* Panel Header */}
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <FaUsers className="w-4 h-4" style={{ color: primaryColor }} />
+                <span className="font-semibold text-sm text-gray-800">Group Members</span>
+                <span className="text-xs text-gray-500">({chat.participants?.length || 0})</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowMembersPanel(false)
+                  setMemberSearchQuery('')
+                }}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" className="w-3 h-3" fill="#6B7280">
+                  <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="px-3 pt-2 pb-1">
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" fill="#9CA3AF">
+                  <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                </svg>
+                <input
+                  type="text"
+                  value={memberSearchQuery}
+                  onChange={(e) => setMemberSearchQuery(e.target.value)}
+                  placeholder="Search members..."
+                  className="w-full pl-8 pr-3 py-2 bg-gray-100 rounded-lg text-xs focus:outline-none focus:ring-1 transition-all"
+                  style={{ focusRing: primaryColor }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
+            
+            {/* Members List */}
+            <div className="overflow-y-auto p-3 pt-2 space-y-2" style={{ maxHeight: 'calc(100% - 96px)' }}>
+              {chat.participants?.filter((member) => {
+                if (!memberSearchQuery.trim()) return true
+                const fullName = `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase()
+                const code = (member.employeeCode || '').toLowerCase()
+                const query = memberSearchQuery.toLowerCase()
+                return fullName.includes(query) || code.includes(query)
+              }).map((member) => {
+                const memberId = member._id || member
+                const isAdmin = chat.admin?._id === memberId || chat.admin === memberId
+                const isCurrentUser = memberId === currentEmployeeId || memberId === currentUserId
+                
+                return (
+                  <div
+                    key={memberId}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
+                      isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div 
+                      className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
+                      }}
+                    >
+                      {member.profilePicture ? (
+                        <img src={member.profilePicture} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-semibold text-xs">
+                          {member.firstName?.[0]}{member.lastName?.[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-gray-900 text-sm truncate">
+                          {member.firstName || 'Unknown'} {member.lastName || ''}
+                        </p>
+                        {isCurrentUser && (
+                          <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
+                            You
+                          </span>
+                        )}
+                        {isAdmin && (
+                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                      {member.employeeCode && (
+                        <p className="text-[10px] text-gray-500 truncate">{member.employeeCode}</p>
+                      )}
+                    </div>
+                    {/* Send Message Button - Only for other members */}
+                    {!isCurrentUser && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Close the members panel and the popup will remain for future DM feature
+                          // For now just close the panel - DM feature can be added later
+                          setShowMembersPanel(false)
+                          setMemberSearchQuery('')
+                        }}
+                        className="flex-shrink-0 transition-colors hover:opacity-70"
+                        style={{ color: primaryColor }}
+                        title={`Message ${member.firstName || 'User'}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-4 h-4" fill="currentColor">
+                          <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div 
@@ -766,13 +913,22 @@ export default function ChatPopup({ chat, index }) {
           <button
             onClick={handleSend}
             disabled={!message.trim() || sending}
-            className="p-2.5 rounded-xl text-white transition-all disabled:opacity-50 hover:opacity-90 shadow-sm"
+            className="transition-all disabled:opacity-30 hover:opacity-70"
             style={{ 
-              background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
+              color: (!message.trim() || sending) ? '#9CA3AF' : primaryColor,
             }}
             title="Send message"
           >
-            <FaPaperPlane className="w-4 h-4" />
+            {sending ? (
+              <div 
+                className="animate-spin rounded-full w-5 h-5 border-2 border-t-transparent"
+                style={{ borderColor: primaryColor, borderTopColor: 'transparent' }}
+              ></div>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-5 h-5" fill="currentColor">
+                <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
+              </svg>
+            )}
           </button>
         </div>
       </div>
