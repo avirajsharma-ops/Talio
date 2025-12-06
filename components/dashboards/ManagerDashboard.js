@@ -33,6 +33,7 @@ export default function ManagerDashboard({ user }) {
   const [attendanceLoading, setAttendanceLoading] = useState(false)
   const [remainingTime, setRemainingTime] = useState(28800) // 8 hours in seconds (08:00)
   const [isCountingDown, setIsCountingDown] = useState(false)
+  const [companySettings, setCompanySettings] = useState(null)
   // Use user's employeeId data as initial state for instant display
   const [employeeData, setEmployeeData] = useState(() => {
     // Try to get cached employee data from user object
@@ -61,7 +62,8 @@ export default function ManagerDashboard({ user }) {
       const promises = [
         fetchManagerStats(),
         fetchTeamMembers(),
-        fetchPendingLeaves()
+        fetchPendingLeaves(),
+        fetchCompanySettings()
       ]
 
       // Add employee-specific fetches if we have an employeeId
@@ -139,6 +141,76 @@ export default function ManagerDashboard({ user }) {
       console.error('Error fetching manager stats:', error)
     }
   }
+
+  const fetchCompanySettings = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/settings/company', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanySettings(data.data)
+      }
+    } catch (error) {
+      console.error('Fetch company settings error:', error)
+    }
+  }
+
+  // Helper to calculate displayed status based on time and settings
+  const getDisplayedStatus = () => {
+    // If user has an attendance record with check-in, show actual status
+    if (todayAttendance?.checkIn) {
+      if (todayAttendance.workFromHome) return { status: 'wfh', label: 'WFH', bgColor: 'bg-purple-100' }
+      if (todayAttendance.status === 'present') return { status: 'present', label: 'Present', bgColor: 'bg-green-100' }
+      if (todayAttendance.status === 'half-day') return { status: 'half-day', label: 'Half Day', bgColor: 'bg-yellow-100' }
+      if (todayAttendance.status === 'in-progress') return { status: 'in-progress', label: 'In Progress', bgColor: 'bg-blue-100' }
+      if (todayAttendance.status === 'on-leave') return { status: 'on-leave', label: 'On Leave', bgColor: 'bg-orange-100' }
+      if (todayAttendance.status === 'absent') return { status: 'absent', label: 'Absent', bgColor: 'bg-red-100' }
+      return { status: 'in-progress', label: 'In Progress', bgColor: 'bg-blue-100' }
+    }
+
+    // If on approved leave
+    if (todayAttendance?.status === 'on-leave') {
+      return { status: 'on-leave', label: 'On Leave', bgColor: 'bg-orange-100' }
+    }
+
+    // If attendance record exists with absent status (e.g., auto-marked)
+    if (todayAttendance?.status === 'absent') {
+      return { status: 'absent', label: 'Absent', bgColor: 'bg-red-100' }
+    }
+
+    // No check-in yet - calculate based on time and thresholds
+    const now = new Date()
+    const checkInTime = companySettings?.checkInTime || '09:00'
+    const absentThresholdMinutes = companySettings?.absentThresholdMinutes || 60
+
+    // Parse check-in time
+    const [checkInHour, checkInMinute] = checkInTime.split(':').map(Number)
+    
+    // Create office start time for today
+    const officeStart = new Date(now)
+    officeStart.setHours(checkInHour, checkInMinute, 0, 0)
+
+    // Calculate absent threshold time (checkIn + absentThresholdMinutes)
+    const absentThresholdTime = new Date(officeStart)
+    absentThresholdTime.setMinutes(absentThresholdTime.getMinutes() + absentThresholdMinutes)
+
+    // If it's before office hours, show "Not Started"
+    if (now < officeStart) {
+      return { status: 'not-started', label: 'Not Started', bgColor: 'bg-gray-100' }
+    }
+
+    // If current time is past the absent threshold, show "Absent"
+    if (now >= absentThresholdTime) {
+      return { status: 'absent', label: 'Absent', bgColor: 'bg-red-100' }
+    }
+
+    // Between office start and absent threshold - show "Not Checked In"
+    return { status: 'not-checked-in', label: 'Not Checked In', bgColor: 'bg-amber-100' }
+  }
+
+  const displayedStatus = getDisplayedStatus()
 
   const fetchTeamMembers = async () => {
     try {
@@ -608,20 +680,9 @@ export default function ManagerDashboard({ user }) {
               </div>
               <p className="text-xs font-medium text-gray-600">Work Status</p>
             </div>
-            <div className={`rounded-lg p-3 ${todayAttendance?.status === 'present' ? 'bg-green-100' :
-                todayAttendance?.status === 'half-day' ? 'bg-yellow-100' :
-                  todayAttendance?.status === 'in-progress' ? 'bg-blue-100' :
-                    todayAttendance?.workFromHome ? 'bg-purple-100' :
-                      todayAttendance?.status === 'on-leave' ? 'bg-orange-100' :
-                        'bg-red-100'
-              }`}>
+            <div className={`rounded-lg p-3 ${displayedStatus.bgColor}`}>
               <p className="text-sm sm:text-base md:text-lg font-bold text-gray-800 capitalize">
-                {todayAttendance?.workFromHome ? 'WFH' :
-                  todayAttendance?.status === 'present' ? 'Present' :
-                    todayAttendance?.status === 'half-day' ? 'Half Day' :
-                      todayAttendance?.status === 'in-progress' ? 'In Progress' :
-                        todayAttendance?.status === 'on-leave' ? 'On Leave' :
-                          'Absent'}
+                {displayedStatus.label}
               </p>
             </div>
           </div>
@@ -782,19 +843,33 @@ export default function ManagerDashboard({ user }) {
                   late.employee._id === member._id
                 )
 
-                // Determine status based on actual attendance records
-                let status = 'Not Checked In'
-                if (isOnLeave) {
-                  status = 'On Leave'
-                } else if (isAbsent) {
-                  status = 'Absent'
-                } else if (isLate) {
-                  status = 'Late'
-                } else if (isInProgress) {
-                  status = 'In Progress'
-                } else if (isPresent) {
-                  status = 'Present'
+                // Calculate if absent threshold has passed for "Not Checked In" employees
+                const getTeamMemberStatus = () => {
+                  if (isOnLeave) return 'On Leave'
+                  if (isAbsent) return 'Absent'
+                  if (isLate) return 'Late'
+                  if (isInProgress) return 'In Progress'
+                  if (isPresent) return 'Present'
+                  
+                  // No attendance record - check against absent threshold
+                  const now = new Date()
+                  const checkInTime = companySettings?.checkInTime || '09:00'
+                  const absentThresholdMinutes = companySettings?.absentThresholdMinutes || 60
+
+                  const [checkInHour, checkInMinute] = checkInTime.split(':').map(Number)
+                  
+                  const officeStart = new Date(now)
+                  officeStart.setHours(checkInHour, checkInMinute, 0, 0)
+
+                  const absentThresholdTime = new Date(officeStart)
+                  absentThresholdTime.setMinutes(absentThresholdTime.getMinutes() + absentThresholdMinutes)
+
+                  if (now < officeStart) return 'Not Started'
+                  if (now >= absentThresholdTime) return 'Absent'
+                  return 'Not Checked In'
                 }
+
+                const status = getTeamMemberStatus()
 
                 const initials = `${member.firstName[0]}${member.lastName[0]}`
 
@@ -824,7 +899,8 @@ export default function ManagerDashboard({ user }) {
                           status === 'Late' ? 'bg-yellow-100 text-yellow-800' :
                             status === 'On Leave' ? 'bg-blue-100 text-blue-800' :
                               status === 'Absent' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-600'
+                                status === 'Not Started' ? 'bg-gray-100 text-gray-500' :
+                                  'bg-amber-100 text-amber-700'
                       }`}>
                       {status}
                     </span>

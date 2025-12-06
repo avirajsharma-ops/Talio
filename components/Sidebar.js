@@ -14,6 +14,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { getMenuItemsForRole } from '@/utils/roleBasedMenus'
 import toast from 'react-hot-toast'
 import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
+import { useChatWidget } from '@/contexts/ChatWidgetContext'
 import UnreadBadge from './UnreadBadge'
 
 export default function Sidebar({ isOpen, setIsOpen }) {
@@ -24,7 +25,19 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const [mounted, setMounted] = useState(false)
   const [isDepartmentHead, setIsDepartmentHead] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const { unreadCount } = useUnreadMessages()
+  const { toggleWidget } = useChatWidget()
+
+  // Check if desktop
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768)
+    }
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
 
   // Load user only once on mount
   useEffect(() => {
@@ -232,6 +245,33 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     </div>
                   )}
                 </div>
+              ) : item.name === 'Chat' && isDesktop ? (
+                // Desktop: Open floating chat widget instead of navigating
+                <button
+                  onClick={() => {
+                    toggleWidget('sidebar')
+                    handleLinkClick()
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all duration-200 group cursor-pointer relative"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#111827'
+                  }}
+                >
+                  <div
+                    className="p-2 rounded-lg transition-colors relative"
+                    style={{
+                      backgroundColor: 'var(--color-primary-100)',
+                      color: 'var(--color-primary-700)'
+                    }}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <UnreadBadge count={unreadCount} />
+                    )}
+                  </div>
+                  <span className="text-sm font-medium">{item.name}</span>
+                </button>
               ) : (
                 <Link
                   href={item.path}

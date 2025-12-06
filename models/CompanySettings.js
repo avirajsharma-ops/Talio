@@ -45,6 +45,10 @@ const CompanySettingsSchema = new mongoose.Schema({
     type: Number, // Minutes of grace period before marking as late
     default: 15,
   },
+  absentThresholdMinutes: {
+    type: Number, // Minutes after check-in time to auto-mark as absent
+    default: 60, // 1 hour after check-in time
+  },
   halfDayHours: {
     type: Number, // Minimum hours for half day
     default: 4,
