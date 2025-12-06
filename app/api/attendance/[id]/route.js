@@ -1,13 +1,30 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Attendance from '@/models/Attendance'
+import mongoose from 'mongoose'
+
+// Helper to validate MongoDB ObjectId
+const isValidObjectId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id) &&
+    (new mongoose.Types.ObjectId(id)).toString() === id
+}
 
 // GET - Get single attendance record
 export async function GET(request, { params }) {
   try {
+    const { id } = await params
+
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid attendance record ID' },
+        { status: 400 }
+      )
+    }
+
     await connectDB()
 
-    const attendance = await Attendance.findById(params.id)
+    const attendance = await Attendance.findById(id)
       .populate('employee', 'firstName lastName employeeCode')
 
     if (!attendance) {
@@ -33,12 +50,22 @@ export async function GET(request, { params }) {
 // PUT - Update attendance record
 export async function PUT(request, { params }) {
   try {
+    const { id } = await params
+
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid attendance record ID' },
+        { status: 400 }
+      )
+    }
+
     await connectDB()
 
     const data = await request.json()
 
     const attendance = await Attendance.findByIdAndUpdate(
-      params.id,
+      id,
       data,
       { new: true, runValidators: true }
     ).populate('employee', 'firstName lastName employeeCode')
@@ -67,9 +94,19 @@ export async function PUT(request, { params }) {
 // DELETE - Delete attendance record
 export async function DELETE(request, { params }) {
   try {
+    const { id } = await params
+
+    // Validate ObjectId
+    if (!isValidObjectId(id)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid attendance record ID' },
+        { status: 400 }
+      )
+    }
+
     await connectDB()
 
-    const attendance = await Attendance.findByIdAndDelete(params.id)
+    const attendance = await Attendance.findByIdAndDelete(id)
 
     if (!attendance) {
       return NextResponse.json(
