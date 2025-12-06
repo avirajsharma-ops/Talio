@@ -281,7 +281,7 @@ function CompanySettingsTab() {
 
       <form onSubmit={handleSave} className="space-y-8">
         {/* Company Logo */}
-        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+        <div className="bg-gray-50 rounded-lg">
           <div className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaImage className="text-primary-500" />
             <span>Company Logo</span>
@@ -305,7 +305,7 @@ function CompanySettingsTab() {
         </div>
 
         {/* Company Basic Info */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaBuilding className="text-primary-500" />
             <span>Company Information</span>
@@ -356,7 +356,7 @@ function CompanySettingsTab() {
         </div>
 
         {/* Company Address */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaMapMarkerAlt className="text-primary-500" />
             <span>Company Address</span>
@@ -416,7 +416,7 @@ function CompanySettingsTab() {
         </div>
 
         {/* Working Hours & Attendance Settings */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaClock className="text-primary-500" />
             <span>Working Hours & Attendance Settings</span>
@@ -531,7 +531,7 @@ function CompanySettingsTab() {
           <button
             type="submit"
             disabled={saving}
-            className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            className="btn btn-primary px-8 py-3"
           >
             {saving ? (
               <span className="flex items-center gap-2">
@@ -800,7 +800,7 @@ function GeofenceLocationsManager() {
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 border border-gray-200">
+    <div className="bg-white rounded-lg">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -811,7 +811,7 @@ function GeofenceLocationsManager() {
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-primary-600 transition-colors"
+          className="btn btn-primary"
         >
           <FaMapMarkerAlt />
           Add Location
@@ -826,7 +826,7 @@ function GeofenceLocationsManager() {
           <p className="text-gray-600 mb-4">No locations configured yet</p>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-primary-600 transition-colors"
+            className="btn btn-primary"
           >
             Add Your First Location
           </button>
@@ -1350,7 +1350,7 @@ function GeofencingTab() {
         <GeofenceLocationsManager />
 
         {/* Geofence Options */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaCog className="text-primary-500" />
             <span>Geofence Enforcement Options</span>
@@ -1398,7 +1398,7 @@ function GeofencingTab() {
         </div>
 
         {/* Break Timings */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -1759,7 +1759,7 @@ function PersonalizationTab() {
       </h2>
       <p className="text-gray-600 mb-6">Customize the look and feel of your dashboard</p>
 
-      <div className="rounded-lg p-6 border border-gray-200" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+      <div className="rounded-lg" style={{ backgroundColor: 'var(--color-bg-card)' }}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Theme</h3>
         <p className="text-sm text-gray-600 mb-6">Select a color theme that suits your preference. The theme will be applied across the entire application.</p>
 
@@ -2012,7 +2012,7 @@ function PayrollSettingsTab() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* General Settings */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaCog className="text-blue-500" />
             General Settings
@@ -2036,7 +2036,7 @@ function PayrollSettingsTab() {
         </div>
 
         {/* Attendance-Based Deductions */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaClock className="text-orange-500" />
             Attendance-Based Deductions
@@ -2188,7 +2188,7 @@ function PayrollSettingsTab() {
         </div>
 
         {/* Overtime Settings */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaClock className="text-green-500" />
             Overtime Settings
@@ -2241,7 +2241,7 @@ function PayrollSettingsTab() {
         </div>
 
         {/* Statutory Deductions */}
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FaMoneyBillWave className="text-purple-500" />
             Statutory Deductions

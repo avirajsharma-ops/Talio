@@ -1,11 +1,26 @@
 import {
-  FaTachometerAlt, FaUsers, FaClock, FaCalendarAlt, FaMoneyBillWave,
-  FaChartLine, FaBriefcase, FaUserPlus, FaSignOutAlt, FaFileAlt,
-  FaBox, FaReceipt, FaHeadset, FaBook, FaGraduationCap,
-  FaBullhorn, FaUser, FaTrophy, FaBullseye, FaStar, FaAward,
-  FaProjectDiagram, FaClipboardList, FaMapMarkerAlt, FaUserFriends,
-  FaThLarge, FaTasks, FaComments, FaEnvelope
-} from 'react-icons/fa'
+  HiOutlineSquares2X2,
+  HiOutlineChatBubbleLeftRight,
+  HiOutlineEnvelope,
+  HiOutlineRectangleGroup,
+  HiOutlineClipboardDocumentList,
+  HiOutlineUserGroup,
+  HiOutlineClock,
+  HiOutlineBanknotes,
+  HiOutlineTrophy,
+  HiOutlineBriefcase,
+  HiOutlineUserPlus,
+  HiOutlineArrowRightOnRectangle,
+  HiOutlineDocumentText,
+  HiOutlineCube,
+  HiOutlineReceiptPercent,
+  HiOutlineLifebuoy,
+  HiOutlineBookOpen,
+  HiOutlineAcademicCap,
+  HiOutlineMegaphone,
+  HiOutlineCalendarDays,
+  HiOutlineChartBar
+} from 'react-icons/hi2'
 
 // Define menu items for each role
 // NOTE: MAYA AI Assistant is only available in the desktop apps (Mac/Windows) via floating widget
@@ -13,13 +28,13 @@ import {
 export const roleBasedMenus = {
   // ADMIN - Full access to everything
   admin: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
@@ -30,7 +45,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Employees', 
-      icon: FaUsers, 
+      icon: HiOutlineUserGroup, 
       path: '/dashboard/employees',
       submenu: [
         { name: 'All Employees', path: '/dashboard/employees' },
@@ -42,7 +57,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Attendance & Leaves',
-      icon: FaClock,
+      icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
@@ -56,7 +71,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Payroll', 
-      icon: FaMoneyBillWave, 
+      icon: HiOutlineBanknotes, 
       path: '/dashboard/payroll',
       submenu: [
         { name: 'Process Payroll', path: '/dashboard/payroll' },
@@ -67,7 +82,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Performance',
-      icon: FaTrophy,
+      icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
         { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
@@ -78,7 +93,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Recruitment', 
-      icon: FaBriefcase, 
+      icon: HiOutlineBriefcase, 
       path: '/dashboard/recruitment',
       submenu: [
         { name: 'Job Openings', path: '/dashboard/recruitment/jobs' },
@@ -86,16 +101,16 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: FaUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: FaSignOutAlt, path: '/dashboard/offboarding' },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Assets', icon: FaBox, path: '/dashboard/assets' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
+    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
+    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     { 
       name: 'Learning (LMS)', 
-      icon: FaGraduationCap, 
+      icon: HiOutlineAcademicCap, 
       path: '/dashboard/learning',
       submenu: [
         { name: 'Courses', path: '/dashboard/learning/courses' },
@@ -105,26 +120,26 @@ export const roleBasedMenus = {
     },
     {
       name: 'Announcements',
-      icon: FaBullhorn,
+      icon: HiOutlineMegaphone,
       path: '/dashboard/announcements',
       submenu: [
         { name: 'All Announcements', path: '/dashboard/announcements' },
         { name: 'Create Announcement', path: '/dashboard/announcements/create' },
       ]
     },
-    { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 
   // HR - HR management focused
   hr: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
@@ -135,7 +150,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Employees', 
-      icon: FaUsers, 
+      icon: HiOutlineUserGroup, 
       path: '/dashboard/employees',
       submenu: [
         { name: 'All Employees', path: '/dashboard/employees' },
@@ -147,7 +162,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Attendance & Leaves',
-      icon: FaClock,
+      icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
@@ -159,7 +174,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Payroll', 
-      icon: FaMoneyBillWave, 
+      icon: HiOutlineBanknotes, 
       path: '/dashboard/payroll',
       submenu: [
         { name: 'Generate Payroll', path: '/dashboard/payroll/generate' },
@@ -169,7 +184,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Performance',
-      icon: FaTrophy,
+      icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
         { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
@@ -179,7 +194,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Recruitment', 
-      icon: FaBriefcase, 
+      icon: HiOutlineBriefcase, 
       path: '/dashboard/recruitment',
       submenu: [
         { name: 'Job Openings', path: '/dashboard/recruitment/jobs' },
@@ -187,25 +202,25 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: FaUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: FaSignOutAlt, path: '/dashboard/offboarding' },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
+    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
+    { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 
   // MANAGER - Team management focused
   manager: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
@@ -216,7 +231,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Attendance & Leaves', 
-      icon: FaClock, 
+      icon: HiOutlineClock, 
       path: '/dashboard/attendance',
       submenu: [
         { name: 'My Attendance', path: '/dashboard/attendance' },
@@ -226,31 +241,31 @@ export const roleBasedMenus = {
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
     {
       name: 'Learning',
-      icon: FaGraduationCap,
+      icon: HiOutlineAcademicCap,
       path: '/dashboard/learning',
       submenu: [
         { name: 'My Trainings', path: '/dashboard/learning/trainings' },
         { name: 'Certificates', path: '/dashboard/learning/certificates' },
       ]
     },
-    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 
   // EMPLOYEE - Personal focused
   employee: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'My Projects', path: '/dashboard/projects' },
@@ -261,7 +276,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Attendance & Leaves', 
-      icon: FaClock, 
+      icon: HiOutlineClock, 
       path: '/dashboard/attendance',
       submenu: [
         { name: 'My Attendance', path: '/dashboard/attendance' },
@@ -270,32 +285,32 @@ export const roleBasedMenus = {
         { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
       ]
     },
-    { name: 'Payslips', icon: FaMoneyBillWave, path: '/dashboard/payroll/payslips' },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    { name: 'Payslips', icon: HiOutlineBanknotes, path: '/dashboard/payroll/payslips' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
     {
       name: 'Learning',
-      icon: FaGraduationCap,
+      icon: HiOutlineAcademicCap,
       path: '/dashboard/learning',
       submenu: [
         { name: 'My Trainings', path: '/dashboard/learning/trainings' },
         { name: 'Certificates', path: '/dashboard/learning/certificates' },
       ]
     },
-    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 
   // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
   department_head: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
@@ -306,7 +321,7 @@ export const roleBasedMenus = {
     },
     { 
       name: 'Attendance & Leaves', 
-      icon: FaClock, 
+      icon: HiOutlineClock, 
       path: '/dashboard/attendance',
       submenu: [
         { name: 'My Attendance', path: '/dashboard/attendance' },
@@ -318,31 +333,31 @@ export const roleBasedMenus = {
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
     {
       name: 'Learning',
-      icon: FaGraduationCap,
+      icon: HiOutlineAcademicCap,
       path: '/dashboard/learning',
       submenu: [
         { name: 'My Trainings', path: '/dashboard/learning/trainings' },
         { name: 'Certificates', path: '/dashboard/learning/certificates' },
       ]
     },
-    { name: 'Announcements', icon: FaBullhorn, path: '/dashboard/announcements' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 
   // GOD ADMIN - Supreme access
   god_admin: [
-    { name: 'Dashboard', icon: FaTachometerAlt, path: '/dashboard' },
-    { name: 'Chat', icon: FaComments, path: '/dashboard/chat' },
-    { name: 'Mail', icon: FaEnvelope, path: '/dashboard/mail' },
-    { name: 'TalioBoard', icon: FaThLarge, path: '/dashboard/talioboard' },
+    { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
+    { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
-      icon: FaTasks,
+      icon: HiOutlineClipboardDocumentList,
       path: '/dashboard/projects',
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
@@ -353,7 +368,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Employees',
-      icon: FaUsers,
+      icon: HiOutlineUserGroup,
       path: '/dashboard/employees',
       submenu: [
         { name: 'All Employees', path: '/dashboard/employees' },
@@ -365,7 +380,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Attendance & Leaves',
-      icon: FaClock,
+      icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
@@ -379,7 +394,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Payroll',
-      icon: FaMoneyBillWave,
+      icon: HiOutlineBanknotes,
       path: '/dashboard/payroll',
       submenu: [
         { name: 'Process Payroll', path: '/dashboard/payroll' },
@@ -390,7 +405,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Performance',
-      icon: FaTrophy,
+      icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
         { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
@@ -401,7 +416,7 @@ export const roleBasedMenus = {
     },
     {
       name: 'Recruitment',
-      icon: FaBriefcase,
+      icon: HiOutlineBriefcase,
       path: '/dashboard/recruitment',
       submenu: [
         { name: 'Job Openings', path: '/dashboard/recruitment/jobs' },
@@ -409,16 +424,16 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: FaUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: FaSignOutAlt, path: '/dashboard/offboarding' },
-    { name: 'Documents', icon: FaFileAlt, path: '/dashboard/documents' },
-    { name: 'Assets', icon: FaBox, path: '/dashboard/assets' },
-    { name: 'Expenses', icon: FaReceipt, path: '/dashboard/expenses' },
-    { name: 'Helpdesk', icon: FaHeadset, path: '/dashboard/helpdesk' },
-    { name: 'Policies', icon: FaBook, path: '/dashboard/policies' },
+    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
+    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
+    { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     {
       name: 'Learning (LMS)',
-      icon: FaGraduationCap,
+      icon: HiOutlineAcademicCap,
       path: '/dashboard/learning',
       submenu: [
         { name: 'Courses', path: '/dashboard/learning/courses' },
@@ -428,15 +443,15 @@ export const roleBasedMenus = {
     },
     {
       name: 'Announcements',
-      icon: FaBullhorn,
+      icon: HiOutlineMegaphone,
       path: '/dashboard/announcements',
       submenu: [
         { name: 'All Announcements', path: '/dashboard/announcements' },
         { name: 'Create Announcement', path: '/dashboard/announcements/create' },
       ]
     },
-    { name: 'Holidays', icon: FaCalendarAlt, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: FaChartLine, path: '/dashboard/productivity' },
+    { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
+    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
   ],
 }
 

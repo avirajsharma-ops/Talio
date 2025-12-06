@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiPlus, FiSearch, FiGrid, FiList, FiMoreHorizontal, FiTrash2, FiEdit2, FiShare2, FiClock, FiUser, FiUsers, FiX, FiLink, FiCopy, FiCheck } from 'react-icons/fi';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function WhiteboardDashboard() {
   const router = useRouter();
@@ -184,7 +185,7 @@ export default function WhiteboardDashboard() {
   const sharedBoards = filteredBoards.filter(b => !b.isOwner);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-main)' }}>
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -196,7 +197,7 @@ export default function WhiteboardDashboard() {
             
             <button
               onClick={() => setShowNewBoardModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors shadow-sm"
+              className="btn btn-primary"
             >
               <FiPlus size={18} />
               <span>New board</span>
@@ -208,27 +209,27 @@ export default function WhiteboardDashboard() {
       {/* Search & Filters */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="input-with-icon flex-1 max-w-md">
+            <FiSearch className="input-icon" size={18} />
             <input
               type="text"
               placeholder="Search boards..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              className="input input-search"
             />
           </div>
           
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+          <div className="view-toggle">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'view-toggle-btn-active' : ''}`}
             >
               <FiGrid size={18} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`view-toggle-btn ${viewMode === 'list' ? 'view-toggle-btn-active' : ''}`}
             >
               <FiList size={18} />
             </button>
@@ -239,42 +240,34 @@ export default function WhiteboardDashboard() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 pb-12">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-500">Loading boards...</p>
-            </div>
+          <div className="loading-container py-20">
+            <div className="loading-spinner loading-spinner-lg" />
+            <p className="loading-text">Loading boards...</p>
           </div>
         ) : error ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">⚠️</span>
+          <div className="empty-state py-20">
+            <div className="empty-state-icon" style={{ backgroundColor: '#fee2e2' }}>
+              <span>⚠️</span>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading boards</h3>
-            <p className="text-gray-500 mb-4">{error}</p>
-            <button
-              onClick={fetchBoards}
-              className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
-            >
+            <h3 className="empty-state-title">Error loading boards</h3>
+            <p className="empty-state-description">{error}</p>
+            <button onClick={fetchBoards} className="btn btn-primary">
               Try again
             </button>
           </div>
         ) : filteredBoards.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🎨</span>
+          <div className="empty-state py-20">
+            <div className="empty-state-icon">
+              <span>🎨</span>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">
+            <h3 className="empty-state-title">
               {searchQuery ? 'No boards found' : 'No boards yet'}
             </h3>
-            <p className="text-gray-500 mb-6">
+            <p className="empty-state-description">
               {searchQuery ? 'Try a different search term' : 'Create your first board to get started'}
             </p>
             {!searchQuery && (
-              <button
-                onClick={() => setShowNewBoardModal(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors"
-              >
+              <button onClick={() => setShowNewBoardModal(true)} className="btn btn-primary">
                 <FiPlus size={18} />
                 Create board
               </button>
@@ -285,10 +278,10 @@ export default function WhiteboardDashboard() {
             {/* Owned Boards */}
             {ownedBoards.length > 0 && (
               <section>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="section-header">
                   <FiUser size={16} className="text-gray-400" />
-                  <h2 className="text-sm font-medium text-gray-600 uppercase tracking-wide">My Boards</h2>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{ownedBoards.length}</span>
+                  <h2 className="section-title">My Boards</h2>
+                  <span className="section-count">{ownedBoards.length}</span>
                 </div>
                 <BoardGrid boards={ownedBoards} viewMode={viewMode} activeMenu={activeMenu} setActiveMenu={setActiveMenu} deleteBoard={deleteBoard} formatDate={formatDate} router={router} openRenameModal={openRenameModal} openShareModal={openShareModal} />
               </section>
@@ -297,10 +290,10 @@ export default function WhiteboardDashboard() {
             {/* Shared Boards */}
             {sharedBoards.length > 0 && (
               <section>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="section-header">
                   <FiUsers size={16} className="text-gray-400" />
-                  <h2 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Shared with me</h2>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{sharedBoards.length}</span>
+                  <h2 className="section-title">Shared with me</h2>
+                  <span className="section-count">{sharedBoards.length}</span>
                 </div>
                 <BoardGrid boards={sharedBoards} viewMode={viewMode} activeMenu={activeMenu} setActiveMenu={setActiveMenu} deleteBoard={deleteBoard} formatDate={formatDate} router={router} openRenameModal={openRenameModal} openShareModal={openShareModal} />
               </section>
@@ -311,13 +304,13 @@ export default function WhiteboardDashboard() {
 
       {/* New Board Modal */}
       {showNewBoardModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="modal-backdrop">
           <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+            className="modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-1">Create new board</h2>
+            <div className="modal-body">
+              <h2 className="modal-title mb-1">Create new board</h2>
               <p className="text-sm text-gray-500 mb-6">Give your board a name to get started</p>
               
               <input
@@ -327,24 +320,24 @@ export default function WhiteboardDashboard() {
                 onChange={(e) => setNewBoardName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createBoard()}
                 autoFocus
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-lg"
+                className="input text-lg"
               />
             </div>
             
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-2xl">
+            <div className="modal-footer">
               <button
                 onClick={() => {
                   setShowNewBoardModal(false);
                   setNewBoardName('');
                 }}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 onClick={createBoard}
                 disabled={!newBoardName.trim() || creating}
-                className="px-5 py-2 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary"
               >
                 {creating ? 'Creating...' : 'Create board'}
               </button>
@@ -355,19 +348,19 @@ export default function WhiteboardDashboard() {
 
       {/* Rename Modal */}
       {showRenameModal && renameBoard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRenameModal(false)}>
+        <div className="modal-backdrop" onClick={() => setShowRenameModal(false)}>
           <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+            className="modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Rename board</h2>
-                <button onClick={() => setShowRenameModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                  <FiX size={18} />
-                </button>
-              </div>
-              
+            <div className="modal-header flex items-center justify-between">
+              <h2 className="modal-title">Rename board</h2>
+              <button onClick={() => setShowRenameModal(false)} className="btn btn-ghost btn-icon">
+                <FiX size={18} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
               <input
                 type="text"
                 placeholder="Board name"
@@ -375,21 +368,18 @@ export default function WhiteboardDashboard() {
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRename()}
                 autoFocus
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-lg"
+                className="input text-lg"
               />
             </div>
             
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-2xl">
-              <button
-                onClick={() => setShowRenameModal(false)}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
-              >
+            <div className="modal-footer">
+              <button onClick={() => setShowRenameModal(false)} className="btn btn-ghost">
                 Cancel
               </button>
               <button
                 onClick={handleRename}
                 disabled={!newTitle.trim() || renaming}
-                className="px-5 py-2 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary"
               >
                 {renaming ? 'Saving...' : 'Save'}
               </button>
@@ -400,32 +390,28 @@ export default function WhiteboardDashboard() {
 
       {/* Share Modal */}
       {showShareModal && shareBoard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowShareModal(false)}>
+        <div className="modal-backdrop" onClick={() => setShowShareModal(false)}>
           <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl"
+            className="modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Share board</h2>
-                <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                  <FiX size={18} />
-                </button>
-              </div>
-              
+            <div className="modal-header flex items-center justify-between">
+              <h2 className="modal-title">Share board</h2>
+              <button onClick={() => setShowShareModal(false)} className="btn btn-ghost btn-icon">
+                <FiX size={18} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
               <p className="text-gray-600 mb-4">Share "{shareBoard.title || shareBoard.name}" with others</p>
               
               <div className="flex gap-2">
-                <div className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-600 text-sm truncate">
+                <div className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 text-sm truncate">
                   {typeof window !== 'undefined' ? `${window.location.origin}/dashboard/talioboard/${shareBoard._id}` : ''}
                 </div>
                 <button
                   onClick={copyShareLink}
-                  className={`px-4 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 ${
-                    copied 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-violet-600 text-white hover:bg-violet-700'
-                  }`}
+                  className={`btn ${copied ? 'btn-success' : 'btn-primary'}`}
                 >
                   {copied ? <FiCheck size={18} /> : <FiCopy size={18} />}
                   {copied ? 'Copied!' : 'Copy'}
@@ -458,7 +444,7 @@ function BoardGrid({ boards, viewMode, activeMenu, setActiveMenu, deleteBoard, f
                 <img src={board.thumbnail} alt={getBoardName(board)} className="w-full h-full object-cover" />
               </div>
             ) : (
-              <div className="w-12 h-12 bg-gradient-to-br from-violet-400 to-purple-500 rounded-lg flex items-center justify-center text-white font-semibold text-lg shadow-sm flex-shrink-0">
+              <div className="w-12 h-12 bg-gradient-to-br rounded-lg flex items-center justify-center text-white font-semibold text-lg shadow-sm flex-shrink-0" style={{ background: `linear-gradient(to bottom right, var(--color-primary-400), var(--color-primary-600))` }}>
                 {getBoardName(board).charAt(0).toUpperCase()}
               </div>
             )}
@@ -513,11 +499,11 @@ function BoardGrid({ boards, viewMode, activeMenu, setActiveMenu, deleteBoard, f
       {boards.map((board) => (
         <div
           key={board._id}
-          className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-violet-300 transition-all cursor-pointer"
+          className="card card-hover cursor-pointer"
           onClick={() => router.push(`/dashboard/talioboard/${board._id}`)}
         >
           {/* Preview */}
-          <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+          <div className="aspect-[4/3] relative overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100))' }}>
             {board.thumbnail ? (
               <img 
                 src={board.thumbnail} 
@@ -526,7 +512,7 @@ function BoardGrid({ boards, viewMode, activeMenu, setActiveMenu, deleteBoard, f
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                <div className="avatar avatar-xl" style={{ borderRadius: '1rem' }}>
                   {getBoardName(board).charAt(0).toUpperCase()}
                 </div>
               </div>
@@ -539,7 +525,7 @@ function BoardGrid({ boards, viewMode, activeMenu, setActiveMenu, deleteBoard, f
                     e.stopPropagation();
                     setActiveMenu(activeMenu === board._id ? null : board._id);
                   }}
-                  className="p-2 bg-white/80 backdrop-blur-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                  className="btn btn-ghost btn-icon btn-sm" style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
                 >
                   <FiMoreHorizontal size={16} />
                 </button>
@@ -552,9 +538,7 @@ function BoardGrid({ boards, viewMode, activeMenu, setActiveMenu, deleteBoard, f
             
             {!board.isOwner && (
               <div className="absolute top-2 left-2">
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-md">
-                  Shared
-                </span>
+                <span className="badge badge-primary">Shared</span>
               </div>
             )}
           </div>
@@ -597,13 +581,13 @@ function BoardMenu({ board, deleteBoard, setActiveMenu, openRenameModal, openSha
           setActiveMenu(null);
         }}
       />
-      <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+      <div className="dropdown-menu absolute right-0 top-full mt-1">
         <button
           onClick={(e) => {
             e.stopPropagation();
             openRenameModal(board);
           }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 text-sm"
+          className="dropdown-item"
         >
           <FiEdit2 size={15} />
           Rename
@@ -613,18 +597,18 @@ function BoardMenu({ board, deleteBoard, setActiveMenu, openRenameModal, openSha
             e.stopPropagation();
             openShareModal(board);
           }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 text-sm"
+          className="dropdown-item"
         >
           <FiShare2 size={15} />
           Share
         </button>
-        <hr className="my-1 border-gray-100" />
+        <div className="dropdown-divider" />
         <button
           onClick={(e) => {
             e.stopPropagation();
             deleteBoard(board._id);
           }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 text-sm"
+          className="dropdown-item dropdown-item-danger"
         >
           <FiTrash2 size={15} />
           Delete
