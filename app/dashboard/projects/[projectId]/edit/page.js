@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FaArrowLeft, FaSave, FaTrash, FaPlus, FaTimes, FaUsers, FaArchive } from 'react-icons/fa'
+import Portal from '@/components/ui/Portal'
 
 export default function EditProjectPage() {
   const { projectId } = useParams()
@@ -347,7 +348,7 @@ export default function EditProjectPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Form */}
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -472,9 +473,9 @@ export default function EditProjectPage() {
 
         {/* Members Panel */}
         <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Team Members</h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Team Members</h3>
               {canManage && (
                 <button
                   onClick={() => setShowAddMemberModal(true)}
@@ -530,7 +531,8 @@ export default function EditProjectPage() {
 
       {/* Add Member Modal */}
       {showAddMemberModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
@@ -607,6 +609,7 @@ export default function EditProjectPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

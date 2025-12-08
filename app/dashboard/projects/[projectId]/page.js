@@ -12,6 +12,8 @@ import {
   FaThumbtack, FaLock, FaSync, FaExchangeAlt
 } from 'react-icons/fa'
 import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
+import ProjectOverview from '@/components/projects/ProjectOverview'
+import Portal from '@/components/ui/Portal'
 
 const statusColors = {
   planned: 'bg-blue-100 text-blue-800',
@@ -1107,68 +1109,68 @@ export default function ProjectDetailPage() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FaCalendarAlt className="text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <FaCalendarAlt className="text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Deadline</p>
-              <p className="font-semibold text-gray-800">{formatDate(project.endDate)}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-black-300">Deadline</p>
+              <p className="font-semibold text-gray-900 dark:text-black">{formatDate(project.endDate)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FaChartLine className="text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <FaChartLine className="text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Progress</p>
-              <p className="font-semibold text-gray-800">{project.completionPercentage || 0}%</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-black-300">Progress</p>
+              <p className="font-semibold text-gray-900 dark:text-black">{project.completionPercentage || 0}%</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <FaTasks className="text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <FaTasks className="text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Tasks</p>
-              <p className="font-semibold text-gray-800">
+              <p className="text-xs font-medium text-gray-600 dark:text-black-300">Tasks</p>
+              <p className="font-semibold text-gray-900 dark:text-black">
                 {project.taskStats?.completed || 0}/{project.taskStats?.total || 0}
               </p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <FaUsers className="text-orange-600" />
+            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+              <FaUsers className="text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Members</p>
-              <p className="font-semibold text-gray-800">{project.members?.length || 0}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-black-300">Members</p>
+              <p className="font-semibold text-gray-900 dark:text-black">{project.members?.length || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <FaExclamationTriangle className="text-red-600" />
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+              <FaExclamationTriangle className="text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Overdue Tasks</p>
-              <p className="font-semibold text-gray-800">{project.taskStats?.overdue || 0}</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-black-300">Overdue Tasks</p>
+              <p className="font-semibold text-gray-900 dark:text-black">{project.taskStats?.overdue || 0}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="">
           <nav className="flex overflow-x-auto">
             {[
               { id: 'overview', label: 'Overview', icon: FaChartLine },
@@ -1182,8 +1184,8 @@ export default function ProjectDetailPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
                 <tab.icon className="mr-2" />
@@ -1194,93 +1196,9 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="p-6">
-          {/* Overview Tab */}
+          {/* Overview Tab - Advanced Analytics */}
           {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Project Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Information</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">Start Date</span>
-                    <span className="font-medium">{formatDate(project.startDate)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">End Date</span>
-                    <span className="font-medium">{formatDate(project.endDate)}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">Department</span>
-                    <span className="font-medium">{project.department?.name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-gray-100">
-                    <span className="text-gray-500">Created By</span>
-                    <span className="font-medium">
-                      {project.createdBy?.firstName} {project.createdBy?.lastName}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mt-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-500">Overall Progress</span>
-                    <span className="font-medium">{project.completionPercentage || 0}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className={`h-3 rounded-full transition-all ${
-                        project.completionPercentage >= 100 ? 'bg-green-500' :
-                        project.completionPercentage >= 50 ? 'bg-blue-500' :
-                        'bg-orange-500'
-                      }`}
-                      style={{ width: `${Math.min(project.completionPercentage || 0, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Project Head & Quick Stats */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Head</h3>
-                <div className="flex items-center p-4 bg-gray-50 rounded-lg mb-6">
-                  <div className="w-12 h-12 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium overflow-hidden">
-                    {project.projectHead?.profilePicture ? (
-                      <img src={project.projectHead.profilePicture} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{project.projectHead?.firstName?.[0]}{project.projectHead?.lastName?.[0]}</span>
-                    )}
-                  </div>
-                  <div className="ml-4">
-                    <p className="font-medium text-gray-800">
-                      {project.projectHead?.firstName} {project.projectHead?.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">{project.projectHead?.email}</p>
-                  </div>
-                </div>
-
-                {/* Task Distribution */}
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Task Distribution</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-gray-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-gray-800">{project.taskStats?.todo || 0}</p>
-                    <p className="text-sm text-gray-500">To Do</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-blue-600">{project.taskStats?.inProgress || 0}</p>
-                    <p className="text-sm text-gray-500">In Progress</p>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-purple-600">{project.taskStats?.review || 0}</p>
-                    <p className="text-sm text-gray-500">In Review</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg text-center">
-                    <p className="text-2xl font-bold text-green-600">{project.taskStats?.completed || 0}</p>
-                    <p className="text-sm text-gray-500">Completed</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProjectOverview projectId={projectId} />
           )}
 
           {/* Tasks Tab */}
@@ -1880,10 +1798,11 @@ export default function ProjectDetailPage() {
 
       {/* Create Task Modal */}
       {showCreateTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Create New Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between flex-shrink-0">
+              <h3 className="text-xl font-bold text-gray-900">Create New Task</h3>
               <button
                 onClick={() => setShowCreateTask(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -1892,7 +1811,7 @@ export default function ProjectDetailPage() {
               </button>
             </div>
             
-            <form onSubmit={handleCreateTask} className="p-4 space-y-4">
+            <form onSubmit={handleCreateTask} className="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Task Title <span className="text-red-500">*</span>
@@ -2064,14 +1983,16 @@ export default function ProjectDetailPage() {
             </form>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Task ETA Modal (for self-assignment) */}
       {showTaskEtaModal && pendingTaskData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Set Your ETA</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Set Your ETA</h3>
               <button
                 onClick={() => {
                   setShowTaskEtaModal(false)
@@ -2218,67 +2139,45 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Edit Task Modal */}
       {showEditTaskModal && editTaskForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Edit Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Edit Task</h3>
               <button
                 onClick={() => {
                   setShowEditTaskModal(false)
                   setEditTaskForm(null)
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
               >
                 <FaTimes />
               </button>
             </div>
             
             <form onSubmit={handleEditTask} className="flex-1 overflow-y-auto">
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
-                  <input
-                    type="text"
-                    value={editTaskForm.title}
-                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Enter task title..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={editTaskForm.description}
-                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe the task..."
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 space-y-4">
+                {/* Title and Description Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                    <select
-                      value={editTaskForm.priority}
-                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Task Title *</label>
+                    <input
+                      type="text"
+                      value={editTaskForm.title}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Enter task title..."
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="critical">Critical</option>
-                    </select>
+                      required
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Due Date</label>
                     <input
                       type="date"
                       value={editTaskForm.dueDate}
@@ -2288,9 +2187,34 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Description</label>
+                  <textarea
+                    value={editTaskForm.description}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe the task..."
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Priority</label>
+                  <select
+                    value={editTaskForm.priority}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
                 {/* Subtasks Section */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
                     Subtasks {editTaskForm.subtasks?.length > 0 && `(${editTaskForm.subtasks.length})`}
                   </label>
                   
@@ -2464,12 +2388,14 @@ export default function ProjectDetailPage() {
             </form>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Reject Invitation Modal */}
       {showRejectInvitationModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Reject Project Invitation</h3>
               <p className="text-gray-600 text-sm mb-4">
@@ -2504,13 +2430,15 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Task Detail Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-800">Task Details</h3>
               <div className="flex items-center gap-2">
                 {(() => {
@@ -2550,7 +2478,7 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               {/* Task Title & Status */}
               <div className="flex items-start justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">{selectedTask.title}</h2>
@@ -2964,12 +2892,14 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Delete Task Modal */}
       {showDeleteTaskModal && taskToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
                 {isProjectHead ? 'Delete Task' : 'Request Task Deletion'}
@@ -3015,13 +2945,15 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Reassign Task Modal */}
       {showReassignModal && reassignTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">Reassign Task</h3>
               <button
                 onClick={() => {
@@ -3086,6 +3018,7 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

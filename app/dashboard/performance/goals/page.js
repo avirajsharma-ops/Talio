@@ -234,63 +234,53 @@ export default function PerformanceGoalsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total</p>
+              <p className="text-xs font-medium text-gray-900 uppercase tracking-wide">Total</p>
               <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</h3>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <FaBullseye className="w-5 h-5 text-blue-600" />
-            </div>
+            <FaBullseye className="w-6 h-6 text-blue-600" />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Completed</p>
+              <p className="text-xs font-medium text-gray-900 uppercase tracking-wide">Completed</p>
               <h3 className="text-2xl font-bold text-emerald-600 mt-1">{stats.completed}</h3>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <FaCheckCircle className="w-5 h-5 text-emerald-600" />
-            </div>
+            <FaCheckCircle className="w-6 h-6 text-emerald-600" />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">In Progress</p>
+              <p className="text-xs font-medium text-gray-900 uppercase tracking-wide">In Progress</p>
               <h3 className="text-2xl font-bold text-blue-600 mt-1">{stats.inProgress}</h3>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <FaChartLine className="w-5 h-5 text-blue-600" />
-            </div>
+            <FaChartLine className="w-6 h-6 text-blue-600" />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Overdue</p>
+              <p className="text-xs font-medium text-gray-900 uppercase tracking-wide">Overdue</p>
               <h3 className="text-2xl font-bold text-red-600 mt-1">{stats.overdue}</h3>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <FaExclamationTriangle className="w-5 h-5 text-red-600" />
-            </div>
+            <FaExclamationTriangle className="w-6 h-6 text-red-600" />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Avg Progress</p>
+              <p className="text-xs font-medium text-gray-900 uppercase tracking-wide">Avg Progress</p>
               <h3 className="text-2xl font-bold text-purple-600 mt-1">{stats.avgProgress}%</h3>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <FaTasks className="w-5 h-5 text-purple-600" />
-            </div>
+            <FaTasks className="w-6 h-6 text-purple-600" />
           </div>
         </div>
       </div>

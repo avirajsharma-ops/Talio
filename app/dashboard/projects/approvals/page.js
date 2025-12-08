@@ -9,6 +9,7 @@ import {
   FaExclamationTriangle, FaTasks, FaUser, FaCalendarAlt, FaEye
 } from 'react-icons/fa'
 import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
+import Portal from '@/components/ui/Portal'
 
 const requestTypeLabels = {
   'task_deletion': 'Task Deletion',
@@ -343,7 +344,7 @@ export default function ApprovalsPage() {
           {requests.map((request) => (
             <div 
               key={request._id} 
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
             >
               <div className="p-5">
                 {/* Header */}
@@ -474,10 +475,13 @@ export default function ApprovalsPage() {
 
       {/* Reject Modal */}
       {showRejectModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-900">Reject Request</h3>
+            </div>
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Reject Request</h3>
               <p className="text-gray-600 text-sm mb-4">
                 Are you sure you want to reject this {requestTypeLabels[selectedRequest.type].toLowerCase()} request?
               </p>
@@ -518,6 +522,7 @@ export default function ApprovalsPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

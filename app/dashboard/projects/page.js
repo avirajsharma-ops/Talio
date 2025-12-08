@@ -188,46 +188,46 @@ export default function ProjectsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Projects</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Projects</p>
+              <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.total}</p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <FaProjectDiagram className="text-blue-600 text-xl" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Active</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
               <p className="text-2xl font-bold text-green-600">{stats.active}</p>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <FaClock className="text-green-600 text-xl" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Completed</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
               <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
             </div>
-            <div className="p-3 bg-emerald-100 rounded-lg">
+            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
               <FaCheckCircle className="text-emerald-600 text-xl" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Overdue</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
               <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
             </div>
-            <div className="p-3 bg-red-100 rounded-lg">
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <FaExclamationTriangle className="text-red-600 text-xl" />
             </div>
           </div>

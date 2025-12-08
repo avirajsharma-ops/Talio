@@ -8,6 +8,7 @@ import {
   FaPlus, FaSearch
 } from 'react-icons/fa'
 import { formatDepartments } from '@/lib/formatters'
+import Portal from '@/components/ui/Portal'
 
 export default function CreateProjectPage() {
   const router = useRouter()
@@ -209,8 +210,8 @@ export default function CreateProjectPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Project Details</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Project Name */}
@@ -350,8 +351,8 @@ export default function CreateProjectPage() {
         </div>
 
         {/* Project Head Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
             Project Head <span className="text-red-500">*</span>
           </h2>
 
@@ -399,9 +400,9 @@ export default function CreateProjectPage() {
         </div>
 
         {/* Team Members Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
               <FaUsers className="inline mr-2" />
               Team Members
             </h2>
@@ -481,9 +482,10 @@ export default function CreateProjectPage() {
 
       {/* Employee Search Modal */}
       {showEmployeeSearch && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <h3 className="text-lg font-semibold">Add Team Member</h3>
               <button
                 onClick={() => {
@@ -544,6 +546,7 @@ export default function CreateProjectPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

@@ -10,6 +10,7 @@ import {
   FaTrash, FaChevronUp, FaComment
 } from 'react-icons/fa'
 import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
+import Portal from '@/components/ui/Portal'
 
 const statusColors = {
   'todo': 'bg-gray-100 text-gray-700 border-gray-200',
@@ -427,76 +428,76 @@ export default function MyTasksPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <FaTasks className="text-gray-600" />
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <FaTasks className="text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total</p>
-              <p className="font-semibold text-gray-800">{stats.total}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.total}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
               <FaClock className="text-yellow-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Pending Accept</p>
-              <p className="font-semibold text-gray-800">{stats.pendingAcceptance}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Pending Accept</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.pendingAcceptance}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <FaTasks className="text-gray-600" />
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <FaTasks className="text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">To Do</p>
-              <p className="font-semibold text-gray-800">{stats.todo}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">To Do</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.todo}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <FaPlay className="text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">In Progress</p>
-              <p className="font-semibold text-gray-800">{stats.inProgress}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">In Progress</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.inProgress}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <FaCheckCircle className="text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Completed</p>
-              <p className="font-semibold text-gray-800">{stats.completed}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.completed}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <FaExclamationTriangle className="text-red-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Overdue</p>
-              <p className="font-semibold text-gray-800">{stats.overdue}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Overdue</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.overdue}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -712,10 +713,11 @@ export default function MyTasksPage() {
 
       {/* Reject Modal */}
       {showRejectModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Reject Assignment</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Reject Assignment</h3>
               <button
                 onClick={() => { setShowRejectModal(false); setSelectedTask(null); setRejectRemark('') }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -752,14 +754,16 @@ export default function MyTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* ETA Modal */}
       {showEtaModal && taskForEta && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Set Estimated Time</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Set Estimated Time</h3>
               <button
                 onClick={() => { setShowEtaModal(false); setTaskForEta(null); setEta({ days: '', hours: '' }); setSubtaskEtas({}) }}
                 className="text-gray-400 hover:text-gray-600"
@@ -892,14 +896,16 @@ export default function MyTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Delete Task Confirmation Modal */}
       {showDeleteModal && taskToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Delete Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Delete Task</h3>
               <button
                 onClick={() => { setShowDeleteModal(false); setTaskToDelete(null) }}
                 className="text-gray-400 hover:text-gray-600"
@@ -941,6 +947,7 @@ export default function MyTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

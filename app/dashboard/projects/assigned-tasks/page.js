@@ -11,6 +11,7 @@ import {
   FaArrowLeft
 } from 'react-icons/fa'
 import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
+import Portal from '@/components/ui/Portal'
 
 const statusColors = {
   'todo': 'bg-gray-100 text-gray-700 border-gray-200',
@@ -432,76 +433,76 @@ export default function AssignedTasksPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <FaTasks className="text-gray-600" />
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <FaTasks className="text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total</p>
-              <p className="font-semibold text-gray-800">{stats.total || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.total || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 rounded-lg">
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
               <FaClock className="text-yellow-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Pending Accept</p>
-              <p className="font-semibold text-gray-800">{stats.pendingAcceptance || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Pending Accept</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.pendingAcceptance || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <FaPlay className="text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">In Progress</p>
-              <p className="font-semibold text-gray-800">{stats.inProgress || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">In Progress</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.inProgress || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
               <FaEye className="text-purple-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">In Review</p>
-              <p className="font-semibold text-gray-800">{stats.review || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">In Review</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.review || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <FaCheckCircle className="text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Completed</p>
-              <p className="font-semibold text-gray-800">{stats.completed || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.completed || 0}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <FaTrash className="text-red-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Pending Delete</p>
-              <p className="font-semibold text-gray-800">{stats.pendingDeletion || 0}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Pending Delete</p>
+              <p className="font-semibold text-gray-800 dark:text-white">{stats.pendingDeletion || 0}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -761,10 +762,11 @@ export default function AssignedTasksPage() {
 
       {/* Edit Task Modal */}
       {showEditModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Edit Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Edit Task</h3>
               <button onClick={() => { setShowEditModal(false); setSelectedTask(null) }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <FaTimes />
               </button>
@@ -824,14 +826,16 @@ export default function AssignedTasksPage() {
             </form>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Delete Task Modal */}
       {showDeleteModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">Delete Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Delete Task</h3>
               <button onClick={() => { setShowDeleteModal(false); setSelectedTask(null); setDeleteReason('') }} className="text-gray-400 hover:text-gray-600">
                 <FaTimes />
               </button>
@@ -865,14 +869,16 @@ export default function AssignedTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Add Subtask Modal */}
       {showAddSubtaskModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Add Subtask</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Add Subtask</h3>
               <button onClick={() => { setShowAddSubtaskModal(false); setNewSubtaskTitle('') }} className="text-gray-400 hover:text-gray-600">
                 <FaTimes />
               </button>
@@ -903,14 +909,16 @@ export default function AssignedTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Reassign Modal */}
       {showReassignModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Reassign Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Reassign Task</h3>
               <button onClick={() => { setShowReassignModal(false); setReassignToId('') }} className="text-gray-400 hover:text-gray-600">
                 <FaTimes />
               </button>
@@ -945,14 +953,16 @@ export default function AssignedTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Add User Modal */}
       {showAddUserModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Add Users to Task</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Add Users to Task</h3>
               <button onClick={() => { setShowAddUserModal(false); setAddUserIds([]) }} className="text-gray-400 hover:text-gray-600">
                 <FaTimes />
               </button>
@@ -999,14 +1009,16 @@ export default function AssignedTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
 
       {/* Deletion Approval Modal */}
       {showDeletionApprovalModal && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Deletion Request</h3>
+      <Portal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Deletion Request</h3>
               <button onClick={() => { setShowDeletionApprovalModal(false); setDeletionResponse({ action: '', reason: '' }) }} className="text-gray-400 hover:text-gray-600">
                 <FaTimes />
               </button>
@@ -1083,6 +1095,7 @@ export default function AssignedTasksPage() {
             </div>
           </div>
         </div>
+      </Portal>
       )}
     </div>
   )

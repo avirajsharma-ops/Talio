@@ -365,6 +365,22 @@ body {
   animation: fadeInBackdrop 0.5s ease-out forwards;
 }
 
+/* Modal Enter Animation */
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-enter {
+  animation: modal-enter 0.2s ease-out forwards;
+}
+
 /* Card Hover Effect */
 .card-hover {
   transition: all 0.3s ease;
