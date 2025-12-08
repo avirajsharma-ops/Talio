@@ -28,6 +28,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'pending'
+    const type = searchParams.get('type')
 
     // Get all projects where user is project head
     const myProjects = await Project.find({ 
@@ -50,6 +51,9 @@ export async function GET(request) {
     if (status !== 'all') {
       query.status = status
     }
+    if (type && type !== 'all') {
+      query.type = type
+    }
 
     // Get approval requests
     const requests = await ProjectApprovalRequest.find(query)
@@ -60,6 +64,22 @@ export async function GET(request) {
       .populate('relatedMember', 'firstName lastName')
       .sort({ createdAt: -1 })
 
+    // Get type stats for current status filter
+    const typeStatsQuery = { project: { $in: projectIds } }
+    if (status !== 'all') {
+      typeStatsQuery.status = status
+    }
+    
+    const typeStatsAgg = await ProjectApprovalRequest.aggregate([
+      { $match: typeStatsQuery },
+      { $group: { _id: '$type', count: { $sum: 1 } } }
+    ])
+    
+    const typeStats = {}
+    typeStatsAgg.forEach(item => {
+      typeStats[item._id] = item.count
+    })
+
     return NextResponse.json({
       success: true,
       data: requests,
@@ -67,7 +87,8 @@ export async function GET(request) {
         pending: await ProjectApprovalRequest.countDocuments({ project: { $in: projectIds }, status: 'pending' }),
         approved: await ProjectApprovalRequest.countDocuments({ project: { $in: projectIds }, status: 'approved' }),
         rejected: await ProjectApprovalRequest.countDocuments({ project: { $in: projectIds }, status: 'rejected' })
-      }
+      },
+      typeStats
     })
   } catch (error) {
     console.error('Get approval requests error:', error)

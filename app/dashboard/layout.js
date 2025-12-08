@@ -145,15 +145,16 @@ export default function DashboardLayout({ children }) {
                 </main>
 
                 {/* Gradient above bottom nav - Mobile only - Only on bottom nav pages (excluding chat) */}
-                <div 
-                  className="md:hidden fixed bottom-[72px] left-0 right-0 h-[124px] pointer-events-none z-[39]"
-                  style={{ 
-                    background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
-                    opacity: shouldShowFade ? 1 : 0,
-                    transform: shouldShowFade ? 'translateY(0)' : 'translateY(20px)',
-                    transition: 'opacity 0.6s ease-in-out, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                  }}
-                />
+                {shouldShowFade && (
+                  <div 
+                    className="md:hidden fixed bottom-[72px] left-0 right-0 h-[124px] pointer-events-none z-[39]"
+                    style={{ 
+                      background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
+                      opacity: 1,
+                      transition: 'opacity 0.6s ease-in-out'
+                    }}
+                  />
+                )}
 
                 {/* Bottom Navigation for Mobile */}
                 <BottomNav />

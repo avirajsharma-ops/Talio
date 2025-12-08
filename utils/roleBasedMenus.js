@@ -39,6 +39,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
@@ -144,6 +145,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
@@ -225,6 +227,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
@@ -270,6 +273,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'My Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
@@ -315,6 +319,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
@@ -362,6 +367,7 @@ export const roleBasedMenus = {
       submenu: [
         { name: 'All Projects', path: '/dashboard/projects' },
         { name: 'My Tasks', path: '/dashboard/projects/my-tasks' },
+        { name: 'Assigned Tasks', path: '/dashboard/projects/assigned-tasks' },
         { name: 'Pending Approvals', path: '/dashboard/projects/approvals' },
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]

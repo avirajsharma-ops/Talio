@@ -7,6 +7,7 @@ import Task from '@/models/Task'
 import TaskAssignee from '@/models/TaskAssignee'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
+import mongoose from 'mongoose'
 import { 
   checkProjectAccess, 
   calculateCompletionPercentage,
@@ -142,7 +143,8 @@ export async function POST(request, { params }) {
       assigneeIds = [],
       tags,
       estimatedHours,
-      parentTask
+      parentTask,
+      subtasks = []
     } = body
 
     if (!title) {
@@ -153,6 +155,31 @@ export async function POST(request, { params }) {
     const lastTask = await Task.findOne({ project: projectId }).sort({ order: -1 })
     const order = lastTask ? lastTask.order + 1 : 0
 
+    // Prepare subtasks if provided - ensure each has an _id
+    const formattedSubtasks = subtasks.map((st, index) => ({
+      _id: new mongoose.Types.ObjectId(),
+      title: st.title,
+      completed: false,
+      order: index,
+      createdAt: new Date()
+    }))
+
+    // Calculate initial progress if subtasks exist
+    const progressPercentage = formattedSubtasks.length > 0 
+      ? 0 // All subtasks start incomplete
+      : 0
+
+    // Calculate dates if ETA is provided and user is assigning to themselves
+    let calculatedStartDate = startDate ? new Date(startDate) : undefined
+    let calculatedDueDate = dueDate ? new Date(dueDate) : undefined
+    
+    if (estimatedHours && assigneeIds.includes(user.employeeId.toString())) {
+      calculatedStartDate = new Date()
+      const workDays = Math.ceil(estimatedHours / 8)
+      calculatedDueDate = new Date()
+      calculatedDueDate.setDate(calculatedDueDate.getDate() + workDays)
+    }
+
     // Create the task
     const task = await Task.create({
       project: projectId,
@@ -162,24 +189,30 @@ export async function POST(request, { params }) {
       priority: priority || 'medium',
       createdBy: user.employeeId,
       assignedBy: assigneeIds.length > 0 ? user.employeeId : undefined,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
+      dueDate: calculatedDueDate,
+      startDate: calculatedStartDate,
       tags: tags || [],
       estimatedHours,
       parentTask,
-      order
+      order,
+      subtasks: formattedSubtasks,
+      progressPercentage
     })
 
     const creatorEmployee = await Employee.findById(user.employeeId)
 
     // Create task_created timeline event
+    const taskDescription = estimatedHours && assigneeIds.includes(user.employeeId.toString())
+      ? `Task "${title}" was created with ${estimatedHours}h ETA (Due: ${calculatedDueDate.toLocaleDateString()})`
+      : `Task "${title}" was created`
+    
     await createTimelineEvent({
       project: projectId,
       type: 'task_created',
       createdBy: user.employeeId,
       relatedTask: task._id,
-      description: `Task "${title}" was created`,
-      metadata: { taskTitle: title, priority }
+      description: taskDescription,
+      metadata: { taskTitle: title, priority, estimatedHours }
     })
 
     // Assign to users

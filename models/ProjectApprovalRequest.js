@@ -18,6 +18,8 @@ const ProjectApprovalRequestSchema = new mongoose.Schema({
     required: true,
     enum: [
       'task_deletion',
+      'task_completion',
+      'task_review',
       'project_completion',
       'member_removal'
     ]

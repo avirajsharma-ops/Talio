@@ -402,84 +402,39 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
           ))}
         </nav>
 
-        {/* Chat, Settings and Logout Section - Fixed at bottom */}
-        <div 
-          className={`flex-shrink-0 ${isDesktop && isCollapsed ? 'flex flex-col items-center gap-1 px-2 py-2' : isDesktop ? 'flex flex-row gap-2 px-4 py-2' : 'px-3 sm:px-4 py-3'}`} 
-          style={{ 
-            borderTop: '1px solid var(--color-primary-200)',
-            backgroundColor: !isDesktop ? 'var(--color-primary-50)' : 'transparent'
-          }}
-        >
-          {/* Mobile: Chat with text (since not in bottom nav) */}
-          {!isDesktop && (
-            <button
-              onClick={() => toggleWidget('sidebar')}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer mb-2"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#111827'
-              }}
-            >
-              <HiOutlineChatBubbleLeftRight 
-                className="w-5 h-5" 
-                style={{ color: 'var(--color-primary-600)' }}
-              />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
-              <span className="text-sm font-medium">Chat</span>
-              {unreadCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
-              )}
-            </button>
-          )}
-          
-          {/* Desktop collapsed: Icon only for chat */}
-          {isDesktop && isCollapsed && (
-            <button
-              onClick={() => toggleWidget('sidebar')}
-              className="flex items-center justify-center p-1.5 rounded-lg transition-all duration-200 cursor-pointer relative hover:text-[var(--color-primary-500)]"
-              title="Chat"
-            >
-              <HiOutlineChatBubbleLeftRight 
-                className="w-5 h-5" 
-                style={{ color: 'var(--color-primary-600)' }}
-              />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
-          )}
+        {/* Chat, Settings and Logout Section - Fixed at bottom - Mobile only */}
+        {!isDesktop && (
+          <div 
+            className="flex-shrink-0 px-3 py-3"
+            style={{ 
+              borderTop: '1px solid var(--color-primary-200)',
+              backgroundColor: 'var(--color-primary-50)'
+            }}
+          >
+            {/* Mobile: Single row with Chat, Settings, Logout */}
+            <div className="flex items-center gap-2">
+              {/* Chat Button */}
+              <button
+                onClick={() => toggleWidget('sidebar')}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200 hover:bg-white/50 relative"
+                style={{ color: '#111827' }}
+              >
+                <HiOutlineChatBubbleLeftRight 
+                  className="w-5 h-5" 
+                  style={{ color: 'var(--color-primary-600)' }}
+                />
+                <span className="text-sm font-medium">Chat</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 right-1 bg-red-500 text-white text-[10px] rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+              </button>
 
-          {/* Desktop expanded: Icon only in row */}
-          {isDesktop && !isCollapsed && (
-            <button
-              onClick={() => toggleWidget('sidebar')}
-              className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 cursor-pointer relative hover:bg-gray-100"
-              title="Chat"
-            >
-              <HiOutlineChatBubbleLeftRight 
-                className="w-5 h-5" 
-                style={{ color: 'var(--color-primary-600)' }}
-              />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </button>
-          )}
-
-          {/* Mobile bottom section with 50-50 split */}
-          {!isDesktop && (
-            <div className="flex gap-2">
-              {/* Settings Button - Mobile */}
+              {/* Settings Button */}
               <Link
                 href="/dashboard/settings"
                 onClick={handleLinkClick}
-                className="flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#111827'
-                }}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200 hover:bg-white/50"
+                style={{ color: '#111827' }}
               >
                 <HiOutlineCog6Tooth 
                   className="w-5 h-5" 
@@ -488,10 +443,10 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 <span className="text-sm font-medium">Settings</span>
               </Link>
 
-              {/* Logout Button - Mobile */}
+              {/* Logout Button */}
               <button
                 onClick={() => setShowLogoutConfirm(true)}
-                className="flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 hover:bg-red-50"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200 hover:bg-red-50"
                 style={{ color: '#111827' }}
               >
                 <HiOutlineArrowRightOnRectangle 
@@ -501,64 +456,10 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 <span className="text-sm font-medium">Logout</span>
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Desktop collapsed: Settings icon */}
-          {isDesktop && isCollapsed && (
-            <>
-              <Link
-                href="/dashboard/settings"
-                onClick={handleLinkClick}
-                className="flex items-center justify-center p-1.5 rounded-lg transition-all duration-200 hover:text-[var(--color-primary-500)]"
-                title="Settings"
-              >
-                <HiOutlineCog6Tooth 
-                  className="w-5 h-5"
-                  style={{ color: pathname === '/dashboard/settings' ? 'var(--color-primary-600)' : 'var(--color-primary-500)' }}
-                />
-              </Link>
-
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center justify-center p-1.5 rounded-lg transition-all duration-200 hover:text-red-500"
-                title="Logout"
-              >
-                <HiOutlineArrowRightOnRectangle 
-                  className="w-5 h-5" 
-                  style={{ color: 'var(--color-primary-500)' }}
-                />
-              </button>
-            </>
-          )}
-
-          {/* Desktop expanded: Settings and Logout icons only */}
-          {isDesktop && !isCollapsed && (
-            <>
-              <Link
-                href="/dashboard/settings"
-                onClick={handleLinkClick}
-                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
-                title="Settings"
-              >
-                <HiOutlineCog6Tooth 
-                  className="w-5 h-5" 
-                  style={{ color: pathname === '/dashboard/settings' ? 'var(--color-primary-600)' : 'var(--color-primary-500)' }}
-                />
-              </Link>
-
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center justify-center p-2 rounded-lg transition-all duration-200 hover:bg-red-50"
-                title="Logout"
-              >
-                <HiOutlineArrowRightOnRectangle 
-                  className="w-5 h-5" 
-                  style={{ color: 'var(--color-primary-500)' }}
-                />
-              </button>
-            </>
-          )}
-        </div>
+        {/* Desktop: Bottom section removed - icons are in sidebar menu */}
       </aside>
 
       {/* Logout Confirmation Popup */}

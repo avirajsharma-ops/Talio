@@ -63,24 +63,25 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-[40] md:hidden"
       style={{
         backgroundColor: bottomNavColor,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        borderTop: '1px solid rgba(0, 0, 0, 0.1)' // Subtle gray border for white background
+        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+        paddingTop: '12px',
+        borderTop: '1px solid rgba(0, 0, 0, 0.08)' // Subtle gray border for white background
       }}
     >
-      <div className="flex items-center justify-around py-2 px-4">
+      <div className="flex items-center justify-between px-3 gap-1">
 
         {navItems.map((item) => {
           // Don't elevate chat button when active
           const isChat = item.name === 'Chat'
           return (
-            <div key={item.path} className="relative">
+            <div key={item.path} className="relative flex-1 flex justify-center">
               <button
                 onClick={() => router.push(item.path)}
-                className={`relative p-0 h-14 w-14 rounded-full ${
+                className={`relative p-0 h-12 w-12 rounded-full flex items-center justify-center ${
                   isChat ? 'border-[1px] border-slate-300' : ''
                 } ${
                   item.active && !isChat
-                    ? '-translate-y-[34px]'
+                    ? '-translate-y-[24px]'
                     : item.active && isChat
                     ? ''
                     : 'text-gray-600'

@@ -30,10 +30,14 @@ const ProjectSchema = new mongoose.Schema({
     ref: 'Employee',
     required: true
   },
+  projectHeads: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  }],
+  // Deprecated: kept for backward compatibility during migration
   projectHead: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-    required: [true, 'Project head is required']
+    ref: 'Employee'
   },
   completionPercentage: {
     type: Number,
@@ -113,6 +117,7 @@ ProjectSchema.virtual('daysRemaining').get(function() {
 // Indexes for performance
 ProjectSchema.index({ status: 1, createdAt: -1 });
 ProjectSchema.index({ createdBy: 1 });
+ProjectSchema.index({ projectHeads: 1 });
 ProjectSchema.index({ projectHead: 1 });
 ProjectSchema.index({ department: 1 });
 ProjectSchema.index({ endDate: 1, status: 1 });

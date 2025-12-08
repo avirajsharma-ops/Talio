@@ -50,14 +50,19 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ success: false, message: 'Project not found' }, { status: 404 })
     }
 
-    // Only project head or admin can approve
+    // Only project head(s) or admin can approve
     const isAdmin = ['admin', 'god_admin'].includes(user.role)
-    const isProjectHead = project.projectHead.toString() === user.employeeId.toString()
+    const projectHeadIds = project.projectHeads && project.projectHeads.length > 0 
+      ? project.projectHeads.map(h => h.toString())
+      : project.projectHead 
+        ? [project.projectHead.toString()] 
+        : []
+    const isProjectHead = projectHeadIds.includes(user.employeeId.toString())
 
     if (!isAdmin && !isProjectHead) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Only project head can approve or reject requests' 
+        message: 'Only project heads can approve or reject requests' 
       }, { status: 403 })
     }
 
@@ -83,6 +88,32 @@ export async function PUT(request, { params }) {
     // Handle the approval action
     if (isApproved) {
       switch (approvalRequest.type) {
+        case 'task_completion':
+          if (approvalRequest.relatedTask) {
+            const taskTitle = approvalRequest.relatedTask.title
+            const taskId = approvalRequest.relatedTask._id
+            
+            // Update task status to completed
+            await Task.findByIdAndUpdate(taskId, {
+              status: 'completed',
+              completedAt: new Date()
+            })
+            
+            // Recalculate completion percentage
+            calculateCompletionPercentage(approvalRequest.project).catch(console.error)
+
+            // Create timeline event
+            createTimelineEvent({
+              project: approvalRequest.project,
+              type: 'task_completed',
+              createdBy: user.employeeId,
+              relatedTask: taskId,
+              description: `Task "${taskTitle}" completion approved`,
+              metadata: { taskTitle, approvedBy: user.employeeId }
+            }).catch(console.error)
+          }
+          break
+        
         case 'task_deletion':
           if (approvalRequest.relatedTask) {
             const taskTitle = approvalRequest.relatedTask.title
@@ -122,12 +153,47 @@ export async function PUT(request, { params }) {
           }).catch(console.error)
           break
           
+        case 'task_review':
+          // Task review approval - mark task as completed (same as task_completion)
+          if (approvalRequest.relatedTask) {
+            const taskTitle = approvalRequest.relatedTask.title
+            const taskId = approvalRequest.relatedTask._id
+            
+            // Update task status to completed
+            await Task.findByIdAndUpdate(taskId, {
+              status: 'completed',
+              completedAt: new Date()
+            })
+            
+            // Recalculate completion percentage
+            calculateCompletionPercentage(approvalRequest.project).catch(console.error)
+
+            // Create timeline event
+            createTimelineEvent({
+              project: approvalRequest.project,
+              type: 'task_completed',
+              createdBy: user.employeeId,
+              relatedTask: taskId,
+              description: `Task "${taskTitle}" review approved and marked complete`,
+              metadata: { taskTitle, approvedBy: user.employeeId }
+            }).catch(console.error)
+          }
+          break
+          
         case 'member_removal':
           // Handle member removal - to be implemented
           break
       }
     } else {
-      // For rejection, create a timeline event
+      // Handle rejection
+      if ((approvalRequest.type === 'task_completion' || approvalRequest.type === 'task_review') && approvalRequest.relatedTask) {
+        // For task completion/review rejection, set status back to in-progress
+        await Task.findByIdAndUpdate(approvalRequest.relatedTask._id, {
+          status: 'in-progress'
+        })
+      }
+      
+      // Create timeline event for rejection
       createTimelineEvent({
         project: approvalRequest.project,
         type: 'comment_added',

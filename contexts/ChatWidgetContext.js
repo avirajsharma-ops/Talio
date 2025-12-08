@@ -34,13 +34,37 @@ export function ChatWidgetProvider({ children }) {
       // How many chats can fit without minimizing
       const maxChatsVisible = Math.max(1, Math.floor(availableWidth / (chatWidth + gap)))
       
+      // Check if there's a manually maximized chat (exempted from auto-minimize)
+      const exemptChatId = window.__exemptChatId
+      
       // Auto-minimize older chats (first opened) when we exceed available space
       const newMinimized = new Set()
       if (openChats.length > maxChatsVisible) {
-        // Minimize from the first (oldest) chat, keeping recent ones expanded
-        for (let i = 0; i < openChats.length - maxChatsVisible; i++) {
-          newMinimized.add(openChats[i]._id)
+        // If there's an exempt chat (manually maximized), make space for it
+        if (exemptChatId) {
+          const exemptIndex = openChats.findIndex(c => c._id === exemptChatId)
+          if (exemptIndex !== -1) {
+            // Keep the manually maximized chat expanded
+            // Minimize others to make space, prioritizing oldest chats
+            let minimizeCount = openChats.length - maxChatsVisible
+            for (let i = 0; i < openChats.length && minimizeCount > 0; i++) {
+              if (openChats[i]._id !== exemptChatId) {
+                newMinimized.add(openChats[i]._id)
+                minimizeCount--
+              }
+            }
+          }
+        } else {
+          // Normal behavior: minimize from the first (oldest) chat, keeping recent ones expanded
+          for (let i = 0; i < openChats.length - maxChatsVisible; i++) {
+            newMinimized.add(openChats[i]._id)
+          }
         }
+      }
+      
+      // Reset positions when minimization changes to trigger recalculation
+      if (newMinimized.size !== minimizedChats.size) {
+        setChatPositions({})
       }
       
       setMinimizedChats(newMinimized)
@@ -49,7 +73,7 @@ export function ChatWidgetProvider({ children }) {
     calculateMinimizedChats()
     window.addEventListener('resize', calculateMinimizedChats)
     return () => window.removeEventListener('resize', calculateMinimizedChats)
-  }, [openChats, sidebarCollapsed, triggerSource])
+  }, [openChats, sidebarCollapsed, triggerSource, minimizedChats.size])
 
   // Toggle main chat list widget - always reset position to open near source
   const toggleWidget = useCallback((source = 'button') => {
@@ -115,10 +139,19 @@ export function ChatWidgetProvider({ children }) {
 
   // Update chat popup position (for dragging)
   const updateChatPosition = useCallback((chatId, x, y) => {
-    setChatPositions(prev => ({
-      ...prev,
-      [chatId]: { x, y }
-    }))
+    if (x === null || y === null) {
+      // Clear position to trigger recalculation
+      setChatPositions(prev => {
+        const newPositions = { ...prev }
+        delete newPositions[chatId]
+        return newPositions
+      })
+    } else {
+      setChatPositions(prev => ({
+        ...prev,
+        [chatId]: { x, y }
+      }))
+    }
   }, [])
 
   // Bring chat to front (z-index management) - just update focused state, don't reorder

@@ -310,11 +310,33 @@ export default function ProjectsPage() {
             const daysRemaining = getDaysRemaining(project.endDate)
             const isOverdue = daysRemaining < 0 && !['completed', 'approved', 'archived'].includes(project.status)
             
+            // Get status-based border color
+            const getStatusBorderColor = () => {
+              if (isOverdue) return 'border-red-300 bg-red-50/30'
+              
+              switch(project.status) {
+                case 'planning':
+                case 'not-started':
+                  return 'border-gray-300 bg-gray-50/30'
+                case 'in-progress':
+                  return 'border-blue-300 bg-blue-50/30'
+                case 'on-hold':
+                  return 'border-orange-300 bg-orange-50/30'
+                case 'completed':
+                case 'approved':
+                  return 'border-green-300 bg-green-50/30'
+                case 'archived':
+                  return 'border-gray-400 bg-gray-100/30'
+                default:
+                  return 'border-gray-100'
+              }
+            }
+            
             return (
               <div
                 key={project._id}
                 onClick={() => router.push(`/dashboard/projects/${project._id}`)}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
+                className={`bg-white rounded-xl shadow-sm border-2 hover:shadow-md transition-shadow cursor-pointer overflow-hidden ${getStatusBorderColor()}`}
               >
                 {/* Project Header */}
                 <div className="p-5">

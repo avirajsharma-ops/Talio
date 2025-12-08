@@ -106,71 +106,94 @@ export async function POST(request, { params }) {
     }
 
     const body = await request.json()
-    const { userId, role = 'member', isExternal = false, sourceDepartment } = body
+    const { userId, memberIds, role = 'member', isExternal = false, sourceDepartment } = body
 
-    if (!userId) {
+    // Support both single userId and array of memberIds
+    const userIdsToAdd = memberIds && Array.isArray(memberIds) ? memberIds : (userId ? [userId] : [])
+
+    if (userIdsToAdd.length === 0) {
       return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 })
     }
 
-    // Check if already a member
-    const existingMember = await ProjectMember.findOne({
-      project: projectId,
-      user: userId
-    })
+    const addedMembers = []
+    const errors = []
 
-    if (existingMember) {
+    for (const userIdToAdd of userIdsToAdd) {
+      try {
+        // Check if already a member
+        const existingMember = await ProjectMember.findOne({
+          project: projectId,
+          user: userIdToAdd
+        })
+
+        if (existingMember) {
+          errors.push({ userId: userIdToAdd, message: 'User is already a member' })
+          continue
+        }
+
+        // Verify the user exists
+        const invitedEmployee = await Employee.findById(userIdToAdd)
+        if (!invitedEmployee) {
+          errors.push({ userId: userIdToAdd, message: 'User not found' })
+          continue
+        }
+
+        // Create membership
+        const membership = await ProjectMember.create({
+          project: projectId,
+          user: userIdToAdd,
+          role,
+          invitationStatus: 'invited',
+          invitedBy: user.employeeId,
+          isExternal,
+          sourceDepartment: isExternal ? sourceDepartment : invitedEmployee.department
+        })
+
+        // Add to chat group
+        if (project.chatGroup) {
+          await Chat.findByIdAndUpdate(project.chatGroup, {
+            $addToSet: { participants: userIdToAdd }
+          })
+        }
+
+        // Create timeline event
+        const inviterEmployee = await Employee.findById(user.employeeId)
+        await createTimelineEvent({
+          project: projectId,
+          type: 'member_invited',
+          createdBy: user.employeeId,
+          relatedMember: userIdToAdd,
+          description: `${invitedEmployee.firstName} ${invitedEmployee.lastName} was invited to the project`,
+          metadata: { role, isExternal }
+        })
+
+        // Send notification
+        await notifyProjectInvitation(project, invitedEmployee, inviterEmployee)
+
+        const populatedMembership = await ProjectMember.findById(membership._id)
+          .populate('user', 'firstName lastName profilePicture email employeeCode department')
+          .populate('invitedBy', 'firstName lastName')
+
+        addedMembers.push(populatedMembership)
+      } catch (err) {
+        console.error(`Error adding member ${userIdToAdd}:`, err)
+        errors.push({ userId: userIdToAdd, message: err.message })
+      }
+    }
+
+    if (addedMembers.length === 0 && errors.length > 0) {
       return NextResponse.json({ 
         success: false, 
-        message: 'User is already a member of this project' 
+        message: errors[0]?.message || 'Failed to add members',
+        errors 
       }, { status: 400 })
     }
 
-    // Verify the user exists
-    const invitedEmployee = await Employee.findById(userId)
-    if (!invitedEmployee) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
-    }
-
-    // Create membership
-    const membership = await ProjectMember.create({
-      project: projectId,
-      user: userId,
-      role,
-      invitationStatus: 'invited',
-      invitedBy: user.employeeId,
-      isExternal,
-      sourceDepartment: isExternal ? sourceDepartment : invitedEmployee.department
-    })
-
-    // Add to chat group
-    if (project.chatGroup) {
-      await Chat.findByIdAndUpdate(project.chatGroup, {
-        $addToSet: { participants: userId }
-      })
-    }
-
-    // Create timeline event
-    const inviterEmployee = await Employee.findById(user.employeeId)
-    await createTimelineEvent({
-      project: projectId,
-      type: 'member_invited',
-      createdBy: user.employeeId,
-      relatedMember: userId,
-      description: `${invitedEmployee.firstName} ${invitedEmployee.lastName} was invited to the project`,
-      metadata: { role, isExternal }
-    })
-
-    // Send notification
-    await notifyProjectInvitation(project, invitedEmployee, inviterEmployee)
-
-    const populatedMembership = await ProjectMember.findById(membership._id)
-      .populate('user', 'firstName lastName profilePicture email employeeCode department')
-      .populate('invitedBy', 'firstName lastName')
-
     return NextResponse.json({
       success: true,
-      message: 'Member invited successfully',
-      data: populatedMembership
+      message: addedMembers.length === 1 ? 'Member invited successfully' : `${addedMembers.length} members invited successfully`,
+      data: addedMembers.length === 1 ? addedMembers[0] : addedMembers,
+      errors: errors.length > 0 ? errors : undefined
     }, { status: 201 })
   } catch (error) {
     console.error('Add member error:', error)

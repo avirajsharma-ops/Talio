@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
     }
 
     const body = await request.json()
-    const { action, reason } = body
+    const { action, reason, estimatedHours } = body
 
     if (!action || !['accept', 'reject'].includes(action)) {
       return NextResponse.json({ 
@@ -83,6 +83,33 @@ export async function POST(request, { params }) {
     }
     await assignment.save()
 
+    // If accepting, update task with estimated hours and start date
+    if (accept) {
+      const updates = {}
+      
+      if (estimatedHours && estimatedHours > 0) {
+        updates.estimatedHours = estimatedHours
+        
+        // Calculate expected completion date based on ETA
+        // Assuming 8 work hours per day, 5 days per week
+        const startDate = new Date()
+        const workDays = Math.ceil(estimatedHours / 8)
+        const completionDate = new Date(startDate)
+        completionDate.setDate(completionDate.getDate() + workDays)
+        
+        if (!task.startDate) {
+          updates.startDate = startDate
+        }
+        if (!task.dueDate) {
+          updates.dueDate = completionDate
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await Task.findByIdAndUpdate(taskId, updates)
+      }
+    }
+
     const employee = await Employee.findById(user.employeeId)
 
     // Create timeline event
@@ -92,9 +119,13 @@ export async function POST(request, { params }) {
       createdBy: user.employeeId,
       relatedTask: taskId,
       description: accept 
-        ? `${employee.firstName} ${employee.lastName} accepted task "${task.title}"`
+        ? `${employee.firstName} ${employee.lastName} accepted task "${task.title}"${estimatedHours ? ` (ETA: ${estimatedHours}h)` : ''}`
         : `${employee.firstName} ${employee.lastName} rejected task "${task.title}"${reason ? `: ${reason}` : ''}`,
-      metadata: { taskTitle: task.title, rejectionReason: reason }
+      metadata: { 
+        taskTitle: task.title, 
+        rejectionReason: reason,
+        estimatedHours: estimatedHours
+      }
     })
 
     // Notify task creator and project head (non-blocking - don't await)

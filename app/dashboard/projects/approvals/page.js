@@ -6,20 +6,33 @@ import toast from 'react-hot-toast'
 import { 
   FaArrowLeft, FaCheck, FaTimes, FaTrash, FaProjectDiagram,
   FaClock, FaCheckCircle, FaTimesCircle, FaFilter, FaSpinner,
-  FaExclamationTriangle, FaTasks, FaUser, FaCalendarAlt
+  FaExclamationTriangle, FaTasks, FaUser, FaCalendarAlt, FaEye
 } from 'react-icons/fa'
 import { playNotificationSound, NotificationSoundTypes } from '@/lib/notificationSounds'
 
 const requestTypeLabels = {
   'task_deletion': 'Task Deletion',
+  'task_completion': 'Task Completion',
+  'task_review': 'Task Review',
   'project_completion': 'Project Completion',
-  'member_removal': 'Member Removal'
+  'member_removal': 'Member Removal',
+  'all': 'All Types'
 }
 
 const requestTypeColors = {
-  'task_deletion': 'bg-red-100 text-red-700',
-  'project_completion': 'bg-green-100 text-green-700',
-  'member_removal': 'bg-orange-100 text-orange-700'
+  'task_deletion': 'bg-red-100 text-red-700 border-red-200',
+  'task_completion': 'bg-green-100 text-green-700 border-green-200',
+  'task_review': 'bg-blue-100 text-blue-700 border-blue-200',
+  'project_completion': 'bg-purple-100 text-purple-700 border-purple-200',
+  'member_removal': 'bg-orange-100 text-orange-700 border-orange-200'
+}
+
+const requestTypeIcons = {
+  'task_deletion': FaTrash,
+  'task_completion': FaCheckCircle,
+  'task_review': FaEye,
+  'project_completion': FaProjectDiagram,
+  'member_removal': FaUser
 }
 
 const statusColors = {
@@ -33,8 +46,10 @@ export default function ApprovalsPage() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('pending')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [processingId, setProcessingId] = useState(null)
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 })
+  const [typeStats, setTypeStats] = useState({})
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [rejectComment, setRejectComment] = useState('')
@@ -47,7 +62,11 @@ export default function ApprovalsPage() {
     try {
       if (!silent) setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/projects/approvals?status=${statusFilter}`, {
+      const params = new URLSearchParams({ status: statusFilter })
+      if (typeFilter !== 'all') {
+        params.append('type', typeFilter)
+      }
+      const response = await fetch(`/api/projects/approvals?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
 
@@ -66,6 +85,9 @@ export default function ApprovalsPage() {
         if (data.stats) {
           setStats(data.stats)
         }
+        if (data.typeStats) {
+          setTypeStats(data.typeStats)
+        }
         lastFetchRef.current = Date.now()
       } else if (!silent) {
         toast.error(data.message || 'Failed to fetch requests')
@@ -76,11 +98,11 @@ export default function ApprovalsPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, typeFilter])
 
   useEffect(() => {
     fetchRequests()
-  }, [statusFilter, fetchRequests])
+  }, [statusFilter, typeFilter, fetchRequests])
 
   // Auto-refresh every 10 seconds
   useEffect(() => {
@@ -246,6 +268,54 @@ export default function ApprovalsPage() {
               <FaTimesCircle className="text-red-600 text-xl" />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Type Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <FaFilter className="text-gray-400" />
+          <span className="text-sm font-medium text-gray-700">Filter by Type</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTypeFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              typeFilter === 'all' 
+                ? 'bg-gray-800 text-white' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            All Types
+            <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/20">
+              {stats.pending + stats.approved + stats.rejected}
+            </span>
+          </button>
+          {['task_completion', 'task_review', 'task_deletion', 'project_completion', 'member_removal'].map(type => {
+            const IconComponent = requestTypeIcons[type]
+            const count = typeStats[type] || 0
+            return (
+              <button
+                key={type}
+                onClick={() => setTypeFilter(type)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  typeFilter === type 
+                    ? `${requestTypeColors[type]} border-2` 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {IconComponent && <IconComponent className="text-sm" />}
+                {requestTypeLabels[type]}
+                {count > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${
+                    typeFilter === type ? 'bg-white/30' : 'bg-gray-200'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 

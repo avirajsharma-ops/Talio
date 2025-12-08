@@ -51,12 +51,16 @@ export default function ChatPopup({ chat, index }) {
   
   // Sync auto-minimize state with local state
   useEffect(() => {
-    if (shouldAutoMinimize && !isMinimized) {
+    // Don't auto-minimize if this chat is exempt (manually maximized)
+    const isExempt = typeof window !== 'undefined' && window.__exemptChatId === chat._id
+    if (shouldAutoMinimize && !isMinimized && !isExempt) {
       setIsMinimized(true)
       setAnimationState('minimizing')
+      // Clear position to force recalculation for minimized state
+      updateChatPosition?.(chat._id, null, null)
       setTimeout(() => setAnimationState('normal'), 300)
     }
-  }, [shouldAutoMinimize, isMinimized])
+  }, [shouldAutoMinimize, isMinimized, chat._id, updateChatPosition])
 
   // Glass morphism styles
   const glassStyle = {
@@ -127,6 +131,8 @@ export default function ChatPopup({ chat, index }) {
   const handleMinimize = () => {
     setAnimationState('minimizing')
     setMinimizedUnread(unreadCount) // Capture current unread count
+    // Clear position to force recalculation for minimized state
+    updateChatPosition?.(chat._id, null, null)
     setTimeout(() => {
       setIsMinimized(true)
       setAnimationState('normal')
@@ -135,11 +141,25 @@ export default function ChatPopup({ chat, index }) {
   
   // Handle maximize with animation
   const handleMaximize = () => {
+    // Calculate position for expanded state BEFORE updating state
+    const expandedPosition = getDefaultPosition(true)
+    
     setIsMinimized(false)
     setAnimationState('maximizing')
     bringToFront?.(chat._id)
     markChatAsRead?.(chat._id)
     setMinimizedUnread(0)
+    
+    // Set the calculated expanded position immediately
+    updateChatPosition?.(chat._id, expandedPosition.x, expandedPosition.y)
+    
+    // Prevent auto-minimize by temporarily marking as exempt
+    if (typeof window !== 'undefined') {
+      window.__exemptChatId = chat._id
+      setTimeout(() => {
+        delete window.__exemptChatId
+      }, 500)
+    }
     setTimeout(() => {
       setAnimationState('normal')
     }, 300)
@@ -420,17 +440,21 @@ export default function ChatPopup({ chat, index }) {
   }, [handleMouseMove])
 
   // Calculate position - place chat windows side by side near the widget
-  const getDefaultPosition = () => {
+  const getDefaultPosition = (forceExpanded = false) => {
     if (typeof window === 'undefined') return { x: 640, y: 100 }
     
-    const chatWidth = isExpanded ? 480 : (isMinimized ? 220 : 360)
-    const chatHeight = isExpanded ? 580 : (isMinimized ? 52 : 450)
+    // Use forced expanded state for calculations if provided (for maximize action)
+    const useMinimized = forceExpanded ? false : (isMinimized || shouldAutoMinimize)
+    const chatWidth = isExpanded ? 480 : (useMinimized ? 220 : 360)
+    const chatHeight = isExpanded ? 580 : (useMinimized ? 52 : 450)
     const gap = 16 // Equal gap between chat windows
     const screenPadding = 20 // Padding from screen edges
     const bottomOffset = 24 // Distance from bottom
     const widgetWidth = 340
     const widgetHeight = 480
     const sidebarWidth = sidebarCollapsed ? 72 : 272 // 4.5rem or 17rem in pixels
+    const minimizedHeight = 52 // Height of minimized chat box
+    const minimizedGap = 8 // Gap between minimized chats at bottom
     
     // Get widget's actual position
     let widgetX, widgetY
@@ -452,29 +476,42 @@ export default function ChatPopup({ chat, index }) {
     // Position chat popups to the RIGHT of the widget, side by side
     const startX = widgetX + widgetWidth + gap
     
-    // Simple side-by-side calculation: each chat gets its slot based on index
-    const x = startX + (index * (chatWidth + gap))
+    // Calculate position based on visible (non-minimized) index
+    // If this chat is minimized, position at bottom right corner
+    if (useMinimized) {
+      // Minimized chats stack at bottom right, above each other
+      const minimizedIndex = index // Use actual index for minimized positioning
+      const minimizedX = window.innerWidth - 200 - 24 // 180px width + padding
+      const minimizedY = window.innerHeight - minimizedHeight - 12 - (minimizedIndex * (minimizedHeight + minimizedGap))
+      return { x: minimizedX, y: minimizedY }
+    }
     
-    // All chats at the same Y level (aligned with widget bottom)
-    const y = window.innerHeight - chatHeight - bottomOffset
+    // For expanded chats, calculate position carefully to avoid off-screen
+    // Calculate how many chats can fit to the right of widget
+    const availableRightSpace = window.innerWidth - startX - screenPadding
+    const maxChatsRight = Math.max(1, Math.floor(availableRightSpace / (chatWidth + gap)))
     
-    // Check if this position would go off screen
-    let finalX = x
-    let finalY = y
+    let finalX, finalY
     
-    // If chat goes off right edge, wrap to position LEFT of widget
-    if (finalX + chatWidth > window.innerWidth - screenPadding) {
-      // Calculate how many fit on the right side
-      const chatsOnRight = Math.floor((window.innerWidth - startX - screenPadding) / (chatWidth + gap))
-      const leftIndex = index - chatsOnRight
+    if (index < maxChatsRight) {
+      // This chat fits on the right side
+      finalX = startX + (index * (chatWidth + gap))
+    } else {
+      // Need to position on the left side or stack
+      const leftIndex = index - maxChatsRight
+      finalX = widgetX - gap - chatWidth - (leftIndex * (chatWidth + gap))
       
-      if (leftIndex >= 0) {
-        // Position to the left of widget
-        finalX = widgetX - gap - chatWidth - (leftIndex * (chatWidth + gap))
+      // If also goes off left edge, fall back to stacking on right
+      if (finalX < screenPadding) {
+        // Stack on the right side at a safe position
+        finalX = Math.max(screenPadding, startX)
       }
     }
     
-    // Ensure within screen bounds
+    // All chats at the same Y level (aligned with widget bottom)
+    finalY = window.innerHeight - chatHeight - bottomOffset
+    
+    // Final bounds check - ensure completely within screen
     finalX = Math.max(screenPadding, Math.min(finalX, window.innerWidth - chatWidth - screenPadding))
     finalY = Math.max(screenPadding, Math.min(finalY, window.innerHeight - chatHeight - screenPadding))
     
@@ -522,24 +559,25 @@ export default function ChatPopup({ chat, index }) {
 
   // Minimized state with notification bubble
   if (isMinimized) {
+    const position = chatPositions?.[chat._id] || getDefaultPosition()
     return (
       <>
         <style>{genieMinimizeAnimation}</style>
         <div
           className="fixed rounded-xl cursor-pointer overflow-visible"
           style={{ 
-            bottom: '12px', 
-            right: `${24 + (index * 200)}px`,
+            left: `${position.x}px`,
+            top: `${position.y}px`,
             width: '180px',
             zIndex,
             animation: 'slideIn 0.3s ease-out',
-            transition: 'right 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
+            transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
             ...glassStyle,
             background: 'rgba(255, 255, 255, 0.9)',
           }}
           onClick={handleMaximize}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}  
         >
           {/* Notification Badge */}
           {minimizedUnread > 0 && (

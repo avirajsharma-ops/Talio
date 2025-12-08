@@ -79,6 +79,8 @@ export default function ProjectDetailPage() {
   const [showReassignModal, setShowReassignModal] = useState(false)
   const [reassignTask, setReassignTask] = useState(null)
   const [reassignToId, setReassignToId] = useState('')
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false)
+  const [editTaskForm, setEditTaskForm] = useState(null)
   
   // Auto-refresh refs
   const refreshIntervalRef = useRef(null)
@@ -101,8 +103,14 @@ export default function ProjectDetailPage() {
     description: '',
     priority: 'medium',
     dueDate: '',
-    assigneeIds: []
+    assigneeIds: [],
+    subtasks: []
   })
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [showTaskEtaModal, setShowTaskEtaModal] = useState(false)
+  const [taskEta, setTaskEta] = useState({ days: '', hours: '' })
+  const [subtaskEtas, setSubtaskEtas] = useState({}) // { subtaskIndex: { days: '', hours: '' } }
+  const [pendingTaskData, setPendingTaskData] = useState(null)
 
   // Fetch functions with silent refresh support
   const fetchProject = useCallback(async (silent = false) => {
@@ -443,16 +451,51 @@ export default function ProjectDetailPage() {
       return
     }
 
+    // Check if current user is assigned to this task
+    const isAssignedToSelf = taskForm.assigneeIds.includes(currentEmployeeId)
+    
+    // If assigned to self and no ETA provided yet, show ETA modal
+    if (isAssignedToSelf && !pendingTaskData) {
+      setPendingTaskData(taskForm)
+      setShowTaskEtaModal(true)
+      return
+    }
+
     try {
       setSubmitting(true)
       const token = localStorage.getItem('token')
+      
+      // Prepare task data with ETA if provided
+      const taskData = { ...taskForm }
+      
+      // Handle subtask-wise ETAs
+      if (pendingTaskData && pendingTaskData.subtasks?.length > 0 && Object.keys(subtaskEtas).length > 0) {
+        // Add ETAs to each subtask
+        taskData.subtasks = pendingTaskData.subtasks.map((subtask, index) => ({
+          ...subtask,
+          estimatedDays: parseInt(subtaskEtas[index]?.days) || 0,
+          estimatedHours: parseInt(subtaskEtas[index]?.hours) || 0
+        }))
+        // Calculate total estimated hours from subtasks
+        let totalHours = 0
+        Object.values(subtaskEtas).forEach(eta => {
+          totalHours += (parseFloat(eta?.days) || 0) * 8 + (parseFloat(eta?.hours) || 0)
+        })
+        taskData.estimatedHours = totalHours
+      } else if (pendingTaskData && (taskEta.days || taskEta.hours)) {
+        // Task without subtasks - use main task ETA
+        const days = parseFloat(taskEta.days) || 0
+        const hours = parseFloat(taskEta.hours) || 0
+        taskData.estimatedHours = (days * 8) + hours
+      }
+      
       const response = await fetch(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(taskForm)
+        body: JSON.stringify(taskData)
       })
 
       const data = await response.json()
@@ -460,7 +503,12 @@ export default function ProjectDetailPage() {
         playNotificationSound(NotificationSoundTypes.SUCCESS)
         toast.success('Task created successfully')
         setShowCreateTask(false)
-        setTaskForm({ title: '', description: '', priority: 'medium', dueDate: '', assigneeIds: [] })
+        setShowTaskEtaModal(false)
+        setTaskForm({ title: '', description: '', priority: 'medium', dueDate: '', assigneeIds: [], subtasks: [] })
+        setNewSubtaskTitle('')
+        setPendingTaskData(null)
+        setTaskEta({ days: '', hours: '' })
+        setSubtaskEtas({})
         fetchTasks()
         fetchProject() // Refresh completion percentage
       } else {
@@ -472,6 +520,166 @@ export default function ProjectDetailPage() {
       toast.error('Failed to create task')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleEditTask = async (e) => {
+    e.preventDefault()
+    if (!editTaskForm.title.trim()) {
+      toast.error('Task title is required')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const token = localStorage.getItem('token')
+      
+      // Calculate total estimated hours from subtasks
+      let totalEstimatedHours = 0
+      if (editTaskForm.subtasks && editTaskForm.subtasks.length > 0) {
+        editTaskForm.subtasks.forEach(st => {
+          totalEstimatedHours += ((st.estimatedDays || 0) * 8) + (st.estimatedHours || 0)
+        })
+      }
+      
+      const response = await fetch(`/api/projects/${projectId}/tasks/${editTaskForm._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: editTaskForm.title,
+          description: editTaskForm.description,
+          priority: editTaskForm.priority,
+          dueDate: editTaskForm.dueDate,
+          subtasks: editTaskForm.subtasks,
+          estimatedHours: totalEstimatedHours
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        playNotificationSound(NotificationSoundTypes.SUCCESS)
+        toast.success(data.message || 'Task updated successfully')
+        setShowEditTaskModal(false)
+        setEditTaskForm(null)
+        setSelectedTask(null)
+        setNewSubtaskTitle('')
+        fetchTasks()
+      } else {
+        playNotificationSound(NotificationSoundTypes.WARNING)
+        toast.error(data.message)
+      }
+    } catch (error) {
+      playNotificationSound(NotificationSoundTypes.WARNING)
+      toast.error('Failed to update task')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleToggleSubtask = async (taskId, subtaskId, currentCompleted) => {
+    if (!subtaskId) {
+      toast.error('Subtask ID is missing')
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('token')
+      const idToSend = typeof subtaskId === 'object' && subtaskId._id 
+        ? subtaskId._id.toString() 
+        : subtaskId.toString ? subtaskId.toString() : String(subtaskId)
+      
+      const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}/subtasks`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          subtaskId: idToSend, 
+          completed: !currentCompleted 
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Update the selected task's subtasks locally
+        setSelectedTask(prev => {
+          if (!prev) return prev
+          const updatedSubtasks = prev.subtasks.map(st => 
+            (st._id?.toString() || st._id) === (subtaskId?.toString() || subtaskId)
+              ? { ...st, completed: !currentCompleted, completedAt: !currentCompleted ? new Date() : null }
+              : st
+          )
+          return {
+            ...prev,
+            subtasks: updatedSubtasks,
+            progressPercentage: data.data.progressPercentage,
+            status: data.data.taskStatus || prev.status
+          }
+        })
+        // Refresh tasks to update the list
+        fetchTasks(true)
+        
+        // Show appropriate toast message
+        if (data.data.statusChanged) {
+          toast.success(data.message)
+        } else {
+          toast.success(!currentCompleted ? 'Subtask completed' : 'Subtask reopened')
+        }
+      } else {
+        toast.error(data.message || 'Failed to update subtask')
+      }
+    } catch (error) {
+      console.error('Toggle subtask error:', error)
+      toast.error('Failed to update subtask')
+    }
+  }
+
+  const handleAddSubtaskComment = async (taskId, subtaskId, commentText) => {
+    if (!commentText || !commentText.trim()) {
+      toast.error('Comment text is required')
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: commentText.trim() })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Update the selected task's subtasks locally with new comment
+        setSelectedTask(prev => {
+          if (!prev) return prev
+          const updatedSubtasks = prev.subtasks.map(st => {
+            if ((st._id?.toString() || st._id) === (subtaskId?.toString() || subtaskId)) {
+              return {
+                ...st,
+                comments: [...(st.comments || []), data.data]
+              }
+            }
+            return st
+          })
+          return { ...prev, subtasks: updatedSubtasks }
+        })
+        // Refresh timeline
+        fetchTimeline()
+        toast.success('Comment added')
+      } else {
+        toast.error(data.message || 'Failed to add comment')
+      }
+    } catch (error) {
+      console.error('Add subtask comment error:', error)
+      toast.error('Failed to add comment')
     }
   }
 
@@ -1135,7 +1343,33 @@ export default function ProjectDetailPage() {
                               {isOverdue && (
                                 <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Overdue</span>
                               )}
+                              {task.estimatedHours && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <FaClock className="w-2 h-2" />
+                                  {task.estimatedHours >= 8 ? `${Math.floor(task.estimatedHours / 8)}d ${task.estimatedHours % 8}h` : `${task.estimatedHours}h`}
+                                </span>
+                              )}
+                              {task.subtasks && task.subtasks.length > 0 && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                                  {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length} subtasks
+                                </span>
+                              )}
                             </div>
+                            {/* Task Progress Bar - based on subtasks */}
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <div className="mt-2">
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div
+                                    className={`h-1.5 rounded-full transition-all ${
+                                      task.progressPercentage === 100 ? 'bg-green-500' :
+                                      task.progressPercentage >= 50 ? 'bg-blue-500' :
+                                      'bg-orange-500'
+                                    }`}
+                                    style={{ width: `${task.progressPercentage || 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                             {task.assignees && task.assignees.length > 0 && (
                               <div className="flex -space-x-2 mt-2">
                                 {task.assignees.slice(0, 3).map(a => (
@@ -1749,6 +1983,68 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
 
+              {/* Subtasks */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subtasks {taskForm.subtasks.length > 0 && `(${taskForm.subtasks.length})`}
+                </label>
+                <div className="space-y-2 mb-3">
+                  {taskForm.subtasks.map((subtask, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg group">
+                      <span className="text-sm text-gray-700 flex-1">{subtask.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTaskForm(prev => ({
+                            ...prev,
+                            subtasks: prev.subtasks.filter((_, i) => i !== index)
+                          }))
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                      >
+                        <FaTimes className="text-sm" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (newSubtaskTitle.trim()) {
+                          setTaskForm(prev => ({
+                            ...prev,
+                            subtasks: [...prev.subtasks, { title: newSubtaskTitle.trim(), completed: false }]
+                          }))
+                          setNewSubtaskTitle('')
+                        }
+                      }
+                    }}
+                    placeholder="Add a subtask..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newSubtaskTitle.trim()) {
+                        setTaskForm(prev => ({
+                          ...prev,
+                          subtasks: [...prev.subtasks, { title: newSubtaskTitle.trim(), completed: false }]
+                        }))
+                        setNewSubtaskTitle('')
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
@@ -1764,6 +2060,406 @@ export default function ProjectDetailPage() {
                 >
                   {submitting ? 'Creating...' : 'Create Task'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Task ETA Modal (for self-assignment) */}
+      {showTaskEtaModal && pendingTaskData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">Set Your ETA</h3>
+              <button
+                onClick={() => {
+                  setShowTaskEtaModal(false)
+                  setPendingTaskData(null)
+                  setTaskEta({ days: '', hours: '' })
+                  setSubtaskEtas({})
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-gray-600 mb-4">
+                You're assigning this task to yourself. {pendingTaskData.subtasks?.length > 0 
+                  ? 'Please provide an ETA for each subtask:'
+                  : 'How long do you estimate it will take?'}
+              </p>
+              <div className="mb-4">
+                <p className="font-medium text-gray-800 mb-2">{pendingTaskData.title}</p>
+                {pendingTaskData.description && (
+                  <p className="text-sm text-gray-500">{pendingTaskData.description}</p>
+                )}
+              </div>
+              
+              {/* Subtask-wise ETAs */}
+              {pendingTaskData.subtasks?.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingTaskData.subtasks.map((subtask, index) => (
+                    <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="font-medium text-gray-700 mb-2 text-sm">{subtask.title}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Days</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={subtaskEtas[index]?.days || ''}
+                            onChange={(e) => setSubtaskEtas(prev => ({
+                              ...prev,
+                              [index]: { ...prev[index], days: e.target.value }
+                            }))}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Hours</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="23"
+                            step="1"
+                            value={subtaskEtas[index]?.hours || ''}
+                            onChange={(e) => setSubtaskEtas(prev => ({
+                              ...prev,
+                              [index]: { ...prev[index], hours: e.target.value }
+                            }))}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Total: {(() => {
+                      let total = 0
+                      Object.values(subtaskEtas).forEach(eta => {
+                        total += (parseFloat(eta?.days) || 0) * 8 + (parseFloat(eta?.hours) || 0)
+                      })
+                      return total.toFixed(1)
+                    })()} hours
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Days</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={taskEta.days}
+                        onChange={(e) => setTaskEta({ ...taskEta, days: e.target.value })}
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Hours</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="24"
+                        step="0.5"
+                        value={taskEta.hours}
+                        onChange={(e) => setTaskEta({ ...taskEta, hours: e.target.value })}
+                        placeholder="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Total: {((parseFloat(taskEta.days) || 0) * 8 + (parseFloat(taskEta.hours) || 0)).toFixed(1)} hours
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={(e) => {
+                  // Validate ETAs
+                  if (pendingTaskData.subtasks?.length > 0) {
+                    // Check if all subtasks have ETAs
+                    const allHaveEta = pendingTaskData.subtasks.every((_, index) => {
+                      const eta = subtaskEtas[index]
+                      return (parseFloat(eta?.days) || 0) > 0 || (parseFloat(eta?.hours) || 0) > 0
+                    })
+                    if (!allHaveEta) {
+                      toast.error('Please provide an ETA for each subtask')
+                      return
+                    }
+                  } else {
+                    if (!taskEta.days && !taskEta.hours) {
+                      toast.error('Please provide an ETA for the task')
+                      return
+                    }
+                  }
+                  setShowTaskEtaModal(false)
+                  handleCreateTask(e)
+                }}
+                disabled={submitting}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {submitting ? (
+                  <><FaSpinner className="animate-spin" /> Creating...</>
+                ) : (
+                  <><FaCheck /> Create Task</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditTaskModal && editTaskForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Edit Task</h3>
+              <button
+                onClick={() => {
+                  setShowEditTaskModal(false)
+                  setEditTaskForm(null)
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditTask} className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Task Title *</label>
+                  <input
+                    type="text"
+                    value={editTaskForm.title}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter task title..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={editTaskForm.description}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe the task..."
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                    <select
+                      value={editTaskForm.priority}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={editTaskForm.dueDate}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Subtasks Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subtasks {editTaskForm.subtasks?.length > 0 && `(${editTaskForm.subtasks.length})`}
+                  </label>
+                  
+                  {editTaskForm.subtasks && editTaskForm.subtasks.length > 0 ? (
+                    <div className="space-y-2 mb-3">
+                      {editTaskForm.subtasks.map((subtask, index) => (
+                        <div key={subtask._id || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={subtask.completed || false}
+                              onChange={(e) => {
+                                const updated = [...editTaskForm.subtasks]
+                                updated[index] = { ...updated[index], completed: e.target.checked }
+                                setEditTaskForm(prev => ({ ...prev, subtasks: updated }))
+                              }}
+                              className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                            />
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={subtask.title}
+                                onChange={(e) => {
+                                  const updated = [...editTaskForm.subtasks]
+                                  updated[index] = { ...updated[index], title: e.target.value }
+                                  setEditTaskForm(prev => ({ ...prev, subtasks: updated }))
+                                }}
+                                className={`w-full px-2 py-1 text-sm border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 ${subtask.completed ? 'line-through text-gray-400' : ''}`}
+                                placeholder="Subtask title..."
+                              />
+                              <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={subtask.estimatedDays || ''}
+                                    onChange={(e) => {
+                                      const updated = [...editTaskForm.subtasks]
+                                      updated[index] = { ...updated[index], estimatedDays: parseInt(e.target.value) || 0 }
+                                      setEditTaskForm(prev => ({ ...prev, subtasks: updated }))
+                                    }}
+                                    placeholder="0"
+                                    className="w-14 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-primary-500"
+                                  />
+                                  <span className="text-xs text-gray-500">days</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="23"
+                                    value={subtask.estimatedHours || ''}
+                                    onChange={(e) => {
+                                      const updated = [...editTaskForm.subtasks]
+                                      updated[index] = { ...updated[index], estimatedHours: parseInt(e.target.value) || 0 }
+                                      setEditTaskForm(prev => ({ ...prev, subtasks: updated }))
+                                    }}
+                                    placeholder="0"
+                                    className="w-14 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-primary-500"
+                                  />
+                                  <span className="text-xs text-gray-500">hrs</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = editTaskForm.subtasks.filter((_, i) => i !== index)
+                                    setEditTaskForm(prev => ({ ...prev, subtasks: updated }))
+                                  }}
+                                  className="ml-auto p-1 text-red-500 hover:bg-red-50 rounded"
+                                >
+                                  <FaTrash className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mb-3">No subtasks added yet</p>
+                  )}
+                  
+                  {/* Add new subtask */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      placeholder="Add a subtask..."
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                          e.preventDefault()
+                          setEditTaskForm(prev => ({
+                            ...prev,
+                            subtasks: [...(prev.subtasks || []), {
+                              _id: `new-${Date.now()}`,
+                              title: newSubtaskTitle.trim(),
+                              completed: false,
+                              estimatedDays: 0,
+                              estimatedHours: 0,
+                              isNew: true
+                            }]
+                          }))
+                          setNewSubtaskTitle('')
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newSubtaskTitle.trim()) {
+                          setEditTaskForm(prev => ({
+                            ...prev,
+                            subtasks: [...(prev.subtasks || []), {
+                              _id: `new-${Date.now()}`,
+                              title: newSubtaskTitle.trim(),
+                              completed: false,
+                              estimatedDays: 0,
+                              estimatedHours: 0,
+                              isNew: true
+                            }]
+                          }))
+                          setNewSubtaskTitle('')
+                        }
+                      }}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    >
+                      <FaPlus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Total ETA display */}
+                  {editTaskForm.subtasks && editTaskForm.subtasks.length > 0 && (
+                    <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-blue-700">
+                        Total ETA: {(() => {
+                          let total = 0
+                          editTaskForm.subtasks.forEach(st => {
+                            total += ((st.estimatedDays || 0) * 8) + (st.estimatedHours || 0)
+                          })
+                          const days = Math.floor(total / 8)
+                          const hours = total % 8
+                          return `${days > 0 ? `${days}d ` : ''}${hours}h (${total} hours)`
+                        })()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditTaskModal(false)
+                      setEditTaskForm(null)
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-primary"
+                  >
+                    {submitting ? 'Updating...' : 'Update Task'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1816,12 +2512,42 @@ export default function ProjectDetailPage() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold text-gray-800">Task Details</h3>
-              <button
-                onClick={() => setSelectedTask(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
-              >
-                <FaTimes />
-              </button>
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const isAssignedAndAccepted = selectedTask.assignees?.some(
+                    a => a.user._id === currentEmployeeId && a.assignmentStatus === 'accepted'
+                  )
+                  const canEdit = isProjectHead || (user && ['admin', 'god_admin'].includes(user.role)) || isAssignedAndAccepted || selectedTask.createdBy?._id === currentEmployeeId
+                  
+                  return canEdit && (
+                    <button
+                      onClick={() => {
+                        setEditTaskForm({
+                          _id: selectedTask._id,
+                          title: selectedTask.title,
+                          description: selectedTask.description || '',
+                          priority: selectedTask.priority,
+                          dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : '',
+                          subtasks: selectedTask.subtasks || [],
+                          estimatedHours: selectedTask.estimatedHours || 0
+                        })
+                        setShowEditTaskModal(true)
+                        setSelectedTask(null)
+                      }}
+                      className="p-2 hover:bg-blue-50 rounded-lg text-blue-600"
+                      title="Edit Task"
+                    >
+                      <FaEdit />
+                    </button>
+                  )
+                })()}
+                <button
+                  onClick={() => setSelectedTask(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"
+                >
+                  <FaTimes />
+                </button>
+              </div>
             </div>
             
             <div className="p-6">
@@ -1873,6 +2599,16 @@ export default function ProjectDetailPage() {
                     {selectedTask.createdBy?.firstName} {selectedTask.createdBy?.lastName}
                   </p>
                 </div>
+                {selectedTask.estimatedHours && (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">Estimated Time</p>
+                    <p className="font-medium text-blue-700">
+                      {selectedTask.estimatedHours >= 8 
+                        ? `${Math.floor(selectedTask.estimatedHours / 8)}d ${selectedTask.estimatedHours % 8}h` 
+                        : `${selectedTask.estimatedHours}h`}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Assignees */}
@@ -1972,7 +2708,147 @@ export default function ProjectDetailPage() {
                 </div>
               )}
 
-              {/* Status Control Buttons */}
+              {/* Subtasks */}
+              {selectedTask.subtasks && selectedTask.subtasks.length > 0 && (
+                <div className="mb-6 border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-medium text-gray-500">
+                      Subtasks ({selectedTask.subtasks.filter(st => st.completed).length}/{selectedTask.subtasks.length})
+                    </h4>
+                    {selectedTask.progressPercentage !== undefined && (
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedTask.progressPercentage}% complete
+                      </span>
+                    )}
+                  </div>
+                  
+                  {selectedTask.progressPercentage !== undefined && (
+                    <div className="mb-4">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            selectedTask.progressPercentage === 100 ? 'bg-green-500' :
+                            selectedTask.progressPercentage >= 50 ? 'bg-blue-500' :
+                            'bg-orange-500'
+                          }`}
+                          style={{ width: `${selectedTask.progressPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3 bg-gray-50 rounded-lg p-3">
+                    {selectedTask.subtasks.sort((a, b) => a.order - b.order).map((subtask) => {
+                      const isAssignedAndAccepted = selectedTask.assignees?.some(
+                        a => a.user._id === currentEmployeeId && a.assignmentStatus === 'accepted'
+                      )
+                      const canToggle = isAssignedAndAccepted || isProjectHead || (user && ['admin', 'god_admin'].includes(user.role))
+                      const canComment = canToggle // Same permissions for commenting
+                      
+                      // Color coding for comment author roles
+                      const getCommentColor = (authorRole) => {
+                        switch (authorRole) {
+                          case 'project_head':
+                            return 'bg-purple-100 border-l-4 border-purple-500 text-purple-800'
+                          case 'admin':
+                            return 'bg-red-50 border-l-4 border-red-500 text-red-800'
+                          case 'assignee':
+                            return 'bg-blue-50 border-l-4 border-blue-500 text-blue-800'
+                          case 'creator':
+                            return 'bg-green-50 border-l-4 border-green-500 text-green-800'
+                          default:
+                            return 'bg-gray-100 border-l-4 border-gray-400 text-gray-700'
+                        }
+                      }
+                      
+                      const getRoleBadge = (authorRole) => {
+                        switch (authorRole) {
+                          case 'project_head':
+                            return <span className="text-xs px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded">Project Head</span>
+                          case 'admin':
+                            return <span className="text-xs px-1.5 py-0.5 bg-red-200 text-red-700 rounded">Admin</span>
+                          case 'assignee':
+                            return <span className="text-xs px-1.5 py-0.5 bg-blue-200 text-blue-700 rounded">Assignee</span>
+                          case 'creator':
+                            return <span className="text-xs px-1.5 py-0.5 bg-green-200 text-green-700 rounded">Creator</span>
+                          default:
+                            return null
+                        }
+                      }
+                      
+                      return (
+                        <div key={subtask._id || subtask.title} className="bg-white rounded-lg p-3 border border-gray-200">
+                          <div 
+                            className={`flex items-center gap-3 ${canToggle ? 'cursor-pointer' : ''}`}
+                            onClick={() => canToggle && handleToggleSubtask(selectedTask._id, subtask._id, subtask.completed)}
+                          >
+                            <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              subtask.completed 
+                                ? 'bg-green-500 border-green-500' 
+                                : 'border-gray-300 bg-white'
+                            }`}>
+                              {subtask.completed && <FaCheck className="text-white text-xs" />}
+                            </span>
+                            <span className={`flex-1 text-sm font-medium ${
+                              subtask.completed 
+                                ? 'line-through text-gray-400' 
+                                : 'text-gray-700'
+                            }`}>
+                              {subtask.title}
+                            </span>
+                            {subtask.completed && subtask.completedAt && (
+                              <span className="text-xs text-gray-400">
+                                {new Date(subtask.completedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Subtask Comments */}
+                          {subtask.comments && subtask.comments.length > 0 && (
+                            <div className="mt-3 space-y-2 pl-8">
+                              {subtask.comments.map((comment) => (
+                                <div key={comment._id} className={`p-2 rounded text-sm ${getCommentColor(comment.authorRole)}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-xs">
+                                      {comment.author?.firstName || 'User'} {comment.author?.lastName || ''}
+                                    </span>
+                                    {getRoleBadge(comment.authorRole)}
+                                    <span className="text-xs opacity-60">
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm">{comment.text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Add Comment Button */}
+                          {canComment && (
+                            <div className="mt-2 pl-8">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const comment = prompt('Add a comment to this subtask:')
+                                  if (comment && comment.trim()) {
+                                    handleAddSubtaskComment(selectedTask._id, subtask._id, comment.trim())
+                                  }
+                                }}
+                                className="text-xs text-gray-500 hover:text-primary-600 flex items-center gap-1"
+                              >
+                                <FaComment className="w-3 h-3" />
+                                Add Comment
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Status Control Buttons - Only show for tasks WITHOUT subtasks */}
               {(() => {
                 const isAssignedAndAccepted = selectedTask.assignees?.some(
                   a => a.user._id === currentEmployeeId && a.assignmentStatus === 'accepted'
@@ -1980,10 +2856,29 @@ export default function ProjectDetailPage() {
                 const canControlTask = isAssignedAndAccepted || isProjectHead || (user && ['admin', 'god_admin'].includes(user.role))
                 const canDelete = selectedTask.createdBy?._id === currentEmployeeId || isProjectHead || (user && ['admin', 'god_admin'].includes(user.role))
                 const isUpdating = updatingTaskId === selectedTask._id
+                const hasSubtasks = selectedTask.subtasks && selectedTask.subtasks.length > 0
 
                 return (
                   <>
-                    {canControlTask && selectedTask.status !== 'completed' && (
+                    {/* For tasks WITH subtasks - show info about automatic status */}
+                    {hasSubtasks && selectedTask.status !== 'completed' && (
+                      <div className="border-t border-gray-200 pt-4 mb-4">
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h4 className="text-sm font-medium text-blue-800 mb-1">Automatic Status Updates</h4>
+                          <p className="text-xs text-blue-600">
+                            Task status is automatically managed based on subtask progress:
+                          </p>
+                          <ul className="text-xs text-blue-600 mt-1 ml-4 list-disc">
+                            <li>Start a subtask → Task moves to "In Progress"</li>
+                            <li>Complete all subtasks (100%) → Task moves to "Review" for approval</li>
+                            <li>Uncheck subtasks → Task returns to appropriate status</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* For tasks WITHOUT subtasks - show manual status controls */}
+                    {!hasSubtasks && canControlTask && selectedTask.status !== 'completed' && (
                       <div className="border-t border-gray-200 pt-4 mb-4">
                         <h4 className="text-sm font-medium text-gray-500 mb-3">Move Task To</h4>
                         <div className="flex flex-wrap gap-2">
