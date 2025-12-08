@@ -105,7 +105,7 @@ export default function OvertimePrompt({ userId, onClose, onResponse }) {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
-      
+
       if (data.success && data.data.length > 0) {
         setPendingRequest(data.data[0])
       }
@@ -135,7 +135,7 @@ export default function OvertimePrompt({ userId, onClose, onResponse }) {
       })
 
       const data = await response.json()
-      
+
       if (data.success) {
         toast.success(data.message)
         if (onResponse) {
@@ -170,7 +170,7 @@ export default function OvertimePrompt({ userId, onClose, onResponse }) {
   })
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] animate-fadeIn">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9950] animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-slideUp">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 text-white">
@@ -189,11 +189,10 @@ export default function OvertimePrompt({ userId, onClose, onResponse }) {
         <div className="p-6">
           {/* Location Status */}
           {(checkingLocation || locationStatus) && (
-            <div className={`flex items-center justify-center space-x-2 mb-4 p-3 rounded-lg ${
-              locationStatus?.includes('Clocked out') ? 'bg-green-50 text-green-700' :
-              locationStatus?.includes('Office') ? 'bg-blue-50 text-blue-700' :
-              'bg-gray-50 text-gray-600'
-            }`}>
+            <div className={`flex items-center justify-center space-x-2 mb-4 p-3 rounded-lg ${locationStatus?.includes('Clocked out') ? 'bg-green-50 text-green-700' :
+                locationStatus?.includes('Office') ? 'bg-blue-50 text-blue-700' :
+                  'bg-gray-50 text-gray-600'
+              }`}>
               {checkingLocation ? (
                 <FaSpinner className="w-4 h-4 animate-spin" />
               ) : (
@@ -285,7 +284,7 @@ export function useOvertimeCheck() {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         const data = await response.json()
-        
+
         if (data.success && data.data.length > 0) {
           setHasPendingRequest(true)
           setPendingRequest(data.data[0])

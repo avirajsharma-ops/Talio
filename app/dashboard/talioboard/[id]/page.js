@@ -11,7 +11,7 @@ export default function WhiteboardEditorPage() {
   const boardId = params.id;
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
-  
+
   const [board, setBoard] = useState(null);
   const [permission, setPermission] = useState('view_only');
   const [loading, setLoading] = useState(true);
@@ -60,14 +60,14 @@ export default function WhiteboardEditorPage() {
     const handleFullscreenChange = async () => {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
-      
+
       // If user exits fullscreen (ESC key or other), re-enter fullscreen on next interaction
       // Don't navigate back - just allow re-entry on user action
       if (!isNowFullscreen && hasEnteredFullscreen && !isFilePickerOpen) {
         // Don't navigate away - we'll re-enter fullscreen on next user interaction
         // This prevents confusion and allows imports to work properly
       }
-      
+
       // Re-enter fullscreen after file picker closes
       if (!isNowFullscreen && isFilePickerOpen) {
         // Wait a bit for file picker to fully close, then re-enter fullscreen
@@ -133,7 +133,7 @@ export default function WhiteboardEditorPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         if (res.status === 404) {
           router.push('/dashboard/talioboard');
@@ -141,7 +141,7 @@ export default function WhiteboardEditorPage() {
         }
         throw new Error(data.error || 'Failed to load board');
       }
-      
+
       setBoard(data.whiteboard);
       setPermission(data.permission);
       setSharing(data.whiteboard.sharing || []);
@@ -165,7 +165,7 @@ export default function WhiteboardEditorPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         setUserResults(data.users || []);
       }
@@ -196,7 +196,7 @@ export default function WhiteboardEditorPage() {
           aiAnalysis: data.aiAnalysis
         })
       });
-      
+
       if (!res.ok) {
         const result = await res.json();
         console.error('Save failed:', result.error);
@@ -218,10 +218,10 @@ export default function WhiteboardEditorPage() {
           permission: sharePermission
         })
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to share');
-      
+
       setSharing(data.sharing);
       setUserSearch('');
       setUserResults([]);
@@ -236,7 +236,7 @@ export default function WhiteboardEditorPage() {
   const handleShare = async (e) => {
     e.preventDefault();
     if (!shareEmail.trim()) return;
-    
+
     try {
       setShareLoading(true);
       const res = await fetch(`/api/whiteboard/${boardId}/share`, {
@@ -247,10 +247,10 @@ export default function WhiteboardEditorPage() {
           permission: sharePermission
         })
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to share');
-      
+
       setSharing(data.sharing);
       setShareEmail('');
     } catch (err) {
@@ -268,7 +268,7 @@ export default function WhiteboardEditorPage() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (res.ok) {
         setSharing(prev => prev.filter(s => s.userId._id !== userId));
       }
@@ -281,14 +281,14 @@ export default function WhiteboardEditorPage() {
   const handleRename = async (e) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    
+
     try {
       const res = await fetch(`/api/whiteboard/${boardId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify({ title: newTitle.trim() })
       });
-      
+
       if (res.ok) {
         setBoard(prev => ({ ...prev, title: newTitle.trim() }));
         setShowRenameModal(false);
@@ -308,7 +308,7 @@ export default function WhiteboardEditorPage() {
       await new Promise(resolve => setTimeout(resolve, 300));
       setIsSaving(false);
     }
-    
+
     if (document.fullscreenElement) {
       await document.exitFullscreen();
     }
@@ -322,7 +322,7 @@ export default function WhiteboardEditorPage() {
         // Don't handle if user is in a text input or modal
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         if (showShareModal || showRenameModal) return;
-        
+
         e.preventDefault();
         e.stopPropagation();
         await handleClose();
@@ -387,7 +387,7 @@ export default function WhiteboardEditorPage() {
           </div>
         </div>
       )}
-      
+
       {/* Header - FigJam style */}
       <div className="flex items-center gap-4 px-4 py-3 bg-white border-b border-gray-200">
         <button
@@ -397,16 +397,16 @@ export default function WhiteboardEditorPage() {
         >
           <FiArrowLeft size={20} />
         </button>
-        
+
         <div className="h-6 w-px bg-gray-200" />
-        
+
         <button
           onClick={() => permission === 'owner' && setShowRenameModal(true)}
           className={`text-lg font-semibold text-gray-900 ${permission === 'owner' ? 'hover:text-violet-600 cursor-pointer' : ''}`}
         >
           {board.title}
         </button>
-        
+
         <div className="flex-1" />
 
         <button
@@ -416,7 +416,7 @@ export default function WhiteboardEditorPage() {
         >
           {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
         </button>
-        
+
         {permission === 'owner' && (
           <button
             onClick={() => setShowShareModal(true)}
@@ -426,7 +426,7 @@ export default function WhiteboardEditorPage() {
             Share
           </button>
         )}
-        
+
         {permission !== 'owner' && (
           <span className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm">
             <FiUsers size={14} />
@@ -434,7 +434,7 @@ export default function WhiteboardEditorPage() {
           </span>
         )}
       </div>
-      
+
       {/* Canvas */}
       <div className="flex-1 overflow-hidden">
         <WhiteboardCanvas
@@ -447,26 +447,26 @@ export default function WhiteboardEditorPage() {
           onFilePickerOpen={() => setIsFilePickerOpen(true)}
         />
       </div>
-      
+
       {/* Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[9100] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Share board</h2>
-                <button 
+                <button
                   onClick={() => {
                     setShowShareModal(false);
                     setUserSearch('');
                     setUserResults([]);
-                  }} 
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <FiX size={20} />
                 </button>
               </div>
-              
+
               <div className="space-y-4 mb-6">
                 <div className="relative">
                   <input
@@ -482,7 +482,7 @@ export default function WhiteboardEditorPage() {
                     placeholder="Search for users..."
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                   />
-                  
+
                   {(userSearch || userResults.length > 0) && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 max-h-64 overflow-y-auto z-10">
                       {loadingUsers ? (
@@ -495,34 +495,36 @@ export default function WhiteboardEditorPage() {
                           No users found
                         </div>
                       ) : (
-                        userResults.map(user => (
-                          <button
-                            key={user._id}
-                            onClick={() => handleShareWithUser(user._id)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
-                            disabled={sharing.some(s => s.userId._id === user._id)}
-                          >
-                            <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
-                              {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">
-                                {user.name || 'No Name'}
+                        <div className="divide-y divide-gray-100">
+                          {userResults.map(user => (
+                            <button
+                              key={user._id}
+                              onClick={() => handleShareWithUser(user._id)}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                              disabled={sharing.some(s => s.userId._id === user._id)}
+                            >
+                              <div className="w-10 h-10 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0">
+                                {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
                               </div>
-                              <div className="text-xs text-gray-500">{user.email}</div>
-                            </div>
-                            {sharing.some(s => s.userId._id === user._id) && (
-                              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
-                                Shared
-                              </span>
-                            )}
-                          </button>
-                        ))
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {user.name || 'No Name'}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">{user.email}</div>
+                              </div>
+                              {sharing.some(s => s.userId._id === user._id) && (
+                                <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded flex-shrink-0">
+                                  Shared
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Permission:</span>
                   <select
@@ -535,7 +537,7 @@ export default function WhiteboardEditorPage() {
                   </select>
                 </div>
               </div>
-              
+
               {sharing.length > 0 && (
                 <div className="border-t border-gray-100 pt-6">
                   <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Shared with</h3>
@@ -573,10 +575,10 @@ export default function WhiteboardEditorPage() {
           </div>
         </div>
       )}
-      
+
       {/* Rename Modal */}
       {showRenameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[9200] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Rename board</h2>

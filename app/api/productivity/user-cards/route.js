@@ -29,28 +29,28 @@ async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
-  
+
   // Get the employee ID for this user
   const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
-  
+
   if (!employeeId) {
     const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
-  
+
   if (!employeeId) {
     console.log('[getDepartmentIfHead] No employee found for userId:', userId);
     return null;
   }
-  
+
   // Check if this employee is head of any department (check both head and heads fields)
-  const department = await Department.findOne({ 
+  const department = await Department.findOne({
     $or: [
       { head: employeeId },
       { heads: employeeId }
     ],
-    isActive: true 
+    isActive: true
   }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
@@ -97,16 +97,16 @@ export async function GET(request) {
     if (!requester) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
-    
+
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
-    
+
     // Check if user is a department head via Department.head field
     const headOfDepartment = await getDepartmentIfHead(decoded.userId);
     const isDeptHead = !!headOfDepartment;
 
     // Build query for users based on role
     let employeeQuery = { status: 'active' };
-    
+
     if (isAdmin) {
       // Admins see all users - no additional filter
     } else if (isDeptHead) {
@@ -116,7 +116,7 @@ export async function GET(request) {
       // All other roles see only their own card
       // First try Employee.userId lookup
       let requesterEmployee = await Employee.findOne({ userId: decoded.userId }).select('_id').lean();
-      
+
       // If not found, try User.employeeId reverse lookup
       if (!requesterEmployee) {
         const userWithEmployeeId = await User.findById(decoded.userId).select('employeeId').lean();
@@ -124,7 +124,7 @@ export async function GET(request) {
           requesterEmployee = await Employee.findById(userWithEmployeeId.employeeId).select('_id').lean();
         }
       }
-      
+
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {
@@ -149,9 +149,9 @@ export async function GET(request) {
             todayStats: { duration: 0, sessionsCount: 0, avgProductivity: null },
             statsLoading: false
           };
-          return NextResponse.json({ 
-            success: true, 
-            data: [minimalCard], 
+          return NextResponse.json({
+            success: true,
+            data: [minimalCard],
             totalUsers: 1,
             accessLevel: 'self_only'
           });
@@ -170,15 +170,15 @@ export async function GET(request) {
       .populate('userId', 'name email profilePicture lastActive')
       .populate('department', 'name')
       .populate('designation', 'title levelName description')
-      .select('firstName lastName employeeCode designation profilePicture userId department email')
+      .select('firstName lastName employeeCode designation designationLevel designationLevelName profilePicture userId department email')
       .lean();
 
     // For employees without userId, fetch users via User.employeeId (reverse relationship)
     const employeeIds = employees.map(emp => emp._id);
-    const usersWithEmployeeId = await User.find({ 
-      employeeId: { $in: employeeIds } 
+    const usersWithEmployeeId = await User.find({
+      employeeId: { $in: employeeIds }
     }).select('_id name email profilePicture lastActive employeeId').lean();
-    
+
     // Create a map of employeeId -> User
     const employeeToUserMap = {};
     usersWithEmployeeId.forEach(user => {
@@ -192,7 +192,7 @@ export async function GET(request) {
       const basicCards = employees.map(employee => {
         let userInfo = employee.userId;
         let userId = userInfo?._id || userInfo;
-        
+
         if (!userId) {
           const reverseUser = employeeToUserMap[employee._id.toString()];
           if (reverseUser) {
@@ -201,7 +201,7 @@ export async function GET(request) {
           }
         }
 
-        const userName = employee.firstName && employee.lastName 
+        const userName = employee.firstName && employee.lastName
           ? `${employee.firstName} ${employee.lastName}`
           : (userInfo?.name || 'Unknown');
 
@@ -248,7 +248,7 @@ export async function GET(request) {
     employees.forEach(employee => {
       let userInfo = employee.userId;
       let userId = userInfo?._id || userInfo;
-      
+
       if (!userId) {
         const reverseUser = employeeToUserMap[employee._id.toString()];
         if (reverseUser) {
@@ -287,14 +287,14 @@ export async function GET(request) {
     const [dateStatsResult, latestSessions, daySessions] = await Promise.all([
       // Get only today's stats (much faster than counting all sessions)
       ProductivitySession.aggregate([
-        { 
-          $match: { 
-            userId: { $in: userIds }, 
+        {
+          $match: {
+            userId: { $in: userIds },
             status: 'completed',
             sessionStart: { $gte: targetDateStart, $lte: targetDateEnd }
-          } 
+          }
         },
-        { 
+        {
           $group: {
             _id: '$userId',
             sessionsCount: { $sum: 1 },
@@ -305,25 +305,29 @@ export async function GET(request) {
       ]),
       // Get latest session per user (limited to recent sessions for performance)
       ProductivitySession.aggregate([
-        { 
-          $match: { 
-            userId: { $in: userIds }, 
+        {
+          $match: {
+            userId: { $in: userIds },
             status: 'completed',
             sessionStart: { $gte: targetDateStart } // Only search today's sessions
-          } 
+          }
         },
         { $sort: { sessionEnd: -1 } },
-        { $group: {
-          _id: '$userId',
-          latestSession: { $first: '$$ROOT' }
-        }},
-        { $project: {
-          'latestSession.sessionStart': 1,
-          'latestSession.sessionEnd': 1,
-          'latestSession.aiAnalysis.productivityScore': 1,
-          'latestSession.aiAnalysis.focusScore': 1,
-          'latestSession.screenshots': { $slice: ['$latestSession.screenshots', -1] }
-        }}
+        {
+          $group: {
+            _id: '$userId',
+            latestSession: { $first: '$$ROOT' }
+          }
+        },
+        {
+          $project: {
+            'latestSession.sessionStart': 1,
+            'latestSession.sessionEnd': 1,
+            'latestSession.aiAnalysis.productivityScore': 1,
+            'latestSession.aiAnalysis.focusScore': 1,
+            'latestSession.screenshots': { $slice: ['$latestSession.screenshots', -1] }
+          }
+        }
       ]),
       // Get all sessions for the target date per user (for expanded card view)
       // Note: Do NOT fetch screenshots here - they're loaded on demand to reduce payload
@@ -348,7 +352,7 @@ export async function GET(request) {
     latestSessions.forEach(item => {
       latestSessionsMap[item._id.toString()] = item.latestSession;
     });
-    
+
     // Group day sessions by user
     daySessions.forEach(session => {
       const userIdStr = session.userId.toString();
@@ -372,7 +376,7 @@ export async function GET(request) {
     const userCards = employees.map(employee => {
       let userInfo = employee.userId;
       let userId = userInfo?._id || userInfo;
-      
+
       if (!userId) {
         const reverseUser = employeeToUserMap[employee._id.toString()];
         if (reverseUser) {
@@ -386,7 +390,7 @@ export async function GET(request) {
       const latestSession = latestSessionsMap[userIdStr];
       const userDaySessions = daySessionsMap[userIdStr] || [];
 
-      const userName = employee.firstName && employee.lastName 
+      const userName = employee.firstName && employee.lastName
         ? `${employee.firstName} ${employee.lastName}`
         : (userInfo?.name || 'Unknown');
 
@@ -445,9 +449,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('[User Cards API] Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch user cards' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch user cards'
     }, { status: 500 });
   }
 }

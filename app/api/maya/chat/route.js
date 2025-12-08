@@ -35,7 +35,7 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
         .populate('designation', 'title level')
         .populate('reportingManager', 'firstName lastName')
         .lean();
-      
+
       if (selfData) {
         contextData.self = {
           name: `${selfData.firstName} ${selfData.lastName}`,
@@ -44,8 +44,8 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
           employeeCode: selfData.employeeCode,
           department: selfData.department?.name || 'Not assigned',
           designation: selfData.designation?.title || 'Not assigned',
-          designationLevel: selfData.designation?.level,
-          reportingManager: selfData.reportingManager ? 
+          designationLevel: selfData.designationLevel || selfData.designation?.level || 1,
+          reportingManager: selfData.reportingManager ?
             `${selfData.reportingManager.firstName} ${selfData.reportingManager.lastName}` : 'None',
           dateOfJoining: selfData.dateOfJoining,
           dateOfBirth: selfData.dateOfBirth,
@@ -97,7 +97,7 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
       const allEmployees = await Employee.find({ status: 'active' })
         .populate('department', 'name')
         .populate('designation', 'title')
-        .select('firstName lastName email employeeCode department designation phone')
+        .select('firstName lastName email employeeCode department designation designationLevel designationLevelName phone')
         .lean();
       contextData.employees = allEmployees.map(e => ({
         name: `${e.firstName} ${e.lastName}`,
@@ -108,13 +108,13 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
         phone: e.phone,
       }));
     } else if (userRole === 'department_head' && departmentId) {
-      const deptEmployees = await Employee.find({ 
-        department: departmentId, 
-        status: 'active' 
+      const deptEmployees = await Employee.find({
+        department: departmentId,
+        status: 'active'
       })
         .populate('department', 'name')
         .populate('designation', 'title')
-        .select('firstName lastName email employeeCode department designation phone')
+        .select('firstName lastName email employeeCode department designation designationLevel designationLevelName phone')
         .lean();
       contextData.employees = deptEmployees.map(e => ({
         name: `${e.firstName} ${e.lastName}`,
@@ -125,13 +125,13 @@ async function getUserContextData(userId, userRole, employeeId, departmentId) {
         phone: e.phone,
       }));
     } else if (userRole === 'manager' && employeeId) {
-      const teamMembers = await Employee.find({ 
-        reportingManager: employeeId, 
-        status: 'active' 
+      const teamMembers = await Employee.find({
+        reportingManager: employeeId,
+        status: 'active'
       })
         .populate('department', 'name')
         .populate('designation', 'title')
-        .select('firstName lastName email employeeCode department designation phone')
+        .select('firstName lastName email employeeCode department designation designationLevel designationLevelName phone')
         .lean();
       contextData.employees = teamMembers.map(e => ({
         name: `${e.firstName} ${e.lastName}`,
@@ -168,7 +168,7 @@ export async function POST(request) {
 
     const userId = decoded.userId;
     const { message, screenCapture, screenshot, isScreenAnalysis, sessionId: existingSessionId } = await request.json();
-    
+
     // Support both screenCapture and screenshot parameter names
     const imageData = screenCapture || screenshot;
 
@@ -187,13 +187,13 @@ export async function POST(request) {
 
     // Get Gemini API key
     const geminiApiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    
+
     console.log('🔑 Gemini API Key exists:', !!geminiApiKey);
-    
+
     if (!geminiApiKey) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'MAYA is not configured. Please contact your administrator.' 
+      return NextResponse.json({
+        success: false,
+        error: 'MAYA is not configured. Please contact your administrator.'
       }, { status: 503 });
     }
 
@@ -203,13 +203,13 @@ export async function POST(request) {
     if (!employeeId) {
       const Employee = (await import('@/models/Employee')).default;
       let employee = await Employee.findOne({ userId });
-      
+
       if (!employee) {
         // Parse name into firstName and lastName
         const nameParts = (user.name || 'User').split(' ');
         const firstName = nameParts[0] || 'User';
         const lastName = nameParts.slice(1).join(' ') || 'Employee';
-        
+
         // Create a basic employee record for MAYA functionality
         employee = await Employee.create({
           userId,
@@ -223,7 +223,7 @@ export async function POST(request) {
           dateOfJoining: new Date(),
           status: 'active'
         });
-        
+
         // Update user with employeeId
         user.employeeId = employee._id;
         await user.save();
@@ -232,17 +232,17 @@ export async function POST(request) {
       employeeData = employee;
     } else {
       const Employee = (await import('@/models/Employee')).default;
-      employeeData = await Employee.findById(employeeId).select('firstName lastName name employeeCode designation department');
+      employeeData = await Employee.findById(employeeId).select('firstName lastName name employeeCode designation designationLevel designationLevelName department');
     }
 
     // ========== CONVERSATION CONTEXT ENGINE ==========
     // Fetch recent conversation history for context continuity
     let conversationHistory = [];
     let chatSession = null;
-    
+
     // Try to find existing session from last 30 minutes or use provided sessionId
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    
+
     if (existingSessionId) {
       // Use provided session ID
       chatSession = await MayaChatHistory.findOne({
@@ -250,7 +250,7 @@ export async function POST(request) {
         userId
       });
     }
-    
+
     if (!chatSession) {
       // Find most recent session within last 30 minutes
       chatSession = await MayaChatHistory.findOne({
@@ -258,7 +258,7 @@ export async function POST(request) {
         createdAt: { $gte: thirtyMinutesAgo }
       }).sort({ createdAt: -1 });
     }
-    
+
     if (chatSession && chatSession.messages && chatSession.messages.length > 0) {
       // Get last 10 messages for context (5 exchanges)
       conversationHistory = chatSession.messages.slice(-10).map(msg => ({
@@ -313,7 +313,7 @@ export async function POST(request) {
 
       // Build user data context string
       let userDataContext = '';
-      
+
       if (userContext.self) {
         userDataContext += `\n\n=== CURRENT USER'S DATA (${userContext.self.name}) ===
 • Name: ${userContext.self.name}
@@ -414,14 +414,14 @@ INSTEAD, actually help the user by:
 Be like a helpful colleague looking over their shoulder, not a robot describing pixels.`;
 
       let payload;
-      
+
       if (imageData) {
         // Vision request with image
         console.log('📸 Processing screen capture with Gemini Vision...');
-        
+
         // Extract base64 data from data URL
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
-        
+
         payload = {
           contents: [{
             parts: [

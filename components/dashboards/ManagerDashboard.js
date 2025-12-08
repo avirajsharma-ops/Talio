@@ -485,7 +485,7 @@ export default function ManagerDashboard({ user }) {
     ),
     'attendance-summary': (
       <AttendanceSummaryWidget
-        userId={user?._id}
+        employeeId={getEmployeeId(user)}
       />
     ),
     'leave-balance': (

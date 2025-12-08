@@ -42,17 +42,17 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
         base64Data = base64Match[1];
       }
     }
-    
+
     // Validate base64 data length (at least 1KB of actual image data)
     if (base64Data.length < 1000) {
       console.log(`[Screenshot ${index + 1}] Skipping - base64 data too short (${base64Data.length} chars)`);
       return null;
     }
-    
+
     // Add timeout to prevent hanging
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    
+
     // Detect mime type from data URI or default to webp (our compression format)
     let mimeType = 'image/webp';
     if (imageData.startsWith('data:image/jpeg')) {
@@ -60,7 +60,7 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
     } else if (imageData.startsWith('data:image/png')) {
       mimeType = 'image/png';
     }
-    
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -88,7 +88,7 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
         })
       }
     );
-    
+
     clearTimeout(timeoutId);
 
     if (!response.ok) {
@@ -111,7 +111,7 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
  */
 async function analyzeSessionWithAI(session, employee) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  
+
   if (!GEMINI_API_KEY) {
     console.log('[Session Analyze] No Gemini API key found');
     const designationTitle = employee?.designation?.title || employee?.designation?.levelName || 'Employee';
@@ -124,7 +124,7 @@ async function analyzeSessionWithAI(session, employee) {
   const department = employee?.department?.name || 'General';
   const employeeName = employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : 'Employee';
   const screenshots = session.screenshots || [];
-  
+
   // Get app and website activity context
   const apps = session.appUsageSummary || session.topApps || [];
   const websites = session.websiteVisitSummary || session.topWebsites || [];
@@ -134,32 +134,32 @@ async function analyzeSessionWithAI(session, employee) {
     const pct = a.percentage;
     return pct ? `${name} (${pct}%)` : `${name} (${Math.round((duration || 0) / 60000)}m)`;
   }).join(', ') || 'No app data tracked';
-  
+
   const websiteList = websites.slice(0, 10).map(w => {
     const domain = w.domain;
     const visits = w.visitCount || w.visits || 1;
     return `${domain} (${visits} visits)`;
   }).join(', ') || 'No website data tracked';
-  
+
   const keystrokeCount = session.keystrokeSummary?.totalCount || 0;
   const mouseClicks = session.mouseActivitySummary?.totalClicks || 0;
-  
+
   console.log(`[Session Analyze] Starting comprehensive analysis for ${employeeName} (${designationTitle}) in ${department}`);
   console.log(`[Session Analyze] Apps: ${apps.length}, Websites: ${websites.length}, Screenshots: ${screenshots.length}`);
-  
+
   try {
     // Phase 1: Analyze each screenshot individually
     const screenshotDescriptions = [];
     const maxScreenshots = Math.min(screenshots.length, 10); // Limit to 10 screenshots max
-    
+
     for (let i = 0; i < maxScreenshots; i++) {
       const screenshot = screenshots[i];
       const imageData = screenshot?.fullData || screenshot?.thumbnail;
-      
+
       if (imageData && imageData.length > 100) {
         console.log(`[Session Analyze] Analyzing screenshot ${i + 1}/${maxScreenshots}...`);
         const description = await analyzeScreenshot(imageData, i, maxScreenshots, GEMINI_API_KEY);
-        
+
         if (description) {
           screenshotDescriptions.push({
             index: i + 1,
@@ -168,21 +168,21 @@ async function analyzeSessionWithAI(session, employee) {
           });
           console.log(`[Session Analyze] Screenshot ${i + 1}: ${description.slice(0, 80)}...`);
         }
-        
+
         // Small delay between requests to avoid rate limiting
         if (i < maxScreenshots - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
     }
-    
+
     console.log(`[Session Analyze] Analyzed ${screenshotDescriptions.length} screenshots, generating comprehensive summary...`);
-    
+
     // Phase 2: Generate comprehensive analysis combining all data
     const screenshotSummary = screenshotDescriptions.length > 0
       ? screenshotDescriptions.map(s => `[${s.time}] ${s.description}`).join('\n')
       : 'No screenshots were available for analysis.';
-    
+
     const comprehensivePrompt = `You are an expert workplace productivity analyst conducting a detailed assessment of an employee's work session.
 
 ═══════════════════════════════════════════════════════════════════════
@@ -346,7 +346,7 @@ CRITICAL: Be accurate and fair. Base scores strictly on observed data, not assum
     const result = await response.json();
     const content = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log(`[Session Analyze] Comprehensive response: ${content.slice(0, 300)}...`);
-    
+
     // Parse JSON response
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -370,10 +370,10 @@ CRITICAL: Be accurate and fair. Base scores strictly on observed data, not assum
     } catch (parseErr) {
       console.error('[Session Analyze] JSON parse error:', parseErr.message);
     }
-    
+
     // If parsing failed, use fallback
     return generateFallbackAnalysis(session, designationTitle);
-    
+
   } catch (error) {
     console.error('[Session Analyze] Error:', error.message);
     return generateFallbackAnalysis(session, designationTitle);
@@ -387,18 +387,18 @@ CRITICAL: Be accurate and fair. Base scores strictly on observed data, not assum
 function generateFallbackAnalysis(session, designation) {
   const totalTime = session.totalActiveTime || 1;
   const productivePercent = Math.round(((session.productiveTime || 0) / totalTime) * 100) || 0;
-  
+
   // Calculate scores based on available data
   const hasApps = session.topApps?.length > 0;
   const hasWebsites = session.topWebsites?.length > 0;
   const hasKeystrokes = session.keystrokeSummary?.totalCount > 0;
   const hasScreenshots = session.screenshots?.length > 0;
-  
+
   // More intelligent scoring when no app data available
   let productivityScore = 50; // Default neutral
   let focusScore = 50;
   let efficiencyScore = 50;
-  
+
   if (hasApps) {
     productivityScore = Math.max(40, productivePercent);
     focusScore = session.topApps.length <= 3 ? 80 : session.topApps.length <= 5 ? 65 : 50;
@@ -407,17 +407,17 @@ function generateFallbackAnalysis(session, designation) {
     productivityScore = 60; // Assume working
     focusScore = 70;
   }
-  
+
   if (hasKeystrokes) {
     const kpm = session.keystrokeSummary.averagePerMinute || 0;
     efficiencyScore = kpm > 30 ? 80 : kpm > 10 ? 65 : kpm > 0 ? 50 : 40;
   }
-  
+
   const topApp = session.topApps?.[0];
   const topSite = session.topWebsites?.[0];
-  
+
   let summary = `${session.sessionDuration || 30}-minute work session as ${designation}. `;
-  
+
   if (topApp) {
     summary += `Primary activity on ${topApp.appName}. `;
   } else if (topSite) {
@@ -425,7 +425,7 @@ function generateFallbackAnalysis(session, designation) {
   } else if (hasScreenshots) {
     summary += `${session.screenshots.length} screenshots captured. Click "Analyze with AI" for detailed analysis. `;
   }
-  
+
   if (hasKeystrokes) {
     summary += `${session.keystrokeSummary.totalCount} keystrokes indicating active work.`;
   } else if (hasScreenshots) {
@@ -494,7 +494,7 @@ export async function POST(request) {
     if (!sessionId) {
       return NextResponse.json({ success: false, error: 'Session ID required' }, { status: 400 });
     }
-    
+
     // Log if we received pre-loaded screenshots from the client
     if (preloadedScreenshots?.length > 0) {
       console.log(`[Session Analyze] Received ${preloadedScreenshots.length} pre-loaded screenshots from client`);
@@ -505,7 +505,7 @@ export async function POST(request) {
     if (!session) {
       return NextResponse.json({ success: false, error: 'Session not found' }, { status: 404 });
     }
-    
+
     // If we have pre-loaded screenshots from the client, use them instead of DB data
     // This avoids network roundtrip to re-fetch images we already have
     if (preloadedScreenshots?.length > 0) {
@@ -545,15 +545,15 @@ export async function POST(request) {
     // Check permissions - use .lean() for read-only queries
     const requester = await User.findById(decoded.userId).select('role employeeId').lean();
     const isAdmin = ['admin', 'god_admin'].includes(requester?.role);
-    
+
     console.log(`[Session Analyze] Permission check: decoded.userId=${decoded.userId}, requester.role=${requester?.role}, isAdmin=${isAdmin}`);
     console.log(`[Session Analyze] Session userId=${session.userId?.toString()}, match=${session.userId?.toString() === decoded.userId}`);
-    
+
     let hasAccess = isAdmin || session.userId.toString() === decoded.userId;
-    
+
     if (!hasAccess) {
       console.log(`[Session Analyze] No direct access, checking department head permissions...`);
-      
+
       // Check if user is a department head and the session belongs to someone in their department
       // First get the requester's employee ID
       let requesterEmployeeId = requester?.employeeId;
@@ -564,20 +564,20 @@ export async function POST(request) {
       } else {
         console.log(`[Session Analyze] Got employeeId from User model: ${requesterEmployeeId}`);
       }
-      
+
       if (requesterEmployeeId) {
         // Check if this employee is head of a department (don't require isActive)
-        const dept = await Department.findOne({ 
+        const dept = await Department.findOne({
           head: requesterEmployeeId
         }).lean();
-        
+
         console.log(`[Session Analyze] Department where user is head: ${dept?.name || 'NONE'}`);
-        
+
         if (dept) {
           // Check if the session's employee belongs to this department
           const sessionEmployee = await Employee.findById(session.employeeId).select('department').lean();
           console.log(`[Session Analyze] Session employee dept: ${sessionEmployee?.department?.toString()}, dept._id: ${dept._id.toString()}`);
-          
+
           if (sessionEmployee && sessionEmployee.department?.toString() === dept._id.toString()) {
             hasAccess = true;
             console.log(`[Session Analyze] Department head ${decoded.userId} authorized to analyze session in ${dept.name}`);
@@ -585,7 +585,7 @@ export async function POST(request) {
         }
       }
     }
-    
+
     if (!hasAccess) {
       return NextResponse.json({ success: false, error: 'Unauthorized to analyze this session' }, { status: 403 });
     }
@@ -594,7 +594,7 @@ export async function POST(request) {
     const employee = await Employee.findById(session.employeeId)
       .populate('department', 'name')
       .populate('designation', 'title levelName description')
-      .select('firstName lastName designation department')
+      .select('firstName lastName designation designationLevel designationLevelName department')
       .lean();
 
     // Extract the actual designation title from the populated object
@@ -603,7 +603,7 @@ export async function POST(request) {
 
     // Single optimized AI call
     const analysis = await analyzeSessionWithAI(session, employee);
-    
+
     console.log(`[Session Analyze] Complete: productivity=${analysis.productivityScore}%, focus=${analysis.focusScore}%`);
 
     // Try to update session with new analysis (don't fail if this times out)
@@ -639,9 +639,9 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('[Session Analyze API] Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to analyze session: ' + error.message 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to analyze session: ' + error.message
     }, { status: 500 });
   }
 }

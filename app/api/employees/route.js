@@ -18,9 +18,11 @@ export async function GET(request) {
     const search = searchParams.get('search') || ''
     const department = searchParams.get('department')
     const status = searchParams.get('status')
+    const sortBy = searchParams.get('sortBy') || 'createdAt'
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
 
     // Generate cache key
-    const cacheKey = queryCache.generateKey('employees', page, limit, search, department, status)
+    const cacheKey = queryCache.generateKey('employees', page, limit, search, department, status, sortBy, sortOrder)
     const cached = queryCache.get(cacheKey)
     if (cached) {
       return NextResponse.json(cached)
@@ -48,6 +50,10 @@ export async function GET(request) {
 
     const skip = (page - 1) * limit
 
+    // Build sort object
+    const sortObj = {}
+    sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1
+
     // Optimized: Use select() to fetch only needed fields and lean() for plain objects
     const employees = await Employee.find(query)
       .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status profilePicture')
@@ -71,7 +77,7 @@ export async function GET(request) {
         select: 'firstName lastName',
         options: { strictPopulate: false, lean: true }
       })
-      .sort({ createdAt: -1 })
+      .sort(sortObj)
       .skip(skip)
       .limit(limit)
       .lean()

@@ -33,7 +33,7 @@ export default function TeamMemberDetailsPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      
+
       const response = await fetch(`/api/team/members/${params.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -206,7 +206,7 @@ export default function TeamMemberDetailsPage() {
                 <div>
                   <p className="text-xs text-gray-500">Designation</p>
                   <p className="font-medium">
-                    {formatDesignation(employee.designation)}
+                    {formatDesignation(employee.designation, employee)}
                   </p>
                 </div>
               </div>
@@ -373,9 +373,8 @@ export default function TeamMemberDetailsPage() {
                         className="focus:outline-none"
                       >
                         <FaStar
-                          className={`text-2xl ${
-                            star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'
-                          }`}
+                          className={`text-2xl ${star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300'
+                            }`}
                         />
                       </button>
                     ))}

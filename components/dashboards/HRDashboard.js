@@ -511,7 +511,7 @@ export default function HRDashboard({ user }) {
     ),
     'attendance-summary': (
       <AttendanceSummaryWidget
-        userId={user?._id}
+        employeeId={getEmployeeId(user)}
       />
     ),
     'leave-balance': (

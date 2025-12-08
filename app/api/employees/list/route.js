@@ -44,7 +44,7 @@ export async function GET(request) {
         _id: { $ne: currentUserDoc.employeeId },
         status: 'active'
       })
-        .select('firstName lastName employeeCode profilePicture email designation department')
+        .select('firstName lastName employeeCode profilePicture email designation designationLevel designationLevelName department')
         .populate({
           path: 'designation',
           select: 'title levelName',

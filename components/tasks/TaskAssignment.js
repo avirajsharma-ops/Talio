@@ -542,7 +542,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                   <p><strong>Department Head:</strong> You can assign tasks to anyone in your department.</p>
                 ) : (
                   <>
-                    <p><strong>Your Level:</strong> {formatDesignation(currentEmp.designation)}</p>
+                    <p><strong>Your Level:</strong> {formatDesignation(currentEmp.designation, currentEmp)}</p>
                     <p className="mt-1">You can assign tasks to employees at your level or lower hierarchy. Department heads can assign to anyone in the department.</p>
                   </>
                 )}
@@ -595,7 +595,7 @@ const TaskAssignment = ({ taskId, currentAssignees = [], onAssignmentChange, mod
                             {employee.firstName} {employee.lastName}
                           </p>
                           <p className="text-xs text-gray-500 truncate">
-                            {employee.employeeCode} • {formatDesignation(employee.designation)}
+                            {employee.employeeCode} • {formatDesignation(employee.designation, employee)}
                           </p>
                         </div>
                       </div>

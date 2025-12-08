@@ -28,27 +28,27 @@ async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
-  
+
   const user = await User.findById(userObjId).select('employeeId');
   let employeeId = user?.employeeId;
-  
+
   if (!employeeId) {
     const employee = await Employee.findOne({ userId: userObjId }).select('_id');
     employeeId = employee?._id;
   }
-  
+
   if (!employeeId) {
     console.log('[getDepartmentIfHead] No employee found for userId:', userId);
     return null;
   }
-  
+
   // Check if this employee is head of any department (check both head and heads fields)
-  const department = await Department.findOne({ 
+  const department = await Department.findOne({
     $or: [
       { head: employeeId },
       { heads: employeeId }
     ],
-    isActive: true 
+    isActive: true
   });
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
@@ -82,7 +82,7 @@ export async function GET(request) {
     }
 
     const isAdminOrGodAdmin = currentUser.role === 'admin' || currentUser.role === 'god_admin';
-    
+
     // Check if user is a department head via Department.head field
     const headOfDepartment = await getDepartmentIfHead(userId);
     const isDeptHead = !!headOfDepartment;
@@ -94,10 +94,10 @@ export async function GET(request) {
       isDeptHead,
       departmentId: headOfDepartment?._id?.toString()
     });
-    
+
     // Build employee query based on access level (same as user-cards API)
     let employeeQuery = { status: 'active' };
-    
+
     if (isAdminOrGodAdmin) {
       // Admins see all users - no additional filter
     } else if (isDeptHead) {
@@ -107,7 +107,7 @@ export async function GET(request) {
       // All other roles see only their own card
       // First try Employee.userId lookup
       let requesterEmployee = await Employee.findOne({ userId: userId }).select('_id');
-      
+
       // If not found, try User.employeeId reverse lookup
       if (!requesterEmployee) {
         const userWithEmployeeId = await User.findById(userId).select('employeeId');
@@ -115,7 +115,7 @@ export async function GET(request) {
           requesterEmployee = await Employee.findById(userWithEmployeeId.employeeId).select('_id');
         }
       }
-      
+
       if (requesterEmployee) {
         employeeQuery._id = requesterEmployee._id;
       } else {
@@ -144,12 +144,12 @@ export async function GET(request) {
               }
             }
           ]);
-          
+
           const lastConversation = await MayaChatHistory.findOne({ userId: userObjId })
             .sort({ createdAt: -1 })
             .select('messages')
             .lean();
-            
+
           let lastMessage = '';
           if (lastConversation?.messages?.length > 0) {
             const userMessage = lastConversation.messages.find(m => m.role === 'user');
@@ -158,9 +158,9 @@ export async function GET(request) {
               lastMessage = lastMessage.substring(0, 100) + '...';
             }
           }
-          
+
           const stats = chatStats[0] || { totalConversations: 0, totalMessages: 0, todayConversations: 0, lastMessageTime: null };
-          
+
           const minimalCard = {
             id: userId,
             odooId: userId,
@@ -197,15 +197,15 @@ export async function GET(request) {
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture')
       .populate('department', 'name')
-      .select('firstName lastName employeeCode designation profilePicture userId department email')
+      .select('firstName lastName employeeCode designation designationLevel designationLevelName profilePicture userId department email')
       .lean();
 
     // For employees without userId, fetch users via User.employeeId (reverse relationship)
     const employeeIds = employees.map(emp => emp._id);
-    const usersWithEmployeeId = await User.find({ 
-      employeeId: { $in: employeeIds } 
+    const usersWithEmployeeId = await User.find({
+      employeeId: { $in: employeeIds }
     }).select('_id name email profilePicture employeeId').lean();
-    
+
     // Create a map of employeeId -> User
     const employeeToUserMap = {};
     usersWithEmployeeId.forEach(user => {
@@ -225,7 +225,7 @@ export async function GET(request) {
       // Get userId from either Employee.userId or User.employeeId (reverse lookup)
       let userInfo = employee.userId;
       let empUserId = userInfo?._id || userInfo;
-      
+
       // If no userId on employee, check reverse relationship
       if (!empUserId) {
         const reverseUser = employeeToUserMap[employee._id.toString()];
@@ -234,16 +234,16 @@ export async function GET(request) {
           userInfo = reverseUser;
         }
       }
-      
+
       // Convert to ObjectId for aggregation
       const empUserObjId = toObjectId(empUserId);
-      
+
       // Still include employee even if no user account (show card without chat data)
       if (!empUserObjId) {
-        const userName = employee.firstName && employee.lastName 
+        const userName = employee.firstName && employee.lastName
           ? `${employee.firstName} ${employee.lastName}`
           : 'Unknown';
-        
+
         return {
           id: employee._id?.toString(),
           odooId: null,
@@ -262,7 +262,7 @@ export async function GET(request) {
           isOwn: false
         };
       }
-      
+
       // Get chat history stats for this user
       const chatStats = await MayaChatHistory.aggregate([
         { $match: { userId: empUserObjId } },
@@ -301,8 +301,8 @@ export async function GET(request) {
       }
 
       const stats = chatStats[0] || { totalConversations: 0, totalMessages: 0, todayConversations: 0, lastMessageTime: null };
-      
-      const userName = employee.firstName && employee.lastName 
+
+      const userName = employee.firstName && employee.lastName
         ? `${employee.firstName} ${employee.lastName}`
         : (userInfo?.name || 'Unknown');
 
@@ -334,8 +334,8 @@ export async function GET(request) {
         return (b.totalConversations || 0) - (a.totalConversations || 0);
       });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: validUserCards,
       totalUsers: validUserCards.length,
       accessLevel: isAdminOrGodAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
@@ -343,9 +343,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Chat History User Cards Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch chat history user cards' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch chat history user cards'
     }, { status: 500 });
   }
 }

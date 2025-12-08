@@ -26,9 +26,11 @@ export async function GET(request) {
     const user = await User.findById(decoded.userId)
       .populate({
         path: 'employeeId',
+        select: 'firstName lastName employeeCode email phone profilePicture designation designationLevel designationLevelName department departments reportingManager status dateOfJoining dateOfBirth gender address emergencyContact bloodGroup',
         populate: [
           { path: 'designation', select: 'title level levelName' },
           { path: 'department', select: 'name code' },
+          { path: 'departments', select: 'name code' },
           { path: 'reportingManager', select: 'firstName lastName employeeCode' }
         ]
       })

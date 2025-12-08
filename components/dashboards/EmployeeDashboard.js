@@ -469,7 +469,7 @@ export default function EmployeeDashboard({ user: userProp }) {
     ),
     'attendance-summary': (
       <AttendanceSummaryWidget
-        userId={user?._id}
+        employeeId={getEmployeeId(user)}
       />
     ),
     'leave-balance': (
@@ -506,7 +506,7 @@ export default function EmployeeDashboard({ user: userProp }) {
       <TodayTasksWidget />
     ),
     'goals-widget': (
-      <GoalsWidget />
+      <GoalsWidget userId={user?._id} />
     ),
     'birthday-widget': (
       <BirthdayWidget />

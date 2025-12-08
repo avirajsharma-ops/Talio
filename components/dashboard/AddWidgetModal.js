@@ -55,7 +55,7 @@ export default function AddWidgetModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9100] p-4">
       <div
         className="w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ backgroundColor: 'var(--color-bg-card)' }}
@@ -93,8 +93,8 @@ export default function AddWidgetModal({
             <button
               onClick={() => setSelectedCategory('all')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${selectedCategory === 'all'
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-primary-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
             >
               All
@@ -104,8 +104,8 @@ export default function AddWidgetModal({
                 key={category}
                 onClick={() => setSelectedCategory(category)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${selectedCategory === category
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
               >
                 {getCategoryDisplayName(category)}
@@ -134,8 +134,8 @@ export default function AddWidgetModal({
                   <div
                     key={widget.id}
                     className={`relative p-4 rounded-xl border-2 transition-all ${isEnabled
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-gray-100 hover:border-primary-200 hover:shadow-md cursor-pointer bg-white'
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-gray-100 hover:border-primary-200 hover:shadow-md cursor-pointer bg-white'
                       }`}
                     onClick={() => !isEnabled && handleAddWidget(widget)}
                   >
@@ -169,8 +169,8 @@ export default function AddWidgetModal({
 
                       {/* Add/Added Indicator */}
                       <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isEnabled
-                          ? 'bg-green-500'
-                          : 'bg-primary-500 hover:bg-primary-600'
+                        ? 'bg-green-500'
+                        : 'bg-primary-500 hover:bg-primary-600'
                         }`}>
                         {isEnabled ? (
                           <FaCheck className="w-3.5 h-3.5 text-white" />

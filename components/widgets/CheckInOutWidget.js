@@ -35,7 +35,7 @@ export default function CheckInOutWidget({
           </h2>
           {(employeeData?.designation || user?.designation) && (
             <p className="text-xs text-gray-300 mt-0.5">
-              {formatDesignation(employeeData?.designation || user?.designation)}
+              {formatDesignation(employeeData?.designation || user?.designation, employeeData || user)}
             </p>
           )}
         </div>

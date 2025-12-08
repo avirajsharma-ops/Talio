@@ -109,7 +109,7 @@ export async function POST(request) {
           .populate('department')
           .populate('reportingManager', 'firstName lastName email')
           .lean()
-        
+
         if (employeeData) {
           console.log('Employee data fetched successfully:', employeeData.firstName, employeeData.lastName)
         }
@@ -154,7 +154,7 @@ export async function POST(request) {
     })();
 
     // Best-effort: send push notification for login - fire and forget
-    ;(async () => {
+    ; (async () => {
       try {
         const name = employeeData
           ? [employeeData.firstName, employeeData.lastName].filter(Boolean).join(' ')
@@ -214,12 +214,17 @@ export async function POST(request) {
         fullName: `${employeeData.firstName} ${employeeData.lastName}`,
         email: employeeData.email,
         phone: employeeData.phone,
+        dateOfBirth: employeeData.dateOfBirth,
+        gender: employeeData.gender,
+        address: employeeData.address,
         designation: employeeData.designation,
         department: employeeData.department,
+        departments: employeeData.departments,
         profilePicture: employeeData.profilePicture,
         status: employeeData.status,
         dateOfJoining: employeeData.dateOfJoining,
         reportingManager: employeeData.reportingManager,
+        emergencyContact: employeeData.emergencyContact,
       } : user.employeeId ? { _id: user.employeeId.toString(), id: user.employeeId.toString() } : null,
       // Also include top-level employee data for easy access
       ...(employeeData && {
@@ -228,9 +233,15 @@ export async function POST(request) {
         fullName: `${employeeData.firstName} ${employeeData.lastName}`,
         profilePicture: employeeData.profilePicture,
         designation: employeeData.designation,
+        designationLevel: employeeData.designationLevel,
+        designationLevelName: employeeData.designationLevelName,
         department: employeeData.department,
+        departments: employeeData.departments,
         employeeCode: employeeData.employeeCode,
         phone: employeeData.phone,
+        dateOfBirth: employeeData.dateOfBirth,
+        gender: employeeData.gender,
+        address: employeeData.address,
         status: employeeData.status,
       })
     }

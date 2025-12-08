@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter } from 'react-icons/fa'
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaFilter, FaSortAmountDown, FaSortAmountUp } from 'react-icons/fa'
 import { formatDesignation, formatDepartments, getLevelNameFromNumber } from '@/lib/formatters'
 
 export default function EmployeesPage() {
@@ -14,6 +14,9 @@ export default function EmployeesPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [user, setUser] = useState(null)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [showFilters, setShowFilters] = useState(false)
 
   // Use imported getLevelNameFromNumber for level name lookup
   const getLevelName = getLevelNameFromNumber
@@ -25,13 +28,13 @@ export default function EmployeesPage() {
       setUser(parsedUser)
     }
     fetchEmployees()
-  }, [page, search])
+  }, [page, search, sortBy, sortOrder])
 
   const fetchEmployees = async () => {
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(
-        `/api/employees?page=${page}&limit=10&search=${search}`,
+        `/api/employees?page=${page}&limit=10&search=${search}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -95,9 +98,21 @@ export default function EmployeesPage() {
   }
 
   const handleSearch = (e) => {
-    setSearch(e.target.value)
+    const value = e.target.value
+    setSearch(value)
     setPage(1)
   }
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (search !== undefined) {
+        fetchEmployees()
+      }
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [search])
 
   return (
     <div className="page-container">
@@ -133,10 +148,29 @@ export default function EmployeesPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
-          <button className="btn-secondary flex items-center space-x-2">
-            <FaFilter />
-            <span>Filters</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-')
+                setSortBy(field)
+                setSortOrder(order)
+                setPage(1)
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="firstName-asc">Name A-Z</option>
+              <option value="firstName-desc">Name Z-A</option>
+              <option value="createdAt-desc">Newest First</option>
+              <option value="createdAt-asc">Oldest First</option>
+              <option value="dateOfJoining-desc">Recently Joined</option>
+              <option value="dateOfJoining-asc">Earliest Joined</option>
+            </select>
+            <button className="btn-secondary flex items-center space-x-2">
+              <FaFilter />
+              <span>Filters</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -214,8 +248,8 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${employee.status === 'active' ? 'bg-green-100 text-green-800' :
-                            employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                              'bg-red-100 text-red-800'
+                          employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                            'bg-red-100 text-red-800'
                           }`}>
                           {employee.status}
                         </span>

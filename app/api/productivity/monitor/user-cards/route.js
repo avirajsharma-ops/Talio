@@ -29,27 +29,27 @@ async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
-  
+
   const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
-  
+
   if (!employeeId) {
     const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
-  
+
   if (!employeeId) {
     console.log('[getDepartmentIfHead] No employee found for userId:', userId);
     return null;
   }
-  
+
   // Check if this employee is head of any department (check both head and heads fields)
-  const department = await Department.findOne({ 
+  const department = await Department.findOne({
     $or: [
       { head: employeeId },
       { heads: employeeId }
     ],
-    isActive: true 
+    isActive: true
   }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
@@ -92,7 +92,7 @@ export async function GET(request) {
     }
 
     const isAdminOrGodAdmin = currentUser.role === 'admin' || currentUser.role === 'god_admin';
-    
+
     // Check if user is a department head via Department.head field
     const headOfDepartment = await getDepartmentIfHead(userId);
     const isDeptHead = !!headOfDepartment;
@@ -107,7 +107,7 @@ export async function GET(request) {
 
     // Build employee query based on access level (same as user-cards API)
     let employeeQuery = { status: 'active' };
-    
+
     if (isAdminOrGodAdmin) {
       // Admins see all users - no additional filter
     } else if (isDeptHead) {
@@ -131,15 +131,15 @@ export async function GET(request) {
     const employees = await Employee.find(employeeQuery)
       .populate('userId', 'name email profilePicture')
       .populate('department', 'name')
-      .select('firstName lastName employeeCode designation profilePicture userId department email')
+      .select('firstName lastName employeeCode designation designationLevel designationLevelName profilePicture userId department email')
       .lean();
 
     // For employees without userId, fetch users via User.employeeId (reverse relationship)
     const employeeIds = employees.map(emp => emp._id);
-    const usersWithEmployeeId = await User.find({ 
-      employeeId: { $in: employeeIds } 
+    const usersWithEmployeeId = await User.find({
+      employeeId: { $in: employeeIds }
     }).select('_id name email profilePicture employeeId').lean();
-    
+
     // Create a map of employeeId -> User
     const employeeToUserMap = {};
     usersWithEmployeeId.forEach(user => {
@@ -159,7 +159,7 @@ export async function GET(request) {
       // Get userId from either Employee.userId or User.employeeId (reverse lookup)
       let userInfo = employee.userId;
       let empUserId = userInfo?._id || userInfo;
-      
+
       // If no userId on employee, check reverse relationship
       if (!empUserId) {
         const reverseUser = employeeToUserMap[employee._id.toString()];
@@ -168,16 +168,16 @@ export async function GET(request) {
           userInfo = reverseUser;
         }
       }
-      
+
       // Convert to ObjectId for aggregation
       const empUserObjId = toObjectId(empUserId);
-      
+
       // Still include employee even if no user account (show card without capture data)
       if (!empUserObjId) {
-        const userName = employee.firstName && employee.lastName 
+        const userName = employee.firstName && employee.lastName
           ? `${employee.firstName} ${employee.lastName}`
           : 'Unknown';
-        
+
         return {
           id: employee._id?.toString(),
           odooId: null,
@@ -196,7 +196,7 @@ export async function GET(request) {
           isOwn: false
         };
       }
-      
+
       // Get stats from both ProductivityData and MayaScreenSummary
       const [productivityStats, legacyStats] = await Promise.all([
         ProductivityData.aggregate([
@@ -246,17 +246,17 @@ export async function GET(request) {
       // Merge stats from both sources
       const prodStats = productivityStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
       const legStats = legacyStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
-      
+
       const totalCaptures = (prodStats.totalCaptures || 0) + (legStats.totalCaptures || 0);
       const todayCaptures = (prodStats.todayCaptures || 0) + (legStats.todayCaptures || 0);
       const totalActiveTime = (prodStats.totalActiveTime || 0) + (legStats.totalActiveTime || 0);
-      
+
       // Get the most recent capture time
       let latestCapture = prodStats.latestCapture || legStats.latestCapture;
       if (prodStats.latestCapture && legStats.latestCapture) {
         latestCapture = prodStats.latestCapture > legStats.latestCapture ? prodStats.latestCapture : legStats.latestCapture;
       }
-      
+
       // Average productivity (if both have values)
       let avgProductivity = 0;
       if (prodStats.avgProductivity && legStats.avgProductivity) {
@@ -264,8 +264,8 @@ export async function GET(request) {
       } else {
         avgProductivity = prodStats.avgProductivity || legStats.avgProductivity || 0;
       }
-      
-      const userName = employee.firstName && employee.lastName 
+
+      const userName = employee.firstName && employee.lastName
         ? `${employee.firstName} ${employee.lastName}`
         : (userInfo?.name || 'Unknown');
 
@@ -297,8 +297,8 @@ export async function GET(request) {
         return (b.totalCaptures || 0) - (a.totalCaptures || 0);
       });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: validUserCards,
       totalUsers: validUserCards.length,
       accessLevel: isAdminOrGodAdmin ? 'admin' : isDeptHead ? 'department_head' : 'self_only'
@@ -306,9 +306,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Raw Captures User Cards Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch raw captures user cards' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch raw captures user cards'
     }, { status: 500 });
   }
 }

@@ -33,7 +33,7 @@ export async function GET(request) {
 
     // Get user to find employee ID
     const user = await User.findById(decoded.userId).select('employeeId').lean()
-    
+
     if (!user || !user.employeeId) {
       // Return empty data for users without employee records
       return NextResponse.json({
@@ -80,7 +80,7 @@ export async function GET(request) {
       })
         .populate('designation', 'title level levelName')
         .populate('reportingManager', 'firstName lastName employeeCode')
-        .select('firstName lastName employeeCode email phone dateOfJoining designation reportingManager profilePicture skills')
+        .select('firstName lastName employeeCode email phone dateOfJoining designation designationLevel designationLevelName reportingManager profilePicture skills')
         .sort({ firstName: 1 })
         .lean()
     } else if (userRole === 'manager') {
@@ -91,7 +91,7 @@ export async function GET(request) {
       })
         .populate('designation', 'title level levelName')
         .populate('department', 'name')
-        .select('firstName lastName employeeCode email phone dateOfJoining designation department profilePicture skills')
+        .select('firstName lastName employeeCode email phone dateOfJoining designation designationLevel designationLevelName department profilePicture skills')
         .sort({ firstName: 1 })
         .lean()
 

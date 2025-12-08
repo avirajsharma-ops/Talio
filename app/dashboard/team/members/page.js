@@ -24,7 +24,7 @@ export default function TeamMembersPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      
+
       const response = await fetch('/api/team/members', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -145,7 +145,7 @@ export default function TeamMembersPage() {
                 <div className="flex items-center text-sm text-gray-600">
                   <FaBriefcase className="mr-2 text-gray-400" />
                   <span>
-                    {formatDesignation(member.designation) || 'No designation'}
+                    {formatDesignation(member.designation, member) || 'No designation'}
                   </span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">

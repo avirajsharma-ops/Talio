@@ -173,20 +173,18 @@ export default function HelpdeskPage() {
                         {ticket?.category || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          ticket?.priority === 'high' ? 'bg-red-100 text-red-800' :
-                          ticket?.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ticket?.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            ticket?.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                          }`}>
                           {ticket?.priority || 'low'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          ticket?.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                          ticket?.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ticket?.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                            ticket?.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'
+                          }`}>
                           {ticket?.status || 'open'}
                         </span>
                       </td>
@@ -204,7 +202,7 @@ export default function HelpdeskPage() {
 
       {/* Create Ticket Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" style={{ zIndex: 99999 }}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9100]">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Create Ticket</h2>
             <form>

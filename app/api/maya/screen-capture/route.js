@@ -39,9 +39,9 @@ export async function POST(request) {
     } = body;
 
     if (!screenshot) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Screenshot data is required' 
+      return NextResponse.json({
+        success: false,
+        error: 'Screenshot data is required'
       }, { status: 400 });
     }
 
@@ -49,22 +49,22 @@ export async function POST(request) {
 
     const user = await User.findById(userId).select('employeeId');
     if (!user || !user.employeeId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User not found or not associated with an employee' 
+      return NextResponse.json({
+        success: false,
+        error: 'User not found or not associated with an employee'
       }, { status: 404 });
     }
 
     // Get employee details for context
     const employee = await Employee.findById(user.employeeId)
-      .select('name designation department');
+      .select('name designation designationLevel designationLevelName department');
 
     // Perform MAYA AI productivity analysis
     const analysis = await analyzeProductivityWithMAYA(
       { currentPage, activities, applications },
-      { 
-        designation: employee?.designation, 
-        department: employee?.department 
+      {
+        designation: employee?.designation,
+        department: employee?.department
       }
     );
 
@@ -84,9 +84,9 @@ export async function POST(request) {
       productivityScore: analysis.productivityScore,
       productivityTips: analysis.productivityTips,
       productivityInsights: analysis.productivityInsights,
-      currentPage: currentPage || { 
-        url: 'desktop-app', 
-        title: 'Desktop Application' 
+      currentPage: currentPage || {
+        url: 'desktop-app',
+        title: 'Desktop Application'
       },
       activities: activities || ['Desktop activity monitored'],
       applications: applications || [],
@@ -133,10 +133,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Screen Capture Error:', error);
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: 'Failed to save screen capture',
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 }

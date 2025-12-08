@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { 
+import {
   FaProjectDiagram, FaTasks, FaCalendarAlt, FaChevronRight,
   FaExclamationTriangle, FaCheckCircle, FaPlay, FaClock,
   FaEye, FaCheck, FaTimes
@@ -47,7 +47,7 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
   const fetchTodayTasks = async () => {
     try {
       const token = localStorage.getItem('token')
-      
+
       // Fetch today's tasks
       const response = await fetch(`/api/projects/my-tasks?period=today&limit=${limit}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -186,8 +186,8 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
         <div className="space-y-3">
           {/* Pending Acceptance Tasks */}
           {showPendingAcceptance && pendingTasks.map(task => (
-            <div 
-              key={task._id} 
+            <div
+              key={task._id}
               className="p-3 rounded-lg border border-yellow-200 bg-yellow-50"
             >
               <div className="flex items-start justify-between">
@@ -235,13 +235,12 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
           {tasks.map(task => {
             const StatusIcon = statusIcons[task.status] || FaTasks
             const taskOverdue = isOverdue(task)
-            
+
             return (
-              <div 
-                key={task._id} 
-                className={`p-3 rounded-lg border ${
-                  taskOverdue ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-gray-50'
-                }`}
+              <div
+                key={task._id}
+                className={`p-3 rounded-lg border ${taskOverdue ? 'border-red-200 bg-red-50' : 'border-gray-100 bg-gray-50'
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -274,7 +273,7 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Quick Action Button */}
                   {task.status !== 'completed' && (
                     <button
@@ -289,9 +288,9 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
                       disabled={respondingTo === task._id}
                       className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded hover:bg-primary-200 disabled:opacity-50 flex-shrink-0 ml-2"
                     >
-                      {task.status === 'todo' ? 'Start' : 
-                       task.status === 'in-progress' ? 'Review' : 
-                       task.status === 'review' ? 'Complete' : ''}
+                      {task.status === 'todo' ? 'Start' :
+                        task.status === 'in-progress' ? 'Review' :
+                          task.status === 'review' ? 'Complete' : ''}
                     </button>
                   )}
                 </div>
@@ -303,7 +302,7 @@ export default function ProjectTasksWidget({ limit = 5, showPendingAcceptance = 
 
       {/* Reject Task Modal */}
       {showRejectModal && selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-[9100] flex items-center justify-center p-4 bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Reject Task Assignment</h3>
             <p className="text-sm text-gray-600 mb-4">

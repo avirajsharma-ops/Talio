@@ -29,29 +29,29 @@ async function getDepartmentIfHead(userId) {
   // Convert userId to ObjectId if needed
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
-  
+
   // First get the employee ID for this user
   const user = await User.findById(userObjId).select('employeeId').lean();
   let employeeId = user?.employeeId;
-  
+
   if (!employeeId) {
     // Try to find employee by userId
     const employee = await Employee.findOne({ userId: userObjId }).select('_id').lean();
     employeeId = employee?._id;
   }
-  
+
   if (!employeeId) {
     console.log('[getDepartmentIfHead] No employee found for userId:', userId);
     return null;
   }
-  
+
   // Check if this employee is head of any department (check both head and heads fields)
-  const department = await Department.findOne({ 
+  const department = await Department.findOne({
     $or: [
       { head: employeeId },
       { heads: employeeId }
     ],
-    isActive: true 
+    isActive: true
   }).lean();
   console.log('[getDepartmentIfHead] Check result:', { userId, employeeId: employeeId?.toString(), foundDepartment: department?.name || null });
   return department;
@@ -61,18 +61,18 @@ async function getDepartmentIfHead(userId) {
 async function getEmployeeForUser(userId) {
   const userObjId = toObjectId(userId);
   if (!userObjId) return null;
-  
+
   // First try: Employee.userId
   let employee = await Employee.findOne({ userId: userObjId }).select('_id department').lean();
   if (employee) return employee;
-  
+
   // Second try: User.employeeId (reverse relationship)
   const user = await User.findById(userObjId).select('employeeId').lean();
   if (user?.employeeId) {
     employee = await Employee.findById(user.employeeId).select('_id department').lean();
     if (employee) return employee;
   }
-  
+
   return null;
 }
 
@@ -90,13 +90,13 @@ async function canMonitorUser(requesterId, requesterRole, targetUserId) {
 
   // Check if user is department head via Department model
   const department = await getDepartmentIfHead(requesterId);
-  
+
   if (department) {
     // Get target employee's department using bidirectional lookup
     const targetEmployee = await getEmployeeForUser(targetUserId);
-    
-    if (targetEmployee && targetEmployee.department && 
-        targetEmployee.department.toString() === department._id.toString()) {
+
+    if (targetEmployee && targetEmployee.department &&
+      targetEmployee.department.toString() === department._id.toString()) {
       return true;
     }
   }
@@ -145,24 +145,24 @@ export async function GET(request) {
       if (!captureObjId) {
         return NextResponse.json({ success: false, error: 'Invalid capture ID' }, { status: 400 });
       }
-      
+
       // Try to find in ProductivityData first, then MayaScreenSummary
       let capture = await ProductivityData.findById(captureObjId)
         .populate('userId', 'email profilePicture employeeId')
         .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .lean();
-      
+
       if (!capture) {
         capture = await MayaScreenSummary.findById(captureObjId)
           .populate('monitoredUserId', 'email profilePicture employeeId')
           .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
           .lean();
       }
-      
+
       if (!capture) {
         return NextResponse.json({ success: false, error: 'Capture not found' }, { status: 404 });
       }
-      
+
       // Get screenshot data with proper data URI prefix
       let screenshotData = null;
       if (capture.screenshot?.url) {
@@ -173,16 +173,16 @@ export async function GET(request) {
           screenshotData = data;
         } else {
           // Detect format from data or default to webp (our compression format)
-          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' : 
-                          data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' :
+            data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
           screenshotData = `data:${mimeType};base64,${data}`;
         }
       } else if (capture.screenshotUrl) {
         const url = capture.screenshotUrl;
-        screenshotData = url.startsWith('data:') ? url : 
-                        (url.startsWith('http') ? url : `data:image/webp;base64,${url}`);
+        screenshotData = url.startsWith('data:') ? url :
+          (url.startsWith('http') ? url : `data:image/webp;base64,${url}`);
       }
-      
+
       return NextResponse.json({
         success: true,
         data: [{
@@ -193,20 +193,20 @@ export async function GET(request) {
     }
 
     let query = {};
-    
+
     // Check if user is a department head (via Department.head field)
     const headOfDepartment = await getDepartmentIfHead(userId);
-    
+
     console.log('[Monitor API] User check:', { userId, role: user.role, isHead: !!headOfDepartment, departmentId: headOfDepartment?._id });
-    
+
     // Determine which users' data to fetch based on role and permissions
     if (targetUserId) {
       // Specific user requested - check permission
       const canMonitor = await canMonitorUser(userId, user.role, targetUserId);
       if (!canMonitor) {
-        return NextResponse.json({ 
-          success: false, 
-          error: "You do not have permission to view this user's data" 
+        return NextResponse.json({
+          success: false,
+          error: "You do not have permission to view this user's data"
         }, { status: 403 });
       }
       // Convert string to ObjectId for proper querying
@@ -223,18 +223,18 @@ export async function GET(request) {
         // No filter needed
       } else if (headOfDepartment) {
         // User is head of a department - get all employees in that department
-        const departmentEmployees = await Employee.find({ 
-          department: headOfDepartment._id 
+        const departmentEmployees = await Employee.find({
+          department: headOfDepartment._id
         }).select('userId');
         const departmentUserIds = departmentEmployees
           .filter(e => e.userId)
           .map(e => e.userId);
-        
+
         // Always include the head's own userId
         if (!departmentUserIds.some(id => id?.toString() === userId)) {
           departmentUserIds.push(userId);
         }
-        
+
         query.monitoredUserId = { $in: departmentUserIds };
         console.log('[Monitor API] Department head query - department:', headOfDepartment.name, 'users:', departmentUserIds.length);
       } else {
@@ -272,7 +272,7 @@ export async function GET(request) {
     // Get counts in parallel with data fetch for speed
     // For initial loads, we can skip count and estimate from results
     const skipCounting = skip === 0 && limit <= 20;
-    
+
     // Fetch from both old MayaScreenSummary and new ProductivityData
     const [legacyData, productivityData, legacyCount, productivityCount] = await Promise.all([
       // Legacy data
@@ -298,19 +298,19 @@ export async function GET(request) {
       skipCounting ? 0 : MayaScreenSummary.countDocuments(query),
       skipCounting ? 0 : ProductivityData.countDocuments(productivityQuery)
     ]);
-    
+
     // For productivity data without employeeId, try to look up by userId
     const userIdsNeedingEmployee = productivityData
       .filter(pd => !pd.employeeId && pd.userId)
       .map(pd => pd.userId._id || pd.userId);
-    
+
     // Batch lookup employees by userId for records missing employeeId
     let employeeByUserId = {};
     if (userIdsNeedingEmployee.length > 0) {
-      const employees = await Employee.find({ 
-        userId: { $in: userIdsNeedingEmployee } 
-      }).select('userId firstName lastName employeeCode department designation profilePicture').lean();
-      
+      const employees = await Employee.find({
+        userId: { $in: userIdsNeedingEmployee }
+      }).select('userId firstName lastName employeeCode department designation designationLevel designationLevelName profilePicture').lean();
+
       employees.forEach(emp => {
         if (emp.userId) {
           employeeByUserId[emp.userId.toString()] = emp;
@@ -324,14 +324,14 @@ export async function GET(request) {
       let userName = 'Unknown User';
       let userEmail = '';
       let userProfilePic = '';
-      
+
       // Get employee info - first from employeeId, then from lookup
       let employeeInfo = pd.employeeId;
       if (!employeeInfo && pd.userId) {
         const userIdStr = (pd.userId._id || pd.userId).toString();
         employeeInfo = employeeByUserId[userIdStr];
       }
-      
+
       // Priority 1: Employee data (firstName + lastName)
       if (employeeInfo?.firstName) {
         userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
@@ -343,12 +343,12 @@ export async function GET(request) {
         userEmail = pd.userId.email || '';
         userProfilePic = pd.userId.profilePicture || '';
       }
-      
+
       // Get email from userId if we have it
       if (pd.userId?.email && !userEmail) {
         userEmail = pd.userId.email;
       }
-      
+
       // Get screenshot - prefer url, fallback to base64 data with proper format detection
       let screenshotData = null;
       if (pd.screenshot?.url) {
@@ -360,33 +360,33 @@ export async function GET(request) {
         } else {
           // Detect image format from base64 data header
           // JPEG: /9j/, PNG: iVBOR, WebP: UklGR (our compression format)
-          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' : 
-                          data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
+          const mimeType = data.startsWith('/9j/') ? 'image/jpeg' :
+            data.startsWith('iVBOR') ? 'image/png' : 'image/webp';
           screenshotData = `data:${mimeType};base64,${data}`;
         }
       }
-      
+
       // Generate dynamic summary if AI analysis is missing
       let summary = pd.aiAnalysis?.summary;
       if (!summary || summary === 'Productivity data captured') {
         // Create a meaningful summary from the data
         const topApp = pd.topApps?.[0];
         const totalMins = Math.round((pd.totalActiveTime || 0) / 60000);
-        const productivePercent = pd.totalActiveTime > 0 
-          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100) 
+        const productivePercent = pd.totalActiveTime > 0
+          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100)
           : 0;
-        
+
         if (topApp) {
           summary = `Worked for ${totalMins} minutes with ${productivePercent}% productive time. Primary focus: ${topApp.appName} (${topApp.percentage || 0}% of time).`;
         } else {
           summary = `Activity captured for ${totalMins} minutes with ${productivePercent}% productive time.`;
         }
       }
-      
+
       return {
         _id: pd._id,
-        monitoredUserId: { 
-          _id: pd.userId?._id || pd.userId, 
+        monitoredUserId: {
+          _id: pd.userId?._id || pd.userId,
           name: userName,
           email: userEmail,
           profilePicture: userProfilePic
@@ -395,8 +395,8 @@ export async function GET(request) {
         captureType: 'screenshot',
         captureMode: pd.isInstantCapture ? 'instant' : 'automatic',
         summary: summary,
-        productivityScore: pd.aiAnalysis?.productivityScore || (pd.totalActiveTime > 0 
-          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100) 
+        productivityScore: pd.aiAnalysis?.productivityScore || (pd.totalActiveTime > 0
+          ? Math.round((pd.productiveTime / pd.totalActiveTime) * 100)
           : 0),
         productivityTips: pd.aiAnalysis?.recommendations?.join('. ') || '',
         productivityInsights: pd.aiAnalysis?.insights || [],
@@ -429,11 +429,11 @@ export async function GET(request) {
       .slice(0, limit);
 
     // Calculate total - use counts if available, otherwise estimate from results
-    const totalAvailable = skipCounting 
+    const totalAvailable = skipCounting
       ? (allData.length >= limit ? allData.length + 100 : allData.length) // Estimate more if full page
       : (legacyCount + productivityCount);
 
-    console.log('[Monitor API] Returning', allData.length, 'of', totalAvailable, 'total records. Sample names:', 
+    console.log('[Monitor API] Returning', allData.length, 'of', totalAvailable, 'total records. Sample names:',
       allData.slice(0, 3).map(d => d.monitoredUserId?.name || 'no-name').join(', '));
 
     return NextResponse.json({
@@ -446,9 +446,9 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('Screen Monitor Fetch Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch monitoring data' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch monitoring data'
     }, { status: 500 });
   }
 }
@@ -577,9 +577,9 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Screen Capture Submit Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to save screen capture data' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to save screen capture data'
     }, { status: 500 });
   }
 }

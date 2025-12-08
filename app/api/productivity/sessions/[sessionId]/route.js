@@ -108,7 +108,7 @@ export async function GET(request, { params }) {
     }
     if (session.employeeId) {
       const Employee = mongoose.models.Employee || mongoose.model('Employee', new mongoose.Schema({}, { strict: false }));
-      const emp = await Employee.findById(session.employeeId).select('firstName lastName employeeCode designation department profilePicture').lean();
+      const emp = await Employee.findById(session.employeeId).select('firstName lastName employeeCode designation designationLevel designationLevelName department profilePicture').lean();
       session.employeeId = emp;
     }
 
@@ -119,9 +119,9 @@ export async function GET(request, { params }) {
 
   } catch (error) {
     console.error('[Session Detail API] Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to fetch session details' 
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch session details'
     }, { status: 500 });
   }
 }

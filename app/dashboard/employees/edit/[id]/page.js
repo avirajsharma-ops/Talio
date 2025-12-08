@@ -100,7 +100,7 @@ export default function EditEmployeePage() {
           departments: deptIds.length > 0 ? deptIds : (primaryDept ? [primaryDept] : []),
           department: primaryDept,
           designation: emp.designation?._id?.toString() || emp.designation?.toString() || '',
-          designationLevel: emp.designationLevel || emp.designation?.level || '',
+          designationLevel: emp.designationLevel || emp.designation?.level || 1,
           designationLevelName: emp.designationLevelName || emp.designation?.levelName || '',
           dateOfJoining: emp.dateOfJoining ? new Date(emp.dateOfJoining).toISOString().split('T')[0] : '',
           employmentType: emp.employmentType || '',

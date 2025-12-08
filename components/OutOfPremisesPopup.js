@@ -22,7 +22,7 @@ export default function OutOfPremisesPopup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!reason.trim()) {
       toast.error('Please provide a reason')
       return
@@ -73,7 +73,7 @@ export default function OutOfPremisesPopup() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9950] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="bg-red-500 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
@@ -97,10 +97,10 @@ export default function OutOfPremisesPopup() {
         <form onSubmit={handleSubmit} className="p-6">
           <div className="mb-4">
             <p className="text-gray-700 mb-4">
-              You have been detected outside the office premises during work hours. 
+              You have been detected outside the office premises during work hours.
               Please provide a reason for your department head's approval.
             </p>
-            
+
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Reason for being outside office premises *
             </label>
@@ -117,7 +117,7 @@ export default function OutOfPremisesPopup() {
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-xs text-yellow-800">
-              <strong>Note:</strong> Your request will be sent to your department head for approval. 
+              <strong>Note:</strong> Your request will be sent to your department head for approval.
               You will be notified once it's reviewed.
             </p>
           </div>

@@ -14,11 +14,15 @@ export async function GET(request) {
       .sort({ name: 1 })
       .lean()
 
-    // Add employee count for each department
+    // Add employee count for each department (including multiple departments)
     const departmentsWithCount = await Promise.all(
       departments.map(async (dept) => {
+        // Count employees where this department is in their departments array OR is their primary department
         const employeeCount = await Employee.countDocuments({
-          department: dept._id,
+          $or: [
+            { departments: dept._id },
+            { department: dept._id }
+          ],
           status: 'active'
         })
         return {
@@ -47,7 +51,7 @@ export async function POST(request) {
     await connectDB()
 
     const data = await request.json()
-    
+
     // Handle multiple heads - ensure backwards compatibility
     if (data.heads && data.heads.length > 0) {
       // Set the first head as the legacy 'head' field for backwards compatibility
