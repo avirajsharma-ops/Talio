@@ -23,6 +23,23 @@ import toast from 'react-hot-toast'
 import ModalPortal from '@/components/ModalPortal'
 import { formatDesignation, formatDepartments, getLevelNameFromNumber } from '@/lib/formatters'
 import TiltWrapper from "@/components/TiltWrapper";
+import dynamic from 'next/dynamic'
+
+// Dynamically import Lanyard with no SSR and error boundary
+const Lanyard = dynamic(() => import('@/src/component/Lanyard').catch((error) => {
+  console.error('Failed to load Lanyard component:', error);
+  // Return transparent fallback to not interfere with UI
+  return {
+    default: () => (
+      <div className="w-full h-full bg-transparent" />
+    )
+  };
+}), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-transparent" />
+  )
+});
 
 
 export default function ProfilePage() {
@@ -433,11 +450,10 @@ export default function ProfilePage() {
 
           <div className="flex items-center gap-3">
             <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
-                employee.status === 'active'
-                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-                  : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
-              }`}
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${employee.status === 'active'
+                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+                }`}
             >
               <span className="h-2 w-2 rounded-full mr-1.5 bg-current" />
               {employee.status === 'active'
@@ -477,148 +493,156 @@ export default function ProfilePage() {
         </div>
 
         {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 overflow-visible">
           {/* Profile Card */}
-          <div className="lg:col-span-1">
-             <TiltWrapper>
-    <div
-      style={{ backgroundColor: 'var(--color-accent-profile)' }}
-      className="
-        rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden
+          <div className="lg:col-span-1 relative" style={{ overflow: 'visible' }}>
+            <div
+              style={{ backgroundColor: 'var(--color-accent-profile)', zIndex: 20 }}
+              className="
+        rounded-3xl p-6 sm:p-7 text-white relative overflow-visible
         shadow-xl shadow-slate-900/20
-        transition-all duration-300 transform-gpu
+        transition-all duration-300
       "
-    >
-      {/* Subtle overlay */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-black/10 blur-2xl" />
-      </div>
+            >
+              {/* Subtle overlay */}
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+                <div className="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-black/10 blur-2xl" />
+              </div>
 
-      <div className="relative">
-        {/* Profile Picture + Info */}
-        <div className="flex items-start gap-5 sm:gap-6 mb-8">
-          {/* Profile picture */}
-          <div className="relative flex-shrink-0">
-            <div className="w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] rounded-full 
+              <div className="relative">
+                {/* Profile Picture + Info */}
+                <div className="flex items-start gap-5 sm:gap-6 mb-8">
+                  {/* Profile picture */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-[120px] h-[120px] sm:w-[140px] sm:h-[140px] rounded-full 
                 overflow-hidden bg-gradient-to-br from-amber-300 via-amber-500 to-orange-600 
                 flex items-center justify-center shadow-xl shadow-black/30 ring-4 ring-white/30">
-              {employee.profilePicture ? (
-                <img
-                  src={employee.profilePicture}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-4xl sm:text-5xl font-bold text-white">
-                  {employee.firstName?.[0]}
-                  {employee.lastName?.[0]}
-                </span>
-              )}
-            </div>
+                      {employee.profilePicture ? (
+                        <img
+                          src={employee.profilePicture}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-4xl sm:text-5xl font-bold text-white">
+                          {employee.firstName?.[0]}
+                          {employee.lastName?.[0]}
+                        </span>
+                      )}
+                    </div>
 
-            {/* Camera Button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingImage}
-              className="absolute -bottom-1.5 -right-1.5 w-10 h-10 sm:w-11 sm:h-11 rounded-full 
+                    {/* Camera Button */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="absolute -bottom-1.5 -right-1.5 w-10 h-10 sm:w-11 sm:h-11 rounded-full 
                 flex items-center justify-center shadow-lg shadow-black/40 
                 border-[3px] border-white disabled:opacity-60"
-              style={{ backgroundColor: '#4FC3F7' }}
-            >
-              {uploadingImage ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <FaCamera className="text-white text-sm" />
-              )}
-            </button>
+                      style={{ backgroundColor: '#4FC3F7' }}
+                    >
+                      {uploadingImage ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <FaCamera className="text-white text-sm" />
+                      )}
+                    </button>
 
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-          </div>
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+                  </div>
 
-          {/* Employee Info */}
-          <div className="flex-1 pt-1 min-w-0">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/70 mb-2">
-              EMPLOYEE ID
-            </p>
-            <p className="text-sm font-semibold text-white/90 mb-4 break-all">
-              {employee.employeeCode}
-            </p>
+                  {/* Employee Info */}
+                  <div className="flex-1 pt-1 min-w-0">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/70 mb-2">
+                      EMPLOYEE ID
+                    </p>
+                    <p className="text-sm font-semibold text-white/90 mb-4 break-all">
+                      {employee.employeeCode}
+                    </p>
 
-            <h2 className="text-2xl sm:text-3xl font-semibold leading-tight text-white mb-2 truncate">
-              {employee.firstName} {employee.lastName}
-            </h2>
+                    <h2 className="text-2xl sm:text-3xl font-semibold leading-tight text-white mb-2 truncate">
+                      {employee.firstName} {employee.lastName}
+                    </h2>
 
-            <p className="text-xs sm:text-sm text-white/80">
-              {employee.designation ? (
-                <>
-                  {employee.designationLevelName ||
-                  getLevelName(employee.designationLevel || employee.designation.level)
-                    ? `(${employee.designationLevelName ||
-                        getLevelName(employee.designationLevel || employee.designation.level)
-                      }) • ${employee.designation.title}`
-                    : employee.designation.title || 'N/A'}
-                </>
-              ) : (
-                'N/A'
-              )}
-            </p>
-          </div>
-        </div>
+                    <p className="text-xs sm:text-sm text-white/80">
+                      {employee.designation ? (
+                        <>
+                          {employee.designationLevelName ||
+                            getLevelName(employee.designationLevel || employee.designation.level)
+                            ? `(${employee.designationLevelName ||
+                            getLevelName(employee.designationLevel || employee.designation.level)
+                            }) • ${employee.designation.title}`
+                            : employee.designation.title || 'N/A'}
+                        </>
+                      ) : (
+                        'N/A'
+                      )}
+                    </p>
+                  </div>
+                </div>
 
-        {/* Chips */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur text-white">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 mr-1.5" />
-            {employee.workLocation || 'Work location not set'}
-          </span>
+                {/* Chips */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur text-black">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 mr-1.5" />
+                    {employee.workLocation || 'Work location not set'}
+                  </span>
 
-          {employee.department && (
-            <span className="inline-flex items-center rounded-full bg-black/15 px-3 py-1 text-xs font-medium backdrop-blur text-white/90">
-              {formatDepartments(employee)}
-            </span>
-          )}
-        </div>
+                  {employee.department && (
+                    <span className="inline-flex items-center rounded-full bg-black/15 px-3 py-1 text-xs font-medium backdrop-blur text-white/90">
+                      {formatDepartments(employee)}
+                    </span>
+                  )}
+                </div>
 
-        {/* Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            className={`h-12 rounded-2xl text-sm font-semibold shadow-md shadow-black/25 
+                {/* Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    className={`h-12 rounded-2xl text-sm font-semibold shadow-md shadow-black/25 
               ${employee.status === 'active'
-                ? 'bg-emerald-500/95 text-white'
-                : 'bg-slate-700/90 text-slate-50'
-              }`}
-          >
-            {employee.status === 'active' ? 'Active' : employee.status?.toUpperCase()}
-          </button>
+                        ? 'bg-emerald-500/95 text-white'
+                        : 'bg-slate-700/90 text-slate-50'
+                      }`}
+                  >
+                    {employee.status === 'active' ? 'Active' : employee.status?.toUpperCase()}
+                  </button>
 
-          {!isEditing ? (
-            <button
-              onClick={handleEditClick}
-              className="h-12 rounded-2xl text-sm font-semibold bg-white/90 text-slate-900 shadow-md shadow-black/20 hover:bg-white"
-            >
-              <FaEdit className="inline-block mr-2 text-sm" /> Edit Profile
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={handleCancelEdit}
-                className="flex-1 h-12 rounded-2xl bg-white/15 text-white border border-white/30 text-xs font-semibold"
-              >
-                <FaTimes />
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                className="flex-1 h-12 rounded-2xl bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-black/30"
-              >
-                <FaSave />
-              </button>
+                  {!isEditing ? (
+                    <button
+                      onClick={handleEditClick}
+                      className="h-12 rounded-2xl text-sm font-semibold bg-white/90 text-slate-900 shadow-md shadow-black/20 hover:bg-white"
+                    >
+                      <FaEdit className="inline-block mr-2 text-sm" /> Edit Profile
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCancelEdit}
+                        className="flex-1 h-12 rounded-2xl bg-white/15 text-white border border-white/30 text-xs font-semibold"
+                      >
+                        <FaTimes />
+                      </button>
+                      <button
+                        onClick={handleSaveProfile}
+                        className="flex-1 h-12 rounded-2xl bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-black/30"
+                      >
+                        <FaSave />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </TiltWrapper>
+
+            {/* Lanyard Model - hanging from profile card bottom, always behind card */}
+            {typeof window !== 'undefined' && (
+              <div
+                className="absolute left-1/2 -translate-x-1/2 w-[1000px] overflow-visible h-[100%] pointer-events-none"
+                style={{ top: '22%', overflow: 'visible', zIndex: 1 }}
+              >
+                <Lanyard position={[0, 0, 17]} gravity={[0, -50, 0]} fov={25} />
+              </div>
+            )}
           </div>
 
           {/* Right Side: Details */}
@@ -699,8 +723,8 @@ export default function ProfilePage() {
                         value={
                           editedEmployee.dateOfBirth
                             ? new Date(editedEmployee.dateOfBirth)
-                                .toISOString()
-                                .split('T')[0]
+                              .toISOString()
+                              .split('T')[0]
                             : ''
                         }
                         onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
@@ -710,10 +734,10 @@ export default function ProfilePage() {
                       <p className="font-semibold text-slate-900 text-sm sm:text-base">
                         {employee.dateOfBirth
                           ? new Date(employee.dateOfBirth).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
                           : 'N/A'}
                       </p>
                     )}
@@ -829,10 +853,10 @@ export default function ProfilePage() {
                   <p className="font-semibold text-slate-900 text-sm sm:text-base">
                     {employee.dateOfJoining
                       ? new Date(employee.dateOfJoining).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
                       : 'N/A'}
                   </p>
                 </div>

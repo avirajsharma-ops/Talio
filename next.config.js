@@ -10,10 +10,9 @@ const nextConfig = {
     ],
   },
 
-  // Disable React dev overlay to prevent ShadowPortal DOM errors
+  // Dev indicators configuration (Next.js 15 compatible)
   devIndicators: {
-    buildActivity: false,
-    buildActivityPosition: 'bottom-right',
+    position: 'bottom-right',
   },
 
   // Skip ESLint checks during Docker build
@@ -33,6 +32,15 @@ const nextConfig = {
         destination: '/api/assetlinks',
       },
     ];
+  },
+
+  // Support for .glb files
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.(glb|gltf)$/,
+      type: 'asset/resource',
+    });
+    return config;
   },
 };
 

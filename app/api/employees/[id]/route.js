@@ -10,16 +10,19 @@ import { logActivity } from '@/lib/activityLogger'
 // GET - Get single employee
 export async function GET(request, { params }) {
   try {
+    // Await params in Next.js 15
+    const { id } = await params;
+
     await connectDB()
 
     // Check cache first
-    const cacheKey = queryCache.generateKey('employee', params.id)
+    const cacheKey = queryCache.generateKey('employee', id)
     const cached = queryCache.get(cacheKey)
     if (cached) {
       return NextResponse.json(cached)
     }
 
-    let employee = await Employee.findById(params.id)
+    let employee = await Employee.findById(id)
       .populate({
         path: 'department',
         select: 'name',
