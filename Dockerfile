@@ -1,13 +1,12 @@
 # ============================================
 # Talio HRMS - Production Dockerfile
-# Optimized for faster builds with layer caching
 # ============================================
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install build dependencies (cached layer)
+# Install build dependencies
 RUN apk add --no-cache \
     libc6-compat \
     python3 \
@@ -17,7 +16,7 @@ RUN apk add --no-cache \
 # Copy package files first (better caching)
 COPY package*.json ./
 
-# Install dependencies (cached if package.json unchanged)
+# Install dependencies
 RUN npm ci --legacy-peer-deps
 
 # Copy source code
@@ -48,11 +47,8 @@ ENV NEXT_PUBLIC_ELEVENLABS_API_URL=${NEXT_PUBLIC_ELEVENLABS_API_URL}
 # Build the application
 RUN npm run build
 
-# Remove dev dependencies to reduce image size
-RUN npm prune --production --legacy-peer-deps
-
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application using npm start (which runs node server.js)
+CMD ["npm", "start"]
