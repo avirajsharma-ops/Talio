@@ -4,8 +4,8 @@
 # Talio HRMS - Production Deployment Script
 # ============================================
 # One-command deployment for Ubuntu/Debian servers
-# Installs all dependencies automatically
-# SSL certificates persist across Docker rebuilds
+# Uses modern Docker commands (docker compose)
+# Optimized for fast builds
 # ============================================
 
 set -e
@@ -56,15 +56,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --domain      Your domain name (default: app.talio.in)"
             echo "  --skip-deps   Skip dependency installation"
             echo "  --help        Show this help message"
-            echo ""
-            echo "Examples:"
-            echo "  ./deploy-production.sh --fresh --ssl"
-            echo "  ./deploy-production.sh --ssl --domain app.example.com"
             exit 0
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Use --help for usage information"
             exit 1
             ;;
     esac
@@ -87,14 +82,16 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Docker compose command (modern syntax)
+docker_compose() {
+    docker compose "$@"
+}
+
 # Install system dependencies
 install_dependencies() {
     log_info "Installing system dependencies..."
     
-    # Update package list
     apt-get update -qq
-    
-    # Install essential packages
     apt-get install -y -qq \
         apt-transport-https \
         ca-certificates \
@@ -103,7 +100,6 @@ install_dependencies() {
         lsb-release \
         git \
         ufw \
-        software-properties-common \
         > /dev/null 2>&1
     
     log_success "System dependencies installed"
@@ -118,23 +114,8 @@ install_docker() {
     
     log_info "Installing Docker..."
     
-    # Remove old versions
-    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-    
-    # Add Docker's official GPG key
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null || true
-    chmod a+r /etc/apt/keyrings/docker.gpg
-    
-    # Set up repository
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # Install Docker
-    apt-get update -qq
-    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin > /dev/null 2>&1
+    # Use official install script (fastest method)
+    curl -fsSL https://get.docker.com | sh
     
     # Start and enable Docker
     systemctl start docker
@@ -183,39 +164,24 @@ configure_firewall() {
     log_success "Firewall configured"
 }
 
-# Check and create .env file
+# Check .env file
 check_env_file() {
     log_info "Checking environment configuration..."
     
     if [ ! -f .env ]; then
-        if [ -f .env.example ]; then
-            log_warning ".env file not found. Creating from .env.example..."
-            cp .env.example .env
-            log_error "Please edit .env file with your production values!"
-            echo ""
-            echo "Required variables to set in .env:"
-            echo "  - MONGODB_URI=your_mongodb_connection_string"
-            echo "  - JWT_SECRET=your_secure_jwt_secret"
-            echo "  - NEXTAUTH_SECRET=your_secure_nextauth_secret"
-            echo "  - NEXTAUTH_URL=https://${DOMAIN}"
-            echo ""
-            echo "Run: nano .env"
-            echo "Then run this script again."
-            exit 1
-        else
-            log_error ".env file not found!"
-            exit 1
-        fi
+        log_error ".env file not found!"
+        log_info "Create .env file with: nano .env"
+        exit 1
     fi
     
-    # Validate required vars using grep instead of source (handles special chars better)
-    MONGODB_URI=$(grep -E "^MONGODB_URI=" .env | cut -d'=' -f2-)
-    JWT_SECRET=$(grep -E "^JWT_SECRET=" .env | cut -d'=' -f2-)
+    # Use grep to extract values (handles special characters)
+    MONGODB_URI=$(grep -E "^MONGODB_URI=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '\r')
+    JWT_SECRET=$(grep -E "^JWT_SECRET=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '\r')
     
     if [ -z "$MONGODB_URI" ]; then
         log_error "MONGODB_URI is not set in .env file"
-        echo "Current .env contents:"
-        head -5 .env
+        log_info "First 3 lines of .env:"
+        head -3 .env
         exit 1
     fi
     
@@ -227,26 +193,22 @@ check_env_file() {
     log_success "Environment configuration validated"
 }
 
-# Configure Nginx for the domain (HTTP only initially)
+# Configure Nginx HTTP
 configure_nginx_http() {
-    log_info "Configuring Nginx (HTTP) for ${DOMAIN}..."
+    log_info "Configuring Nginx for ${DOMAIN}..."
     
-    # Create certbot webroot directory
     mkdir -p /var/www/certbot
     
-    # Create HTTP-only Nginx config for initial setup and SSL challenge
     cat > /etc/nginx/sites-available/talio <<EOF
 server {
     listen 80;
     listen [::]:80;
     server_name ${DOMAIN};
 
-    # For Certbot challenges
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
 
-    # Proxy to app
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -258,135 +220,99 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
         proxy_read_timeout 86400;
-        proxy_send_timeout 86400;
     }
 
-    # Socket.IO
     location /api/socketio {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
         proxy_read_timeout 86400;
     }
 }
 EOF
 
-    # Enable site
     rm -f /etc/nginx/sites-enabled/default
     ln -sf /etc/nginx/sites-available/talio /etc/nginx/sites-enabled/talio
+    nginx -t && systemctl reload nginx
     
-    # Test and reload
-    nginx -t
-    systemctl reload nginx
-    
-    log_success "Nginx HTTP configured"
+    log_success "Nginx configured"
 }
 
 # Configure Nginx with SSL
 configure_nginx_ssl() {
-    log_info "Configuring Nginx with SSL for ${DOMAIN}..."
+    log_info "Configuring Nginx with SSL..."
     
-    # Create full SSL Nginx config
     cat > /etc/nginx/sites-available/talio <<EOF
-# Talio HRMS - Nginx Configuration with SSL
-# SSL certificates managed by Certbot (persist across Docker rebuilds)
-
 upstream talio_app {
     server 127.0.0.1:3000;
     keepalive 64;
 }
 
-# Redirect HTTP to HTTPS
 server {
     listen 80;
     listen [::]:80;
     server_name ${DOMAIN};
 
-    # For Certbot challenges
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
 
-    # Redirect all HTTP to HTTPS
     location / {
         return 301 https://\$host\$request_uri;
     }
 }
 
-# HTTPS server
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name ${DOMAIN};
 
-    # SSL certificates (managed by Certbot - outside Docker)
     ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    
-    # SSL configuration
     ssl_session_timeout 1d;
     ssl_session_cache shared:SSL:50m;
-    ssl_session_tickets off;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
-    
-    # HSTS
     add_header Strict-Transport-Security "max-age=63072000" always;
 
-    # Gzip compression
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml;
 
-    # Proxy settings
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection 'upgrade';
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_cache_bypass \$http_upgrade;
-    proxy_read_timeout 86400;
-    proxy_send_timeout 86400;
-
-    # Main application
     location / {
         proxy_pass http://talio_app;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 86400;
     }
 
-    # Socket.IO - WebSocket support
     location /api/socketio {
         proxy_pass http://talio_app;
+        proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400;
     }
 
-    # Static files caching
     location /_next/static {
         proxy_pass http://talio_app;
         proxy_cache_valid 60m;
         add_header Cache-Control "public, immutable";
     }
-
-    # Favicon caching
-    location /favicon.ico {
-        proxy_pass http://talio_app;
-        proxy_cache_valid 7d;
-    }
 }
 EOF
 
-    # Test and reload
-    nginx -t
-    systemctl reload nginx
-    
+    nginx -t && systemctl reload nginx
     log_success "Nginx SSL configured"
 }
 
@@ -394,17 +320,14 @@ EOF
 obtain_ssl_certificate() {
     log_info "Obtaining SSL certificate for ${DOMAIN}..."
     
-    # Create certbot webroot directory
     mkdir -p /var/www/certbot
     
-    # Check if certificate already exists
     if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
-        log_success "SSL certificate already exists - reusing it"
+        log_success "SSL certificate already exists"
         configure_nginx_ssl
         return
     fi
     
-    # Obtain certificate using webroot method
     certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
@@ -415,41 +338,21 @@ obtain_ssl_certificate() {
     
     if [ $? -eq 0 ]; then
         log_success "SSL certificate obtained"
-        
-        # Update Nginx config to use SSL
         configure_nginx_ssl
         
-        # Set up auto-renewal
-        setup_ssl_renewal
-    else
-        log_error "Failed to obtain SSL certificate"
-        log_warning "The app will continue to work on HTTP"
-        log_info "You can try again later with: certbot --nginx -d ${DOMAIN}"
-    fi
-}
-
-# Setup SSL auto-renewal
-setup_ssl_renewal() {
-    log_info "Setting up SSL auto-renewal..."
-    
-    # Create renewal hook to reload nginx
-    mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-    cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<EOF
+        # Setup auto-renewal
+        mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+        cat > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<EOF
 #!/bin/bash
 systemctl reload nginx
 EOF
-    chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-    
-    # Create cron job for renewal
-    cat > /etc/cron.d/certbot-renew <<EOF
-# Renew SSL certificates twice daily
-0 0,12 * * * root certbot renew --quiet
-EOF
-    
-    # Test renewal
-    certbot renew --dry-run > /dev/null 2>&1 || true
-    
-    log_success "SSL auto-renewal configured"
+        chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+        
+        echo "0 0,12 * * * root certbot renew --quiet" > /etc/cron.d/certbot-renew
+        log_success "SSL auto-renewal configured"
+    else
+        log_warning "Failed to obtain SSL - continuing with HTTP"
+    fi
 }
 
 # Pull latest code
@@ -460,8 +363,6 @@ pull_latest_code() {
         git fetch origin
         git pull origin main
         log_success "Code updated"
-    else
-        log_warning "Not a git repository - skipping pull"
     fi
 }
 
@@ -469,35 +370,31 @@ pull_latest_code() {
 deploy_docker() {
     log_info "Deploying with Docker..."
     
-    # Stop existing containers gracefully
+    # Stop existing containers
     log_info "Stopping existing containers..."
-    docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+    docker_compose down 2>/dev/null || true
     
-    # Build image
-    log_info "Building Docker image (this may take 3-5 minutes)..."
-    if docker compose build --no-cache 2>/dev/null; then
-        :
-    elif docker-compose build --no-cache 2>/dev/null; then
-        :
-    else
-        log_error "Docker build failed"
-        exit 1
-    fi
+    # Clean up old images to save space
+    log_info "Cleaning up old images..."
+    docker image prune -f > /dev/null 2>&1 || true
+    
+    # Build with cache for faster builds
+    log_info "Building Docker image..."
+    docker_compose build
     
     # Start containers
     log_info "Starting containers..."
-    docker compose up -d 2>/dev/null || docker-compose up -d
+    docker_compose up -d
     
-    # Wait for startup
+    # Wait and check
     log_info "Waiting for application to start..."
-    sleep 15
+    sleep 10
     
-    # Check status
-    if docker compose ps 2>/dev/null | grep -q "Up" || docker-compose ps 2>/dev/null | grep -q "Up"; then
+    if docker_compose ps | grep -q "Up\|running"; then
         log_success "Docker containers are running"
     else
-        log_error "Docker containers failed to start"
-        docker compose logs --tail=100 2>/dev/null || docker-compose logs --tail=100
+        log_error "Containers failed to start"
+        docker_compose logs --tail=50
         exit 1
     fi
 }
@@ -505,30 +402,22 @@ deploy_docker() {
 # Seed database
 seed_database() {
     log_info "Seeding database..."
-    
     sleep 5
-    docker compose exec -T app npm run seed 2>/dev/null || docker-compose exec -T app npm run seed || {
-        log_warning "Database seeding had issues - you may need to run it manually"
-    }
-    
+    docker_compose exec -T app npm run seed || log_warning "Seeding had issues"
     log_success "Database seeding complete"
 }
 
 # Setup vector search
 setup_vector_search() {
-    log_info "Setting up vector search for MAYA AI..."
-    
-    docker compose exec -T app node scripts/setup-vector-db.js 2>/dev/null || true
-    docker compose exec -T app node scripts/generate-embeddings-free.js 2>/dev/null || true
-    
+    log_info "Setting up vector search..."
+    docker_compose exec -T app node scripts/setup-vector-db.js 2>/dev/null || true
+    docker_compose exec -T app node scripts/generate-embeddings-free.js 2>/dev/null || true
     log_success "Vector search setup complete"
 }
 
 # Health check
 health_check() {
     log_info "Performing health check..."
-    
-    sleep 5
     
     for i in 1 2 3 4 5; do
         HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "000")
@@ -538,65 +427,51 @@ health_check() {
             return
         fi
         
-        log_info "Waiting for app to start... (attempt $i/5)"
+        log_info "Waiting... (attempt $i/5)"
         sleep 5
     done
     
-    log_warning "Application may still be starting - check logs with: docker compose logs -f"
+    log_warning "App may still be starting - check: docker compose logs -f"
 }
 
-# Show final status
+# Show status
 show_status() {
     echo ""
     echo "============================================"
     echo -e "${GREEN}  Deployment Complete!${NC}"
     echo "============================================"
     echo ""
-    echo "Docker Status:"
-    docker compose ps 2>/dev/null || docker-compose ps
+    docker_compose ps
     echo ""
-    echo "Useful commands:"
-    echo "  View logs:     docker compose logs -f"
-    echo "  Restart app:   docker compose restart"
-    echo "  Stop app:      docker compose down"
-    echo "  Rebuild:       docker compose up -d --build"
-    echo "  Renew SSL:     certbot renew"
+    echo "Commands:"
+    echo "  Logs:    docker compose logs -f"
+    echo "  Restart: docker compose restart"
+    echo "  Stop:    docker compose down"
+    echo "  Rebuild: docker compose up -d --build"
     echo ""
-    echo "Application URLs:"
     if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
-        echo -e "  ${GREEN}https://${DOMAIN}${NC} (SSL enabled)"
+        echo -e "URL: ${GREEN}https://${DOMAIN}${NC}"
     else
-        echo "  http://${DOMAIN}"
-        echo ""
-        echo "To enable SSL later, run:"
-        echo "  certbot --nginx -d ${DOMAIN}"
+        echo "URL: http://${DOMAIN}"
     fi
-    echo ""
-    echo "SSL certificates location: /etc/letsencrypt/live/${DOMAIN}/"
-    echo "Certificates persist across Docker rebuilds!"
-    echo ""
     echo "============================================"
 }
 
-# Main deployment flow
+# Main
 main() {
     echo ""
     echo "============================================"
     echo "  Talio HRMS - Production Deployment"
     echo "============================================"
     echo "  Domain: ${DOMAIN}"
-    echo "  Fresh Install: ${FRESH_INSTALL}"
-    echo "  Setup SSL: ${SETUP_SSL}"
     echo "============================================"
     echo ""
     
-    # Check if running as root
     if [ "$EUID" -ne 0 ]; then
-        log_error "Please run as root: sudo ./deploy-production.sh [options]"
+        log_error "Please run as root: sudo ./deploy-production.sh"
         exit 1
     fi
     
-    # Install dependencies
     if ! $SKIP_DEPS; then
         install_dependencies
         install_docker
@@ -607,35 +482,22 @@ main() {
         configure_firewall
     fi
     
-    # Check environment
     check_env_file
-    
-    # Pull latest code
     pull_latest_code
-    
-    # Configure Nginx (HTTP first)
     configure_nginx_http
-    
-    # Deploy Docker
     deploy_docker
     
-    # Setup SSL if requested (after Docker is running for webroot challenge)
     if $SETUP_SSL; then
         obtain_ssl_certificate
     fi
     
-    # Fresh install tasks
     if $FRESH_INSTALL; then
         seed_database
         setup_vector_search
     fi
     
-    # Health check
     health_check
-    
-    # Show status
     show_status
 }
 
-# Run main
 main
