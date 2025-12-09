@@ -208,11 +208,14 @@ check_env_file() {
         fi
     fi
     
-    # Validate required vars
-    source .env 2>/dev/null || true
+    # Validate required vars using grep instead of source (handles special chars better)
+    MONGODB_URI=$(grep -E "^MONGODB_URI=" .env | cut -d'=' -f2-)
+    JWT_SECRET=$(grep -E "^JWT_SECRET=" .env | cut -d'=' -f2-)
     
     if [ -z "$MONGODB_URI" ]; then
         log_error "MONGODB_URI is not set in .env file"
+        echo "Current .env contents:"
+        head -5 .env
         exit 1
     fi
     
