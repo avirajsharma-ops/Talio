@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { FaCamera } from 'react-icons/fa';
 import './Lanyard.css';
 
-export default function Lanyard({ employee }) {
+export default function Lanyard({ employee, onImageClick, uploadingImage }) {
   const containerRef = useRef(null);
   const cardOuterRef = useRef(null);
   const cardSpinRef = useRef(null);
@@ -20,9 +21,17 @@ export default function Lanyard({ employee }) {
     const lanyardLogos = lanyardLogosRef.current;
     const container = containerRef.current;
 
-    const CARD_W = 260;
-    const CARD_H = 380;
+    // Responsive card dimensions based on viewport width - increased sizes
+    const isMobile = window.innerWidth <= 480;
+    const isTablet = window.innerWidth <= 768 && window.innerWidth > 480;
+    
+    const CARD_W = isMobile ? 240 : isTablet ? 280 : 320;
+    const CARD_H = isMobile ? 350 : isTablet ? 400 : 460;
     const CLIP_HEIGHT = 18;
+
+    // Update card outer dimensions
+    cardOuter.style.width = CARD_W + 'px';
+    cardOuter.style.height = CARD_H + 'px';
 
     let anchor = {
       x: container.offsetWidth / 2,
@@ -34,11 +43,10 @@ export default function Lanyard({ employee }) {
     }
     window.addEventListener("resize", handleResize);
 
-    // PHYSICS PARAMETERS
-    // Adjust restPos based on container height if needed, but keeping user's values for now
-    // The user's code had restPos.y = 460. If container is 600px, this is fine.
-    const restPos = { x: 0, y: 460 };
-    let pos = { x: 0, y: 260 };
+    // PHYSICS PARAMETERS - adjust rest position for larger card, moved higher
+    const restPosY = isMobile ? 380 : isTablet ? 420 : 480;
+    const restPos = { x: 0, y: restPosY };
+    let pos = { x: 0, y: isMobile ? 220 : isTablet ? 250 : 280 };
     let vel = { x: 0, y: 0 };
 
     const kSpring = 200.35;
@@ -59,6 +67,11 @@ export default function Lanyard({ employee }) {
 
     // Pointer handlers
     const onPointerDown = (e) => {
+      // Skip if clicking on camera button or its children
+      if (e.target.closest('.avatar-camera-btn')) {
+        return;
+      }
+      
       dragging = true;
       wasDragged = false;
       cardOuter.classList.add("dragging");
@@ -84,6 +97,11 @@ export default function Lanyard({ employee }) {
     };
 
     const endDrag = (e) => {
+      // Skip if clicking on camera button or its children
+      if (e.target.closest('.avatar-camera-btn')) {
+        return;
+      }
+      
       if (!dragging) return;
       dragging = false;
       cardOuter.classList.remove("dragging");
@@ -308,14 +326,59 @@ export default function Lanyard({ employee }) {
             <div className="card-shine"></div>
 
             {/* Header removed as requested */}
-            <div style={{ height: '20px' }}></div>
+            <div style={{ height: '12px' }}></div>
 
             <div className="profile-section">
-              <div className="avatar">
-                {photo ? (
-                  <img src={photo} alt={name} />
-                ) : (
-                  <span className="avatar-placeholder">Employee<br />Photo</span>
+              <div className="avatar-container">
+                <div className="avatar">
+                  {photo ? (
+                    <img src={photo} alt={name} />
+                  ) : (
+                    <span className="avatar-placeholder">Employee<br />Photo</span>
+                  )}
+                </div>
+                {/* Camera button for image upload */}
+                {onImageClick && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('Camera button clicked, calling onImageClick');
+                      onImageClick();
+                    }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onPointerUp={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onMouseUp={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('Camera button touched, calling onImageClick');
+                      onImageClick();
+                    }}
+                    disabled={uploadingImage}
+                    className="avatar-camera-btn"
+                  >
+                    {uploadingImage ? (
+                      <div style={{ width: '12px', height: '12px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <FaCamera style={{ color: '#fff', fontSize: '12px' }} />
+                    )}
+                  </button>
                 )}
               </div>
               <div className="emp-name">{name}</div>
@@ -332,6 +395,16 @@ export default function Lanyard({ employee }) {
                 <div className="info-item center">
                   <div className="label">Blood</div>
                   <div className="blood-badge">{bloodGroup}</div>
+                </div>
+              </div>
+              <div className="info-row" style={{ marginTop: '8px' }}>
+                <div className="info-item">
+                  <div className="label">DOB</div>
+                  <div className="value">{dob}</div>
+                </div>
+                <div className="info-item">
+                  <div className="label">Joined</div>
+                  <div className="value">{joiningDate}</div>
                 </div>
               </div>
             </div>
@@ -354,21 +427,11 @@ export default function Lanyard({ employee }) {
               <div className="back-contact" style={{ width: '100%', alignItems: 'flex-start', padding: '0 4px', marginTop: '20px' }}>
                 <div className="info-item" style={{ marginBottom: '12px', width: '100%' }}>
                   <div className="label" style={{ marginBottom: '2px' }}>Email</div>
-                  <div className="value" style={{ wordBreak: 'break-all' }}>{email}</div>
+                  <div className="value" style={{ wordBreak: 'break-all', fontSize: '13px' }}>{email}</div>
                 </div>
                 <div className="info-item" style={{ marginBottom: '12px', width: '100%' }}>
                   <div className="label" style={{ marginBottom: '2px' }}>Address</div>
-                  <div className="value" style={{ lineHeight: '1.4' }}>{address}</div>
-                </div>
-                <div className="info-row" style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <div className="info-item">
-                    <div className="label">DOB</div>
-                    <div className="value">{dob}</div>
-                  </div>
-                  <div className="info-item">
-                    <div className="label">Joined</div>
-                    <div className="value">{joiningDate}</div>
-                  </div>
+                  <div className="value" style={{ lineHeight: '1.4', fontSize: '13px' }}>{address}</div>
                 </div>
               </div>
             </div>

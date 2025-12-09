@@ -61,17 +61,16 @@
 
 .lanyard-path {
   fill: none;
-  stroke: url(#lanyard-gradient);
+  stroke: #5eada4;
   stroke-width: 32;
-  stroke-linecap: round;
-  filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.25));
+  stroke-linecap: butt;
 }
 
 .lanyard-path-border {
   fill: none;
   stroke: #4a9a91;
   stroke-width: 50;
-  stroke-linecap: round;
+  stroke-linecap: butt;
 }
 
 /* Card clip attachment point */
@@ -102,8 +101,8 @@
 /* Card outer: positioned by JS */
 .card-outer {
   position: absolute;
-  width: 260px;
-  height: 380px;
+  width: 320px;
+  height: 460px;
   z-index: 3;
   cursor: pointer;
   touch-action: none;
@@ -127,18 +126,19 @@
 .card-face {
   position: absolute;
   inset: 0;
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow:
     0 20px 60px rgba(15, 23, 42, 0.3),
     0 0 0 1px rgba(148, 163, 184, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   /* Inner highlight */
-  overflow: hidden;
+  overflow: visible;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 28px;
+  pointer-events: auto;
 }
 
 .card-face.front {
@@ -252,18 +252,52 @@
   margin-bottom: 16px;
 }
 
+.avatar-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 14px;
+  pointer-events: auto;
+}
+
+.avatar-camera-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #4FC3F7;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 100;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+
+.avatar-camera-btn:hover {
+  background-color: #29B6F6;
+  transform: scale(1.05);
+}
+
+.avatar-camera-btn:active {
+  transform: scale(0.95);
+}
+
 .avatar {
-  width: 100px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .avatar img {
@@ -273,29 +307,35 @@
 }
 
 .avatar-placeholder {
-  font-size: 9px;
+  font-size: 10px;
   color: #9ca3af;
   text-align: center;
 }
 
+/* Spin animation for loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .emp-name {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   color: #111827;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .emp-designation {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #6366f1;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .emp-id {
-  font-size: 12px;
+  font-size: 14px;
   color: #9ca3af;
 }
 
@@ -303,7 +343,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .info-row {
@@ -315,7 +355,7 @@
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .info-item.center {
@@ -323,14 +363,14 @@
 }
 
 .label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #9ca3af;
 }
 
 .value {
-  font-size: 13px;
+  font-size: 15px;
   color: #374151;
   font-weight: 500;
 }
@@ -339,22 +379,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   background: #fef2f2;
   color: #dc2626;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .footer-row {
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
+  font-size: 9px;
   color: #9ca3af;
 }
 
@@ -455,4 +495,114 @@
 .helper-text strong {
   color: #111827;
   font-weight: 600;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .card-outer {
+    width: 220px;
+    height: 320px;
+  }
+
+  .card-face {
+    padding: 18px;
+  }
+
+  .avatar {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 10px;
+  }
+
+  .emp-name {
+    font-size: 18px;
+  }
+
+  .emp-designation {
+    font-size: 10px;
+  }
+
+  .emp-id {
+    font-size: 10px;
+  }
+
+  .info-section {
+    gap: 6px;
+  }
+
+  .label {
+    font-size: 9px;
+  }
+
+  .value {
+    font-size: 11px;
+  }
+
+  .blood-badge {
+    font-size: 9px;
+    padding: 2px 8px;
+  }
+
+  .footer-row {
+    font-size: 7px;
+    padding-top: 8px;
+  }
+
+  .back-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 18px;
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .back-company-name {
+    font-size: 12px;
+  }
+
+  .back-tagline {
+    font-size: 10px;
+    margin-bottom: 18px;
+  }
+
+  .helper-text {
+    font-size: 10px;
+    bottom: 12px;
+  }
+
+  .lanyard-path {
+    stroke-width: 26;
+  }
+
+  .lanyard-path-border {
+    stroke-width: 42;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-outer {
+    width: 200px;
+    height: 290px;
+  }
+
+  .card-face {
+    padding: 14px;
+  }
+
+  .avatar {
+    width: 70px;
+    height: 70px;
+  }
+
+  .emp-name {
+    font-size: 16px;
+  }
+
+  .lanyard-path {
+    stroke-width: 22;
+  }
+
+  .lanyard-path-border {
+    stroke-width: 36;
+  }
 }
