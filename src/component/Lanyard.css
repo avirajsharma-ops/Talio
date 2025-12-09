@@ -1,22 +1,458 @@
-.lanyard-wrapper {
+.lanyard-scene {
   position: relative;
-  z-index: 0;
   width: 100%;
-  height: 600px;
-  /* Fixed height instead of 100vh for embedding */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transform: scale(1);
-  transform-origin: center;
-  border-radius: 0;
+  height: 100%;
+  perspective: 1400px;
   overflow: visible;
+  background: transparent;
+  /* Let parent decide background */
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.lanyard-scene * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Anchor at the top (fixed point) */
+.anchor-dot {
+  position: absolute;
+  top: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  background: #111827;
+  border-radius: 999px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+  z-index: 3;
+  display: none;
+  /* Hide anchor dot as it hangs from card */
+}
+
+.anchor-dot::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid #4b5563;
+  border-top-color: transparent;
   background: transparent;
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .lanyard-wrapper {
-    height: 400px;
+/* Lanyard ribbon as full-screen SVG */
+.lanyard-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+
+.lanyard-path {
+  fill: none;
+  stroke: url(#lanyard-gradient);
+  stroke-width: 32;
+  stroke-linecap: round;
+  filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.25));
+}
+
+.lanyard-path-border {
+  fill: none;
+  stroke: #4a9a91;
+  stroke-width: 50;
+  stroke-linecap: round;
+}
+
+/* Card clip attachment point */
+.card-clip {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 24px;
+  background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%);
+  border-radius: 4px 4px 6px 6px;
+  z-index: 5;
+}
+
+.card-clip::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: #374151;
+  border-radius: 50%;
+}
+
+/* Card outer: positioned by JS */
+.card-outer {
+  position: absolute;
+  width: 260px;
+  height: 380px;
+  z-index: 3;
+  cursor: pointer;
+  touch-action: none;
+  /* Important for dragging */
+  pointer-events: auto;
+}
+
+.card-outer.dragging {
+  cursor: grabbing;
+}
+
+/* Spin container (for flips) */
+.card-spin {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card face base styles */
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.3),
+    0 0 0 1px rgba(148, 163, 184, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  /* Inner highlight */
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.card-face.front {
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+}
+
+.card-face.back {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* Static gloss effect */
+.card-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.1) 30%,
+      transparent 30.1%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Reflective shine overlay */
+.card-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.4) 42%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0.4) 58%,
+      transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 18px;
+}
+
+.card-spin.flipping .card-shine {
+  animation: shine-sweep 0.5s ease-out;
+}
+
+@keyframes shine-sweep {
+  0% {
+    opacity: 1;
+    transform: translateX(-150%);
   }
+
+  100% {
+    opacity: 0;
+    transform: translateX(150%);
+  }
+}
+
+/* FRONT LAYOUT – clean and minimal */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.company-logo-small {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: conic-gradient(from 210deg, #6366f1, #06b6d4, #10b981, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.company-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.company-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #111827;
+}
+
+.company-tagline {
+  font-size: 9px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.divider {
+  height: 1px;
+  width: 100%;
+  background: #e5e7eb;
+  margin-bottom: 16px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  font-size: 9px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.emp-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.emp-designation {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.emp-id {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.info-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-item.center {
+  align-items: center;
+}
+
+.label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #9ca3af;
+}
+
+.value {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.blood-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.footer-row {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: #9ca3af;
+}
+
+/* BACK FACE – company info */
+.back-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.back-logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  background: conic-gradient(from 220deg, #6366f1, #08b1d0, #10b981, #f97316, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+}
+
+.back-company-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.back-tagline {
+  font-size: 11px;
+  color: #6b7280;
+  max-width: 200px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.back-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.back-contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.back-contact-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.back-footer {
+  margin-top: auto;
+  font-size: 9px;
+  color: #9ca3af;
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  width: 100%;
+}
+
+.back-footer span {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.helper-text {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.4;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
+.helper-text strong {
+  color: #111827;
+  font-weight: 600;
 }

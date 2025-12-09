@@ -510,7 +510,7 @@ export default function ProfilePage() {
                 <div className="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-black/10 blur-2xl" />
               </div>
 
-              <div className="relative">
+              <div className="relative ">
                 {/* Profile Picture + Info */}
                 <div className="flex items-start gap-5 sm:gap-6 mb-8">
                   {/* Profile picture */}
@@ -637,10 +637,23 @@ export default function ProfilePage() {
             {/* Lanyard Model - hanging from profile card bottom, always behind card */}
             {typeof window !== 'undefined' && (
               <div
-                className="absolute left-1/2 -translate-x-1/2 w-[1000px] overflow-visible h-[100%] pointer-events-none"
-                style={{ top: '22%', overflow: 'visible', zIndex: 1 }}
+                className="absolute left-1/2 -translate-x-1/2 w-screen h-screen overflow-visible z-10 pointer-events-none"
+                style={{ top: '10%', overflow: 'visible' }}
               >
-                <Lanyard position={[0, 0, 17]} gravity={[0, -50, 0]} fov={25} />
+                <Lanyard
+                  employee={{
+                    name: employee ? `${employee.firstName} ${employee.lastName}` : undefined,
+                    designation: employee?.designation?.title || employee?.designation,
+                    employeeId: employee?.employeeCode,
+                    photo: employee?.profilePicture,
+                    phone: employee?.phone,
+                    bloodGroup: employee?.bloodGroup,
+                    email: employee?.email,
+                    address: employee?.address,
+                    dob: employee?.dateOfBirth,
+                    joiningDate: employee?.dateOfJoining
+                  }}
+                />
               </div>
             )}
           </div>

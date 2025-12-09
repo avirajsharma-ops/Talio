@@ -1,266 +1,389 @@
-/* eslint-disable react/no-unknown-property */
 'use client';
-import { useEffect, useRef, useState, Suspense } from 'react';
-import { Canvas, extend, useFrame } from '@react-three/fiber';
-import { useGLTF, useTexture, Environment, Lightformer } from '@react-three/drei';
-import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint } from '@react-three/rapier';
-import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
-
-import * as THREE from 'three';
+import { useEffect, useRef, useState } from 'react';
 import './Lanyard.css';
 
-// Use paths from public folder
-const cardGLB = '/assets/card.glb';
-const lanyard = '/assets/lanyard.png';
-
-extend({ MeshLineGeometry, MeshLineMaterial });
-
-function LoadingFallback() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="hotpink" />
-    </mesh>
-  );
-}
-
-export default function Lanyard({ position = [0, 0, 30], gravity = [0, -40, 0], fov = 20, transparent = true }) {
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
-  const [error, setError] = useState(null);
+export default function Lanyard({ employee }) {
+  const containerRef = useRef(null);
+  const cardOuterRef = useRef(null);
+  const cardSpinRef = useRef(null);
+  const lanyardPathRef = useRef(null);
+  const lanyardPathBorderRef = useRef(null);
+  const lanyardLogosRef = useRef(null);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (!containerRef.current || !cardOuterRef.current) return;
 
-  if (error) {
-    return (
-      <div className="lanyard-wrapper bg-gradient-to-br from-red-500 to-red-700">
-        <div className="text-white text-center p-8">
-          <p className="text-lg font-bold mb-2">3D Lanyard Error</p>
-          <p className="text-sm">{error.message}</p>
-        </div>
-      </div>
-    );
-  }
+    const cardOuter = cardOuterRef.current;
+    const cardSpin = cardSpinRef.current;
+    const lanyardPath = lanyardPathRef.current;
+    const lanyardPathBorder = lanyardPathBorderRef.current;
+    const lanyardLogos = lanyardLogosRef.current;
+    const container = containerRef.current;
 
-  return (
-    <div className="lanyard-wrapper">
-      <Canvas
-        camera={{ position: position, fov: fov }}
-        dpr={[1, isMobile ? 1.5 : 2]}
-        gl={{ alpha: transparent }}
-        onCreated={({ gl }) => gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)}
-        onError={(error) => {
-          console.error('Canvas error:', error);
-          setError(error);
-        }}
-      >
-        <ambientLight intensity={Math.PI} />
-        <Suspense fallback={<LoadingFallback />}>
-          <Physics gravity={gravity} timeStep={isMobile ? 1 / 30 : 1 / 60}>
-            <Band isMobile={isMobile} />
-          </Physics>
-          <Environment blur={0.75}>
-            <Lightformer
-              intensity={2}
-              color="white"
-              position={[0, -1, 5]}
-              rotation={[0, 0, Math.PI / 3]}
-              scale={[100, 0.1, 1]}
-            />
-            <Lightformer
-              intensity={3}
-              color="white"
-              position={[-1, -1, 1]}
-              rotation={[0, 0, Math.PI / 3]}
-              scale={[100, 0.1, 1]}
-            />
-            <Lightformer
-              intensity={3}
-              color="white"
-              position={[1, 1, 1]}
-              rotation={[0, 0, Math.PI / 3]}
-              scale={[100, 0.1, 1]}
-            />
-            <Lightformer
-              intensity={10}
-              color="white"
-              position={[-10, 0, 14]}
-              rotation={[0, Math.PI / 2, Math.PI / 3]}
-              scale={[100, 10, 1]}
-            />
-          </Environment>
-        </Suspense>
-      </Canvas>
-    </div>
-  );
-}
-function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
-  const band = useRef(),
-    fixed = useRef(),
-    j1 = useRef(),
-    j2 = useRef(),
-    j3 = useRef(),
-    card = useRef();
-  const vec = new THREE.Vector3(),
-    ang = new THREE.Vector3(),
-    rot = new THREE.Vector3(),
-    dir = new THREE.Vector3();
-  const segmentProps = { type: 'dynamic', canSleep: true, colliders: false, angularDamping: 4, linearDamping: 4 };
-  const { nodes, materials } = useGLTF(cardGLB);
-  const texture = useTexture(lanyard);
-  const [curve] = useState(
-    () =>
-      new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()])
-  );
-  const [dragged, drag] = useState(false);
-  const [hovered, hover] = useState(false);
+    const CARD_W = 260;
+    const CARD_H = 380;
+    const CLIP_HEIGHT = 18;
 
-  // Wind effect state
-  const windTime = useRef(0);
-  const windStrength = 0.002; // Adjust for stronger/weaker wind
-  const windFrequency = 1; // Adjust for faster/slower wind
+    let anchor = {
+      x: container.offsetWidth / 2,
+      y: 0
+    };
 
-  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
-  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
-  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
-  useSphericalJoint(j3, card, [
-    [0, 0, 0],
-    [0, 1.5, 0]
-  ]);
-
-  useEffect(() => {
-    if (hovered) {
-      document.body.style.cursor = dragged ? 'grabbing' : 'grab';
-      return () => void (document.body.style.cursor = 'auto');
+    function handleResize() {
+      anchor.x = container.offsetWidth / 2;
     }
-  }, [hovered, dragged]);
+    window.addEventListener("resize", handleResize);
 
-  useFrame((state, delta) => {
-    // Increment wind time
-    windTime.current += delta;
+    // PHYSICS PARAMETERS
+    // Adjust restPos based on container height if needed, but keeping user's values for now
+    // The user's code had restPos.y = 460. If container is 600px, this is fine.
+    const restPos = { x: 0, y: 460 };
+    let pos = { x: 0, y: 260 };
+    let vel = { x: 0, y: 0 };
 
-    // Calculate wind force using sine waves for natural motion
-    const windX = Math.sin(windTime.current * windFrequency) * windStrength;
-    const windZ = Math.cos(windTime.current * windFrequency * 0.7) * windStrength * 0.5;
-    const gustFactor = Math.sin(windTime.current * 0.3) * 0.5 + 0.5; // Slow gust variation
+    const kSpring = 200.35;
+    const damping = 10.12;
+    const gravity = 25;
 
-    // Apply wind forces to rope segments when not being dragged
-    if (!dragged) {
-      [j1, j2, j3].forEach((ref, index) => {
-        if (ref.current) {
-          // Stronger effect on lower segments (closer to card)
-          const segmentMultiplier = (index + 1) / 3;
-          ref.current.applyImpulse({
-            x: windX * segmentMultiplier * gustFactor,
-            y: 0,
-            z: windZ * segmentMultiplier * gustFactor
-          }, true);
+    // Card flip state
+    let isFlipped = false;
+
+    // Drag tracking
+    let dragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    let dragVel = { x: 0, y: 0 };
+    let lastDragTime = null;
+    let lastDragPos = { x: 0, y: 0 };
+    let dragStartPos = { x: 0, y: 0 };
+    let wasDragged = false;
+
+    // Pointer handlers
+    const onPointerDown = (e) => {
+      dragging = true;
+      wasDragged = false;
+      cardOuter.classList.add("dragging");
+      cardOuter.setPointerCapture(e.pointerId);
+
+      const rect = cardOuter.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      dragOffset.x = cx - e.clientX;
+      dragOffset.y = cy - e.clientY;
+
+      dragStartPos.x = e.clientX;
+      dragStartPos.y = e.clientY;
+
+      vel.x = 0;
+      vel.y = 0;
+      dragVel.x = 0;
+      dragVel.y = 0;
+      lastDragTime = performance.now();
+      lastDragPos.x = pos.x;
+      lastDragPos.y = pos.y;
+    };
+
+    const endDrag = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      cardOuter.classList.remove("dragging");
+      try { cardOuter.releasePointerCapture(e.pointerId); } catch (_) { }
+
+      const dx = Math.abs(e.clientX - dragStartPos.x);
+      const dy = Math.abs(e.clientY - dragStartPos.y);
+
+      if (dx < 10 && dy < 10 && !wasDragged) {
+        flipCard();
+      } else {
+        vel.x = dragVel.x * 0.8;
+        vel.y = dragVel.y * 0.8;
+
+        const pullDistance = Math.sqrt(dx * dx + dy * dy);
+        if (pullDistance > 50) {
+          setTimeout(() => {
+            flipCard();
+          }, 150);
         }
-      });
+      }
+    };
 
-      // Apply subtle wind to the card for swaying effect
-      if (card.current) {
-        card.current.applyImpulse({
-          x: windX * 1.2 * gustFactor,
-          y: 0,
-          z: windZ * 1.2 * gustFactor
-        }, true);
+    function flipCard() {
+      isFlipped = !isFlipped;
+      cardSpin.classList.add('flipping');
+      cardSpin.style.transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
 
-        // Add subtle rotation for more realistic motion
-        card.current.applyTorqueImpulse({
-          x: windZ * 0.1 * gustFactor,
-          y: 0,
-          z: -windX * 0.1 * gustFactor
-        }, true);
+      setTimeout(() => {
+        cardSpin.classList.remove('flipping');
+      }, 500);
+    }
+
+    const onPointerMove = (e) => {
+      if (!dragging) return;
+
+      const targetCx = e.clientX + dragOffset.x;
+      const targetCy = e.clientY + dragOffset.y;
+
+      // We need to calculate pos relative to anchor in the container context
+      // The mouse coordinates are global, but anchor is relative to container?
+      // Wait, in the original code:
+      // pos.x = targetCx - anchor.x;
+      // anchor.x was window.innerWidth / 2.
+      // Here anchor.x is container center.
+      // But targetCx is clientX (global).
+      // We need to adjust for container position.
+
+      const containerRect = container.getBoundingClientRect();
+      const containerCenterX = containerRect.left + containerRect.width / 2;
+      const containerTopY = containerRect.top; // anchor.y is relative to top of container?
+
+      // The original code: anchor.y = 74 (fixed from top of window)
+      // Here anchor.y = 74 (relative to container top)
+
+      // So pos.x should be relative to anchor.
+      // targetCx is global X.
+      // anchor global X is containerCenterX.
+
+      pos.x = targetCx - containerCenterX;
+      pos.y = targetCy - (containerTopY + anchor.y);
+
+      const dx = Math.abs(e.clientX - dragStartPos.x);
+      const dy = Math.abs(e.clientY - dragStartPos.y);
+      if (dx > 10 || dy > 10) {
+        wasDragged = true;
+      }
+
+      const now = performance.now();
+      const dtp = Math.max((now - lastDragTime) / 1000, 0.001);
+      dragVel.x = (pos.x - lastDragPos.x) / dtp;
+      dragVel.y = (pos.y - lastDragPos.y) / dtp;
+      lastDragTime = now;
+      lastDragPos.x = pos.x;
+      lastDragPos.y = pos.y;
+    };
+
+    cardOuter.addEventListener("pointerdown", onPointerDown);
+    cardOuter.addEventListener("pointerup", endDrag);
+    cardOuter.addEventListener("pointercancel", endDrag);
+    document.addEventListener("pointermove", onPointerMove);
+
+    let lastTime = null;
+    let animationFrameId;
+
+    function animate(ts) {
+      if (!lastTime) lastTime = ts;
+      const dt = Math.min((ts - lastTime) / 1000, 0.03);
+      lastTime = ts;
+
+      if (!dragging) {
+        const dx = pos.x - restPos.x;
+        const dy = pos.y - restPos.y;
+
+        const Fx = -kSpring * dx - damping * vel.x;
+        const Fy = -kSpring * dy - damping * vel.y + gravity;
+
+        vel.x += Fx * dt;
+        vel.y += Fy * dt;
+
+        pos.x += vel.x * dt;
+        pos.y += vel.y * dt;
+      }
+
+      const cx = anchor.x + pos.x;
+      const cy = anchor.y + pos.y;
+
+      cardOuter.style.left = (cx - CARD_W / 2) + "px";
+      cardOuter.style.top = (cy - CARD_H / 2) + "px";
+
+      const attachX = cx;
+      const attachY = cy - CARD_H / 2 - CLIP_HEIGHT / 2;
+
+      const ax = anchor.x;
+      const ay = anchor.y;
+      const bx = attachX;
+      const by = attachY;
+
+      const dxL = bx - ax;
+      const dyL = by - ay;
+      const dist = Math.sqrt(dxL * dxL + dyL * dyL) || 1;
+
+      const midX = (ax + bx) / 2;
+      const midY = (ay + by) / 2;
+
+      const maxRopeLength = 280;
+      const slack = Math.max(0, maxRopeLength - dist);
+      const sagAmount = slack * 0.15 + 20;
+
+      const sagX = midX;
+      const sagY = midY + sagAmount;
+
+      const pathD = `M ${ax} ${ay} Q ${sagX} ${sagY}, ${bx} ${by}`;
+      lanyardPath.setAttribute("d", pathD);
+      lanyardPathBorder.setAttribute("d", pathD);
+
+      updateLanyardLogos(ax, ay, sagX, sagY, bx, by);
+
+      animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function updateLanyardLogos(ax, ay, cx, cy, bx, by) {
+      lanyardLogos.innerHTML = '';
+
+      const numLogos = 5;
+      for (let i = 1; i < numLogos; i++) {
+        const t = i / numLogos;
+        const x = Math.pow(1 - t, 2) * ax + 2 * (1 - t) * t * cx + Math.pow(t, 2) * bx;
+        const y = Math.pow(1 - t, 2) * ay + 2 * (1 - t) * t * cy + Math.pow(t, 2) * by;
+
+        const image = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        image.setAttribute('href', '/assets/fox.png');
+        image.setAttribute('x', x - 10);
+        image.setAttribute('y', y - 10);
+        image.setAttribute('width', '20');
+        image.setAttribute('height', '20');
+        lanyardLogos.appendChild(image);
       }
     }
 
-    if (dragged) {
-      vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
-      dir.copy(vec).sub(state.camera.position).normalize();
-      vec.add(dir.multiplyScalar(state.camera.position.length()));
-      [card, j1, j2, j3, fixed].forEach(ref => ref.current?.wakeUp());
-      card.current?.setNextKinematicTranslation({ x: vec.x - dragged.x, y: vec.y - dragged.y, z: vec.z - dragged.z });
-    }
-    if (fixed.current) {
-      [j1, j2].forEach(ref => {
-        if (!ref.current.lerped) ref.current.lerped = new THREE.Vector3().copy(ref.current.translation());
-        const clampedDistance = Math.max(0.1, Math.min(1, ref.current.lerped.distanceTo(ref.current.translation())));
-        ref.current.lerped.lerp(
-          ref.current.translation(),
-          delta * (minSpeed + clampedDistance * (maxSpeed - minSpeed))
-        );
-      });
-      curve.points[0].copy(j3.current.translation());
-      curve.points[1].copy(j2.current.lerped);
-      curve.points[2].copy(j1.current.lerped);
-      curve.points[3].copy(fixed.current.translation());
-      band.current.geometry.setPoints(curve.getPoints(isMobile ? 16 : 32));
-      ang.copy(card.current.angvel());
-      rot.copy(card.current.rotation());
-      card.current.setAngvel({ x: ang.x, y: ang.y - rot.y * 0.25, z: ang.z });
-    }
-  });
+    animationFrameId = requestAnimationFrame(animate);
 
-  curve.curveType = 'chordal';
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cardOuter.removeEventListener("pointerdown", onPointerDown);
+      cardOuter.removeEventListener("pointerup", endDrag);
+      cardOuter.removeEventListener("pointercancel", endDrag);
+      document.removeEventListener("pointermove", onPointerMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  // Use employee data if available, otherwise defaults
+  const name = employee?.name || "DIVYA LAHAD";
+  const designation = employee?.designation || "Product Designer";
+  const empId = employee?.employeeId || "MG-0247";
+  const photo = employee?.photo || null;
+  const phone = employee?.phone || "+91 98765 43210";
+  const bloodGroup = employee?.bloodGroup || "B+";
+  const email = employee?.email || "user@example.com";
+  const address = employee?.address || "Not Provided";
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const dob = formatDate(employee?.dob);
+  const joiningDate = formatDate(employee?.joiningDate);
 
   return (
-    <>
-      <group position={[0, 4, 0]}>
-        <RigidBody ref={fixed} {...segmentProps} type="fixed" />
-        <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}>
-          <BallCollider args={[0.1]} />
-        </RigidBody>
-        <RigidBody position={[1, 0, 0]} ref={j2} {...segmentProps}>
-          <BallCollider args={[0.1]} />
-        </RigidBody>
-        <RigidBody position={[1.5, 0, 0]} ref={j3} {...segmentProps}>
-          <BallCollider args={[0.1]} />
-        </RigidBody>
-        <RigidBody position={[2, 0, 0]} ref={card} {...segmentProps} type={dragged ? 'kinematicPosition' : 'dynamic'}>
-          <CuboidCollider args={[0.8, 1.125, 0.01]} />
-          <group
-            scale={2.25}
-            position={[0, -1.2, -0.05]}
-            onPointerOver={() => hover(true)}
-            onPointerOut={() => hover(false)}
-            onPointerUp={e => (e.target.releasePointerCapture(e.pointerId), drag(false))}
-            onPointerDown={e => (
-              e.target.setPointerCapture(e.pointerId),
-              drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())))
-            )}
-          >
-            <mesh geometry={nodes.card.geometry}>
-              <meshPhysicalMaterial
-                map={materials.base.map}
-                map-anisotropy={16}
-                clearcoat={isMobile ? 0 : 1}
-                clearcoatRoughness={0.15}
-                roughness={0.9}
-                metalness={0.8}
-              />
-            </mesh>
-            <mesh geometry={nodes.clip.geometry} material={materials.metal} material-roughness={0.3} />
-            <mesh geometry={nodes.clamp.geometry} material={materials.metal} />
-          </group>
-        </RigidBody>
-      </group>
-      <mesh ref={band}>
-        <meshLineGeometry />
-        <meshLineMaterial
-          color="white"
-          depthTest={false}
-          resolution={isMobile ? [1000, 2000] : [1000, 1000]}
-          useMap
-          map={texture}
-          repeat={[-4, 1]}
-          lineWidth={1}
-        />
-      </mesh>
-    </>
+    <div className="lanyard-scene" ref={containerRef}>
+      <div className="anchor-dot"></div>
+
+      <svg className="lanyard-svg">
+        <defs>
+          <linearGradient id="lanyard-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style={{ stopColor: "#5eada4" }} />
+            <stop offset="100%" style={{ stopColor: "#6bc4ba" }} />
+          </linearGradient>
+
+          <pattern id="lanyard-logo-pattern" patternUnits="userSpaceOnUse" width="60" height="40" patternTransform="rotate(0)">
+            <rect width="60" height="40" fill="#5eada4" />
+            <text x="30" y="25" textAnchor="middle" fill="rgba(255,255,255,0.3)" fontFamily="Inter, sans-serif" fontSize="11" fontWeight="700">MG</text>
+          </pattern>
+        </defs>
+        <path id="lanyard-path-border" className="lanyard-path-border" ref={lanyardPathBorderRef}></path>
+        <path id="lanyard-path" className="lanyard-path" ref={lanyardPathRef}></path>
+
+        <g id="lanyard-logos" ref={lanyardLogosRef}></g>
+      </svg>
+
+      <div className="card-outer" ref={cardOuterRef} id="card-outer">
+        <div className="card-clip"></div>
+        <div className="card-spin" ref={cardSpinRef} id="card-spin">
+          {/* FRONT */}
+          <div className="card-face front">
+            <div className="card-shine"></div>
+
+            {/* Header removed as requested */}
+            <div style={{ height: '20px' }}></div>
+
+            <div className="profile-section">
+              <div className="avatar">
+                {photo ? (
+                  <img src={photo} alt={name} />
+                ) : (
+                  <span className="avatar-placeholder">Employee<br />Photo</span>
+                )}
+              </div>
+              <div className="emp-name">{name}</div>
+              <div className="emp-designation">{designation}</div>
+              <div className="emp-id">ID: {empId}</div>
+            </div>
+
+            <div className="info-section">
+              <div className="info-row">
+                <div className="info-item">
+                  <div className="label">Phone</div>
+                  <div className="value">{phone}</div>
+                </div>
+                <div className="info-item center">
+                  <div className="label">Blood</div>
+                  <div className="blood-badge">{bloodGroup}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="footer-row">
+              Tap to flip • Wear visibly inside premises
+            </div>
+          </div>
+
+          {/* BACK */}
+          <div className="card-face back">
+            <div className="card-shine"></div>
+
+            <div className="back-content">
+              {/* Website Logo Placeholder */}
+              <div className="back-logo" style={{ background: '#111827', padding: '15px' }}>
+                <img src="/assets/lanyard-card-logo.webp" alt="Talio" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </div>
+
+              <div className="back-contact" style={{ width: '100%', alignItems: 'flex-start', padding: '0 4px', marginTop: '20px' }}>
+                <div className="info-item" style={{ marginBottom: '12px', width: '100%' }}>
+                  <div className="label" style={{ marginBottom: '2px' }}>Email</div>
+                  <div className="value" style={{ wordBreak: 'break-all' }}>{email}</div>
+                </div>
+                <div className="info-item" style={{ marginBottom: '12px', width: '100%' }}>
+                  <div className="label" style={{ marginBottom: '2px' }}>Address</div>
+                  <div className="value" style={{ lineHeight: '1.4' }}>{address}</div>
+                </div>
+                <div className="info-row" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <div className="info-item">
+                    <div className="label">DOB</div>
+                    <div className="value">{dob}</div>
+                  </div>
+                  <div className="info-item">
+                    <div className="label">Joined</div>
+                    <div className="value">{joiningDate}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="back-footer">
+              If found, please return to<br />
+              <span>Talio HRMS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="helper-text">
+        <strong>Drag</strong> to swing the card • <strong>Tap</strong> to flip
+      </div>
+    </div>
   );
 }
