@@ -166,6 +166,7 @@ pull_latest_code() {
         log_success "Code updated to latest version"
     else
         log_warning "Not a git repository. Skipping pull."
+        log_info "To clone: git clone https://<YOUR_TOKEN>@github.com/avirajsharma-ops/Talio.git /var/www/talio"
     fi
 }
 
