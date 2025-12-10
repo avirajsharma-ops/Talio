@@ -17,7 +17,7 @@ export default function LoginPage() {
 
   // Check if user is already logged in
   useEffect(() => {
-    const checkSession = () => {
+    const checkSession = async () => {
       console.log('[Login Page] Checking session...')
       const token = localStorage.getItem('token')
       const user = localStorage.getItem('user')
@@ -26,9 +26,35 @@ export default function LoginPage() {
       console.log('[Login Page] User exists:', !!user)
 
       if (token && user) {
-        // User is already logged in, redirect to dashboard
-        console.log('[Login Page] Redirecting to dashboard...')
-        window.location.href = '/dashboard'
+        // Validate the token before redirecting
+        try {
+          const response = await fetch('/api/auth/validate', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          
+          if (response.ok) {
+            // Token is valid, redirect to dashboard
+            console.log('[Login Page] Token valid, redirecting to dashboard...')
+            window.location.href = '/dashboard'
+            return // Keep showing loading while redirecting
+          } else {
+            // Token is invalid, clear storage and show login
+            console.log('[Login Page] Token invalid, clearing session...')
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            localStorage.removeItem('userId')
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+            setChecking(false)
+          }
+        } catch (error) {
+          console.error('[Login Page] Token validation error:', error)
+          // Network error - still try to redirect if token exists
+          console.log('[Login Page] Redirecting to dashboard despite validation error...')
+          window.location.href = '/dashboard'
+          return
+        }
       } else {
         // Check for error in URL params
         const urlParams = new URLSearchParams(window.location.search)
@@ -52,7 +78,17 @@ export default function LoginPage() {
       }
     }
 
-    checkSession()
+    // Add a safety timeout to prevent infinite "Checking session..."
+    const safetyTimeout = setTimeout(() => {
+      console.log('[Login Page] Safety timeout triggered, showing login form...')
+      setChecking(false)
+    }, 5000) // 5 second timeout
+
+    checkSession().finally(() => {
+      clearTimeout(safetyTimeout)
+    })
+
+    return () => clearTimeout(safetyTimeout)
   }, [])
 
   const handleChange = (e) => {
