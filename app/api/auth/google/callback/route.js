@@ -235,9 +235,11 @@ export async function GET(request) {
 
     if (desktopLogin) {
        console.log('🖥️ Desktop login detected, redirecting to talio://');
-       // Redirect to custom protocol
-       const userStr = encodeURIComponent(JSON.stringify(userData));
-       return NextResponse.redirect(`talio://auth?token=${token}&user=${userStr}`);
+       // Redirect to custom protocol - encode user data as base64 to avoid URL encoding issues
+       const userBase64 = Buffer.from(JSON.stringify(userData)).toString('base64');
+       const redirectUrl = `talio://auth?token=${encodeURIComponent(token)}&user=${encodeURIComponent(userBase64)}`;
+       console.log('🖥️ Redirect URL:', redirectUrl);
+       return NextResponse.redirect(redirectUrl);
     }
 
     // Create response with redirect to auth callback page

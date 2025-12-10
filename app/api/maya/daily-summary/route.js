@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Employee from '@/models/Employee';
 import Attendance from '@/models/Attendance';
 import Leave from '@/models/Leave';
 
@@ -29,9 +30,21 @@ export async function GET(request) {
     const userId = decoded.userId;
     await connectDB();
 
-    const user = await User.findById(userId).select('name');
+    const user = await User.findById(userId).select('employeeId email');
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    // Get user's name from Employee record
+    let userName = 'there';
+    if (user.employeeId) {
+      const employee = await Employee.findById(user.employeeId).select('firstName lastName');
+      if (employee) {
+        userName = employee.firstName || 'there';
+      }
+    } else {
+      // Fallback: try to get name from email
+      userName = user.email?.split('@')[0] || 'there';
     }
 
     // Get today's date range
@@ -58,7 +71,7 @@ export async function GET(request) {
     if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
     if (hour >= 17) greeting = 'Good evening';
 
-    let message = `${greeting}, ${user.name}! `;
+    let message = `${greeting}, ${userName}! `;
 
     // Add attendance status
     if (attendance) {

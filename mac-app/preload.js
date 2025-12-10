@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('talioDesktop', {
   getScreenPermissionStatus: () => ipcRenderer.invoke('get-screen-permission-status'),
   requestScreenPermission: () => ipcRenderer.invoke('request-screen-permission'),
   requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
+  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
   getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
 
   // Maya widget control (native widget, not web PIP)
@@ -54,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getScreenPermissionStatus: () => ipcRenderer.invoke('get-screen-permission-status'),
   requestScreenPermission: () => ipcRenderer.invoke('request-screen-permission'),
   requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
+  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
   getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
   openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
   minimizeMayaToBlob: () => ipcRenderer.invoke('minimize-maya-to-blob'),

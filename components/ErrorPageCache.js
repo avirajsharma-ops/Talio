@@ -4,38 +4,89 @@ import { useEffect } from 'react'
 
 /**
  * ErrorPageCache Component
- * Caches the error fallback page in localStorage for offline/error scenarios
- * This ensures users see a nice error page even when offline or when errors occur
+ * - Registers the service worker for offline functionality
+ * - Caches the offline page in localStorage as backup
+ * - Caches the error fallback page for error scenarios
  */
 export default function ErrorPageCache() {
   useEffect(() => {
     // Only run in browser
     if (typeof window === 'undefined') return
 
-    const cacheErrorPage = async () => {
-      try {
-        // Fetch the error fallback page
-        const response = await fetch('/error-fallback.html')
-        if (response.ok) {
-          const html = await response.text()
+    // Register Service Worker for offline functionality
+    const registerServiceWorker = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/'
+          })
           
-          // Store in localStorage
-          localStorage.setItem('talio_error_page', html)
-          localStorage.setItem('talio_error_page_cached_at', new Date().toISOString())
+          console.log('[Talio] Service Worker registered:', registration.scope)
           
-          console.log('[ErrorPageCache] Error fallback page cached successfully')
+          // Check for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing
+            newWorker?.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[Talio] New service worker available')
+              }
+            })
+          })
+        } catch (error) {
+          console.error('[Talio] Service Worker registration failed:', error)
         }
-      } catch (error) {
-        console.error('[ErrorPageCache] Failed to cache error page:', error)
       }
     }
 
-    // Check if we need to cache or update the error page
-    const cachedAt = localStorage.getItem('talio_error_page_cached_at')
-    const shouldCache = !cachedAt || 
-      (new Date() - new Date(cachedAt)) > 7 * 24 * 60 * 60 * 1000 // 7 days
+    // Cache offline page in localStorage as backup
+    const cacheOfflinePage = async () => {
+      try {
+        const response = await fetch('/offline.html')
+        if (response.ok) {
+          const html = await response.text()
+          localStorage.setItem('talio_offline_page', html)
+          localStorage.setItem('talio_offline_page_cached_at', new Date().toISOString())
+          console.log('[Talio] Offline page cached in localStorage')
+        }
+      } catch (error) {
+        console.error('[Talio] Failed to cache offline page:', error)
+      }
+    }
 
-    if (shouldCache) {
+    // Cache error fallback page
+    const cacheErrorPage = async () => {
+      try {
+        const response = await fetch('/error-fallback.html')
+        if (response.ok) {
+          const html = await response.text()
+          localStorage.setItem('talio_error_page', html)
+          localStorage.setItem('talio_error_page_cached_at', new Date().toISOString())
+          console.log('[Talio] Error fallback page cached successfully')
+        }
+      } catch (error) {
+        console.error('[Talio] Failed to cache error page:', error)
+      }
+    }
+
+    // Register service worker immediately
+    registerServiceWorker()
+
+    // Check if we need to cache pages (cache for 7 days)
+    const offlineCachedAt = localStorage.getItem('talio_offline_page_cached_at')
+    const errorCachedAt = localStorage.getItem('talio_error_page_cached_at')
+    const sevenDays = 7 * 24 * 60 * 60 * 1000
+
+    const shouldCacheOffline = !offlineCachedAt || 
+      (new Date() - new Date(offlineCachedAt)) > sevenDays
+
+    const shouldCacheError = !errorCachedAt || 
+      (new Date() - new Date(errorCachedAt)) > sevenDays
+
+    if (shouldCacheOffline) {
+      cacheOfflinePage()
+    }
+    
+    if (shouldCacheError) {
       cacheErrorPage()
     }
   }, [])

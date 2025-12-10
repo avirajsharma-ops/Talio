@@ -173,25 +173,27 @@ function createMainWindow() {
         --talio-titlebar-height: 40px;
       }
       
-      /* Add top padding for Windows title bar overlay */
+      /* Add top padding for Windows title bar overlay - only on body */
       body {
         padding-top: var(--talio-titlebar-height) !important;
       }
       
-      /* Ensure sidebar also accounts for title bar */
-      .sidebar, [class*="sidebar"], nav, aside {
+      /* Sidebar positioning - should start below title bar but NOT add internal padding */
+      aside.fixed, aside[class*="fixed"], nav.fixed {
         top: var(--talio-titlebar-height) !important;
         height: calc(100vh - var(--talio-titlebar-height)) !important;
+        padding-top: 0 !important;
       }
       
-      /* Fix fixed positioned sidebar */
-      aside.fixed, nav.fixed, .sidebar.fixed {
+      /* Target the specific sidebar classes */
+      .fixed.inset-y-0.left-0 {
         top: var(--talio-titlebar-height) !important;
         height: calc(100vh - var(--talio-titlebar-height)) !important;
+        bottom: auto !important;
       }
       
       /* Adjust ALL fixed/sticky positioned elements at top:0 */
-      header.fixed, header[class*="fixed"], .fixed-header, [class*="sticky"] {
+      header.fixed, header[class*="fixed"], .fixed-header {
         top: var(--talio-titlebar-height) !important;
       }
       
@@ -200,13 +202,18 @@ function createMainWindow() {
         top: var(--talio-titlebar-height) !important;
       }
       
-      /* Adjust sticky elements */
-      .sticky.top-0, [class*="sticky"][class*="top-0"] {
-        top: var(--talio-titlebar-height) !important;
+      /* Main content area - reduce top padding since title bar adds space */
+      main.pt-24, main[class*="pt-24"] {
+        padding-top: 4rem !important;
+      }
+      
+      /* Fix h-screen elements to account for title bar */
+      .h-screen {
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
       }
       
       /* Fix modal/dialog overlays to account for title bar */
-      .fixed.inset-0, [class*="fixed"][class*="inset-0"] {
+      .fixed.inset-0:not(.inset-y-0), [class*="fixed"][class*="inset-0"]:not([class*="inset-y-0"]) {
         top: 0 !important;
         padding-top: var(--talio-titlebar-height) !important;
       }
@@ -214,11 +221,6 @@ function createMainWindow() {
       /* Fix dropdown menus and popovers */
       [role="menu"], [role="listbox"], .dropdown-menu, [class*="dropdown"] {
         margin-top: 0 !important;
-      }
-      
-      /* Main content area height adjustment */
-      main, .main-content, [class*="main-content"] {
-        min-height: calc(100vh - var(--talio-titlebar-height)) !important;
       }
       
       /* Title bar drag region - white Talio branding bar */
@@ -273,6 +275,26 @@ function createMainWindow() {
       event.preventDefault();
       shell.openExternal(url);
     }
+  });
+
+  // Handle media permission requests (camera, microphone, screen share) for meetings
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'mediaKeySystem', 'geolocation', 'notifications', 'fullscreen', 'pointerLock', 'display-capture'];
+    
+    console.log(`[Talio] Permission requested: ${permission}`);
+    
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      console.log(`[Talio] Permission denied: ${permission}`);
+      callback(false);
+    }
+  });
+
+  // Handle permission check requests
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    const allowedPermissions = ['media', 'mediaKeySystem', 'geolocation', 'notifications', 'fullscreen', 'pointerLock', 'display-capture'];
+    return allowedPermissions.includes(permission);
   });
 
   // Show window when ready
@@ -1572,6 +1594,20 @@ function setupIPC() {
     };
   });
 
+  // Check current permission status - alias for get-permission-status
+  ipcMain.handle('check-permissions', async () => {
+    // On Windows, permissions are generally granted by default
+    // unless explicitly blocked by system settings
+    const permissions = {
+      camera: 'granted',
+      microphone: 'granted',
+      screen: 'granted',
+      accessibility: 'granted'
+    };
+    console.log('[Talio] Checking permissions:', permissions);
+    return permissions;
+  });
+
   // Toggle Maya PIP
   ipcMain.handle('toggle-maya-pip', (event, show) => {
     if (show) {
@@ -1823,13 +1859,16 @@ if (!gotTheLock) {
 // Handle protocol URL
 function handleProtocolUrl(url) {
   try {
+    console.log('[Talio] Parsing protocol URL:', url);
     const urlObj = new URL(url);
     if (urlObj.protocol === 'talio:' && urlObj.host === 'auth') {
-      const token = urlObj.searchParams.get('token');
-      const userStr = urlObj.searchParams.get('user');
+      const token = decodeURIComponent(urlObj.searchParams.get('token') || '');
+      const userBase64 = decodeURIComponent(urlObj.searchParams.get('user') || '');
       
-      if (token && userStr) {
-        const user = JSON.parse(decodeURIComponent(userStr));
+      if (token && userBase64) {
+        // Decode base64 user data
+        const userStr = Buffer.from(userBase64, 'base64').toString('utf-8');
+        const user = JSON.parse(userStr);
         console.log('[Talio] OAuth callback received for user:', user.email);
         
         // Store auth
@@ -1843,13 +1882,14 @@ function handleProtocolUrl(url) {
         
         // Notify main window to update
         if (mainWindow && mainWindow.webContents) {
+          const escapedUser = JSON.stringify(user).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
           mainWindow.webContents.executeJavaScript(`
             localStorage.setItem('token', '${token}');
-            localStorage.setItem('user', '${JSON.stringify(user).replace(/'/g, "\\'")}');
+            localStorage.setItem('user', '${escapedUser}');
             localStorage.setItem('userId', '${user.id || user._id}');
             document.cookie = 'token=${token}; path=/; max-age=${7 * 24 * 60 * 60}';
             window.location.href = '/dashboard';
-          `);
+          `).catch(err => console.error('[Talio] JS execution error:', err));
         }
         
         // Show and focus main window
@@ -1857,10 +1897,14 @@ function handleProtocolUrl(url) {
           mainWindow.show();
           mainWindow.focus();
         }
+        
+        // Show notification
+        sendNotification('Login Successful', `Welcome back, ${user.firstName || user.email}!`);
       }
     }
   } catch (error) {
     console.error('[Talio] Error handling protocol URL:', error);
+    sendNotification('Login Error', 'Failed to complete login. Please try again.');
   }
 }
 

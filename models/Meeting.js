@@ -116,6 +116,11 @@ const MeetingSchema = new mongoose.Schema({
   roomPassword: String,
   // Meeting link for external sharing
   meetingLink: String,
+  // Whether the meeting link is still active (auto-deactivated after end time)
+  isLinkActive: {
+    type: Boolean,
+    default: true
+  },
   // Organizer
   organizer: {
     type: mongoose.Schema.Types.ObjectId,

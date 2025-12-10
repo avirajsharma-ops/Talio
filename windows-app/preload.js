@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Permission management
   requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
   getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
+  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
 
   // Maya widget controls
   openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
@@ -52,6 +53,7 @@ contextBridge.exposeInMainWorld('talioDesktop', {
   toggleMayaPIP: (show) => ipcRenderer.invoke('toggle-maya-pip', show),
   requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
   getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
+  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
   showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
   hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
   setAuth: (token, user) => ipcRenderer.invoke('set-auth', { token, user }),

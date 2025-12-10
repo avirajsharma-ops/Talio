@@ -132,8 +132,80 @@ function checkScreenCapturePermission() {
   return true;
 }
 
-// NOTE: Camera/microphone/accessibility permissions are NOT needed for basic screenshot functionality
-// We only need screen recording permission, which is checked via checkScreenCapturePermission()
+// Request all required permissions on macOS
+// This should be called on app startup to ensure permissions are available
+async function requestAllPermissions() {
+  if (process.platform !== 'darwin') {
+    console.log('[Talio] Permissions: Not on macOS, skipping permission requests');
+    return { camera: true, microphone: true, screen: true };
+  }
+
+  console.log('[Talio] Requesting all permissions...');
+  const results = { camera: false, microphone: false, screen: false };
+
+  // Check and request camera permission
+  try {
+    const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
+    console.log('[Talio] Camera permission status:', cameraStatus);
+    if (cameraStatus === 'not-determined') {
+      results.camera = await systemPreferences.askForMediaAccess('camera');
+      console.log('[Talio] Camera permission requested:', results.camera ? 'granted' : 'denied');
+    } else {
+      results.camera = cameraStatus === 'granted';
+    }
+  } catch (error) {
+    console.error('[Talio] Error requesting camera permission:', error);
+  }
+
+  // Check and request microphone permission
+  try {
+    const micStatus = systemPreferences.getMediaAccessStatus('microphone');
+    console.log('[Talio] Microphone permission status:', micStatus);
+    if (micStatus === 'not-determined') {
+      results.microphone = await systemPreferences.askForMediaAccess('microphone');
+      console.log('[Talio] Microphone permission requested:', results.microphone ? 'granted' : 'denied');
+    } else {
+      results.microphone = micStatus === 'granted';
+    }
+  } catch (error) {
+    console.error('[Talio] Error requesting microphone permission:', error);
+  }
+
+  // Check screen recording permission (can't request, only check)
+  try {
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen');
+    console.log('[Talio] Screen recording permission status:', screenStatus);
+    results.screen = screenStatus === 'granted';
+    
+    // If screen permission not granted, show a helpful message
+    if (!results.screen && !screenPermissionChecked) {
+      console.log('[Talio] Screen recording permission not granted. User needs to enable in System Preferences.');
+    }
+  } catch (error) {
+    console.error('[Talio] Error checking screen permission:', error);
+  }
+
+  console.log('[Talio] Permission results:', results);
+  return results;
+}
+
+// IPC handler for requesting permissions from renderer
+ipcMain.handle('request-all-permissions', async () => {
+  return await requestAllPermissions();
+});
+
+// IPC handler for checking permission status
+ipcMain.handle('check-permissions', async () => {
+  if (process.platform !== 'darwin') {
+    return { camera: true, microphone: true, screen: true };
+  }
+  
+  return {
+    camera: systemPreferences.getMediaAccessStatus('camera') === 'granted',
+    microphone: systemPreferences.getMediaAccessStatus('microphone') === 'granted',
+    screen: systemPreferences.getMediaAccessStatus('screen') === 'granted'
+  };
+});
 
 // Create the main application window
 function createMainWindow() {
@@ -164,22 +236,50 @@ function createMainWindow() {
   // Inject CSS for macOS title bar spacing when content loads
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.insertCSS(`
-      /* Add top padding for macOS traffic lights */
+      /* macOS title bar height - 38px for traffic lights */
+      :root {
+        --talio-titlebar-height: 38px;
+      }
+      
+      /* Add top padding for macOS traffic lights - only on body */
       body {
-        padding-top: 38px !important;
+        padding-top: var(--talio-titlebar-height) !important;
       }
-      /* Ensure sidebar also has top padding */
-      .sidebar, [class*="sidebar"], nav, aside {
-        padding-top: 38px !important;
+      
+      /* Sidebar positioning - should start below title bar but NOT add internal padding */
+      aside.fixed, aside[class*="fixed"], nav.fixed {
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        padding-top: 0 !important;
       }
+      
+      /* Target the specific sidebar classes */
+      .fixed.inset-y-0.left-0 {
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        bottom: auto !important;
+      }
+      
       /* Adjust ALL fixed positioned headers */
-      header.fixed, header[class*="fixed"], .fixed-header, [class*="sticky"] {
-        top: 38px !important;
+      header.fixed, header[class*="fixed"], .fixed-header {
+        top: var(--talio-titlebar-height) !important;
       }
+      
       /* Target Tailwind fixed class specifically */
       .fixed.top-0 {
-        top: 38px !important;
+        top: var(--talio-titlebar-height) !important;
       }
+      
+      /* Main content area - reduce top padding since title bar adds space */
+      main.pt-24, main[class*="pt-24"] {
+        padding-top: 4rem !important;
+      }
+      
+      /* Fix h-screen elements to account for title bar */
+      .h-screen {
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+      }
+      
       /* Title bar drag region - displays Talio branding area */
       body::before {
         content: '';
@@ -187,7 +287,7 @@ function createMainWindow() {
         top: 0;
         left: 0;
         right: 0;
-        height: 38px;
+        height: var(--talio-titlebar-height);
         background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
         -webkit-app-region: drag;
         z-index: 9998;
@@ -224,6 +324,39 @@ function createMainWindow() {
       event.preventDefault();
       shell.openExternal(url);
     }
+  });
+
+  // Handle media permission requests (camera, microphone, screen share) for meetings
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'mediaKeySystem', 'geolocation', 'notifications', 'fullscreen', 'pointerLock', 'display-capture'];
+    
+    console.log(`[Talio] Permission requested: ${permission}`);
+    
+    if (allowedPermissions.includes(permission)) {
+      // For macOS, we need to request system permission for camera/microphone
+      if (process.platform === 'darwin' && permission === 'media') {
+        // Request camera access
+        systemPreferences.askForMediaAccess('camera').then(cameraGranted => {
+          console.log(`[Talio] Camera access: ${cameraGranted ? 'granted' : 'denied'}`);
+          // Request microphone access
+          systemPreferences.askForMediaAccess('microphone').then(micGranted => {
+            console.log(`[Talio] Microphone access: ${micGranted ? 'granted' : 'denied'}`);
+            callback(cameraGranted || micGranted);
+          });
+        });
+      } else {
+        callback(true);
+      }
+    } else {
+      console.log(`[Talio] Permission denied: ${permission}`);
+      callback(false);
+    }
+  });
+
+  // Handle permission check requests
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    const allowedPermissions = ['media', 'mediaKeySystem', 'geolocation', 'notifications', 'fullscreen', 'pointerLock', 'display-capture'];
+    return allowedPermissions.includes(permission);
   });
 
   // Show window when ready
@@ -290,12 +423,17 @@ function createMayaBlobWindow() {
   const savedPosition = store.get('blobPosition');
 
   const blobSize = 120;
+  
+  // Position at the absolute bottom-right corner, just above the dock
+  // Use minimal margin (5px) to get as close to the dock as possible
+  const defaultX = width - blobSize - 5;
+  const defaultY = height - blobSize - 5;
 
   mayaBlobWindow = new BrowserWindow({
     width: blobSize,
     height: blobSize,
-    x: savedPosition.x ?? width - blobSize - 20,
-    y: savedPosition.y ?? height - blobSize - 20,
+    x: savedPosition.x ?? defaultX,
+    y: savedPosition.y ?? defaultY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -1727,13 +1865,16 @@ app.on('open-url', (event, url) => {
 // Handle protocol URL
 function handleProtocolUrl(url) {
   try {
+    console.log('[Talio] Parsing protocol URL:', url);
     const urlObj = new URL(url);
     if (urlObj.protocol === 'talio:' && urlObj.host === 'auth') {
-      const token = urlObj.searchParams.get('token');
-      const userStr = urlObj.searchParams.get('user');
+      const token = decodeURIComponent(urlObj.searchParams.get('token') || '');
+      const userBase64 = decodeURIComponent(urlObj.searchParams.get('user') || '');
       
-      if (token && userStr) {
-        const user = JSON.parse(decodeURIComponent(userStr));
+      if (token && userBase64) {
+        // Decode base64 user data
+        const userStr = Buffer.from(userBase64, 'base64').toString('utf-8');
+        const user = JSON.parse(userStr);
         console.log('[Talio] OAuth callback received for user:', user.email);
         
         // Store auth
@@ -1747,13 +1888,14 @@ function handleProtocolUrl(url) {
         
         // Notify main window to update
         if (mainWindow && mainWindow.webContents) {
+          const escapedUser = JSON.stringify(user).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
           mainWindow.webContents.executeJavaScript(`
             localStorage.setItem('token', '${token}');
-            localStorage.setItem('user', '${JSON.stringify(user).replace(/'/g, "\\'")}');
+            localStorage.setItem('user', '${escapedUser}');
             localStorage.setItem('userId', '${user.id || user._id}');
             document.cookie = 'token=${token}; path=/; max-age=${7 * 24 * 60 * 60}';
             window.location.href = '/dashboard';
-          `);
+          `).catch(err => console.error('[Talio] JS execution error:', err));
         }
         
         // Show and focus main window
@@ -1761,10 +1903,14 @@ function handleProtocolUrl(url) {
           mainWindow.show();
           mainWindow.focus();
         }
+        
+        // Show notification
+        sendNotification('Login Successful', `Welcome back, ${user.firstName || user.email}!`);
       }
     }
   } catch (error) {
     console.error('[Talio] Error handling protocol URL:', error);
+    sendNotification('Login Error', 'Failed to complete login. Please try again.');
   }
 }
 

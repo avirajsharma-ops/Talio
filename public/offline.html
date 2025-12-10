@@ -139,7 +139,54 @@
 
   setInterval(()=>{idx=(idx+1)%slides.length;show(idx)},3500);
 
-  document.getElementById('retryBtn').onclick=()=>location.reload();
+  const retryBtn = document.getElementById('retryBtn');
+  let isRetrying = false;
+
+  async function checkServerAndRetry() {
+    if (isRetrying) return;
+    isRetrying = true;
+    retryBtn.innerHTML = '<span class="spin"></span>Checking...';
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch('/api/health', {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        retryBtn.innerHTML = '✓ Connected! Redirecting...';
+        retryBtn.style.background = '#10b981';
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
+      } else {
+        throw new Error('Server returned error');
+      }
+    } catch (error) {
+      retryBtn.innerHTML = '✗ Still offline';
+      retryBtn.style.background = '#ef4444';
+      setTimeout(() => {
+        retryBtn.innerHTML = '<span class="spin"></span>Retry';
+        retryBtn.style.background = 'var(--accent)';
+        isRetrying = false;
+      }, 2000);
+    }
+  }
+
+  retryBtn.onclick = checkServerAndRetry;
+
+  // Auto-retry every 30 seconds
+  setInterval(() => {
+    if (!isRetrying) {
+      checkServerAndRetry();
+    }
+  }, 30000);
 </script>
 
 </body>

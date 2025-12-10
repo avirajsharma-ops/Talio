@@ -107,7 +107,25 @@ export default function MeetingRoomPage({ params }) {
       })
       const data = await response.json()
       if (data.success && data.data.length > 0) {
-        setMeeting(data.data[0])
+        const meetingData = data.data[0]
+        
+        // Check if meeting link is still active
+        if (meetingData.isLinkActive === false) {
+          toast.error('This meeting has ended and the link is no longer active')
+          router.push('/dashboard/meetings')
+          return
+        }
+        
+        // Check if meeting has passed its end time
+        const now = new Date()
+        const endTime = new Date(meetingData.scheduledEnd)
+        if (now > endTime && meetingData.status !== 'in-progress') {
+          toast.error('This meeting has ended')
+          router.push('/dashboard/meetings')
+          return
+        }
+        
+        setMeeting(meetingData)
       } else {
         toast.error('Meeting not found')
         router.push('/dashboard/meetings')
