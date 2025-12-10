@@ -368,7 +368,14 @@ export default function MeetingRoomPage({ params }) {
         setIsScreenSharing(true)
       } catch (error) {
         console.error('Error sharing screen:', error)
-        toast.error('Failed to share screen')
+        // Check for permission denied errors
+        if (error.name === 'NotAllowedError' || error.message?.includes('Permission denied')) {
+          toast.error('Screen sharing permission denied. Please enable screen recording in System Preferences > Privacy & Security > Screen Recording')
+        } else if (error.name === 'NotFoundError') {
+          toast.error('No screen available to share')
+        } else {
+          toast.error('Failed to share screen. Please check your permissions.')
+        }
       }
     }
   }

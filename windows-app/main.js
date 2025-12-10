@@ -173,56 +173,6 @@ function createMainWindow() {
         --talio-titlebar-height: 40px;
       }
       
-      /* Add top padding for Windows title bar overlay - only on body */
-      body {
-        padding-top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Sidebar positioning - should start below title bar but NOT add internal padding */
-      aside.fixed, aside[class*="fixed"], nav.fixed {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        padding-top: 0 !important;
-      }
-      
-      /* Target the specific sidebar classes */
-      .fixed.inset-y-0.left-0 {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        bottom: auto !important;
-      }
-      
-      /* Adjust ALL fixed/sticky positioned elements at top:0 */
-      header.fixed, header[class*="fixed"], .fixed-header {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Target Tailwind fixed class specifically */
-      .fixed.top-0, [class*="fixed"][class*="top-0"] {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Main content area - reduce top padding since title bar adds space */
-      main.pt-24, main[class*="pt-24"] {
-        padding-top: 4rem !important;
-      }
-      
-      /* Fix h-screen elements to account for title bar */
-      .h-screen {
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-      }
-      
-      /* Fix modal/dialog overlays to account for title bar */
-      .fixed.inset-0:not(.inset-y-0), [class*="fixed"][class*="inset-0"]:not([class*="inset-y-0"]) {
-        top: 0 !important;
-        padding-top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Fix dropdown menus and popovers */
-      [role="menu"], [role="listbox"], .dropdown-menu, [class*="dropdown"] {
-        margin-top: 0 !important;
-      }
-      
       /* Title bar drag region - white Talio branding bar */
       body::before {
         content: 'Talio';
@@ -233,7 +183,7 @@ function createMainWindow() {
         height: var(--talio-titlebar-height);
         background-color: #ffffff;
         -webkit-app-region: drag;
-        z-index: 9998;
+        z-index: 9999;
         pointer-events: none;
         border-bottom: 1px solid #e5e7eb;
         display: flex;
@@ -243,6 +193,39 @@ function createMainWindow() {
         font-size: 14px;
         color: #374151;
         font-family: system-ui, -apple-system, sans-serif;
+      }
+      
+      /* Body needs padding to account for title bar */
+      body {
+        padding-top: var(--talio-titlebar-height) !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* All h-screen elements should use available height */
+      .h-screen {
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+      }
+      
+      /* Sidebar positioning - fixed to left, starts below title bar */
+      aside.fixed.inset-y-0, .fixed.inset-y-0.left-0 {
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        bottom: auto !important;
+      }
+      
+      /* Fixed header - positioned below title bar */
+      header.fixed.top-0, header[class*="fixed"][class*="top-0"] {
+        top: var(--talio-titlebar-height) !important;
+      }
+      
+      /* Main content wrapper */
+      .flex.h-screen {
+        margin-top: 0 !important;
+      }
+      
+      /* Fix dropdown menus and popovers */
+      [role="menu"], [role="listbox"], .dropdown-menu, [class*="dropdown"] {
+        margin-top: 0 !important;
       }
     `);
     console.log('[Talio] Main window loaded with custom title bar');
@@ -376,12 +359,17 @@ function createMayaBlobWindow() {
   const savedPosition = store.get('blobPosition');
 
   const blobSize = 120;
+  
+  // Position at bottom-right corner with comfortable margin
+  // 20px from right edge, 100px from bottom to be above taskbar and clearly visible
+  const defaultX = width - blobSize - 20;
+  const defaultY = height - blobSize - 100;
 
   mayaBlobWindow = new BrowserWindow({
     width: blobSize,
     height: blobSize,
-    x: savedPosition.x ?? width - blobSize - 20,
-    y: savedPosition.y ?? height - blobSize - 20,
+    x: savedPosition.x ?? defaultX,
+    y: savedPosition.y ?? defaultY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

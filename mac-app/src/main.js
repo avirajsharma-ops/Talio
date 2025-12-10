@@ -171,15 +171,26 @@ async function requestAllPermissions() {
     console.error('[Talio] Error requesting microphone permission:', error);
   }
 
-  // Check screen recording permission (can't request, only check)
+  // Check screen recording permission (can't request programmatically, only check)
   try {
     const screenStatus = systemPreferences.getMediaAccessStatus('screen');
     console.log('[Talio] Screen recording permission status:', screenStatus);
     results.screen = screenStatus === 'granted';
     
-    // If screen permission not granted, show a helpful message
+    // If screen permission not granted, prompt user to enable it
     if (!results.screen && !screenPermissionChecked) {
-      console.log('[Talio] Screen recording permission not granted. User needs to enable in System Preferences.');
+      console.log('[Talio] Screen recording permission not granted. Prompting user...');
+      // Show a notification to guide user to System Preferences
+      const notification = new Notification({
+        title: 'Screen Recording Permission Required',
+        body: 'Please enable Screen Recording for Talio in System Preferences > Privacy & Security > Screen Recording',
+        silent: false
+      });
+      notification.on('click', () => {
+        // Open System Preferences to the Screen Recording section
+        shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+      });
+      notification.show();
     }
   } catch (error) {
     console.error('[Talio] Error checking screen permission:', error);
@@ -241,46 +252,7 @@ function createMainWindow() {
         --talio-titlebar-height: 38px;
       }
       
-      /* Add top padding for macOS traffic lights - only on body */
-      body {
-        padding-top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Sidebar positioning - should start below title bar but NOT add internal padding */
-      aside.fixed, aside[class*="fixed"], nav.fixed {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        padding-top: 0 !important;
-      }
-      
-      /* Target the specific sidebar classes */
-      .fixed.inset-y-0.left-0 {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        bottom: auto !important;
-      }
-      
-      /* Adjust ALL fixed positioned headers */
-      header.fixed, header[class*="fixed"], .fixed-header {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Target Tailwind fixed class specifically */
-      .fixed.top-0 {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Main content area - reduce top padding since title bar adds space */
-      main.pt-24, main[class*="pt-24"] {
-        padding-top: 4rem !important;
-      }
-      
-      /* Fix h-screen elements to account for title bar */
-      .h-screen {
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-      }
-      
-      /* Title bar drag region - displays Talio branding area */
+      /* Title bar drag region - displays at the very top */
       body::before {
         content: '';
         position: fixed;
@@ -290,9 +262,37 @@ function createMainWindow() {
         height: var(--talio-titlebar-height);
         background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
         -webkit-app-region: drag;
-        z-index: 9998;
+        z-index: 9999;
         pointer-events: none;
         border-bottom: 1px solid #e5e7eb;
+      }
+      
+      /* Body needs padding to account for title bar */
+      body {
+        padding-top: var(--talio-titlebar-height) !important;
+        box-sizing: border-box !important;
+      }
+      
+      /* All h-screen elements should use available height */
+      .h-screen {
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+      }
+      
+      /* Sidebar positioning - fixed to left, starts below title bar */
+      aside.fixed.inset-y-0, .fixed.inset-y-0.left-0 {
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        bottom: auto !important;
+      }
+      
+      /* Fixed header - positioned below title bar */
+      header.fixed.top-0, header[class*="fixed"][class*="top-0"] {
+        top: var(--talio-titlebar-height) !important;
+      }
+      
+      /* Main content wrapper */
+      .flex.h-screen {
+        margin-top: 0 !important;
       }
     `);
   });
@@ -414,20 +414,22 @@ function createMainWindow() {
 
 // Create Maya Blob (small floating button at bottom)
 function createMayaBlobWindow() {
-  if (mayaBlobWindow) {
+  if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+    console.log('[Talio] Maya blob window already exists, showing it');
     mayaBlobWindow.show();
     return;
   }
 
+  console.log('[Talio] Creating Maya blob window');
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const savedPosition = store.get('blobPosition');
 
   const blobSize = 120;
   
-  // Position at the absolute bottom-right corner, just above the dock
-  // Use minimal margin (5px) to get as close to the dock as possible
-  const defaultX = width - blobSize - 5;
-  const defaultY = height - blobSize - 5;
+  // Position at bottom-right corner with comfortable margin
+  // 20px from right edge, 100px from bottom to be above dock and clearly visible
+  const defaultX = width - blobSize - 20;
+  const defaultY = height - blobSize - 100;
 
   mayaBlobWindow = new BrowserWindow({
     width: blobSize,
@@ -446,15 +448,28 @@ function createMayaBlobWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../maya-preload.js')
+      preload: path.join(__dirname, '../maya-preload.js'),
+      webSecurity: true
     },
     show: false
   });
 
+  const blobUrl = `${APP_URL}/maya/blob.html`;
+  console.log('[Talio] Loading Maya blob from:', blobUrl);
+  
   // Load Maya blob HTML from server for easy updates
-  mayaBlobWindow.loadURL(`${APP_URL}/maya/blob.html`);
+  mayaBlobWindow.loadURL(blobUrl);
+
+  mayaBlobWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('[Talio] Maya blob failed to load:', errorCode, errorDescription);
+  });
+
+  mayaBlobWindow.webContents.on('did-finish-load', () => {
+    console.log('[Talio] Maya blob loaded successfully');
+  });
 
   mayaBlobWindow.once('ready-to-show', () => {
+    console.log('[Talio] Maya blob ready to show');
     mayaBlobWindow.show();
   });
 
@@ -1973,8 +1988,16 @@ app.whenReady().then(async () => {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
-  // NOTE: Permissions are now requested AFTER user logs in, not on app startup
-  // The web app will call 'request-all-permissions' IPC handler after login
+  // Request permissions on app startup (macOS)
+  // This ensures camera, mic, and screen permissions are requested early
+  if (process.platform === 'darwin') {
+    console.log('[Talio] Requesting permissions on startup...');
+    requestAllPermissions().then(results => {
+      console.log('[Talio] Startup permission results:', results);
+    }).catch(err => {
+      console.error('[Talio] Error requesting startup permissions:', err);
+    });
+  }
 
   // Setup auto-launch
   if (store.get('autoLaunch') && autoLauncher) {
