@@ -4,6 +4,18 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { existsSync } from 'fs'
 
+// Configure route for larger file uploads (10MB)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+}
+
+// Next.js App Router specific config
+export const maxDuration = 60 // 60 seconds timeout for large uploads
+
 export async function POST(request) {
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
@@ -21,6 +33,15 @@ export async function POST(request) {
 
     if (!file) {
       return NextResponse.json({ success: false, message: 'No file provided' }, { status: 400 })
+    }
+
+    // Check file size (10MB limit)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ 
+        success: false, 
+        message: `File size exceeds 10MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB` 
+      }, { status: 400 })
     }
 
     // Create uploads directory if it doesn't exist

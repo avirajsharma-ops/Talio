@@ -219,6 +219,27 @@ export async function GET(request) {
       lastName: userData.lastName
     })
 
+    // Check if this is a desktop login request
+    let desktopLogin = false;
+    if (state) {
+      try {
+        // Use Buffer for Node.js environment
+        const decoded = JSON.parse(Buffer.from(state, 'base64').toString());
+        if (decoded.type === 'desktop_login') {
+          desktopLogin = true;
+        }
+      } catch (e) {
+        console.log('Failed to parse state:', e);
+      }
+    }
+
+    if (desktopLogin) {
+       console.log('🖥️ Desktop login detected, redirecting to talio://');
+       // Redirect to custom protocol
+       const userStr = encodeURIComponent(JSON.stringify(userData));
+       return NextResponse.redirect(`talio://auth?token=${token}&user=${userStr}`);
+    }
+
     // Create response with redirect to auth callback page
     // This page will transfer cookie data to localStorage
     // IMPORTANT: Use baseUrl to ensure correct domain

@@ -6,9 +6,10 @@ import { verifyToken } from '@/lib/auth'
 // GET - Get single company
 export async function GET(request, { params }) {
   try {
+    const { id } = await params
     await connectDB()
 
-    const company = await Company.findById(params.id)
+    const company = await Company.findById(id)
       .populate('createdBy', 'email')
       .lean()
 
@@ -35,6 +36,7 @@ export async function GET(request, { params }) {
 // PUT - Update company
 export async function PUT(request, { params }) {
   try {
+    const { id } = await params
     // Verify authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -68,7 +70,7 @@ export async function PUT(request, { params }) {
     const data = await request.json()
     
     // Check if company exists
-    const existingCompany = await Company.findById(params.id)
+    const existingCompany = await Company.findById(id)
     if (!existingCompany) {
       return NextResponse.json(
         { success: false, message: 'Company not found' },
@@ -79,7 +81,7 @@ export async function PUT(request, { params }) {
     // Check if name or code conflicts with another company
     if (data.name || data.code) {
       const conflictingCompany = await Company.findOne({
-        _id: { $ne: params.id },
+        _id: { $ne: id },
         $or: [
           ...(data.name ? [{ name: data.name }] : []),
           ...(data.code ? [{ code: data.code.toUpperCase() }] : [])
@@ -100,9 +102,22 @@ export async function PUT(request, { params }) {
     if (data.code) updateData.code = data.code.trim().toUpperCase()
     if (data.description !== undefined) updateData.description = data.description.trim()
     if (data.isActive !== undefined) updateData.isActive = data.isActive
+    if (data.logo !== undefined) updateData.logo = data.logo
+    if (data.email !== undefined) updateData.email = data.email?.trim() || ''
+    if (data.phone !== undefined) updateData.phone = data.phone?.trim() || ''
+    if (data.website !== undefined) updateData.website = data.website?.trim() || ''
+    if (data.address !== undefined) updateData.address = data.address
+    if (data.workingHours !== undefined) updateData.workingHours = data.workingHours
+    // Geofencing settings
+    if (data.geofence !== undefined) updateData.geofence = data.geofence
+    if (data.breakTimings !== undefined) updateData.breakTimings = data.breakTimings
+    // Payroll settings
+    if (data.payroll !== undefined) updateData.payroll = data.payroll
+    // Notification settings
+    if (data.notifications !== undefined) updateData.notifications = data.notifications
 
     const company = await Company.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true }
     )
@@ -124,6 +139,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete company
 export async function DELETE(request, { params }) {
   try {
+    const { id } = await params
     // Verify authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -156,7 +172,7 @@ export async function DELETE(request, { params }) {
 
     // Soft delete by setting isActive to false
     const company = await Company.findByIdAndUpdate(
-      params.id,
+      id,
       { isActive: false },
       { new: true }
     )

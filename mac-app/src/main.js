@@ -12,8 +12,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.3',
-  version: '1.0.3',
+  applicationVersion: '1.0.5',
+  version: '1.0.5',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -198,18 +198,32 @@ function createMainWindow() {
   });
 
   // Prevent any external popups (blocks Electron website and other external links)
+  // But open Google OAuth in external browser for proper account selection
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open Google OAuth in external browser
+    if (url.includes('accounts.google.com')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
     // Open external links in default browser instead of new Electron window
     if (url.startsWith('http') && !url.includes('app.talio.in') && !url.includes('talio.in')) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
-    // Allow same-origin popups (for OAuth, etc.) but deny everything else
+    // Allow same-origin popups but deny everything else
     if (!url.startsWith(APP_URL)) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
     return { action: 'allow' };
+  });
+  
+  // Intercept navigation to Google OAuth and open in external browser
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url.includes('accounts.google.com')) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
   });
 
   // Show window when ready
@@ -704,40 +718,47 @@ function extractDomainFromTitle(title) {
   return null;
 }
 
-// Track the last captured minute globally to persist across function calls
-let lastCapturedMinute = -1;
-let lastCaptureTime = 0;
+// PRECISE SCREENSHOT TIMING SYSTEM
+// Screenshots are triggered exactly every 60 seconds from authentication time
+// This ensures strict compliance with 1-minute interval policy
+let screenshotAuthTime = null; // Time when auth was set (check-in time)
+let preciseScreenshotTimer = null;
 
-// Start periodic screenshot and data sync - aligned to minute boundaries
+// Track last capture to prevent duplicates
+let lastCaptureTimestamp = 0;
+
+// Start periodic screenshot and data sync - PRECISE 60-second intervals
+// Screenshots are taken exactly every 60 seconds from the moment monitoring starts
 // This runs in background even when window is hidden
 function startScreenMonitoring() {
-  if (screenshotTimer || screenshotStartupTimer) return;
+  if (screenshotTimer || screenshotStartupTimer || preciseScreenshotTimer) return;
 
-  console.log('[Talio] 🚀 Starting screen monitoring (runs in background)');
+  console.log('[Talio] 🚀 Starting PRECISE screen monitoring (strict 60-second intervals)');
+  
+  // Record when monitoring started (this is effectively check-in time for the desktop app)
+  screenshotAuthTime = Date.now();
+  console.log(`[Talio] Screenshot baseline time set: ${new Date(screenshotAuthTime).toLocaleTimeString()}`);
 
-  // Function to capture exactly at each minute boundary
-  const captureAtMinuteBoundary = async () => {
+  // Capture function with strict timing
+  const captureScreenshot = async () => {
     if (!authToken) {
       console.log('[Talio] Skipping capture - not authenticated');
       return;
     }
 
-    const now = new Date();
-    const currentMinute = now.getMinutes();
-    const currentHour = now.getHours();
-    const minuteKey = currentHour * 60 + currentMinute; // Unique key per minute of day
-    
-    // Prevent duplicate captures within the same minute
-    const timeSinceLastCapture = Date.now() - lastCaptureTime;
-    if (minuteKey === lastCapturedMinute && timeSinceLastCapture < 55000) {
-      return; // Already captured this minute
+    // Prevent duplicate captures (must be at least 55 seconds since last capture)
+    const timeSinceLastCapture = Date.now() - lastCaptureTimestamp;
+    if (timeSinceLastCapture < 55000) {
+      console.log(`[Talio] Skipping duplicate capture (${Math.round(timeSinceLastCapture/1000)}s since last)`);
+      return;
     }
     
-    lastCapturedMinute = minuteKey;
-    lastCaptureTime = Date.now();
+    lastCaptureTimestamp = Date.now();
     
+    const now = new Date();
+    const elapsedSinceAuth = screenshotAuthTime ? Math.round((Date.now() - screenshotAuthTime) / 1000) : 0;
     const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
-    console.log(`[Talio] 📸 Capturing at ${timestamp} (minute :${currentMinute.toString().padStart(2, '0')})`);
+    console.log(`[Talio] 📸 Screenshot #${Math.ceil(elapsedSinceAuth / 60)} at ${timestamp} (${elapsedSinceAuth}s since start)`);
     
     try {
       await captureAndSyncProductivity(false);
@@ -746,31 +767,16 @@ function startScreenMonitoring() {
     }
   };
 
-  // Schedule first capture at next minute boundary
-  const scheduleNextCapture = () => {
-    const now = new Date();
-    // Calculate exact milliseconds until next minute (at :00 seconds)
-    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-    
-    console.log(`[Talio] Next capture in ${Math.round(msUntilNextMinute / 1000)}s`);
-    
-    screenshotStartupTimer = setTimeout(() => {
-      screenshotStartupTimer = null;
-      
-      // Capture now
-      captureAtMinuteBoundary();
-      
-      // Then set up recurring 60-second interval from this exact moment
-      // This ensures captures are exactly 60 seconds apart
-      screenshotTimer = setInterval(() => {
-        captureAtMinuteBoundary();
-      }, 60 * 1000);
-      
-      console.log('[Talio] ✅ Screen monitoring active (every 60 seconds exactly)');
-    }, msUntilNextMinute);
-  };
-
-  scheduleNextCapture();
+  // Take first screenshot immediately
+  captureScreenshot();
+  
+  // Set up precise 60-second interval using setInterval
+  // setInterval is sufficient for 60-second precision on desktop
+  preciseScreenshotTimer = setInterval(() => {
+    captureScreenshot();
+  }, 60 * 1000); // Exactly 60,000 milliseconds
+  
+  console.log('[Talio] ✅ Screen monitoring active (screenshot every 60 seconds exactly)');
 }
 
 // Sync all productivity data to server via API
@@ -994,10 +1000,18 @@ function setAuth(token, user) {
       clearInterval(screenshotTimer);
       screenshotTimer = null;
     }
+    if (preciseScreenshotTimer) {
+      clearInterval(preciseScreenshotTimer);
+      preciseScreenshotTimer = null;
+    }
     if (activitySyncTimer) {
       clearInterval(activitySyncTimer);
       activitySyncTimer = null;
     }
+    // Reset screenshot timing
+    screenshotAuthTime = null;
+    lastCaptureTimestamp = 0;
+    
     stopInstantFetchPolling();
     if (socket) {
       socket.disconnect();
@@ -1043,6 +1057,8 @@ function initializeSocketConnection(userId) {
     console.log('✅ [Talio] Socket.IO connected, socket ID:', socket.id);
     console.log('✅ [Talio] Registering desktop app for user:', userId);
     socket.emit('desktop-app-ready', { userId });
+    // Join user-specific room for notifications
+    socket.emit('join-user-room', userId);
   });
 
   socket.on('registration-confirmed', (data) => {
@@ -1068,6 +1084,20 @@ function initializeSocketConnection(userId) {
   socket.on('screenshot-interval-updated', (data) => {
     console.log('⏱️ [Talio] Screenshot interval updated:', data);
     updateScreenshotInterval(data.interval);
+  });
+
+  // Listen for push notifications from server
+  socket.on('notification', (data) => {
+    console.log('🔔 [Talio] Push notification received:', data);
+    sendNotification(data.title || 'Talio', data.body || data.message || '');
+  });
+
+  // Listen for new-message events (chat notifications)
+  socket.on('new-message', (data) => {
+    console.log('💬 [Talio] New message notification:', data);
+    const senderName = data.senderName || data.sender?.name || 'Someone';
+    const preview = data.content?.substring(0, 50) || 'New message';
+    sendNotification(`Message from ${senderName}`, preview);
   });
 
   socket.on('error', (error) => {
@@ -1388,6 +1418,10 @@ function createTray() {
           clearInterval(screenshotTimer);
           screenshotTimer = null;
         }
+        if (preciseScreenshotTimer) {
+          clearTimeout(preciseScreenshotTimer);
+          preciseScreenshotTimer = null;
+        }
         startScreenMonitoring();
         
         sendNotification('Settings Reset', 'Talio cache and settings have been cleared');
@@ -1656,6 +1690,12 @@ function setupIPC() {
     sendNotification(title, body);
   });
 
+  // Open URL in external browser (for OAuth)
+  ipcMain.handle('open-external', (event, url) => {
+    console.log('[Talio] Opening external URL:', url);
+    shell.openExternal(url);
+  });
+
   // Get app info
   ipcMain.handle('get-app-info', () => {
     return {
@@ -1667,6 +1707,67 @@ function setupIPC() {
 }
 
 // App lifecycle
+
+// Register custom protocol for OAuth callback
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('talio', process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient('talio');
+}
+
+// Handle protocol URL on macOS
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  console.log('[Talio] Received protocol URL:', url);
+  handleProtocolUrl(url);
+});
+
+// Handle protocol URL
+function handleProtocolUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.protocol === 'talio:' && urlObj.host === 'auth') {
+      const token = urlObj.searchParams.get('token');
+      const userStr = urlObj.searchParams.get('user');
+      
+      if (token && userStr) {
+        const user = JSON.parse(decodeURIComponent(userStr));
+        console.log('[Talio] OAuth callback received for user:', user.email);
+        
+        // Store auth
+        store.set('authToken', token);
+        store.set('userId', user.id || user._id);
+        authToken = token;
+        currentUser = user;
+        
+        // Initialize auth and start monitoring
+        setAuth(token, user);
+        
+        // Notify main window to update
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.executeJavaScript(`
+            localStorage.setItem('token', '${token}');
+            localStorage.setItem('user', '${JSON.stringify(user).replace(/'/g, "\\'")}');
+            localStorage.setItem('userId', '${user.id || user._id}');
+            document.cookie = 'token=${token}; path=/; max-age=${7 * 24 * 60 * 60}';
+            window.location.href = '/dashboard';
+          `);
+        }
+        
+        // Show and focus main window
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[Talio] Error handling protocol URL:', error);
+  }
+}
+
 app.whenReady().then(async () => {
   console.log('[Talio] App starting...');
 

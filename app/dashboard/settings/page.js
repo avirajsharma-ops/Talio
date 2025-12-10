@@ -2,13 +2,99 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell, FaMoneyBillWave } from 'react-icons/fa'
+import { FaBuilding, FaBriefcase, FaCalendarAlt, FaUmbrellaBeach, FaCog, FaMapMarkerAlt, FaClock, FaImage, FaPalette, FaCheck, FaBell, FaMoneyBillWave, FaArrowLeft } from 'react-icons/fa'
+import { HiOutlineOfficeBuilding, HiOutlineCog, HiOutlineArrowLeft } from 'react-icons/hi2'
 import { toast } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@/contexts/ThemeContext'
 
 // Dynamically import map component (client-side only)
 const GeofenceMap = dynamic(() => import('@/components/GeofenceMap'), { ssr: false })
+
+// Reusable Company Selector Component
+function CompanySelector({ companies, selectedCompany, onSelect, onBack, loading }) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (selectedCompany) {
+    return (
+      <div className="mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+        >
+          <HiOutlineArrowLeft className="w-5 h-5" />
+          <span>Back to Companies</span>
+        </button>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {selectedCompany.logo ? (
+              <img src={selectedCompany.logo} alt={selectedCompany.name} className="w-full h-full object-contain" />
+            ) : (
+              <FaBuilding className="w-6 h-6 text-gray-400" />
+            )}
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">{selectedCompany.name}</h3>
+            <p className="text-sm text-gray-500">{selectedCompany.code}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Select a Company</h3>
+        <p className="text-gray-600 text-sm">Choose a company to configure its settings</p>
+      </div>
+
+      {companies.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
+          <FaBuilding className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-800">No companies found</h3>
+          <p className="text-gray-500 mt-2">Create a company first in the Company Settings tab.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {companies.map((company) => (
+            <button
+              key={company._id}
+              onClick={() => onSelect(company)}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md hover:border-blue-200 transition-all text-left group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:bg-blue-50 transition-colors">
+                  {company.logo ? (
+                    <img src={company.logo} alt={company.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <FaBuilding className="w-7 h-7 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-800 truncate group-hover:text-blue-600 transition-colors">{company.name}</h4>
+                  <p className="text-sm text-gray-500 uppercase">{company.code}</p>
+                  {company.address?.city && (
+                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                      <FaMapMarkerAlt className="w-3 h-3" />
+                      {company.address.city}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company')
@@ -87,32 +173,33 @@ export default function SettingsPage() {
   }, [userRole, isDepartmentHead])
 
   return (
-    <div className="p-3 sm:p-6 pb-20 md:pb-6">
+    <div className="page-container">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Settings</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Configure your HRMS system</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FaCog className="w-6 h-6 text-indigo-600" />
+            Settings
+          </h1>
+          <p className="text-gray-600 mt-1">Configure your HRMS system</p>
+        </div>
       </div>
 
-      {/* Horizontal Tabs (All Devices) */}
+      {/* Horizontal Tabs */}
       <div className="mb-6">
-        <div className="border-b border-gray-200" style={{ borderColor: 'var(--color-border)' }}>
-          <nav className="-mb-px flex space-x-4 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1">
+          <nav className="flex space-x-1 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
-                  style={{
-                    borderBottomColor: activeTab === tab.id ? 'var(--color-primary-500)' : 'transparent',
-                    color: activeTab === tab.id ? 'var(--color-primary-600)' : 'var(--color-text-secondary)'
-                  }}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{tab.name}</span>
@@ -124,7 +211,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Content */}
-      <div className="rounded-lg shadow-md p-4 sm:p-6" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         {activeTab === 'company' && <CompanySettingsTab />}
         {activeTab === 'geofencing' && <GeofencingTab />}
         {activeTab === 'payroll' && <PayrollSettingsTab />}
@@ -137,37 +224,132 @@ export default function SettingsPage() {
 
 // Company Settings Tab (Admin/HR only)
 function CompanySettingsTab() {
-  const [settings, setSettings] = useState(null)
+  const [companies, setCompanies] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingCompany, setEditingCompany] = useState(null)
   const [saving, setSaving] = useState(false)
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
+  const [isMounted, setIsMounted] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    logo: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: ''
+    },
+    workingHours: {
+      checkInTime: '09:00',
+      checkOutTime: '18:00',
+      lateThresholdMinutes: 15,
+      absentThresholdMinutes: 60,
+      halfDayHours: 4,
+      fullDayHours: 8,
+      workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    }
+  })
 
   useEffect(() => {
-    fetchSettings()
+    setIsMounted(true)
+    fetchCompanies()
   }, [])
 
-  const fetchSettings = async () => {
+  const fetchCompanies = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
+      const response = await fetch('/api/companies', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       const data = await response.json()
       if (data.success) {
-        setSettings(data.data)
-        if (data.data.companyLogo) {
-          setLogoPreview(data.data.companyLogo)
-        }
+        setCompanies(data.data || [])
       }
     } catch (error) {
-      console.error('Error fetching settings:', error)
-      toast.error('Failed to load settings')
+      console.error('Error fetching companies:', error)
+      toast.error('Failed to load companies')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOpenModal = (company = null) => {
+    if (company) {
+      setEditingCompany(company)
+      setFormData({
+        name: company.name || '',
+        code: company.code || '',
+        description: company.description || '',
+        logo: company.logo || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        website: company.website || '',
+        address: company.address || {
+          street: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: ''
+        },
+        workingHours: company.workingHours || {
+          checkInTime: '09:00',
+          checkOutTime: '18:00',
+          lateThresholdMinutes: 15,
+          absentThresholdMinutes: 60,
+          halfDayHours: 4,
+          fullDayHours: 8,
+          workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+        }
+      })
+      setLogoPreview(company.logo || null)
+    } else {
+      setEditingCompany(null)
+      setFormData({
+        name: '',
+        code: '',
+        description: '',
+        logo: '',
+        email: '',
+        phone: '',
+        website: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: ''
+        },
+        workingHours: {
+          checkInTime: '09:00',
+          checkOutTime: '18:00',
+          lateThresholdMinutes: 15,
+          absentThresholdMinutes: 60,
+          halfDayHours: 4,
+          fullDayHours: 8,
+          workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+        }
+      })
+      setLogoPreview(null)
+    }
+    setLogoFile(null)
+    setShowModal(true)
+  }
+
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setEditingCompany(null)
+    setLogoFile(null)
+    setLogoPreview(null)
   }
 
   const handleLogoChange = (e) => {
@@ -185,8 +367,8 @@ function CompanySettingsTab() {
   const uploadLogo = async () => {
     if (!logoFile) return null
 
-    const formData = new FormData()
-    formData.append('file', logoFile)
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', logoFile)
 
     try {
       const token = localStorage.getItem('token')
@@ -195,24 +377,29 @@ function CompanySettingsTab() {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        body: formData
+        body: uploadFormData
       })
       const data = await response.json()
       if (data.success) {
-        return data.fileUrl
+        // Handle both response formats (direct fileUrl or nested in data object)
+        return data.fileUrl || (data.data && data.data.fileUrl)
+      } else {
+        toast.error(data.message || 'Failed to upload logo')
+        return null
       }
     } catch (error) {
       console.error('Error uploading logo:', error)
+      toast.error('Error uploading logo')
     }
     return null
   }
 
-  const handleSave = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
 
     try {
-      let logoUrl = settings?.companyLogo
+      let logoUrl = formData.logo
 
       // Upload logo if changed
       if (logoFile) {
@@ -222,332 +409,526 @@ function CompanySettingsTab() {
         }
       }
 
-      const formData = new FormData(e.target)
-      const updatedSettings = {
-        companyName: formData.get('companyName'),
-        companyEmail: formData.get('companyEmail'),
-        companyPhone: formData.get('companyPhone'),
-        companyWebsite: formData.get('companyWebsite'),
-        companyLogo: logoUrl,
-        companyAddress: {
-          street: formData.get('street'),
-          city: formData.get('city'),
-          state: formData.get('state'),
-          country: formData.get('country'),
-          zipCode: formData.get('zipCode'),
-        },
-        checkInTime: formData.get('checkInTime'),
-        checkOutTime: formData.get('checkOutTime'),
-        workingDays: Array.from(formData.getAll('workingDays')),
-        lateThreshold: parseInt(formData.get('lateThreshold')) || 15,
-        absentThresholdMinutes: parseInt(formData.get('absentThresholdMinutes')) || 60,
-        halfDayHours: parseFloat(formData.get('halfDayHours')) || 4,
-        fullDayHours: parseFloat(formData.get('fullDayHours')) || 8,
+      const submitData = {
+        ...formData,
+        logo: logoUrl
       }
 
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
-        method: 'PUT',
+      const url = editingCompany 
+        ? `/api/companies/${editingCompany._id}` 
+        : '/api/companies'
+      
+      const response = await fetch(url, {
+        method: editingCompany ? 'PUT' : 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(updatedSettings)
+        body: JSON.stringify(submitData)
       })
 
       const data = await response.json()
       if (data.success) {
-        toast.success('Settings saved successfully!')
-        setSettings(data.data)
+        toast.success(editingCompany ? 'Company updated successfully!' : 'Company created successfully!')
+        fetchCompanies()
+        handleCloseModal()
       } else {
-        toast.error(data.message || 'Failed to save settings')
+        toast.error(data.message || 'Failed to save company')
       }
     } catch (error) {
-      console.error('Error saving settings:', error)
-      toast.error('Failed to save settings')
+      console.error('Error saving company:', error)
+      toast.error('Failed to save company')
     } finally {
       setSaving(false)
     }
   }
 
+  const handleDeleteCompany = async (companyId) => {
+    if (!confirm('Are you sure you want to delete this company?')) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/companies/${companyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Company deleted successfully!')
+        fetchCompanies()
+      } else {
+        toast.error(data.message || 'Failed to delete company')
+      }
+    } catch (error) {
+      console.error('Error deleting company:', error)
+      toast.error('Failed to delete company')
+    }
+  }
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleAddressChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      address: { ...prev.address, [field]: value }
+    }))
+  }
+
+  const handleWorkingHoursChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      workingHours: { ...prev.workingHours, [field]: value }
+    }))
+  }
+
+  const handleWorkingDaysChange = (day, checked) => {
+    setFormData(prev => {
+      const currentDays = prev.workingHours.workingDays || []
+      const newDays = checked 
+        ? [...currentDays, day]
+        : currentDays.filter(d => d !== day)
+      return {
+        ...prev,
+        workingHours: { ...prev.workingHours, workingDays: newDays }
+      }
+    })
+  }
+
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Company Settings</h2>
-      <p className="text-gray-600 mb-6">Configure your company information and working hours</p>
-
-      <form onSubmit={handleSave} className="space-y-8">
-        {/* Company Logo */}
-        <div className="bg-gray-50 rounded-lg">
-          <div className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FaImage className="text-primary-500" />
-            <span>Company Logo</span>
-          </div>
-          <div className="flex items-center gap-6">
-            {logoPreview && (
-              <div className="w-32 h-32 border-2 border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
-                <img src={logoPreview} alt="Company Logo" className="max-w-full max-h-full object-contain" />
-              </div>
-            )}
-            <div className="flex-1">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoChange}
-                className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
-              />
-              <p className="text-xs text-gray-500 mt-2">Recommended: Square image, max 2MB</p>
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FaBuilding className="text-indigo-600" />
+            Company Settings
+          </h2>
+          <p className="text-gray-600 mt-1">Manage your companies and their individual settings</p>
         </div>
+        <button
+          onClick={() => handleOpenModal()}
+          className="btn-primary flex items-center gap-2"
+        >
+          <FaBuilding className="w-4 h-4" />
+          Add Company
+        </button>
+      </div>
 
-        {/* Company Basic Info */}
-        <div className="bg-white rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FaBuilding className="text-primary-500" />
-            <span>Company Information</span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name *</label>
-              <input
-                type="text"
-                name="companyName"
-                defaultValue={settings?.companyName}
-                required
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="Enter company name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Company Email</label>
-              <input
-                type="email"
-                name="companyEmail"
-                defaultValue={settings?.companyEmail}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="company@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Company Phone</label>
-              <input
-                type="tel"
-                name="companyPhone"
-                defaultValue={settings?.companyPhone}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Company Website</label>
-              <input
-                type="url"
-                name="companyWebsite"
-                defaultValue={settings?.companyWebsite}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="https://www.example.com"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Company Address */}
-        <div className="bg-white rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FaMapMarkerAlt className="text-primary-500" />
-            <span>Company Address</span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Street Address</label>
-              <input
-                type="text"
-                name="street"
-                defaultValue={settings?.companyAddress?.street}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="123 Main Street"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
-              <input
-                type="text"
-                name="city"
-                defaultValue={settings?.companyAddress?.city}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="New York"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">State / Province</label>
-              <input
-                type="text"
-                name="state"
-                defaultValue={settings?.companyAddress?.state}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="NY"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>
-              <input
-                type="text"
-                name="country"
-                defaultValue={settings?.companyAddress?.country}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="United States"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Zip / Postal Code</label>
-              <input
-                type="text"
-                name="zipCode"
-                defaultValue={settings?.companyAddress?.zipCode}
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="10001"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Working Hours & Attendance Settings */}
-        <div className="bg-white rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FaClock className="text-primary-500" />
-            <span>Working Hours & Attendance Settings</span>
-          </h3>
-
-          {/* Check-in/Check-out Times */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Check-in Time *</label>
-              <input
-                type="time"
-                name="checkInTime"
-                defaultValue={settings?.checkInTime || '09:00'}
-                required
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-              <p className="text-xs text-gray-500 mt-1">Official start time for the workday</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Check-out Time *</label>
-              <input
-                type="time"
-                name="checkOutTime"
-                defaultValue={settings?.checkOutTime || '18:00'}
-                required
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-              <p className="text-xs text-gray-500 mt-1">Official end time for the workday</p>
-            </div>
-          </div>
-
-          {/* Attendance Thresholds */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Late Coming Threshold (minutes)</label>
-              <input
-                type="number"
-                name="lateThreshold"
-                defaultValue={settings?.lateThreshold || 15}
-                min="0"
-                max="120"
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="15"
-              />
-              <p className="text-xs text-gray-500 mt-1">Grace period before marking as late</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Absent Threshold (minutes)</label>
-              <input
-                type="number"
-                name="absentThresholdMinutes"
-                defaultValue={settings?.absentThresholdMinutes || 60}
-                min="15"
-                max="480"
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="60"
-              />
-              <p className="text-xs text-gray-500 mt-1">Minutes after check-in time to auto-mark absent</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Half Day Hours</label>
-              <input
-                type="number"
-                name="halfDayHours"
-                defaultValue={settings?.halfDayHours || 4}
-                min="1"
-                max="12"
-                step="0.5"
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="4"
-              />
-              <p className="text-xs text-gray-500 mt-1">Minimum hours for half day</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Day Hours</label>
-              <input
-                type="number"
-                name="fullDayHours"
-                defaultValue={settings?.fullDayHours || 8}
-                min="1"
-                max="24"
-                step="0.5"
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                placeholder="8"
-              />
-              <p className="text-xs text-gray-500 mt-1">Minimum hours for full day</p>
-            </div>
-          </div>
-
-          {/* Working Days */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Working Days *</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                <label key={day} className="flex items-center space-x-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    name="workingDays"
-                    value={day}
-                    defaultChecked={settings?.workingDays?.includes(day) ?? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(day)}
-                    className="w-4 h-4 rounded text-primary-500 focus:ring-primary-500 focus:ring-2 cursor-pointer"
-                  />
-                  <span className="text-sm font-medium text-gray-700 capitalize group-hover:text-primary-600 transition-colors">{day}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-2">Select the days employees are expected to work</p>
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+      {/* Companies Grid */}
+      {companies.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
+          <FaBuilding className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-800">No companies yet</h3>
+          <p className="mt-2 text-sm text-gray-500">Get started by adding your first company.</p>
           <button
-            type="submit"
-            disabled={saving}
-            className="btn btn-primary px-8 py-3"
+            onClick={() => handleOpenModal()}
+            className="mt-4 btn-primary px-4 py-2"
           >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Saving...
-              </span>
-            ) : 'Save Changes'}
+            Add Company
           </button>
         </div>
-      </form>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {companies.map((company) => (
+            <div
+              key={company._id}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer"
+              onClick={() => handleOpenModal(company)}
+            >
+              <div className="flex items-start gap-4">
+                {/* Company Logo */}
+                <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {company.logo ? (
+                    <img src={company.logo} alt={company.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <FaBuilding className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                
+                {/* Company Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg truncate text-gray-800">{company.name}</h3>
+                  <p className="text-sm text-gray-500 uppercase">{company.code}</p>
+                  {company.description && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{company.description}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Info */}
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                {company.workingHours && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FaClock className="w-4 h-4 text-gray-400" />
+                    <span>{company.workingHours.checkInTime || '09:00'} - {company.workingHours.checkOutTime || '18:00'}</span>
+                  </div>
+                )}
+                {company.address?.city && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FaMapMarkerAlt className="w-4 h-4 text-gray-400" />
+                    <span className="truncate">{company.address.city}{company.address.country ? `, ${company.address.country}` : ''}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenModal(company)
+                  }}
+                  className="flex-1 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                >
+                  Edit Settings
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteCompany(company._id)
+                  }}
+                  className="px-3 py-2 text-sm font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Company Settings Modal */}
+      {isMounted && showModal && createPortal(
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && handleCloseModal()}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-4xl">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {editingCompany ? 'Edit Company Settings' : 'Add New Company'}
+              </h2>
+              <button onClick={handleCloseModal} className="modal-close-btn">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body space-y-6 overflow-y-auto max-h-[70vh]">
+              {/* Company Logo */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="text-base font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                  <FaImage className="text-indigo-600" />
+                  <span>Company Logo</span>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Company Logo" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                      <FaBuilding className="w-8 h-8 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Recommended: Square image, max 10MB</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Company Basic Info */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                  <FaBuilding className="text-indigo-600" />
+                  <span>Company Information</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Company Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Company Code *</label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => handleInputChange('code', e.target.value.toUpperCase())}
+                      required
+                      maxLength={10}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 uppercase text-gray-800"
+                      placeholder="e.g., ACME"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="Brief description of the company"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="company@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Website</label>
+                    <input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => handleInputChange('website', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="https://www.example.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Company Address */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                  <FaMapMarkerAlt className="text-indigo-600" />
+                  <span>Company Address</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Street Address</label>
+                    <input
+                      type="text"
+                      value={formData.address.street}
+                      onChange={(e) => handleAddressChange('street', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">City</label>
+                    <input
+                      type="text"
+                      value={formData.address.city}
+                      onChange={(e) => handleAddressChange('city', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="New York"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">State / Province</label>
+                    <input
+                      type="text"
+                      value={formData.address.state}
+                      onChange={(e) => handleAddressChange('state', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="NY"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Country</label>
+                    <input
+                      type="text"
+                      value={formData.address.country}
+                      onChange={(e) => handleAddressChange('country', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="United States"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Zip / Postal Code</label>
+                    <input
+                      type="text"
+                      value={formData.address.zipCode}
+                      onChange={(e) => handleAddressChange('zipCode', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                      placeholder="10001"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Working Hours & Attendance Settings */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
+                  <FaClock className="text-indigo-600" />
+                  <span>Working Hours & Attendance Settings</span>
+                </h3>
+
+                {/* Check-in/Check-out Times */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Check-in Time *</label>
+                    <input
+                      type="time"
+                      value={formData.workingHours.checkInTime}
+                      onChange={(e) => handleWorkingHoursChange('checkInTime', e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Official start time for the workday</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Check-out Time *</label>
+                    <input
+                      type="time"
+                      value={formData.workingHours.checkOutTime}
+                      onChange={(e) => handleWorkingHoursChange('checkOutTime', e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Official end time for the workday</p>
+                  </div>
+                </div>
+
+                {/* Attendance Thresholds */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Late Threshold (min)</label>
+                    <input
+                      type="number"
+                      value={formData.workingHours.lateThresholdMinutes}
+                      onChange={(e) => handleWorkingHoursChange('lateThresholdMinutes', parseInt(e.target.value) || 15)}
+                      min="0"
+                      max="120"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Grace period</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Absent Threshold (min)</label>
+                    <input
+                      type="number"
+                      value={formData.workingHours.absentThresholdMinutes}
+                      onChange={(e) => handleWorkingHoursChange('absentThresholdMinutes', parseInt(e.target.value) || 60)}
+                      min="15"
+                      max="480"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Auto-mark absent</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Half Day Hours</label>
+                    <input
+                      type="number"
+                      value={formData.workingHours.halfDayHours}
+                      onChange={(e) => handleWorkingHoursChange('halfDayHours', parseFloat(e.target.value) || 4)}
+                      min="1"
+                      max="12"
+                      step="0.5"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min hours</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Full Day Hours</label>
+                    <input
+                      type="number"
+                      value={formData.workingHours.fullDayHours}
+                      onChange={(e) => handleWorkingHoursChange('fullDayHours', parseFloat(e.target.value) || 8)}
+                      min="1"
+                      max="24"
+                      step="0.5"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Min hours</p>
+                  </div>
+                </div>
+
+                {/* Working Days */}
+                <div>
+                  <label className="block text-sm font-semibold mb-3 text-gray-700">Working Days *</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                      <label key={day} className="flex items-center space-x-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={formData.workingHours.workingDays?.includes(day)}
+                          onChange={(e) => handleWorkingDaysChange(day, e.target.checked)}
+                          className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 focus:ring-2 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium capitalize text-gray-700 group-hover:text-indigo-600 transition-colors">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Select the days employees are expected to work</p>
+                </div>
+              </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-6 py-2.5 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="btn-primary px-6 py-2.5"
+                >
+                  {saving ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </span>
+                  ) : (editingCompany ? 'Update Company' : 'Create Company')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
+
 
 // Geofence Locations Manager Component (must be defined before GeofencingTab)
 function GeofenceLocationsManager() {
@@ -893,39 +1274,21 @@ function GeofenceLocationsManager() {
       {/* Modal - Rendered using Portal */}
       {isMounted && showModal && createPortal(
         <div
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{
-            zIndex: 99999,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'none'
-          }}
+          className="fixed inset-0 flex items-center justify-center p-4 z-[99999] bg-black/75"
           onClick={() => {
             setShowModal(false)
             setEditingLocation(null)
           }}
         >
           <div
-            className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb'
-            }}
+            className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col bg-white border border-gray-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div
-              className="px-6 py-4 border-b flex items-center justify-between"
-              style={{
-                borderColor: '#e5e7eb',
-                background: 'linear-gradient(to right, #f9fafb, #f3f4f6)'
-              }}
-            >
-              <h3
-                className="text-xl font-bold flex items-center gap-3"
-                style={{ color: '#111827' }}
-              >
-                <div className="p-2 rounded-lg" style={{ backgroundColor: '#3b82f6', opacity: 0.1 }}>
-                  <FaMapMarkerAlt style={{ color: '#3b82f6' }} size={20} />
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100">
+              <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <FaMapMarkerAlt className="text-blue-500" size={20} />
                 </div>
                 {editingLocation ? 'Edit Location' : 'Add New Location'}
               </h3>
@@ -934,58 +1297,36 @@ function GeofenceLocationsManager() {
                   setShowModal(false)
                   setEditingLocation(null)
                 }}
-                className="p-2 rounded-lg transition-all hover:rotate-90 hover:bg-red-100"
-                style={{
-                  color: '#6b7280',
-                  backgroundColor: '#f3f4f6'
-                }}
+                className="p-2 rounded-lg transition-all hover:rotate-90 hover:bg-red-100 text-gray-500 bg-gray-100"
               >
                 <span className="text-xl">✕</span>
               </button>
             </div>
 
-            <div className="p-6 space-y-5 overflow-y-auto flex-1" style={{ backgroundColor: '#ffffff' }}>
+            <div className="p-6 space-y-5 overflow-y-auto flex-1 bg-white">
               {/* Name & Address Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: '#111827' }}
-                  >
-                    Location Name <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block text-sm font-semibold mb-2 text-gray-900">
+                    Location Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                    style={{
-                      backgroundColor: '#f9fafb',
-                      border: '1.5px solid #d1d5db',
-                      color: '#111827',
-                      outline: 'none'
-                    }}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 bg-gray-50 border border-gray-300 text-gray-900 outline-none"
                     placeholder="e.g., Main Office, Branch 1"
                   />
                 </div>
                 <div>
-                  <label
-                    className="block text-sm font-semibold mb-2"
-                    style={{ color: '#111827' }}
-                  >
+                  <label className="block text-sm font-semibold mb-2 text-gray-900">
                     Address
                   </label>
                   <input
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                    style={{
-                      backgroundColor: '#f9fafb',
-                      border: '1.5px solid #d1d5db',
-                      color: '#111827',
-                      outline: 'none'
-                    }}
+                    className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 bg-gray-50 border border-gray-300 text-gray-900 outline-none"
                     placeholder="Full address (auto-filled from map)"
                   />
                 </div>
@@ -993,38 +1334,26 @@ function GeofenceLocationsManager() {
 
               {/* Description */}
               <div>
-                <label
-                  className="block text-sm font-semibold mb-2"
-                  style={{ color: '#111827' }}
-                >
+                <label className="block text-sm font-semibold mb-2 text-gray-900">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 resize-none"
-                  style={{
-                    backgroundColor: '#f9fafb',
-                    border: '1.5px solid #d1d5db',
-                    color: '#111827',
-                    outline: 'none'
-                  }}
+                  className="w-full px-4 py-2.5 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 resize-none bg-gray-50 border border-gray-300 text-gray-900 outline-none"
                   rows="2"
                   placeholder="Optional description for this location"
                 />
               </div>
 
               {/* Coordinates & Radius Row */}
-              <div className="p-4 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
-                <h4 className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>
+              <div className="p-4 rounded-lg bg-gray-100">
+                <h4 className="text-sm font-semibold mb-3 text-gray-900">
                   Geofence Coordinates
                 </h4>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label
-                      className="block text-xs font-medium mb-1.5"
-                      style={{ color: '#6b7280' }}
-                    >
+                    <label className="block text-xs font-medium mb-1.5 text-gray-500">
                       Latitude
                     </label>
                     <input
@@ -1035,21 +1364,12 @@ function GeofenceLocationsManager() {
                         ...formData,
                         center: { ...formData.center, latitude: parseFloat(e.target.value) || 0 }
                       })}
-                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1.5px solid #d1d5db',
-                        color: '#111827',
-                        outline: 'none'
-                      }}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 bg-white border border-gray-300 text-gray-900 outline-none"
                       placeholder="28.6139"
                     />
                   </div>
                   <div>
-                    <label
-                      className="block text-xs font-medium mb-1.5"
-                      style={{ color: '#6b7280' }}
-                    >
+                    <label className="block text-xs font-medium mb-1.5 text-gray-500">
                       Longitude
                     </label>
                     <input
@@ -1060,21 +1380,12 @@ function GeofenceLocationsManager() {
                         ...formData,
                         center: { ...formData.center, longitude: parseFloat(e.target.value) || 0 }
                       })}
-                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1.5px solid #d1d5db',
-                        color: '#111827',
-                        outline: 'none'
-                      }}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 bg-white border border-gray-300 text-gray-900 outline-none"
                       placeholder="77.2090"
                     />
                   </div>
                   <div>
-                    <label
-                      className="block text-xs font-medium mb-1.5"
-                      style={{ color: '#6b7280' }}
-                    >
+                    <label className="block text-xs font-medium mb-1.5 text-gray-500">
                       Radius (meters)
                     </label>
                     <input
@@ -1083,30 +1394,18 @@ function GeofenceLocationsManager() {
                       step="10"
                       value={formData.radius}
                       onChange={(e) => setFormData({ ...formData, radius: parseInt(e.target.value) || 100 })}
-                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                      style={{
-                        backgroundColor: '#ffffff',
-                        border: '1.5px solid #d1d5db',
-                        color: '#111827',
-                        outline: 'none'
-                      }}
+                      className="w-full px-3 py-2 rounded-lg text-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 bg-white border border-gray-300 text-gray-900 outline-none"
                       placeholder="100"
                     />
                   </div>
                 </div>
-                <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+                <p className="text-xs mt-2 text-gray-500">
                   💡 Drag the marker or resize the circle on the map to adjust the geofence area. Address will auto-fill!
                 </p>
               </div>
 
               {/* Map */}
-              <div
-                className="rounded-xl overflow-hidden shadow-lg"
-                style={{
-                  height: '400px',
-                  border: '2px solid #d1d5db'
-                }}
-              >
+              <div className="rounded-xl overflow-hidden shadow-lg h-[400px] border-2 border-gray-300">
                 <GeofenceMap
                   center={{
                     lat: parseFloat(formData.center.latitude) || 28.6139,
@@ -1118,19 +1417,15 @@ function GeofenceLocationsManager() {
               </div>
 
               {/* Options - Compact */}
-              <div className="flex flex-wrap gap-6 p-4 rounded-lg" style={{ backgroundColor: '#f3f4f6' }}>
+              <div className="flex flex-wrap gap-6 p-4 rounded-lg bg-gray-100">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.isActive}
                     onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="w-4 h-4 rounded"
-                    style={{ accentColor: '#3b82f6' }}
+                    className="w-4 h-4 rounded accent-blue-500"
                   />
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: '#111827' }}
-                  >
+                  <span className="text-sm font-semibold text-gray-900">
                     Active
                   </span>
                 </label>
@@ -1140,13 +1435,9 @@ function GeofenceLocationsManager() {
                     type="checkbox"
                     checked={formData.isPrimary}
                     onChange={(e) => setFormData({ ...formData, isPrimary: e.target.checked })}
-                    className="w-4 h-4 rounded"
-                    style={{ accentColor: '#3b82f6' }}
+                    className="w-4 h-4 rounded accent-blue-500"
                   />
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: '#111827' }}
-                  >
+                  <span className="text-sm font-semibold text-gray-900">
                     Primary Location
                   </span>
                 </label>
@@ -1156,13 +1447,9 @@ function GeofenceLocationsManager() {
                     type="checkbox"
                     checked={formData.strictMode}
                     onChange={(e) => setFormData({ ...formData, strictMode: e.target.checked })}
-                    className="w-4 h-4 rounded"
-                    style={{ accentColor: '#3b82f6' }}
+                    className="w-4 h-4 rounded accent-blue-500"
                   />
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: '#111827' }}
-                  >
+                  <span className="text-sm font-semibold text-gray-900">
                     Strict Mode
                   </span>
                 </label>
@@ -1170,33 +1457,19 @@ function GeofenceLocationsManager() {
             </div>
 
             {/* Footer */}
-            <div
-              className="px-6 py-4 border-t flex justify-end gap-3"
-              style={{
-                borderColor: '#e5e7eb',
-                backgroundColor: '#f9fafb'
-              }}
-            >
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
               <button
                 onClick={() => {
                   setShowModal(false)
                   setEditingLocation(null)
                 }}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-105 hover:bg-gray-100"
-                style={{
-                  backgroundColor: '#ffffff',
-                  color: '#6b7280',
-                  border: '1.5px solid #d1d5db'
-                }}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-105 hover:bg-gray-100 bg-white text-gray-500 border border-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:bg-blue-600 shadow-lg"
-                style={{
-                  backgroundColor: '#3b82f6',
-                }}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:bg-blue-600 shadow-lg bg-blue-500"
               >
                 {editingLocation ? '✓ Update Location' : '+ Add Location'}
               </button>
@@ -1211,19 +1484,41 @@ function GeofenceLocationsManager() {
 
 // Geofencing Tab (Admin/HR only)
 function GeofencingTab() {
+  const [companies, setCompanies] = useState([])
+  const [selectedCompany, setSelectedCompany] = useState(null)
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [breakTimings, setBreakTimings] = useState([])
 
   useEffect(() => {
-    fetchSettings()
+    fetchCompanies()
   }, [])
 
-  const fetchSettings = async () => {
+  const fetchCompanies = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
+      const response = await fetch('/api/companies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanies(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectCompany = async (company) => {
+    setSelectedCompany(company)
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      // Fetch the specific company settings
+      const response = await fetch(`/api/companies/${company._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1277,6 +1572,10 @@ function GeofencingTab() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!selectedCompany) {
+      toast.error('Please select a company first')
+      return
+    }
     setSaving(true)
 
     try {
@@ -1293,7 +1592,8 @@ function GeofencingTab() {
       }
 
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
+      // Save to the specific company
+      const response = await fetch(`/api/companies/${selectedCompany._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1306,6 +1606,7 @@ function GeofencingTab() {
       if (data.success) {
         toast.success('Geofencing settings saved successfully!')
         setSettings(data.data)
+        setSelectedCompany(data.data)
       } else {
         toast.error(data.message || 'Failed to save settings')
       }
@@ -1318,13 +1619,45 @@ function GeofencingTab() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!selectedCompany) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FaMapMarkerAlt className="text-indigo-600" />
+            Geofencing Settings
+          </h2>
+          <p className="text-gray-600 mt-1">Configure location tracking and office premises boundaries per company</p>
+        </div>
+        <CompanySelector
+          companies={companies}
+          selectedCompany={null}
+          onSelect={handleSelectCompany}
+          loading={loading}
+        />
+      </div>
+    )
   }
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-        <FaMapMarkerAlt className="text-primary-500" />
+      <CompanySelector
+        companies={companies}
+        selectedCompany={selectedCompany}
+        onSelect={handleSelectCompany}
+        onBack={() => setSelectedCompany(null)}
+        loading={false}
+      />
+
+      <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+        <FaMapMarkerAlt className="text-indigo-600" />
         <span>Geofencing Settings</span>
       </h2>
       <p className="text-gray-600 mb-6">Configure location tracking and office premises boundaries</p>
@@ -1883,18 +2216,40 @@ function PersonalizationTab() {
 
 // Payroll Settings Tab (Admin/HR only)
 function PayrollSettingsTab() {
+  const [companies, setCompanies] = useState([])
+  const [selectedCompany, setSelectedCompany] = useState(null)
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetchSettings()
+    fetchCompanies()
   }, [])
 
-  const fetchSettings = async () => {
+  const fetchCompanies = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
+      const response = await fetch('/api/companies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanies(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectCompany = async (company) => {
+    setSelectedCompany(company)
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      // Fetch the specific company settings
+      const response = await fetch(`/api/companies/${company._id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
@@ -1911,6 +2266,10 @@ function PayrollSettingsTab() {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!selectedCompany) {
+      toast.error('Please select a company first')
+      return
+    }
     setSaving(true)
 
     try {
@@ -1959,7 +2318,8 @@ function PayrollSettingsTab() {
       }
 
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
+      // Save to the specific company
+      const response = await fetch(`/api/companies/${selectedCompany._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1972,6 +2332,7 @@ function PayrollSettingsTab() {
       if (data.success) {
         toast.success('Payroll settings saved successfully!')
         setSettings(data.data)
+        setSelectedCompany(data.data)
       } else {
         toast.error(data.message || 'Failed to save payroll settings')
       }
@@ -1993,9 +2354,28 @@ function PayrollSettingsTab() {
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading payroll settings...</p>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!selectedCompany) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FaMoneyBillWave className="text-green-600" />
+            Payroll Settings
+          </h2>
+          <p className="text-gray-600 mt-1">Configure payroll deductions and statutory compliance per company</p>
+        </div>
+        <CompanySelector
+          companies={companies}
+          selectedCompany={null}
+          onSelect={handleSelectCompany}
+          loading={loading}
+        />
       </div>
     )
   }
@@ -2004,7 +2384,15 @@ function PayrollSettingsTab() {
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+      <CompanySelector
+        companies={companies}
+        selectedCompany={selectedCompany}
+        onSelect={handleSelectCompany}
+        onBack={() => setSelectedCompany(null)}
+        loading={false}
+      />
+
+      <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
         <FaMoneyBillWave className="text-green-600" />
         Payroll Settings
       </h2>
@@ -2411,6 +2799,8 @@ function PayrollSettingsTab() {
 
 // Notifications Tab (Admin/HR/Department Head only)
 function NotificationsTab() {
+  const [companies, setCompanies] = useState([])
+  const [selectedCompany, setSelectedCompany] = useState(null)
   const [settings, setSettings] = useState(null)
   const [originalSettings, setOriginalSettings] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -2420,8 +2810,49 @@ function NotificationsTab() {
   const NotificationManagement = dynamic(() => import('@/components/NotificationManagement'), { ssr: false })
 
   useEffect(() => {
-    fetchSettings()
+    fetchCompanies()
   }, [])
+
+  const fetchCompanies = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/companies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCompanies(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectCompany = async (company) => {
+    setSelectedCompany(company)
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      // Fetch the specific company settings
+      const response = await fetch(`/api/companies/${company._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setSettings(data.data)
+        setOriginalSettings(JSON.parse(JSON.stringify(data.data)))
+      }
+    } catch (error) {
+      console.error('Error fetching notification settings:', error)
+      toast.error('Failed to load notification settings')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Check if there are unsaved changes
@@ -2437,27 +2868,6 @@ function NotificationsTab() {
       )
     }
   }, [settings, originalSettings])
-
-  const fetchSettings = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/settings/company', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      const data = await response.json()
-      if (data.success) {
-        setSettings(data.data)
-        setOriginalSettings(JSON.parse(JSON.stringify(data.data))) // Deep clone
-      }
-    } catch (error) {
-      console.error('Error fetching notification settings:', error)
-      toast.error('Failed to load notification settings')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleEmailToggleChange = (eventKey) => (e) => {
     const checked = e.target.checked
@@ -2500,7 +2910,10 @@ function NotificationsTab() {
 
   const handleSave = async (e) => {
     e.preventDefault()
-    if (!settings) return
+    if (!settings || !selectedCompany) {
+      toast.error('Please select a company first')
+      return
+    }
     setSaving(true)
 
     try {
@@ -2515,7 +2928,8 @@ function NotificationsTab() {
         emailEvents
       })
 
-      const response = await fetch('/api/settings/company', {
+      // Save to the specific company
+      const response = await fetch(`/api/companies/${selectedCompany._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -2537,6 +2951,7 @@ function NotificationsTab() {
         const updatedSettings = JSON.parse(JSON.stringify(data.data))
         setSettings(updatedSettings)
         setOriginalSettings(updatedSettings)
+        setSelectedCompany(data.data)
         setHasChanges(false)
         toast.success('Email notification settings saved successfully!')
       } else {
@@ -2561,10 +2976,27 @@ function NotificationsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading notification settings...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!selectedCompany) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <FaBell className="text-indigo-600" />
+            Notification Settings
+          </h2>
+          <p className="text-gray-600 mt-1">Configure email and push notification preferences per company</p>
         </div>
+        <CompanySelector
+          companies={companies}
+          selectedCompany={null}
+          onSelect={handleSelectCompany}
+          loading={loading}
+        />
       </div>
     )
   }
@@ -2601,6 +3033,14 @@ function NotificationsTab() {
 
   return (
     <div className="space-y-6">
+      <CompanySelector
+        companies={companies}
+        selectedCompany={selectedCompany}
+        onSelect={handleSelectCompany}
+        onBack={() => setSelectedCompany(null)}
+        loading={false}
+      />
+
       {/* Unsaved changes banner */}
       {hasChanges && (
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
@@ -2609,6 +3049,7 @@ function NotificationsTab() {
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+
                 </svg>
               </div>
               <p className="text-sm font-medium text-amber-800">

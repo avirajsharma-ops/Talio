@@ -55,7 +55,6 @@ export const roleBasedMenus = {
         { name: 'Add Employee', path: '/dashboard/employees/add' },
         { name: 'Departments', path: '/dashboard/departments' },
         { name: 'Designations', path: '/dashboard/designations' },
-        { name: 'Companies', path: '/dashboard/companies' },
       ]
     },
     {
@@ -162,7 +161,6 @@ export const roleBasedMenus = {
         { name: 'Add Employee', path: '/dashboard/employees/add' },
         { name: 'Departments', path: '/dashboard/departments' },
         { name: 'Designations', path: '/dashboard/designations' },
-        { name: 'Companies', path: '/dashboard/companies' },
       ]
     },
     {
@@ -388,7 +386,6 @@ export const roleBasedMenus = {
         { name: 'Add Employee', path: '/dashboard/employees/add' },
         { name: 'Departments', path: '/dashboard/departments' },
         { name: 'Designations', path: '/dashboard/designations' },
-        { name: 'Companies', path: '/dashboard/companies' },
       ]
     },
     {

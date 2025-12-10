@@ -88,6 +88,26 @@ export async function POST(request) {
       name: data.name.trim(),
       code: data.code.trim().toUpperCase(),
       description: data.description?.trim() || '',
+      logo: data.logo || '',
+      email: data.email?.trim() || '',
+      phone: data.phone?.trim() || '',
+      website: data.website?.trim() || '',
+      address: data.address || {
+        street: '',
+        city: '',
+        state: '',
+        country: '',
+        zipCode: ''
+      },
+      workingHours: data.workingHours || {
+        checkInTime: '09:00',
+        checkOutTime: '18:00',
+        lateThresholdMinutes: 15,
+        absentThresholdMinutes: 60,
+        halfDayHours: 4,
+        fullDayHours: 8,
+        workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+      },
       createdBy: decoded.userId
     })
 

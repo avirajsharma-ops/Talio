@@ -164,6 +164,16 @@ export default function LoginPage() {
       console.log('[Google OAuth] App origin:', appOrigin)
       console.log('[Google OAuth] Redirect URI:', redirectUri)
 
+      // Check if running in desktop app
+      const isDesktopApp = typeof window !== 'undefined' && (window.talioDesktop || window.electronAPI);
+      
+      let stateParam = '';
+      if (isDesktopApp) {
+        const stateObj = { type: 'desktop_login' };
+        // Use btoa for browser-side base64 encoding
+        stateParam = `&state=${btoa(JSON.stringify(stateObj))}`;
+      }
+
       // Redirect to Google OAuth
       const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&` +
@@ -171,7 +181,21 @@ export default function LoginPage() {
         `response_type=code&` +
         `scope=openid%20email%20profile&` +
         `access_type=offline&` +
-        `prompt=consent`
+        `prompt=consent` + 
+        stateParam
+
+      // For desktop apps, open in external browser
+      if (isDesktopApp) {
+        const desktopAPI = window.talioDesktop || window.electronAPI;
+        if (desktopAPI && desktopAPI.openExternal) {
+          console.log('[Google OAuth] Opening in external browser for desktop app');
+          desktopAPI.openExternal(googleAuthUrl);
+          toast.dismiss();
+          toast.success('Please complete sign-in in your browser');
+          setLoading(false);
+          return;
+        }
+      }
 
       window.location.href = googleAuthUrl
     } catch (error) {

@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Push notifications
   sendNotification: (title, body) => ipcRenderer.invoke('send-notification', { title, body }),
 
+  // Open URL in external browser (for OAuth)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
   // Events
   onShowLogin: (callback) => ipcRenderer.on('show-login', callback),
   onScreenshotCaptured: (callback) => ipcRenderer.on('screenshot-captured', callback),
@@ -53,6 +56,7 @@ contextBridge.exposeInMainWorld('talioDesktop', {
   hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
   setAuth: (token, user) => ipcRenderer.invoke('set-auth', { token, user }),
   sendNotification: (title, body) => ipcRenderer.invoke('send-notification', { title, body }),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   isElectron: true,
   platform: process.platform
 });

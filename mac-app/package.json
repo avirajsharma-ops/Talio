@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Talio - HR that runs itself. Desktop application for macOS.",
   "main": "src/main.js",
   "author": "Talio",
@@ -19,6 +19,12 @@
     "productName": "Talio",
     "copyright": "Copyright © 2025 Talio",
     "compression": "normal",
+    "protocols": [
+      {
+        "name": "Talio",
+        "schemes": ["talio"]
+      }
+    ],
     "mac": {
       "category": "public.app-category.business",
       "icon": "assets/icon.icns",
@@ -33,6 +39,12 @@
         }
       ],
       "extendInfo": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "Talio Protocol",
+            "CFBundleURLSchemes": ["talio"]
+          }
+        ],
         "NSScreenCaptureDescription": "Talio HRMS needs screen capture access for productivity monitoring.",
         "NSCameraUsageDescription": "Talio HRMS may use the camera for video calls and profile photos.",
         "NSMicrophoneUsageDescription": "Talio HRMS may use the microphone for audio calls.",

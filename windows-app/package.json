@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Talio - HR that runs itself. Desktop application for Windows.",
   "main": "main.js",
   "author": {
@@ -22,6 +22,12 @@
     "productName": "Talio",
     "copyright": "Copyright © 2025 Talio",
     "compression": "normal",
+    "protocols": [
+      {
+        "name": "Talio",
+        "schemes": ["talio"]
+      }
+    ],
     "directories": {
       "output": "release",
       "buildResources": "build"
