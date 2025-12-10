@@ -246,9 +246,9 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 title="Expand sidebar"
               >
                 <img
-                  src="/favicon.png"
+                  src="/assets/lanyard-card-logo.webp"
                   alt="Talio"
-                  className="w-6 h-6 object-contain"
+                  className="w-7 h-7 object-contain"
                 />
                 <HiOutlineChevronRight className="w-4 h-4 text-gray-600" />
               </button>
