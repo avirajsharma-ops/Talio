@@ -27,17 +27,13 @@ body {
   }
 
   /* STANDARDIZED CARD PADDING - All cards get consistent 1rem padding */
-  .bg-white,
-  .card,
-  [class*="bg-white"] {
+  .card {
     padding: 1rem !important;
   }
 
   /* Stats cards and dashboard cards - consistent padding */
   .stats-card,
-  .dashboard-card,
-  [class*="stats"].bg-white,
-  .grid > .bg-white {
+  .dashboard-card {
     padding: 1rem !important;
   }
 
@@ -190,22 +186,6 @@ body {
   .my-4 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
   
   /* SPECIFIC DASHBOARD CARD FIXES */
-
-  /* Admin Dashboard Stats Cards - Standardize padding */
-  .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 > .bg-white,
-  .grid.grid-cols-1.md\\:grid-cols-3 > .bg-white {
-    padding: 1rem !important;
-  }
-
-  /* Department Grid Cards */
-  .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3.gap-4 > .bg-white {
-    padding: 1rem !important;
-  }
-
-  /* Chart containers in dashboards */
-  .grid.grid-cols-1.lg\\:grid-cols-2 > .bg-white {
-    padding: 1rem !important;
-  }
 
   /* Welcome sections - reduce padding */
   .bg-gradient-to-r {

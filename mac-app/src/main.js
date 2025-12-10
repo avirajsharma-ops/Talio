@@ -137,11 +137,26 @@ function checkScreenCapturePermission() {
 async function requestAllPermissions() {
   if (process.platform !== 'darwin') {
     console.log('[Talio] Permissions: Not on macOS, skipping permission requests');
-    return { camera: true, microphone: true, screen: true };
+    return { camera: true, microphone: true, screen: true, accessibility: true, location: true };
   }
 
   console.log('[Talio] Requesting all permissions...');
-  const results = { camera: false, microphone: false, screen: false };
+  const results = { camera: false, microphone: false, screen: false, accessibility: false, location: false };
+
+  // Check accessibility permission first (needed for floating windows)
+  try {
+    const isAccessibilityTrusted = systemPreferences.isTrustedAccessibilityClient(false);
+    console.log('[Talio] Accessibility permission status:', isAccessibilityTrusted ? 'granted' : 'not granted');
+    results.accessibility = isAccessibilityTrusted;
+    
+    if (!isAccessibilityTrusted) {
+      console.log('[Talio] Prompting for accessibility permission...');
+      // This will show the system dialog asking for permission
+      systemPreferences.isTrustedAccessibilityClient(true);
+    }
+  } catch (error) {
+    console.error('[Talio] Error checking accessibility permission:', error);
+  }
 
   // Check and request camera permission
   try {
@@ -171,29 +186,50 @@ async function requestAllPermissions() {
     console.error('[Talio] Error requesting microphone permission:', error);
   }
 
-  // Check screen recording permission (can't request programmatically, only check)
+  // Check and trigger screen recording permission
+  // On macOS, we MUST attempt a screen capture to trigger the permission dialog
   try {
     const screenStatus = systemPreferences.getMediaAccessStatus('screen');
     console.log('[Talio] Screen recording permission status:', screenStatus);
     results.screen = screenStatus === 'granted';
     
-    // If screen permission not granted, prompt user to enable it
-    if (!results.screen && !screenPermissionChecked) {
-      console.log('[Talio] Screen recording permission not granted. Prompting user...');
-      // Show a notification to guide user to System Preferences
-      const notification = new Notification({
-        title: 'Screen Recording Permission Required',
-        body: 'Please enable Screen Recording for Talio in System Preferences > Privacy & Security > Screen Recording',
-        silent: false
-      });
-      notification.on('click', () => {
-        // Open System Preferences to the Screen Recording section
+    // If screen permission not granted, trigger the permission dialog by attempting capture
+    if (!results.screen) {
+      console.log('[Talio] Screen recording permission not granted. Triggering capture to prompt...');
+      try {
+        // Attempt to get screen sources - this triggers the macOS permission dialog
+        const sources = await desktopCapturer.getSources({ 
+          types: ['screen'], 
+          thumbnailSize: { width: 1, height: 1 } 
+        });
+        console.log('[Talio] Screen capture sources retrieved:', sources.length);
+        // Check again after attempting capture
+        const newScreenStatus = systemPreferences.getMediaAccessStatus('screen');
+        results.screen = newScreenStatus === 'granted';
+        console.log('[Talio] Screen recording permission after trigger:', results.screen ? 'granted' : 'still not granted');
+        
+        // If still not granted, open System Preferences
+        if (!results.screen) {
+          shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+        }
+      } catch (captureError) {
+        console.log('[Talio] Screen capture attempt triggered permission dialog');
+        // Open System Preferences for screen recording
         shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
-      });
-      notification.show();
+      }
     }
   } catch (error) {
     console.error('[Talio] Error checking screen permission:', error);
+  }
+
+  // Request location permission
+  try {
+    console.log('[Talio] Requesting location permission...');
+    // Location permission is handled differently - we request via the main window
+    // The actual request happens when the web content requests geolocation
+    results.location = true; // Will be requested when needed by web content
+  } catch (error) {
+    console.error('[Talio] Error requesting location permission:', error);
   }
 
   console.log('[Talio] Permission results:', results);
@@ -247,52 +283,40 @@ function createMainWindow() {
   // Inject CSS for macOS title bar spacing when content loads
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.insertCSS(`
-      /* macOS title bar height - 38px for traffic lights */
       :root {
         --talio-titlebar-height: 38px;
       }
       
-      /* Title bar drag region - displays at the very top */
+      /* Title bar drag region */
       body::before {
-        content: '';
+        content: "";
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         height: var(--talio-titlebar-height);
-        background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
         -webkit-app-region: drag;
         z-index: 9999;
         pointer-events: none;
-        border-bottom: 1px solid #e5e7eb;
       }
       
       /* Body needs padding to account for title bar */
       body {
         padding-top: var(--talio-titlebar-height) !important;
+        height: 100vh !important;
         box-sizing: border-box !important;
+        overflow: hidden !important;
       }
       
-      /* All h-screen elements should use available height */
+      /* Fix h-screen to fit within the padded body */
       .h-screen {
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        height: 100% !important;
+        max-height: 100% !important;
       }
       
-      /* Sidebar positioning - fixed to left, starts below title bar */
-      aside.fixed.inset-y-0, .fixed.inset-y-0.left-0 {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        bottom: auto !important;
-      }
-      
-      /* Fixed header - positioned below title bar */
-      header.fixed.top-0, header[class*="fixed"][class*="top-0"] {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Main content wrapper */
-      .flex.h-screen {
-        margin-top: 0 !important;
+      /* Ensure root container fills the space */
+      body > div:first-child {
+        height: 100% !important;
       }
     `);
   });
@@ -445,6 +469,8 @@ function createMayaBlobWindow() {
     hasShadow: false, // Disable shadow to prevent background artifacts
     roundedCorners: true,
     backgroundColor: '#00000000',
+    // macOS specific - make window float above other apps
+    type: process.platform === 'darwin' ? 'panel' : undefined,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -462,15 +488,50 @@ function createMayaBlobWindow() {
 
   mayaBlobWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('[Talio] Maya blob failed to load:', errorCode, errorDescription);
+    // Try loading a simple inline blob as fallback
+    console.log('[Talio] Loading fallback Maya blob...');
+    mayaBlobWindow.loadURL(`data:text/html,
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: 120px; height: 120px; overflow: hidden; background: transparent !important; }
+          .maya-shell { position: fixed; width: 120px; height: 120px; display: grid; place-items: center; -webkit-app-region: drag; cursor: move; }
+          .maya-btn { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, %234dff9d 0%25, %2300c896 50%25, %238b5dff 100%25); cursor: pointer; -webkit-app-region: no-drag; border: none; box-shadow: 0 8px 32px rgba(77, 255, 163, 0.4); transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; }
+          .maya-btn:hover { transform: scale(1.1); box-shadow: 0 12px 40px rgba(77, 255, 163, 0.6); }
+          .maya-btn:active { transform: scale(0.95); }
+          .maya-text { color: white; font-weight: bold; font-size: 14px; font-family: system-ui, sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        </style>
+      </head>
+      <body>
+        <div class="maya-shell">
+          <button class="maya-btn" onclick="window.talioDesktop?.openMayaFromBlob()" title="Open MAYA">
+            <span class="maya-text">MAYA</span>
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
   });
 
   mayaBlobWindow.webContents.on('did-finish-load', () => {
     console.log('[Talio] Maya blob loaded successfully');
+    // Ensure window is visible on all spaces/desktops on macOS
+    if (process.platform === 'darwin') {
+      mayaBlobWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      mayaBlobWindow.setAlwaysOnTop(true, 'floating', 1);
+    }
   });
 
   mayaBlobWindow.once('ready-to-show', () => {
     console.log('[Talio] Maya blob ready to show');
     mayaBlobWindow.show();
+    // Set window level after showing for macOS
+    if (process.platform === 'darwin') {
+      mayaBlobWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      mayaBlobWindow.setAlwaysOnTop(true, 'floating', 1);
+    }
   });
 
   // Save position when moved
@@ -958,7 +1019,7 @@ async function syncProductivityData(screenshot = null, isInstantCapture = false,
       title: site.title,
       domain: site.domain,
       duration: site.duration,
-      visitTime: site.visitTime
+      visitTime: new Date(currentActiveApp.startTime).toISOString()
     })),
     keystrokes: {
       totalCount: totalKeystrokes,

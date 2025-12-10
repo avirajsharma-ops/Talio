@@ -109,6 +109,7 @@ export default function DashboardLayout({ children }) {
   const isBottomNavPage = 
     pathname === '/dashboard' || 
     pathname?.startsWith('/dashboard/tasks') || 
+    pathname?.startsWith('/dashboard/projects') ||
     pathname?.startsWith('/dashboard/leave') ||
     pathname?.startsWith('/dashboard/sandbox')
   
@@ -143,30 +144,45 @@ export default function DashboardLayout({ children }) {
           <ChatWidgetProvider>
             {/* Sync sidebar state to chat widget context */}
             <SidebarStateSync sidebarCollapsed={sidebarCollapsed} />
-            <div className="flex h-screen relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
+            
+            {/* Main Layout Container - Flex Row */}
+            <div className="flex h-screen w-full overflow-hidden relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
 
-
-              {/* Offline Detector - Monitors connection and redirects to offline page */}
+              {/* Offline Detector */}
               <OfflineDetector />
 
-              <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} isCollapsed={sidebarCollapsed} setIsCollapsed={setSidebarCollapsed} />
+              {/* Sidebar - Static on Desktop, Fixed on Mobile */}
+              <Sidebar 
+                isOpen={sidebarOpen} 
+                setIsOpen={setSidebarOpen} 
+                isCollapsed={sidebarCollapsed} 
+                setIsCollapsed={setSidebarCollapsed} 
+              />
 
-              <div className="flex-1 flex flex-col overflow-hidden relative">
+              {/* Right Side Content - Flex Column */}
+              <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
                 {/* Offline Indicator */}
                 <OfflineIndicator />
 
+                {/* Header - Static at top of right column */}
                 <Header toggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
-                {/* Main content with padding for fixed header and bottom nav */}
-                <main className={`flex-1 overflow-y-auto md:mb-0 mb-8 pt-24 sm:pt-24 pb-32 md:pb-6 relative z-0 ${isChatPage ? 'px-0 md:px-4 lg:px-8 bg-white md:bg-transparent' : 'px-4 sm:px-6 lg:px-8'}`}>
-                  {children}
+                {/* Main Content Area - Scrollable */}
+                <main className={`flex-1 overflow-y-auto relative z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
+                  <div className={`h-full ${isChatPage ? '-mt-4 sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 py-6'}`}>
+                    {children}
+                  </div>
+                  
+                  {/* Bottom padding for mobile nav */}
+                  <div className={`w-full flex-shrink-0 ${shouldShowFade ? 'h-48 md:h-6' : 'h-24 md:h-6'}`}></div>
                 </main>
 
-                {/* Gradient above bottom nav - Mobile only - Only on bottom nav pages (excluding chat) */}
+                {/* Gradient above bottom nav - Mobile only */}
                 {shouldShowFade && (
                   <div 
-                    className="md:hidden fixed bottom-[72px] left-0 right-0 h-[124px] pointer-events-none z-[39]"
+                    className="md:hidden fixed left-0 right-0 h-[124px] pointer-events-none z-[39]"
                     style={{ 
+                      bottom: '68px',
                       background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
                       opacity: 1,
                       transition: 'opacity 0.6s ease-in-out'

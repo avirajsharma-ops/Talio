@@ -9,7 +9,7 @@ import {
   FaRegEnvelope, FaRegEnvelopeOpen, FaAngleLeft, FaAngleRight,
   FaExpandAlt, FaCompressAlt, FaMinus, FaBold, FaItalic,
   FaUnderline, FaListUl, FaListOl, FaQuoteRight, FaStrikethrough,
-  FaLink, FaSmile, FaChevronDown, FaChevronRight
+  FaLink, FaSmile, FaChevronDown, FaChevronRight, FaMagic
 } from 'react-icons/fa';
 import {
   MdRefresh, MdMoreVert, MdArchive, MdDelete,
@@ -72,6 +72,12 @@ export default function MailPage() {
   const [showSearchFocused, setShowSearchFocused] = useState(false);
   const [error, setError] = useState(null);
   const [showMoreFolders, setShowMoreFolders] = useState(false);
+
+  // AI Compose State
+  const [showAiCompose, setShowAiCompose] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiTone, setAiTone] = useState('professional');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
   // Multi-account support
   const [accounts, setAccounts] = useState([]);
@@ -269,6 +275,50 @@ export default function MailPage() {
       setSelectedEmail(null);
     } catch (err) {
       console.error('Error disconnecting email:', err);
+    }
+  };
+
+  // AI Compose Handler
+  const handleAiCompose = async () => {
+    if (!aiPrompt.trim()) return;
+
+    setIsGeneratingAi(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Determine if this is a reply
+      const isReply = composeData.subject?.startsWith('Re:') || (selectedEmail && composeData.subject?.includes(selectedEmail.subject));
+      const context = isReply && selectedEmail ? `From: ${selectedEmail.from?.name} <${selectedEmail.from?.email}>\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.body || selectedEmail.snippet}` : '';
+
+      const response = await fetch('/api/maya/email-compose', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          tone: aiTone,
+          type: isReply ? 'reply' : 'compose',
+          context: context
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setComposeData(prev => ({
+          ...prev,
+          body: prev.body ? prev.body + '<br><br>' + data.content : data.content
+        }));
+        setShowAiCompose(false);
+        setAiPrompt('');
+      } else {
+        console.error('AI generation failed:', data.error);
+      }
+    } catch (error) {
+      console.error('AI generation error:', error);
+    } finally {
+      setIsGeneratingAi(false);
     }
   };
 
@@ -1506,7 +1556,7 @@ export default function MailPage() {
                       <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center">
                         {/* Sender */}
                         <div className={`sm:w-44 truncate text-sm ${!email.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
-                          {email.from?.name || email.from?.email?.split('@')[0]}
+                          {email.from?.name || email.from?.email || '?'}
                           {/* Show account indicator when viewing all accounts */}
                           {showAllAccounts && email.accountEmail && (
                             <span className="ml-1 text-xs text-gray-400 font-normal">
@@ -1980,6 +2030,67 @@ export default function MailPage() {
         </div>
       </div>
 
+      {/* AI Compose Modal */}
+      {showAiCompose && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <FaMagic className="text-purple-600" />
+                Write with AI
+              </h3>
+              <button onClick={() => setShowAiCompose(false)} className="text-gray-400 hover:text-gray-600">
+                <FaTimes />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">What should this email say?</label>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 h-32 resize-none"
+                  placeholder="e.g. Write a polite decline to the meeting invitation for next Tuesday..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tone</label>
+                <select
+                  value={aiTone}
+                  onChange={(e) => setAiTone(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="professional">Professional</option>
+                  <option value="casual">Casual</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="formal">Formal</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowAiCompose(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAiCompose}
+                  disabled={isGeneratingAi || !aiPrompt.trim()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isGeneratingAi ? <FaSpinner className="animate-spin" /> : <FaMagic />}
+                  Generate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Compose Modal - Gmail Style with Full Functionality */}
       {showCompose && (
         <div className={`fixed ${composeFullscreen ? 'inset-0 p-4' : 'bottom-0 right-0 sm:right-8 left-0 sm:left-auto'} z-50`}>
@@ -2230,6 +2341,17 @@ export default function MailPage() {
                     <button className="p-2 hover:bg-gray-100 rounded hidden sm:block">
                       <MdArrowDropDown className="text-xl text-gray-600" />
                     </button>
+
+                    <div className="h-6 w-px bg-gray-300 mx-2"></div>
+
+                    <button
+                      onClick={() => setShowAiCompose(true)}
+                      className="flex items-center gap-1 p-2 hover:bg-purple-50 text-purple-600 rounded transition-colors"
+                      title="Write with AI"
+                    >
+                      <FaMagic className="text-lg" />
+                      <span className="text-xs font-medium hidden sm:inline">AI Write</span>
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-0.5">
@@ -2308,181 +2430,6 @@ export default function MailPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Categories Modal */}
-      {showCategoriesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Categories</h3>
-              <button
-                onClick={() => setShowCategoriesModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <MdClose className="text-xl text-gray-500" />
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Gmail categories help organize your inbox automatically. Select categories to show in your inbox:
-              </p>
-              <div className="space-y-3">
-                {[
-                  { id: 'primary', name: 'Primary', desc: 'Person-to-person conversations', color: '#1a73e8' },
-                  { id: 'social', name: 'Social', desc: 'Messages from social networks', color: '#ea4335' },
-                  { id: 'promotions', name: 'Promotions', desc: 'Deals, offers, and marketing emails', color: '#34a853' },
-                  { id: 'updates', name: 'Updates', desc: 'Notifications, confirmations, receipts', color: '#fbbc04' },
-                  { id: 'forums', name: 'Forums', desc: 'Messages from online groups and forums', color: '#673ab7' },
-                ].map(category => (
-                  <label
-                    key={category.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <input type="checkbox" defaultChecked={category.id === 'primary'} className="w-4 h-4 text-blue-600 rounded" />
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: category.color }}
-                    ></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{category.name}</p>
-                      <p className="text-xs text-gray-500">{category.desc}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowCategoriesModal(false)}
-                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCategoriesModal(false);
-                    alert('Categories settings saved. Note: This is a display preference and doesn\'t affect Gmail\'s categorization.');
-                  }}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manage Labels Modal */}
-      {showLabelsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Manage Labels</h3>
-              <button
-                onClick={() => setShowLabelsModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <MdClose className="text-xl text-gray-500" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Labels help you organize your emails. Configure which labels to show in your sidebar:
-              </p>
-
-              {/* System Labels */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">System Labels</h4>
-                <div className="space-y-2">
-                  {[
-                    { id: 'inbox', name: 'Inbox', show: true },
-                    { id: 'starred', name: 'Starred', show: true },
-                    { id: 'snoozed', name: 'Snoozed', show: true },
-                    { id: 'sent', name: 'Sent', show: true },
-                    { id: 'drafts', name: 'Drafts', show: true },
-                    { id: 'important', name: 'Important', show: true },
-                    { id: 'all', name: 'All Mail', show: true },
-                    { id: 'spam', name: 'Spam', show: true },
-                    { id: 'trash', name: 'Trash', show: true },
-                  ].map(label => {
-                    const count = folderCounts[label.id];
-                    return (
-                      <div key={label.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-700">{label.name}</span>
-                          {count && count.total > 0 && (
-                            <span className="text-xs text-gray-400">
-                              ({count.total}{count.unread > 0 ? `, ${count.unread} unread` : ''})
-                            </span>
-                          )}
-                        </div>
-                        <select
-                          defaultValue={label.show ? 'show' : 'hide'}
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="show">Show</option>
-                          <option value="hide">Hide</option>
-                          <option value="showUnread">Show if unread</option>
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Custom Labels */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Custom Labels</h4>
-                {userLabels.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    No custom labels yet. Create labels in Gmail to organize your emails.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {userLabels.map(label => (
-                      <div key={label.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center gap-2">
-                          <MdLabel className="text-gray-500" style={label.color ? { color: label.color.backgroundColor } : {}} />
-                          <span className="text-sm text-gray-700">{label.name}</span>
-                          {label.messagesTotal > 0 && (
-                            <span className="text-xs text-gray-400">
-                              ({label.messagesTotal}{label.messagesUnread > 0 ? `, ${label.messagesUnread} unread` : ''})
-                            </span>
-                          )}
-                        </div>
-                        <select
-                          defaultValue="show"
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="show">Show</option>
-                          <option value="hide">Hide</option>
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowLabelsModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowLabelsModal(false);
-                  alert('Label preferences saved.');
-                }}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Save
-              </button>
-            </div>
           </div>
         </div>
       )}

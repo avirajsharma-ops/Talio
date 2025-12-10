@@ -188,8 +188,8 @@ export function SocketProvider({ children }) {
 
   // Subscribe to new messages
   const onNewMessage = useCallback((callback) => {
-    if (socket) {
-      console.log('[SocketContext] Registering new-message listener')
+    if (socket && isConnected) {
+      console.log('[SocketContext] Registering new-message listener, socket connected:', isConnected)
       const wrappedCallback = (data) => {
         console.log('[SocketContext] new-message event received:', data)
         callback(data)
@@ -200,9 +200,11 @@ export function SocketProvider({ children }) {
         socket.off('new-message', wrappedCallback)
       }
     } else {
-      console.warn('[SocketContext] Socket not available for onNewMessage')
+      console.warn('[SocketContext] Socket not available for onNewMessage, connected:', isConnected)
+      // Return a noop function to avoid cleanup errors
+      return () => {}
     }
-  }, [socket])
+  }, [socket, isConnected])
 
   // Subscribe to typing events
   const onUserTyping = useCallback((callback) => {
@@ -210,6 +212,7 @@ export function SocketProvider({ children }) {
       socket.on('user-typing', callback)
       return () => socket.off('user-typing', callback)
     }
+    return () => {}
   }, [socket])
 
   // Subscribe to stop typing events
@@ -218,6 +221,7 @@ export function SocketProvider({ children }) {
       socket.on('user-stop-typing', callback)
       return () => socket.off('user-stop-typing', callback)
     }
+    return () => {}
   }, [socket])
 
   // Subscribe to user joined events
@@ -226,6 +230,7 @@ export function SocketProvider({ children }) {
       socket.on('user-joined', callback)
       return () => socket.off('user-joined', callback)
     }
+    return () => {}
   }, [socket])
 
   // Subscribe to user left events
@@ -234,6 +239,7 @@ export function SocketProvider({ children }) {
       socket.on('user-left', callback)
       return () => socket.off('user-left', callback)
     }
+    return () => {}
   }, [socket])
 
   // Subscribe to message read events
@@ -242,6 +248,7 @@ export function SocketProvider({ children }) {
       socket.on('message-read', callback)
       return () => socket.off('message-read', callback)
     }
+    return () => {}
   }, [socket])
 
   // Subscribe to task update events

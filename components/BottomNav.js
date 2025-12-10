@@ -62,10 +62,11 @@ export default function BottomNav() {
     <div
       className="fixed bottom-0 left-0 right-0 z-[40] md:hidden"
       style={{
-        backgroundColor: bottomNavColor,
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        paddingTop: '12px',
-        borderTop: '1px solid rgba(0, 0, 0, 0.08)' // Subtle gray border for white background
+        backgroundColor: '#FFFFFF',
+        paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
+        paddingTop: '6px',
+        borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.05)'
       }}
     >
       <div className="flex items-center justify-between px-3 gap-1">

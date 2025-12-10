@@ -198,34 +198,20 @@ function createMainWindow() {
       /* Body needs padding to account for title bar */
       body {
         padding-top: var(--talio-titlebar-height) !important;
+        height: 100vh !important;
         box-sizing: border-box !important;
+        overflow: hidden !important;
       }
       
-      /* All h-screen elements should use available height */
+      /* Fix h-screen to fit within the padded body */
       .h-screen {
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
+        height: 100% !important;
+        max-height: 100% !important;
       }
       
-      /* Sidebar positioning - fixed to left, starts below title bar */
-      aside.fixed.inset-y-0, .fixed.inset-y-0.left-0 {
-        top: var(--talio-titlebar-height) !important;
-        height: calc(100vh - var(--talio-titlebar-height)) !important;
-        bottom: auto !important;
-      }
-      
-      /* Fixed header - positioned below title bar */
-      header.fixed.top-0, header[class*="fixed"][class*="top-0"] {
-        top: var(--talio-titlebar-height) !important;
-      }
-      
-      /* Main content wrapper */
-      .flex.h-screen {
-        margin-top: 0 !important;
-      }
-      
-      /* Fix dropdown menus and popovers */
-      [role="menu"], [role="listbox"], .dropdown-menu, [class*="dropdown"] {
-        margin-top: 0 !important;
+      /* Ensure root container fills the space */
+      body > div:first-child {
+        height: 100% !important;
       }
     `);
     console.log('[Talio] Main window loaded with custom title bar');
@@ -390,7 +376,38 @@ function createMayaBlobWindow() {
   });
 
   // Load Maya blob HTML from server for easy updates
-  mayaBlobWindow.loadURL(`${APP_URL}/maya/blob.html`);
+  const blobUrl = `${APP_URL}/maya/blob.html`;
+  console.log('[Maya] Loading blob from:', blobUrl);
+  mayaBlobWindow.loadURL(blobUrl);
+  
+  // Handle load failure with fallback
+  mayaBlobWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('[Maya] Blob failed to load:', errorCode, errorDescription);
+    console.log('[Maya] Loading fallback blob...');
+    mayaBlobWindow.loadURL(`data:text/html,
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: 120px; height: 120px; overflow: hidden; background: transparent !important; }
+          .maya-shell { position: fixed; width: 120px; height: 120px; display: grid; place-items: center; -webkit-app-region: drag; cursor: move; }
+          .maya-btn { width: 72px; height: 72px; border-radius: 50%25; background: linear-gradient(135deg, %234dff9d 0%25, %2300c896 50%25, %238b5dff 100%25); cursor: pointer; -webkit-app-region: no-drag; border: none; box-shadow: 0 8px 32px rgba(77, 255, 163, 0.4); transition: transform 0.2s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; }
+          .maya-btn:hover { transform: scale(1.1); box-shadow: 0 12px 40px rgba(77, 255, 163, 0.6); }
+          .maya-btn:active { transform: scale(0.95); }
+          .maya-text { color: white; font-weight: bold; font-size: 14px; font-family: system-ui, sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        </style>
+      </head>
+      <body>
+        <div class="maya-shell">
+          <button class="maya-btn" onclick="window.talioDesktop?.openMayaFromBlob()" title="Open MAYA">
+            <span class="maya-text">MAYA</span>
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
+  });
   
   // Enable click-through for transparent areas on Windows
   mayaBlobWindow.setIgnoreMouseEvents(false);

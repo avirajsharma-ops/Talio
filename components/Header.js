@@ -317,10 +317,9 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
   if (!mounted) {
     return (
       <header 
-        className="bg-white fixed top-0 right-0 z-[50] border-b border-gray-200 transition-all duration-300"
-        style={{ left: isDesktop ? (sidebarCollapsed ? '4.5rem' : '17rem') : '0' }}
+        className="h-[60.5px] bg-white w-full z-[50] border-b border-gray-200 transition-all duration-300 flex-shrink-0"
       >
-        <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] h-[60px]">
+        <div className="flex items-center justify-between px-1 sm:px-4 lg:px-0 h-[45px] lg:h-[60px]">
           <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={toggleSidebar}
@@ -344,10 +343,9 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
 
   return (
     <header 
-      className="bg-white fixed top-0 right-0 z-[50] border-b border-gray-200 transition-all duration-300"
-      style={{ left: isDesktop ? (sidebarCollapsed ? '4.5rem' : '17rem') : '0' }}
+      className="h-[60.5px] bg-white w-full z-[50] border-b border-gray-200 transition-all duration-300 flex-shrink-0"
     >
-      <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6  md:ml-0 md:m-0  m-[-15px] ml-[-10px] mr-[-10px] h-[60px]">
+      <div className="flex items-center justify-between px-1 sm:px-4 lg:px-6 h-[60.5px] lg:h-[60px]">
         {/* Left side */}
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
           <button

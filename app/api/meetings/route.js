@@ -279,6 +279,28 @@ export async function POST(request) {
     const emailPromises = []
     const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     
+    // Send email to organizer (meeting creator)
+    const organizerEmail = organizer.email || (organizer.userId && organizer.userId.email)
+    if (organizerEmail) {
+      emailPromises.push(
+        sendMeetingInviteEmail({
+          to: organizerEmail,
+          inviteeName: `${organizer.firstName} ${organizer.lastName}`,
+          organizerName: 'You',
+          meetingTitle: meeting.title,
+          meetingType: meeting.type,
+          startTime: meeting.scheduledStart,
+          endTime: meeting.scheduledEnd,
+          location: meeting.location,
+          description: meeting.description,
+          meetingLink: meeting.type === 'online' ? `${baseUrl}/dashboard/meetings/room/${meeting.roomId}` : null,
+          respondLink: `${baseUrl}/dashboard/meetings/${meeting._id}`
+        }).catch(err => {
+          console.error(`Failed to send email to organizer ${organizer._id}:`, err.message)
+        })
+      )
+    }
+
     for (const invitee of meeting.invitees) {
       const emp = await Employee.findById(invitee.employee).populate('userId', '_id email').lean()
       if (emp?.userId?._id) {

@@ -225,9 +225,9 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         className={`
           fixed lg:static inset-y-0 left-0 z-[60] lg:z-[7]
           text-gray-800
-          transform flex flex-col h-screen shadow-lg
+          transform flex flex-col lg:h-full h-screen shadow-lg
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          w-full md:w-[17rem]
+          w-full lg:w-[17rem]
           ${isDesktop && isCollapsed ? 'lg:!w-[4.5rem]' : ''}
         `}
         style={{ 
@@ -236,7 +236,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         }}
       >
         {/* Sticky Logo Section - Height matched with header */}
-        <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
+        <div className="h-[60.5px] lg:h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
           <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-between px-1' : 'justify-between px-3 sm:px-4'}`}>
             {/* Logo - show favicon icon when collapsed, full logo when expanded */}
             {isDesktop && isCollapsed ? (
