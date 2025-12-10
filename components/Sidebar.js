@@ -237,14 +237,19 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
       >
         {/* Sticky Logo Section - Height matched with header */}
         <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
-          <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-center px-0' : 'justify-between px-3 sm:px-4'}`}>
-            {/* Logo - show small icon when collapsed, full logo when expanded */}
+          <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-center px-0 gap-1' : 'justify-between px-3 sm:px-4'}`}>
+            {/* Logo - show favicon icon when collapsed, full logo when expanded */}
             {isDesktop && isCollapsed ? (
               <button
                 onClick={() => setIsCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 title="Expand sidebar"
               >
+                <img
+                  src="/favicon.png"
+                  alt="Talio"
+                  className="w-6 h-6 object-contain"
+                />
                 <HiOutlineChevronRight className="w-4 h-4 text-gray-600" />
               </button>
             ) : (
