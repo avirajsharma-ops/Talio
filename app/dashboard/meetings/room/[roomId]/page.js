@@ -538,7 +538,7 @@ export default function MeetingRoomPage({ params }) {
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-contain absolute inset-0 z-10"
+              className="w-full h-full object-contain absolute inset-0 z-10 -scale-x-100"
             />
             {!localStreamRef.current && (
               <div className="absolute inset-0 flex items-center justify-center z-0">
@@ -589,16 +589,21 @@ export default function MeetingRoomPage({ params }) {
   }
 
   // Render a video tile
-  const renderTile = (type, data = null, isPinned = false) => {
+  const renderTile = (type, data = null, isPinned = false, isInStrip = false) => {
     const tileId = type === 'local' ? 'local' : type === 'screen' ? 'screen' : data?.id
     const isThisPinned = pinnedTile === tileId
+    
+    // Different styling for strip tiles vs grid tiles
+    const getTileClasses = () => {
+      if (isPinned) return 'col-span-full row-span-full h-full'
+      if (isInStrip) return 'h-full w-full' // Strip tiles use parent's height
+      return 'aspect-video min-h-[120px]' // Grid tiles maintain aspect ratio
+    }
     
     return (
       <div 
         key={tileId}
-        className={`relative bg-gray-900 rounded-xl overflow-hidden shadow-lg group min-h-[120px] ${
-          isPinned ? 'col-span-full row-span-full h-full' : 'aspect-video'
-        } ${isThisPinned && !isPinned ? 'ring-2 ring-indigo-500' : ''}`}
+        className={`relative bg-gray-900 rounded-xl overflow-hidden shadow-lg group ${getTileClasses()} ${isThisPinned && !isPinned ? 'ring-2 ring-indigo-500' : ''}`}
       >
         {/* Video Element */}
         {type === 'local' ? (
@@ -615,7 +620,7 @@ export default function MeetingRoomPage({ params }) {
               autoPlay
               playsInline
               muted
-              className={`absolute inset-0 w-full h-full object-contain ${isVideoOff ? 'hidden' : ''}`}
+              className={`absolute inset-0 w-full h-full object-contain -scale-x-100 ${isVideoOff ? 'hidden' : ''}`}
             />
             {isVideoOff && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -747,20 +752,20 @@ export default function MeetingRoomPage({ params }) {
               </div>
               
               {/* Other Tiles Strip */}
-              <div className="h-20 sm:h-28 flex gap-2 overflow-x-auto flex-shrink-0 pb-1">
+              <div className="h-24 sm:h-32 flex gap-2 overflow-x-auto overflow-y-hidden flex-shrink-0">
                 {pinnedTile !== 'local' && (
-                  <div className="w-28 sm:w-40 flex-shrink-0 h-full">
-                    {renderTile('local')}
+                  <div className="w-32 sm:w-44 flex-shrink-0 h-full">
+                    {renderTile('local', null, false, true)}
                   </div>
                 )}
                 {isScreenSharing && pinnedTile !== 'screen' && (
-                  <div className="w-28 sm:w-40 flex-shrink-0 h-full">
-                    {renderTile('screen')}
+                  <div className="w-32 sm:w-44 flex-shrink-0 h-full">
+                    {renderTile('screen', null, false, true)}
                   </div>
                 )}
                 {participants.filter(p => p.id !== pinnedTile).map(p => (
-                  <div key={p.id} className="w-28 sm:w-40 flex-shrink-0 h-full">
-                    {renderTile('participant', p)}
+                  <div key={p.id} className="w-32 sm:w-44 flex-shrink-0 h-full">
+                    {renderTile('participant', p, false, true)}
                   </div>
                 ))}
               </div>
