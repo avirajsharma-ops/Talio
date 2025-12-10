@@ -237,21 +237,23 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
       >
         {/* Sticky Logo Section - Height matched with header */}
         <div className="h-[60.5px] px-3 sm:px-4 flex-shrink-0 flex items-center" style={{ borderBottom: '1px solid var(--color-primary-200)' }}>
-          <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-center px-0 gap-1' : 'justify-between px-3 sm:px-4'}`}>
+          <div className={`flex items-center w-full ${isDesktop && isCollapsed ? 'justify-between px-1' : 'justify-between px-3 sm:px-4'}`}>
             {/* Logo - show favicon icon when collapsed, full logo when expanded */}
             {isDesktop && isCollapsed ? (
-              <button
-                onClick={() => setIsCollapsed(false)}
-                className="flex items-center gap-1 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Expand sidebar"
-              >
+              <>
                 <img
                   src="/assets/lanyard-card-logo.webp"
                   alt="Talio"
-                  className="w-7 h-7 object-contain"
+                  className="h-10 w-auto object-contain"
                 />
-                <HiOutlineChevronRight className="w-4 h-4 text-gray-600" />
-              </button>
+                <button
+                  onClick={() => setIsCollapsed(false)}
+                  className="p-1 rounded-lg transition-colors mr-[-4px]"
+                  title="Expand sidebar"
+                >
+                  <HiOutlineChevronRight className="w-5 h-5 text-gray-600" />
+                </button>
+              </>
             ) : (
               <>
                 <img
@@ -262,7 +264,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 {/* Desktop collapse button */}
                 <button
                   onClick={() => setIsCollapsed(true)}
-                  className="hidden lg:block p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="hidden lg:block p-2 rounded-lg transition-colors"
                   title="Collapse sidebar"
                 >
                   <HiOutlineChevronRight className="w-4 h-4 text-gray-600 rotate-180" />
