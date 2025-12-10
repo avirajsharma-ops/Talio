@@ -8,9 +8,16 @@ import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization of OpenAI client to avoid build-time errors
+let openai = null
+function getOpenAIClient() {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  return openai
+}
 
 // POST - Add transcript segment or process audio for transcription
 export async function POST(request, { params }) {
@@ -128,8 +135,17 @@ export async function POST(request, { params }) {
         type: audioFile.type || 'audio/webm'
       })
 
+      // Get OpenAI client (lazy initialization)
+      const openaiClient = getOpenAIClient()
+      if (!openaiClient) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.' 
+        }, { status: 500 })
+      }
+
       // Transcribe using Whisper
-      const transcription = await openai.audio.transcriptions.create({
+      const transcription = await openaiClient.audio.transcriptions.create({
         file,
         model: 'whisper-1',
         language: language === 'hinglish' ? 'hi' : language,

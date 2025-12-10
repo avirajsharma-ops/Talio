@@ -31,9 +31,7 @@ const CompanySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
-CompanySchema.index({ name: 1 });
-CompanySchema.index({ code: 1 });
+// Indexes - Note: name and code already have unique:true which creates indexes
 CompanySchema.index({ isActive: 1 });
 
 export default mongoose.models.Company || mongoose.model('Company', CompanySchema);

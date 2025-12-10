@@ -9,7 +9,6 @@ const MayaReferenceSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    index: true,
   },
   description: {
     type: String,
@@ -20,7 +19,6 @@ const MayaReferenceSchema = new mongoose.Schema({
   },
   tags: [{
     type: String,
-    index: true,
   }],
   relatedCollections: [{
     collectionName: String,

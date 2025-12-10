@@ -24,6 +24,14 @@ export function UnreadMessagesProvider({ children }) {
       const response = await fetch('/api/chat/unread', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      if (!response.ok) {
+        // Don't log error for auth issues, just return silently
+        if (response.status === 401) return
+        console.error('[UnreadMessages] API error:', response.status)
+        return
+      }
+      
       const result = await response.json()
       
       if (result.success) {
@@ -31,7 +39,11 @@ export function UnreadMessagesProvider({ children }) {
         setUnreadChats(result.unreadByChat || {})
       }
     } catch (error) {
-      console.error('[UnreadMessages] Error fetching unread count:', error)
+      // Silently ignore fetch errors (network issues, etc.)
+      // This prevents console spam when user is not logged in or server is unreachable
+      if (error.name !== 'TypeError') {
+        console.error('[UnreadMessages] Error fetching unread count:', error)
+      }
     }
   }
 

@@ -264,7 +264,7 @@ const MeetingSchema = new mongoose.Schema({
 MeetingSchema.index({ organizer: 1, scheduledStart: -1 })
 MeetingSchema.index({ 'invitees.employee': 1, scheduledStart: -1 })
 MeetingSchema.index({ status: 1, scheduledStart: 1 })
-MeetingSchema.index({ roomId: 1 })
+// Note: roomId already has unique:true which creates an index
 MeetingSchema.index({ type: 1, scheduledStart: 1 })
 MeetingSchema.index({ invitedDepartments: 1 })
 MeetingSchema.index({ scheduledStart: 1, scheduledEnd: 1 })
