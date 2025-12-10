@@ -56,6 +56,8 @@ export default function MeetingRoomPage({ params }) {
   const [pinnedTile, setPinnedTile] = useState(null) // 'local', participant id, or 'screen'
   const [showReactions, setShowReactions] = useState(false)
   const [floatingReactions, setFloatingReactions] = useState([])
+  const [hasLocalStream, setHasLocalStream] = useState(false) // Track when stream is ready
+  const [hasScreenStream, setHasScreenStream] = useState(false) // Track screen stream
   
   // Refs
   const localVideoRef = useRef(null)
@@ -66,6 +68,26 @@ export default function MeetingRoomPage({ params }) {
   const recordedChunksRef = useRef([])
   const socketRef = useRef(null)
   const peerConnectionsRef = useRef({})
+
+  // Effect to attach local stream to video element when it becomes available
+  useEffect(() => {
+    if (hasLocalStream && localVideoRef.current && localStreamRef.current) {
+      if (localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current
+        localVideoRef.current.play().catch(() => {})
+      }
+    }
+  }, [hasLocalStream])
+
+  // Effect to attach screen stream to video element when it becomes available
+  useEffect(() => {
+    if (hasScreenStream && screenVideoRef.current && screenStreamRef.current) {
+      if (screenVideoRef.current.srcObject !== screenStreamRef.current) {
+        screenVideoRef.current.srcObject = screenStreamRef.current
+        screenVideoRef.current.play().catch(() => {})
+      }
+    }
+  }, [hasScreenStream])
 
   // Fetch meeting details
   useEffect(() => {
@@ -108,9 +130,11 @@ export default function MeetingRoomPage({ params }) {
       })
       
       localStreamRef.current = stream
+      setHasLocalStream(true) // Trigger re-render and useEffect to attach stream
       
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream
+        localVideoRef.current.play().catch(() => {}) // Ensure video plays
       }
 
       // Connect to socket for signaling
@@ -280,6 +304,7 @@ export default function MeetingRoomPage({ params }) {
       if (screenVideoRef.current) {
         screenVideoRef.current.srcObject = null
       }
+      setHasScreenStream(false)
       // Restore camera track in peer connections
       if (localStreamRef.current) {
         const videoTrack = localStreamRef.current.getVideoTracks()[0]
@@ -300,10 +325,12 @@ export default function MeetingRoomPage({ params }) {
           audio: true
         })
         screenStreamRef.current = screenStream
+        setHasScreenStream(true) // Trigger re-render and useEffect to attach stream
         
         // Set screen stream to screen video element
         if (screenVideoRef.current) {
           screenVideoRef.current.srcObject = screenStream
+          screenVideoRef.current.play().catch(() => {}) // Ensure video plays
         }
 
         // Replace video track in peer connections with screen share
@@ -500,11 +527,18 @@ export default function MeetingRoomPage({ params }) {
           {/* Preview */}
           <div className="relative bg-gray-900 rounded-xl aspect-video mb-6 overflow-hidden">
             <video
-              ref={localVideoRef}
+              ref={(el) => {
+                localVideoRef.current = el
+                // Attach stream when element mounts
+                if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+                  el.srcObject = localStreamRef.current
+                  el.play().catch(() => {})
+                }
+              }}
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover absolute inset-0 z-10"
+              className="w-full h-full object-contain absolute inset-0 z-10"
             />
             {!localStreamRef.current && (
               <div className="absolute inset-0 flex items-center justify-center z-0">
@@ -570,11 +604,18 @@ export default function MeetingRoomPage({ params }) {
         {type === 'local' ? (
           <>
             <video
-              ref={localVideoRef}
+              ref={(el) => {
+                localVideoRef.current = el
+                // Re-attach stream when video element is mounted/updated
+                if (el && localStreamRef.current && el.srcObject !== localStreamRef.current) {
+                  el.srcObject = localStreamRef.current
+                  el.play().catch(() => {}) // Ignore autoplay errors
+                }
+              }}
               autoPlay
               playsInline
               muted
-              className={`absolute inset-0 w-full h-full object-cover ${isVideoOff ? 'hidden' : ''}`}
+              className={`absolute inset-0 w-full h-full object-contain ${isVideoOff ? 'hidden' : ''}`}
             />
             {isVideoOff && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -592,7 +633,14 @@ export default function MeetingRoomPage({ params }) {
         ) : type === 'screen' ? (
           <>
             <video
-              ref={screenVideoRef}
+              ref={(el) => {
+                screenVideoRef.current = el
+                // Re-attach stream when video element is mounted/updated
+                if (el && screenStreamRef.current && el.srcObject !== screenStreamRef.current) {
+                  el.srcObject = screenStreamRef.current
+                  el.play().catch(() => {}) // Ignore autoplay errors
+                }
+              }}
               autoPlay
               playsInline
               muted
@@ -609,9 +657,12 @@ export default function MeetingRoomPage({ params }) {
                 autoPlay
                 playsInline
                 ref={el => {
-                  if (el && data.stream) el.srcObject = data.stream
+                  if (el && data.stream && el.srcObject !== data.stream) {
+                    el.srcObject = data.stream
+                    el.play().catch(() => {}) // Ignore autoplay errors
+                  }
                 }}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -715,11 +766,20 @@ export default function MeetingRoomPage({ params }) {
               </div>
             </div>
           ) : (
-            // Grid Layout
-            <div className={`grid ${getGridClass()} gap-2 sm:gap-4 h-full auto-rows-fr`}>
-              {renderTile('local')}
-              {isScreenSharing && renderTile('screen')}
-              {participants.map(p => renderTile('participant', p))}
+            // Grid Layout - center content when only 1 tile
+            <div className={`${totalTiles === 1 ? 'flex items-center justify-center h-full' : `grid ${getGridClass()} gap-2 sm:gap-4 h-full auto-rows-fr`}`}>
+              {totalTiles === 1 ? (
+                // Single tile - limit size and center
+                <div className="w-full max-w-3xl aspect-video">
+                  {renderTile('local')}
+                </div>
+              ) : (
+                <>
+                  {renderTile('local')}
+                  {isScreenSharing && renderTile('screen')}
+                  {participants.map(p => renderTile('participant', p))}
+                </>
+              )}
             </div>
           )}
         </div>
