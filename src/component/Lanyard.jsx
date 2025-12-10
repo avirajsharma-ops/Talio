@@ -25,8 +25,8 @@ export default function Lanyard({ employee, onImageClick, uploadingImage }) {
     const isMobile = window.innerWidth <= 480;
     const isTablet = window.innerWidth <= 768 && window.innerWidth > 480;
     
-    const CARD_W = isMobile ? 240 : isTablet ? 280 : 320;
-    const CARD_H = isMobile ? 350 : isTablet ? 400 : 460;
+    const CARD_W = isMobile ? 300 : isTablet ? 320 : 320;
+    const CARD_H = isMobile ? 430 : isTablet ? 460 : 460;
     const CLIP_HEIGHT = 18;
 
     // Update card outer dimensions
@@ -44,9 +44,9 @@ export default function Lanyard({ employee, onImageClick, uploadingImage }) {
     window.addEventListener("resize", handleResize);
 
     // PHYSICS PARAMETERS - adjust rest position for larger card, moved higher
-    const restPosY = isMobile ? 380 : isTablet ? 420 : 480;
+    const restPosY = isMobile ? 360 : isTablet ? 400 : 480;
     const restPos = { x: 0, y: restPosY };
-    let pos = { x: 0, y: isMobile ? 220 : isTablet ? 250 : 280 };
+    let pos = { x: 0, y: isMobile ? 220 : isTablet ? 240 : 280 };
     let vel = { x: 0, y: 0 };
 
     const kSpring = 200.35;
@@ -246,7 +246,7 @@ export default function Lanyard({ employee, onImageClick, uploadingImage }) {
     function updateLanyardLogos(ax, ay, cx, cy, bx, by) {
       lanyardLogos.innerHTML = '';
 
-      const numLogos = 5;
+      const numLogos = 3;
       for (let i = 1; i < numLogos; i++) {
         const t = i / numLogos;
         const x = Math.pow(1 - t, 2) * ax + 2 * (1 - t) * t * cx + Math.pow(t, 2) * bx;
@@ -374,9 +374,9 @@ export default function Lanyard({ employee, onImageClick, uploadingImage }) {
                     className="avatar-camera-btn"
                   >
                     {uploadingImage ? (
-                      <div style={{ width: '12px', height: '12px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      <div style={{ width: '16px', height: '16px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                     ) : (
-                      <FaCamera style={{ color: '#fff', fontSize: '12px' }} />
+                      <FaCamera className="camera-icon" style={{ color: '#ffffff', fontSize: '18px', width: '18px', height: '18px', display: 'block' }} />
                     )}
                   </button>
                 )}

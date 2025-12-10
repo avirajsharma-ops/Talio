@@ -77,7 +77,7 @@ export default function BottomNav() {
             <div key={item.path} className="relative flex-1 flex justify-center">
               <button
                 onClick={() => router.push(item.path)}
-                className={`relative p-0 h-12 w-12 rounded-full flex items-center justify-center ${
+                className={`relative p-0 h-14 w-14 rounded-full flex items-center justify-center ${
                   isChat ? 'border-[1px] border-slate-300' : ''
                 } ${
                   item.active && !isChat
@@ -96,8 +96,8 @@ export default function BottomNav() {
               >
                 <img
                   src={item.icon}
-                  width={24}
-                  height={24}
+                  width={28}
+                  height={28}
                   style={{
                     filter: item.active
                       ? 'brightness(0) invert(1)' // White icon for active (on colored background)

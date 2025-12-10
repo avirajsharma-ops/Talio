@@ -434,67 +434,71 @@ export default function ProfilePage() {
     )
   }
 
-  return (
-    <div className="page-container pb-14 md:pb-6 px-2 sm:px-4 lg:px-8">
-      <div className="max-w-[1400px] mx-auto w-full">
-        {/* Status and Edit buttons - minimal header */}
-        <div className="mb-2 flex items-center justify-end gap-3">
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${employee.status === 'active'
-              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-              : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
-              }`}
-          >
-            <span className="h-2 w-2 rounded-full mr-1.5 bg-current" />
-            {employee.status === 'active'
-              ? 'Active Employee'
-              : employee.status?.toUpperCase() || 'ACTIVE'}
-          </span>
+  // Status and Edit buttons component for reuse
+  const StatusEditButtons = () => (
+    <div className="flex items-center justify-center lg:justify-end gap-3 flex-wrap">
+      <span
+        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${employee.status === 'active'
+          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+          : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+          }`}
+      >
+        <span className="h-2 w-2 rounded-full mr-1.5 bg-current" />
+        {employee.status === 'active'
+          ? 'Active Employee'
+          : employee.status?.toUpperCase() || 'ACTIVE'}
+      </span>
 
-          {!isEditing ? (
-            <button
-              onClick={handleEditClick}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              <FaEdit className="text-xs" />
-              <span>Edit Profile</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCancelEdit}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
-              >
-                <FaTimes className="text-xs" />
-                <span>Cancel</span>
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-black disabled:opacity-60"
-              >
-                <FaSave className="text-xs" />
-                <span>{saving ? 'Saving…' : 'Save Changes'}</span>
-              </button>
-            </div>
-          )}
+      {!isEditing ? (
+        <button
+          onClick={handleEditClick}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 transition-colors"
+        >
+          <FaEdit className="text-xs" />
+          <span>Edit Profile</span>
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCancelEdit}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+          >
+            <FaTimes className="text-xs" />
+            <span>Cancel</span>
+          </button>
+          <button
+            onClick={handleSaveProfile}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-black disabled:opacity-60"
+          >
+            <FaSave className="text-xs" />
+            <span>{saving ? 'Saving…' : 'Save Changes'}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="page-container pb-24 md:pb-6 px-2 sm:px-4 lg:px-8">
+      <div className="max-w-[1400px] mx-auto w-full">
+        {/* Status and Edit buttons - Desktop only (hidden on mobile) */}
+        <div className="mb-2 hidden lg:flex items-center justify-end gap-3">
+          <StatusEditButtons />
         </div>
 
         {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 overflow-visible">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8 overflow-visible">
           {/* ID Card Lanyard - positioned to hang from under the header */}
-          <div className="lg:col-span-1 relative lg:sticky lg:top-4 lg:self-start" style={{ overflow: 'visible' }}>
+          <div className="lg:col-span-1 relative lg:sticky lg:top-4 lg:self-start order-1" style={{ overflow: 'visible' }}>
             {/* Hidden file input for profile picture */}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
             
             {/* Lanyard Model - hanging from top, string goes under header */}
             {typeof window !== 'undefined' && (
               <div
-                className="relative w-full overflow-visible z-10 h-[550px] sm:h-[620px] md:h-[700px]"
-                style={{ 
-                  marginTop: '-160px', /* Pull up more to hide string under header */
-                }}
+                className="relative w-full overflow-visible z-10 h-[560px] sm:h-[620px] md:h-[680px] lg:h-[750px] mt-[-60px] lg:mt-[-140px]"
               >
                 <Lanyard
                   employee={{
@@ -514,10 +518,11 @@ export default function ProfilePage() {
                 />
               </div>
             )}
+            
           </div>
 
           {/* Right Side: Details */}
-          <div className="lg:col-span-2 space-y-5 sm:space-y-6">
+          <div className="lg:col-span-2 space-y-5 sm:space-y-6 order-2 mt-6 lg:mt-0">
             {/* Personal Information */}
             <section className="bg-white rounded-3xl border border-slate-100 shadow-sm shadow-slate-900/5 p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
@@ -864,6 +869,11 @@ export default function ProfilePage() {
                 </div>
               </div>
             </section>
+            
+            {/* Mobile only: Status and Edit buttons at bottom */}
+            <div className="lg:hidden mt-8 mb-4">
+              <StatusEditButtons />
+            </div>
           </div>
         </div>
       </div>
