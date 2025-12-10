@@ -9,13 +9,11 @@ const KeystrokeLogSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   sessionId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   // Keystroke data
   keystrokes: [{
@@ -43,8 +41,7 @@ const KeystrokeLogSchema = new mongoose.Schema({
   // Time tracking
   startTime: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   },
   endTime: Date,
   duration: Number, // milliseconds

@@ -4,16 +4,14 @@ const ScreenMonitorLogSchema = new mongoose.Schema({
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   requestedByName: String,
   requestedByRole: String,
   targetEmployee: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
-    required: true,
-    index: true
+    required: true
   },
   targetEmployeeName: String,
   targetEmployeeEmail: String,

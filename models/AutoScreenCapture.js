@@ -9,8 +9,7 @@ const AutoScreenCaptureSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   // Screenshot data
   screenshot: {
@@ -21,8 +20,7 @@ const AutoScreenCaptureSchema = new mongoose.Schema({
   // Capture context
   capturedAt: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   },
   windowTitle: String,
   activeApplication: String,

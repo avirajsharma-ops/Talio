@@ -8,9 +8,16 @@ import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization of OpenAI client to avoid build-time errors
+let openai = null
+function getOpenAIClient() {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  return openai
+}
 
 // POST - Generate AI summary from transcript or MOM
 export async function POST(request, { params }) {
@@ -114,7 +121,16 @@ export async function POST(request, { params }) {
         languageInstruction = 'Please respond in English.'
     }
 
-    const completion = await openai.chat.completions.create({
+    // Get OpenAI client (lazy initialization)
+    const openaiClient = getOpenAIClient()
+    if (!openaiClient) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.' 
+      }, { status: 500 })
+    }
+
+    const completion = await openaiClient.chat.completions.create({
       model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o',
       messages: [
         {

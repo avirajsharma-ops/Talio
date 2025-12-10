@@ -10,17 +10,15 @@ const ProductivitySessionSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-    index: true
+    ref: 'Employee'
   },
 
   // Session time window
-  sessionStart: { type: Date, required: true, index: true },
+  sessionStart: { type: Date, required: true },
   sessionEnd: { type: Date, required: true },
   sessionDuration: { type: Number, default: 30 }, // Duration in minutes (configurable)
 
