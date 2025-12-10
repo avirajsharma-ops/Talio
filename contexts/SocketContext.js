@@ -33,12 +33,14 @@ export function SocketProvider({ children }) {
     // Use window.location.origin to connect to the same server
     const socketInstance = io(window.location.origin, {
       path: '/api/socketio',
-      transports: ['polling', 'websocket'], // Try polling first, then upgrade to websocket
+      transports: ['websocket', 'polling'], // Try websocket first, then fall back to polling
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 5, // Reduce attempts to avoid console spam
       timeout: 20000,
-      autoConnect: true
+      autoConnect: true,
+      forceNew: false
     })
 
     // Connection event handlers
@@ -58,13 +60,18 @@ export function SocketProvider({ children }) {
     })
 
     socketInstance.on('connect_error', (error) => {
-      console.error('⚠️ [Socket.IO Client] Connection error:', error)
+      // Only log once, not on every retry to avoid console spam
+      if (!socketInstance._hasLoggedError) {
+        console.warn('⚠️ [Socket.IO Client] Connection error - server may not be running. Use "npm run dev" for Socket.IO support.')
+        socketInstance._hasLoggedError = true
+      }
       setIsConnected(false)
     })
 
     socketInstance.on('reconnect', (attemptNumber) => {
       console.log(`🔄 [Socket.IO Client] Reconnected after ${attemptNumber} attempts`)
       setIsConnected(true)
+      socketInstance._hasLoggedError = false // Reset error flag on successful reconnect
 
       // Re-authenticate after reconnection
       if (userId) {
