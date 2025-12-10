@@ -112,6 +112,21 @@ const PayrollSchema = new mongoose.Schema({
     overtimeHours: { type: Number, default: 0 },
     holidaysWorked: { type: Number, default: 0 }
   },
+  // Overtime grace - when deductions exceed earnings, overtime can compensate up to gross salary
+  overtimeGrace: {
+    enabled: { type: Boolean, default: false }, // HR/Admin can toggle this per payroll
+    appliedAmount: { type: Number, default: 0 }, // Amount of overtime grace applied
+    originalOvertimeEarnings: { type: Number, default: 0 }, // Original overtime before cap
+    cappedOvertimeEarnings: { type: Number, default: 0 }, // Overtime after cap (cannot exceed gross)
+    totalDeductionsBeforeGrace: { type: Number, default: 0 }, // Deductions before grace
+    graceReason: String, // Explanation for grace application
+  },
+  // Salary cap enforcement
+  salaryCap: {
+    grossSalary: { type: Number, default: 0 }, // Employee's gross salary (max payable)
+    netSalaryBeforeCap: { type: Number, default: 0 }, // Net before applying cap
+    cappedToGross: { type: Boolean, default: false }, // Whether salary was capped
+  },
   // Statutory compliance
   statutory: {
     pfNumber: String,

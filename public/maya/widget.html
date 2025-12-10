@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maya Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      font-family: 'Raleway', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      overflow: hidden;
+      user-select: none;
+      border-radius: 40px;
+    }
+
+    .maya-container {
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(40px) saturate(1.6);
+      -webkit-backdrop-filter: blur(40px) saturate(1.6);
+      border-radius: 40px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Animated blob in top left - same as minimized blob */
+    .maya-blob-wrapper {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 56px;
+      height: 56px;
+      z-index: 10;
+      -webkit-app-region: drag;
+      cursor: pointer;
+    }
+
+    .maya-blob-canvas {
+      width: 100%;
+      height: 100%;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    .maya-blob-wrapper.speaking .maya-blob-canvas {
+      filter: brightness(1.3) drop-shadow(0 0 15px rgba(139, 93, 255, 0.8));
+      animation: pulse-blob 0.5s ease-in-out infinite;
+    }
+
+    .maya-blob-wrapper.hover .maya-blob-canvas {
+      transform: scale(1.1);
+      filter: brightness(1.2) drop-shadow(0 0 10px rgba(77, 163, 255, 0.6));
+    }
+
+    @keyframes pulse-blob {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    /* Top controls - positioned top right */
+    .maya-top-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+      z-index: 20;
+      -webkit-app-region: no-drag;
+    }
+
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.8);
+      transition: all 0.2s ease;
+      font-size: 16px;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.05);
+    }
+
+    .control-btn.muted {
+      background: rgba(255, 95, 95, 0.2);
+      border-color: rgba(255, 95, 95, 0.4);
+      color: rgba(255, 95, 95, 0.95);
+    }
+
+    .control-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Draggable area */
+    .maya-drag-area {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 80px;
+      -webkit-app-region: drag;
+      z-index: 5;
+    }
+
+    /* Messages Area */
+    .maya-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 80px 16px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(77,163,255,0.3) transparent;
+    }
+
+    .maya-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .maya-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .maya-messages::-webkit-scrollbar-thumb {
+      background: rgba(77,163,255,0.3);
+      border-radius: 2px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 12px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease;
+      word-wrap: break-word;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.assistant {
+      background: linear-gradient(135deg, rgba(20,36,90,0.9), rgba(40,118,255,0.8));
+      border: 1px solid rgba(139,93,255,0.8);
+      color: rgba(255,255,255,0.96);
+      border-bottom-left-radius: 6px;
+      align-self: flex-start;
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, rgba(34,120,255,0.65), rgba(0,200,155,0.6));
+      border: 1px solid rgba(77,213,255,0.85);
+      color: rgba(255,255,255,0.98);
+      border-bottom-right-radius: 6px;
+      align-self: flex-end;
+    }
+
+    .message.system {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      align-self: center;
+      font-size: 12px;
+      padding: 8px 14px;
+    }
+
+    .message .timestamp {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+    }
+
+    /* Input Area */
+    .maya-input-area {
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Text input mode */
+    .input-wrapper {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(20,30,60,0.8);
+      border: 2px solid rgba(77,163,255,0.4);
+      border-radius: 25px;
+      padding: 4px 8px 4px 16px;
+    }
+
+    .input-wrapper.active {
+      display: flex;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: rgba(77,163,255,0.7);
+    }
+
+    #messageInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.95);
+      font-size: 14px;
+      font-family: 'Raleway', sans-serif;
+      outline: none;
+      padding: 10px 0;
+    }
+
+    #messageInput::placeholder {
+      color: rgba(255,255,255,0.4);
+    }
+
+    .action-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      border: none;
+    }
+
+    .send-btn {
+      background: linear-gradient(135deg, rgba(77,163,255,0.25), rgba(139,93,255,0.25));
+      border: 1px solid rgba(77,163,255,0.45);
+      color: #fff;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+      background: linear-gradient(135deg, rgba(77,163,255,0.4), rgba(139,93,255,0.4));
+    }
+
+    .action-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Thinking animation */
+    .thinking-dots {
+      display: flex;
+      gap: 4px;
+      padding: 12px 18px;
+    }
+
+    .thinking-dots span {
+      width: 8px;
+      height: 8px;
+      background: rgba(77,163,255,0.7);
+      border-radius: 50%;
+      animation: thinking 1.4s ease-in-out infinite;
+    }
+
+    .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes thinking {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Voice visualizer */
+    .voice-visualizer {
+      display: none;
+      align-items: center;
+      gap: 2px;
+      height: 30px;
+      padding: 0 10px;
+    }
+
+    .voice-visualizer.active {
+      display: flex;
+    }
+
+    .voice-bar {
+      width: 3px;
+      background: linear-gradient(to top, #4da3ff, #8b5dff);
+      border-radius: 3px;
+      animation: voiceBar 0.3s ease-in-out infinite alternate;
+    }
+
+    @keyframes voiceBar {
+      from { height: 5px; }
+      to { height: 25px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="maya-container">
+    <!-- Drag area for moving window -->
+    <div class="maya-drag-area"></div>
+
+    <!-- Animated blob top left -->
+    <div class="maya-blob-wrapper">
+      <canvas class="maya-blob-canvas" id="mayaBlobCanvas"></canvas>
+    </div>
+
+    <!-- Top controls -->
+    <div class="maya-top-controls">
+      <button class="control-btn" id="stopBtn" title="Stop Speaking">
+        <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <rect x="6" y="6" width="12" height="12" rx="2"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="muteBtn" title="Toggle Sound">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="resizeBtn" title="Resize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+        </svg>
+      </button>
+      <button class="control-btn" id="closeBtn" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages area -->
+    <div class="maya-messages" id="messagesContainer">
+      <!-- Messages will be added here -->
+    </div>
+
+    <!-- Input Area - Text input only -->
+    <div class="maya-input-area">
+      <!-- Text input mode -->
+      <div class="input-wrapper active" id="inputWrapper">
+        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off" />
+        <button class="action-btn send-btn" id="sendBtn" title="Send message">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Maya Widget Script - Server Hosted Version
+    // This file is hosted at /maya/widget.html on the server for easy updates
+    const API_URL = window.location.origin; // Use same origin as the hosted file
+    let authToken = null;
+    let currentUser = null;
+    let voiceEnabled = true;
+    let hasGreetedToday = false;
+    let onboardingInProgress = false;
+    let currentSlideIndex = 0;
+    let blobAnimationId = null;
+    let isWidgetMinimized = false;
+    let currentAudio = null;
+    let isSpeaking = false;
+    
+    // Session ID for conversation context continuity
+    let currentSessionId = null;
+
+    // ElevenLabs for high-quality voice synthesis
+    const ELEVENLABS_API_KEY = 'sk_8ab047ba4afa70d44b5d89a9eace5e14b07585e255aadb96';
+    const ELEVENLABS_VOICE_ID = 'm7GHBtY0UEqljrKQw2JH';
+
+    // Onboarding slides
+    const ONBOARDING_SLIDES = [
+      { id: 'welcome', title: 'Welcome to Talio', script: "Hi! I'm Maya, your AI assistant. Welcome to Talio - HR that runs itself. I'll give you a quick tour!", duration: 5000 },
+      { id: 'dashboard', title: 'Your Dashboard', script: "This is your dashboard. See attendance, tasks, and announcements at a glance.", duration: 5000 },
+      { id: 'tasks', title: 'Task Management', script: "Manage tasks efficiently. View assignments, update progress, and collaborate with your team.", duration: 5000 },
+      { id: 'maya', title: 'Meet Maya', script: "I'm here to help anytime! Click my icon or type your question. I can help with tasks, schedules, and more!", duration: 5000 },
+      { id: 'complete', title: "You're All Set!", script: "That's it! You're ready to use Talio. Ask me anything!", duration: 4000 }
+    ];
+
+    // Action commands Maya can perform
+    const MAYA_ACTIONS = {
+      'check in': 'checkin',
+      'clock in': 'checkin',
+      'start work': 'checkin',
+      'check out': 'checkout',
+      'clock out': 'checkout',
+      'end work': 'checkout',
+      'send message': 'message',
+      'message': 'message',
+      'apply leave': 'leave',
+      'request leave': 'leave',
+      'my tasks': 'tasks',
+      'show tasks': 'tasks',
+      'my schedule': 'schedule',
+      'show schedule': 'schedule'
+    };
+
+    // Screen analysis phrases
+    const SCREEN_ANALYSIS_PHRASES = [
+      'study my screen',
+      'study the screen',
+      'analyze my screen',
+      'analyze the screen',
+      'look at my screen',
+      'look at the screen',
+      'see my screen',
+      'see the screen',
+      'what\'s on my screen',
+      'what is on my screen',
+      'check my screen',
+      'read my screen',
+      'read the screen',
+      'screen capture',
+      'capture screen',
+      'take a screenshot',
+      'screenshot',
+      'what am i looking at',
+      'what do you see',
+      'help me with this',
+      'can you see this'
+    ];
+
+    // DOM Elements
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const inputWrapper = document.getElementById('inputWrapper');
+    const blobCanvas = document.getElementById('mayaBlobCanvas');
+    const blobWrapper = document.querySelector('.maya-blob-wrapper');
+
+    // Blob animation
+    const BLOB_COLORS = [
+      { start: 'rgba(77, 255, 163, 0.9)', end: 'rgba(0, 200, 150, 0.3)' },
+      { start: 'rgba(100, 220, 255, 0.85)', end: 'rgba(50, 150, 255, 0.25)' },
+      { start: 'rgba(139, 93, 255, 0.8)', end: 'rgba(100, 50, 200, 0.2)' },
+      { start: 'rgba(255, 180, 100, 0.75)', end: 'rgba(255, 120, 50, 0.2)' }
+    ];
+    let BLOBS = [];
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const noise = (x, y, t) => Math.sin(x * 0.5 + t) * Math.cos(y * 0.5 + t) * 0.5 + 0.5;
+
+    function initBlobAnimation() {
+      if (!blobCanvas) return;
+      const ctx = blobCanvas.getContext('2d');
+      const size = 56;
+      blobCanvas.width = size;
+      blobCanvas.height = size;
+      const cx = size / 2, cy = size / 2;
+
+      BLOBS = [];
+      for (let i = 0; i < 4; i++) {
+        const angle = rand(0, Math.PI * 2);
+        const dist = rand(0, 4);
+        const r = rand(14, 22);
+        const homeX = cx + Math.cos(angle) * dist;
+        const homeY = cy + Math.sin(angle) * dist;
+        BLOBS.push({
+          x: homeX, y: homeY, r,
+          vx: rand(-0.2, 0.2), vy: rand(-0.2, 0.2),
+          hx: homeX, hy: homeY,
+          palette: BLOB_COLORS[i],
+          noiseOffset: rand(0, 1000)
+        });
+      }
+
+      function drawBlob(b, now) {
+        const points = 8;
+        const angleStep = (Math.PI * 2) / points;
+        const grd = ctx.createRadialGradient(b.x, b.y, b.r * 0.1, b.x, b.y, b.r * 1.3);
+        grd.addColorStop(0, b.palette.start);
+        grd.addColorStop(1, b.palette.end);
+
+        const pts = [];
+        for (let i = 0; i < points; i++) {
+          const angle = i * angleStep;
+          const n = noise(Math.cos(angle) + b.noiseOffset, Math.sin(angle) + b.noiseOffset, now * 0.0008);
+          const offset = b.r * 0.15 * (n - 0.5) * 2;
+          pts.push({
+            x: b.x + Math.cos(angle) * (b.r + offset),
+            y: b.y + Math.sin(angle) * (b.r + offset)
+          });
+        }
+
+        ctx.beginPath();
+        ctx.moveTo((pts[0].x + pts[points-1].x) / 2, (pts[0].y + pts[points-1].y) / 2);
+        for (let i = 0; i < points; i++) {
+          const p1 = pts[i];
+          const p2 = pts[(i + 1) % points];
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          ctx.quadraticCurveTo(p1.x, p1.y, mx, my);
+        }
+        ctx.closePath();
+        ctx.fillStyle = grd;
+        ctx.fill();
+      }
+
+      function animate(now) {
+        ctx.clearRect(0, 0, size, size);
+        for (const b of BLOBS) {
+          b.vx += (b.hx - b.x) * 0.012;
+          b.vy += (b.hy - b.y) * 0.012;
+          b.vx *= 0.97; b.vy *= 0.97;
+          b.x += b.vx; b.y += b.vy;
+          drawBlob(b, now);
+        }
+        blobAnimationId = requestAnimationFrame(animate);
+      }
+      animate(0);
+
+      blobWrapper?.addEventListener('mouseenter', () => {
+        blobWrapper.classList.add('hover');
+      });
+      blobWrapper?.addEventListener('mouseleave', () => {
+        blobWrapper.classList.remove('hover');
+      });
+    }
+
+    function setBlobSpeaking(speaking) {
+      isSpeaking = speaking;
+      if (blobWrapper) {
+        if (speaking) {
+          blobWrapper.classList.add('speaking');
+        } else {
+          blobWrapper.classList.remove('speaking');
+        }
+      }
+      // Notify main process for blob window sync
+      if (window.talioDesktop?.setSpeaking) {
+        window.talioDesktop.setSpeaking(speaking);
+      }
+    }
+
+    // Speech queue system
+    const speechQueue = [];
+    let speechActive = false;
+
+    function enqueueSpeech(text, callback) {
+      speechQueue.push({ text, callback });
+      processSpeechQueue();
+    }
+
+    async function processSpeechQueue() {
+      if (speechActive || speechQueue.length === 0) return;
+      speechActive = true;
+      const { text, callback } = speechQueue.shift();
+      await speakInternal(text, () => {
+        if (callback) callback();
+        speechActive = false;
+        processSpeechQueue();
+      });
+    }
+
+    async function speak(text, callback) {
+      enqueueSpeech(text, callback);
+    }
+
+    async function speakInternal(text, callback) {
+      if (!voiceEnabled) {
+        if (callback) setTimeout(callback, 2000);
+        return;
+      }
+
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      window.speechSynthesis?.cancel();
+
+      isSpeaking = true;
+      setBlobSpeaking(true);
+
+      try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': ELEVENLABS_API_KEY
+          },
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_turbo_v2_5',
+            voice_settings: {
+              stability: 0.35,
+              similarity_boost: 0.85,
+              style: 0.45,
+              use_speaker_boost: true
+            }
+          })
+        });
+
+        if (response.ok) {
+          const audioBlob = await response.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          currentAudio = new Audio(audioUrl);
+          currentAudio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            isSpeaking = false;
+            setBlobSpeaking(false);
+            if (callback) callback();
+          };
+          currentAudio.onerror = () => {
+            isSpeaking = false;
+            setBlobSpeaking(false);
+            speakWithWebSpeech(text, callback);
+          };
+          await currentAudio.play();
+          return;
+        }
+      } catch (e) {
+        console.log('[Maya] ElevenLabs error, using fallback:', e);
+      }
+
+      speakWithWebSpeech(text, callback);
+    }
+
+    function speakWithWebSpeech(text, callback) {
+      if (!window.speechSynthesis) {
+        isSpeaking = false;
+        setBlobSpeaking(false);
+        if (callback) setTimeout(callback, 2000);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.1;
+      utterance.onend = () => {
+        isSpeaking = false;
+        setBlobSpeaking(false);
+        if (callback) callback();
+      };
+      utterance.onerror = () => {
+        isSpeaking = false;
+        setBlobSpeaking(false);
+        if (callback) callback();
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function getTimestamp() {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+
+    function addMessage(text, role) {
+      let imageUrl = null;
+      let displayText = text;
+      try {
+        if (typeof text === 'string' && text.startsWith('{') && text.includes('screenshot')) {
+          const obj = JSON.parse(text);
+          if (obj.screenshot) {
+            imageUrl = obj.screenshot;
+            displayText = obj.content || '';
+          }
+        }
+      } catch (e) {}
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      msgDiv.innerHTML = `
+        <span>${displayText}</span>
+        ${imageUrl ? `<div style='margin-top:8px;'><img src='${imageUrl}' style='max-width:220px;max-height:160px;border-radius:12px;border:1px solid #4da3ff;box-shadow:0 2px 8px rgba(77,163,255,0.12);' /></div>` : ''}
+        <div class="timestamp">${getTimestamp()}</div>
+      `;
+      messagesContainer.appendChild(msgDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function showThinking() {
+      const t = document.createElement('div');
+      t.className = 'message assistant';
+      t.id = 'thinkingIndicator';
+      t.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
+      messagesContainer.appendChild(t);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideThinking() {
+      document.getElementById('thinkingIndicator')?.remove();
+    }
+
+    async function checkOnboardingStatus() {
+      if (!authToken) return;
+      try {
+        const res = await fetch(`${API_URL}/api/maya/onboarding`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentUser = data.data.user;
+          voiceEnabled = data.data.preferences?.voiceEnabled !== false;
+
+          if (data.data.needsOnboarding) {
+            startOnboarding();
+          } else if (data.data.needsGreeting && data.data.preferences?.autoGreetingEnabled !== false) {
+            showDailyGreeting();
+          } else {
+            showGreetingOnce();
+          }
+        }
+      } catch (e) {
+        console.error('Onboarding check failed:', e);
+        showGreetingOnce();
+      }
+    }
+
+    function startOnboarding() {
+      onboardingInProgress = true;
+      currentSlideIndex = 0;
+      messagesContainer.innerHTML = '';
+
+      const skipBtn = document.createElement('button');
+      skipBtn.className = 'skip-btn';
+      skipBtn.textContent = 'Skip Tour';
+      skipBtn.style.cssText = 'position:absolute;top:80px;right:20px;padding:6px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;z-index:30;';
+      skipBtn.onclick = skipOnboarding;
+      document.querySelector('.maya-container').appendChild(skipBtn);
+
+      showOnboardingSlide();
+    }
+
+    function showOnboardingSlide() {
+      const slide = ONBOARDING_SLIDES[currentSlideIndex];
+      if (!slide) {
+        completeOnboarding();
+        return;
+      }
+
+      addMessage(slide.script, 'assistant');
+      speak(slide.script, () => {
+        setTimeout(() => {
+          currentSlideIndex++;
+          if (currentSlideIndex < ONBOARDING_SLIDES.length) {
+            showOnboardingSlide();
+          } else {
+            completeOnboarding();
+          }
+        }, 1000);
+      });
+    }
+
+    async function completeOnboarding() {
+      onboardingInProgress = false;
+      document.querySelector('.skip-btn')?.remove();
+      await updateOnboarding('complete');
+    }
+
+    async function skipOnboarding() {
+      window.speechSynthesis?.cancel();
+      onboardingInProgress = false;
+      document.querySelector('.skip-btn')?.remove();
+      await updateOnboarding('skip');
+      messagesContainer.innerHTML = '';
+      addMessage("No problem! Ask me anything when you need help.", 'assistant');
+    }
+
+    async function updateOnboarding(action) {
+      if (!authToken) return;
+      try {
+        await fetch(`${API_URL}/api/maya/onboarding`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({ action })
+        });
+      } catch (e) { console.error('Update onboarding failed:', e); }
+    }
+
+    async function showDailyGreeting() {
+      if (hasGreetedToday || !authToken) return;
+      hasGreetedToday = true;
+      try {
+        const res = await fetch(`${API_URL}/api/maya/daily-summary`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data?.message) {
+          addMessage(data.data.message, 'assistant');
+          speak(data.data.message);
+          await updateOnboarding('greeting');
+        }
+      } catch (e) {
+        console.log('Failed to fetch greeting from API:', e);
+      }
+    }
+
+    function checkForAction(message) {
+      const lowerMsg = message.toLowerCase();
+      for (const [phrase, action] of Object.entries(MAYA_ACTIONS)) {
+        if (lowerMsg.includes(phrase)) {
+          return action;
+        }
+      }
+      return null;
+    }
+
+    function isScreenAnalysisRequest(message) {
+      const lowerMsg = message.toLowerCase();
+      return SCREEN_ANALYSIS_PHRASES.some(phrase => lowerMsg.includes(phrase));
+    }
+
+    async function captureAndAnalyzeScreen(userMessage) {
+      try {
+        // Check if talioDesktop bridge is available (Electron only)
+        if (!window.talioDesktop?.captureScreen) {
+          addMessage("Screen capture is only available in the desktop app.", 'assistant');
+          speak("Screen capture is only available in the desktop app.");
+          return;
+        }
+
+        if (window.talioDesktop?.checkScreenPermission) {
+          const hasPermission = await window.talioDesktop.checkScreenPermission();
+          if (!hasPermission) {
+            addMessage("⚠️ Screen recording permission is required. Please grant permission in System Preferences → Privacy & Security → Screen Recording.", 'assistant');
+            speak("Screen recording permission is required. Please grant permission in System Preferences.");
+            return;
+          }
+        }
+
+        addMessage("📸 Analyzing your screen...", 'system');
+        showThinking();
+        
+        if (window.talioDesktop?.showDotMatrix) {
+          window.talioDesktop.showDotMatrix();
+        }
+
+        let screenshot = null;
+        try {
+          screenshot = await Promise.race([
+            window.talioDesktop.captureScreen(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Screen capture timeout')), 15000))
+          ]);
+        } catch (captureErr) {
+          console.error('[Maya] Screen capture failed:', captureErr);
+          hideThinking();
+          if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+          addMessage("Sorry, screen capture failed. Please check screen recording permissions.", 'assistant');
+          speak("Sorry, screen capture failed.");
+          return;
+        }
+        
+        if (!screenshot || screenshot.length < 1000) {
+          hideThinking();
+          if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+          addMessage("Sorry, I couldn't capture your screen.", 'assistant');
+          speak("Sorry, I couldn't capture your screen.");
+          return;
+        }
+
+        addMessage("🔍 Analyzing...", 'system');
+
+        const res = await fetch(`${API_URL}/api/maya/chat`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${authToken}` 
+          },
+          body: JSON.stringify({ 
+            message: userMessage,
+            screenshot: screenshot,
+            isScreenAnalysis: true,
+            sessionId: currentSessionId
+          })
+        });
+        
+        if (!res.ok) {
+          hideThinking();
+          if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+          addMessage(`Sorry, server error (${res.status}).`, 'assistant');
+          speak("Sorry, there was a server error.");
+          return;
+        }
+
+        const data = await res.json();
+        hideThinking();
+        if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+
+        if (data.success && data.response) {
+          if (data.sessionId) currentSessionId = data.sessionId;
+          addMessage(data.response, 'assistant');
+          speak(data.response);
+
+          await fetch(`${API_URL}/api/maya/history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body: JSON.stringify({ 
+              type: 'screen-analysis', 
+              message: userMessage, 
+              response: data.response,
+              hasScreenshot: true
+            })
+          }).catch(() => {});
+        } else {
+          const errorMsg = data.error || 'Sorry, I encountered an error analyzing your screen.';
+          addMessage(errorMsg, 'assistant');
+          speak(errorMsg);
+        }
+      } catch (e) {
+        hideThinking();
+        if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+        console.error('[Maya] Screen analysis error:', e);
+        addMessage('Sorry, I encountered an error.', 'assistant');
+        speak('Sorry, I encountered an error.');
+      }
+    }
+
+    async function performAction(action, message) {
+      try {
+        const res = await fetch(`${API_URL}/api/maya/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({ action, message })
+        });
+        const data = await res.json();
+        return data;
+      } catch (e) {
+        console.error('[Maya] Action error:', e);
+        return { success: false, error: 'Failed to perform action' };
+      }
+    }
+
+    async function sendToMaya(message) {
+      showThinking();
+
+      try {
+        if (isScreenAnalysisRequest(message)) {
+          hideThinking();
+          await captureAndAnalyzeScreen(message);
+          return;
+        }
+
+        if (window.talioDesktop?.showDotMatrix) window.talioDesktop.showDotMatrix();
+
+        const action = checkForAction(message);
+
+        if (action) {
+          const actionResult = await performAction(action, message);
+          hideThinking();
+          if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+
+          if (actionResult.success) {
+            addMessage(actionResult.message || `Done! ${action} completed.`, 'assistant');
+            speak(actionResult.message || `Done! ${action} completed.`);
+
+            await fetch(`${API_URL}/api/maya/history`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+              body: JSON.stringify({ type: 'action', action, message, result: actionResult })
+            }).catch(() => {});
+          } else {
+            addMessage(actionResult.error || `Sorry, I couldn't complete that.`, 'assistant');
+            speak(actionResult.error || `Sorry, I couldn't complete that.`);
+          }
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/api/maya/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({ 
+            message,
+            sessionId: currentSessionId
+          })
+        });
+        const data = await res.json();
+        hideThinking();
+        if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+
+        if (data.success && data.response) {
+          if (data.sessionId) currentSessionId = data.sessionId;
+          addMessage(data.response, 'assistant');
+          speak(data.response);
+
+          await fetch(`${API_URL}/api/maya/history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body: JSON.stringify({ type: 'chat', message, response: data.response })
+          }).catch(() => {});
+        } else {
+          const errorMsg = data.error || 'Sorry, I encountered an error.';
+          addMessage(errorMsg, 'assistant');
+          speak(errorMsg);
+        }
+      } catch (e) {
+        hideThinking();
+        if (window.talioDesktop?.hideDotMatrix) window.talioDesktop.hideDotMatrix();
+        console.error('[Maya] Chat error:', e);
+        addMessage('Connection error.', 'assistant');
+        speak('Connection error.');
+      }
+    }
+
+    // Event Listeners
+    sendBtn.addEventListener('click', () => {
+      const msg = messageInput.value.trim();
+      if (msg && !onboardingInProgress) {
+        addMessage(msg, 'user');
+        sendToMaya(msg);
+        messageInput.value = '';
+      }
+    });
+
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    closeBtn.addEventListener('click', () => {
+      isWidgetMinimized = true;
+      if (window.talioDesktop?.minimizeWidget) window.talioDesktop.minimizeWidget();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      if (!voiceEnabled) {
+        window.speechSynthesis?.cancel();
+        muteBtn.classList.add('muted');
+        muteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <line x1="23" y1="9" x2="17" y2="15"/>
+          <line x1="17" y1="9" x2="23" y2="15"/>
+        </svg>`;
+      } else {
+        muteBtn.classList.remove('muted');
+        muteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>`;
+      }
+    });
+
+    const stopBtn = document.getElementById('stopBtn');
+    stopBtn?.addEventListener('click', () => {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
+      window.speechSynthesis?.cancel();
+      isSpeaking = false;
+      setBlobSpeaking(false);
+      speechQueue.length = 0;
+      speechActive = false;
+    });
+
+    function initialize() {
+      initBlobAnimation();
+
+      if (window.talioDesktop?.getWidgetState) {
+        window.talioDesktop.getWidgetState().then(state => {
+          isWidgetMinimized = state?.minimized || false;
+        });
+      } else {
+        isWidgetMinimized = false;
+      }
+      
+      setTimeout(() => {
+        messageInput?.focus();
+      }, 500);
+    }
+
+    // Receive auth from main process
+    if (window.talioDesktop?.onAuth) {
+      window.talioDesktop.onAuth((data) => {
+        authToken = data.token;
+        currentUser = data.user;
+        console.log('[Maya] Authenticated:', currentUser?.name);
+        checkOnboardingStatus();
+      });
+    }
+
+    let greetingShown = false;
+    
+    function showGreetingOnce() {
+      if (greetingShown) return;
+      greetingShown = true;
+    }
+
+    if (window.talioDesktop?.getCredentials) {
+      window.talioDesktop.getCredentials().then((creds) => {
+        if (creds?.token) {
+          authToken = creds.token;
+          checkOnboardingStatus();
+        } else {
+          showGreetingOnce();
+        }
+      });
+    } else {
+      setTimeout(() => {
+        if (!authToken) {
+          showGreetingOnce();
+        }
+      }, 500);
+    }
+
+    initialize();
+  </script>
+</body>
+</html>

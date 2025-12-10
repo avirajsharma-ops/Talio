@@ -1,10 +1,23 @@
-const { app, BrowserWindow, systemPreferences, ipcMain, screen, Tray, Menu, nativeImage, Notification, desktopCapturer } = require('electron');
+const { app, BrowserWindow, systemPreferences, ipcMain, screen, Tray, Menu, nativeImage, Notification, desktopCapturer, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const axios = require('axios');
 const { io } = require('socket.io-client');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+// Set app name to Talio (removes Electron branding from About panel, Dock, etc.)
+app.setName('Talio');
+
+// Set About panel options for macOS - this replaces Electron branding
+app.setAboutPanelOptions({
+  applicationName: 'Talio',
+  applicationVersion: '1.0.3',
+  version: '1.0.3',
+  copyright: '© 2025 Talio. All rights reserved.',
+  credits: 'HR that runs itself.',
+  iconPath: path.join(__dirname, '../assets/icon.png')
+});
 
 // Auto-launch - wrap in try-catch as it can fail on some systems
 let AutoLaunch = null;
@@ -184,6 +197,21 @@ function createMainWindow() {
     `);
   });
 
+  // Prevent any external popups (blocks Electron website and other external links)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open external links in default browser instead of new Electron window
+    if (url.startsWith('http') && !url.includes('app.talio.in') && !url.includes('talio.in')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    // Allow same-origin popups (for OAuth, etc.) but deny everything else
+    if (!url.startsWith(APP_URL)) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
+
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -260,8 +288,9 @@ function createMayaBlobWindow() {
     resizable: false,
     movable: true,
     skipTaskbar: true,
-    hasShadow: true,
+    hasShadow: false, // Disable shadow to prevent background artifacts
     roundedCorners: true,
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -270,8 +299,8 @@ function createMayaBlobWindow() {
     show: false
   });
 
-  // Load Maya blob HTML
-  mayaBlobWindow.loadFile(path.join(__dirname, '../maya-blob.html'));
+  // Load Maya blob HTML from server for easy updates
+  mayaBlobWindow.loadURL(`${APP_URL}/maya/blob.html`);
 
   mayaBlobWindow.once('ready-to-show', () => {
     mayaBlobWindow.show();
@@ -420,8 +449,8 @@ function createMayaWidgetWindow() {
     show: false
   });
 
-  // Load native Maya widget HTML
-  mayaWidgetWindow.loadFile(path.join(__dirname, '..', 'maya-widget.html'));
+  // Load native Maya widget HTML from server for easy updates
+  mayaWidgetWindow.loadURL(`${APP_URL}/maya/widget.html`);
 
   mayaWidgetWindow.once('ready-to-show', () => {
     mayaWidgetWindow.show();
@@ -1595,6 +1624,15 @@ function setupIPC() {
     return checkScreenCapturePermission();
   });
 
+  // Sync speaking state between widget and blob
+  ipcMain.handle('maya-set-speaking', (event, speaking) => {
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+      mayaBlobWindow.webContents.executeJavaScript(`
+        if (window.setSpeaking) window.setSpeaking(${speaking});
+      `).catch(() => {});
+    }
+  });
+
   ipcMain.handle('maya-notification', (event, { title, body }) => {
     sendNotification(title, body);
   });
@@ -1631,6 +1669,62 @@ function setupIPC() {
 // App lifecycle
 app.whenReady().then(async () => {
   console.log('[Talio] App starting...');
+
+  // Set custom macOS application menu (removes Electron branding from menu bar)
+  const template = [
+    {
+      label: 'Talio',
+      submenu: [
+        { role: 'about', label: 'About Talio' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide', label: 'Hide Talio' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Quit Talio' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' },
+        { type: 'separator' },
+        { role: 'close' }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 
   // NOTE: Permissions are now requested AFTER user logs in, not on app startup
   // The web app will call 'request-all-permissions' IPC handler after login

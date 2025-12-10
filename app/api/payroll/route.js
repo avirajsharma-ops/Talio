@@ -24,7 +24,7 @@ export async function GET(request) {
     }
 
     const payrolls = await Payroll.find(query)
-      .populate('employee', 'firstName lastName employeeCode')
+      .populate('employee', 'firstName lastName employeeCode bankDetails')
       .sort({ year: -1, month: -1 })
 
     return NextResponse.json({
@@ -61,21 +61,34 @@ export async function POST(request) {
       )
     }
 
-    // Calculate totals
-    const earnings = data.earnings || {}
-    const deductions = data.deductions || {}
+    // Use pre-calculated totals if provided, otherwise calculate
+    let grossSalary = data.grossSalary
+    let totalDeductions = data.totalDeductions
+    let netSalary = data.netSalary
 
-    const totalEarnings = Object.values(earnings).reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
-    const totalDeductions = Object.values(deductions).reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
-    const netSalary = totalEarnings - totalDeductions
+    // If not pre-calculated, calculate from earnings/deductions
+    if (!grossSalary || !netSalary) {
+      const earnings = data.earnings || {}
+      const deductions = data.deductions || {}
+      grossSalary = Object.values(earnings).reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
+      totalDeductions = Object.values(deductions).reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
+      netSalary = grossSalary - totalDeductions
+    }
 
-    const payroll = await Payroll.create({
+    // Ensure required fields have defaults
+    const payrollData = {
       ...data,
-      totalEarnings,
+      grossSalary,
       totalDeductions,
       netSalary,
-      status: 'pending',
-    })
+      workingDays: data.workingDays || 26,
+      presentDays: data.presentDays || 0,
+      absentDays: data.absentDays || 0,
+      leaveDays: data.leaveDays || 0,
+      status: data.status === 'pending' ? 'draft' : (data.status || 'draft'), // Map 'pending' to 'draft'
+    }
+
+    const payroll = await Payroll.create(payrollData)
 
     const populatedPayroll = await Payroll.findById(payroll._id)
       .populate('employee', 'firstName lastName employeeCode')

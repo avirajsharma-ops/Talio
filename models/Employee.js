@@ -100,9 +100,40 @@ const EmployeeSchema = new mongoose.Schema({
   salary: {
     basic: Number,
     hra: Number,
+    conveyance: Number,
+    medical: Number,
+    special: Number,
     allowances: Number,
     deductions: Number,
-    ctc: Number,
+    grossSalary: Number, // Total monthly gross salary
+    ctc: Number, // Annual CTC
+  },
+  // PF (Provident Fund) enrollment
+  pfEnrollment: {
+    enrolled: { type: Boolean, default: false },
+    pfNumber: String,
+    uanNumber: String, // Universal Account Number
+    enrollmentDate: Date,
+    employeeContribution: { type: Number, default: 12 }, // Percentage (default 12%)
+    employerContribution: { type: Number, default: 12 }, // Percentage (default 12%)
+  },
+  // ESI (Employee State Insurance) enrollment
+  esiEnrollment: {
+    enrolled: { type: Boolean, default: false },
+    esiNumber: String,
+    enrollmentDate: Date,
+  },
+  // Professional Tax
+  professionalTax: {
+    applicable: { type: Boolean, default: true },
+    amount: { type: Number, default: 200 }, // Monthly PT amount
+  },
+  // Corporate Health Insurance
+  healthInsurance: {
+    enrolled: { type: Boolean, default: false },
+    policyNumber: String,
+    provider: String,
+    enrollmentDate: Date,
   },
   bankDetails: {
     accountNumber: String,

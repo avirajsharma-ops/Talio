@@ -43,10 +43,35 @@ contextBridge.exposeInMainWorld('mayaBridge', {
   isElectron: true
 });
 
-// Expose talioDesktop for blob window
+// Expose talioDesktop for blob window and widget
 contextBridge.exposeInMainWorld('talioDesktop', {
   openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
   expandWidget: () => ipcRenderer.invoke('maya-expand-widget'),
+  minimizeWidget: () => ipcRenderer.invoke('maya-minimize-widget'),
+  closeWidget: () => ipcRenderer.invoke('maya-close-widget'),
+  
+  // Widget state
+  getWidgetState: () => ipcRenderer.invoke('maya-get-widget-state'),
+  
+  // Screen capture
+  captureScreen: () => ipcRenderer.invoke('maya-capture-screen'),
+  checkScreenPermission: () => ipcRenderer.invoke('maya-check-screen-permission'),
+  
+  // Dot matrix overlay
+  showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
+  hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
+  
+  // Blob speaking state (for syncing widget and blob animations)
+  setSpeaking: (speaking) => ipcRenderer.invoke('maya-set-speaking', speaking),
+  
+  // Authentication
+  onAuth: (callback) => {
+    ipcRenderer.on('maya-auth', (event, data) => callback(data));
+  },
+  getCredentials: () => ipcRenderer.invoke('maya-get-credentials'),
+  
+  // Platform info
+  platform: process.platform,
   isElectron: true
 });
 

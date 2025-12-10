@@ -45,6 +45,39 @@ export default function AddEmployeePage() {
     status: 'active',
     password: '',
     role: 'employee',
+    // Salary fields (optional)
+    salary: {
+      basic: '',
+      hra: '',
+      conveyance: '',
+      medical: '',
+      special: '',
+      grossSalary: '',
+    },
+    // PF enrollment
+    pfEnrollment: {
+      enrolled: false,
+      pfNumber: '',
+      uanNumber: '',
+      employeeContribution: 12,
+      employerContribution: 12,
+    },
+    // ESI enrollment
+    esiEnrollment: {
+      enrolled: false,
+      esiNumber: '',
+    },
+    // Professional Tax
+    professionalTax: {
+      applicable: true,
+      amount: 200,
+    },
+    // Corporate Health Insurance
+    healthInsurance: {
+      enrolled: false,
+      policyNumber: '',
+      provider: '',
+    },
   })
 
   useEffect(() => {
@@ -149,6 +182,65 @@ export default function AddEmployeePage() {
         departments: newDepts,
         department: newDepts.length > 0 ? newDepts[0] : '',
       }
+    })
+  }
+
+  // Auto-calculate salary breakdown based on gross salary
+  // Standard breakdown: Basic 40%, HRA 40% of Basic, Conveyance ₹800 fixed, Medical 5%, Special = remainder
+  const calculateSalaryBreakdown = (grossSalary) => {
+    const gross = parseFloat(grossSalary) || 0
+    if (gross <= 0) {
+      return { basic: '', hra: '', conveyance: '', medical: '', special: '' }
+    }
+    const basic = Math.round(gross * 0.40)           // 40% of gross
+    const hra = Math.round(basic * 0.40)             // 40% of basic (16% of gross)
+    const conveyance = 800                            // Fixed ₹800
+    const medical = Math.round(gross * 0.05)         // 5% of gross
+    const special = gross - basic - hra - conveyance - medical  // Remainder
+    
+    return {
+      basic,
+      hra,
+      conveyance,
+      medical,
+      special: Math.max(0, special),
+    }
+  }
+
+  // Handle gross salary change - auto-distribute to components
+  const handleGrossSalaryChange = (value) => {
+    const breakdown = calculateSalaryBreakdown(value)
+    setFormData(prev => ({
+      ...prev,
+      salary: {
+        ...prev.salary,
+        grossSalary: value,
+        ...breakdown,
+      }
+    }))
+  }
+
+  // Handle individual salary component change - adjust 'special' to balance
+  const handleSalaryComponentChange = (field, value) => {
+    setFormData(prev => {
+      const newSalary = { ...prev.salary, [field]: value }
+      const gross = parseFloat(newSalary.grossSalary) || 0
+      
+      if (gross > 0 && field !== 'grossSalary') {
+        // Calculate sum of all components except 'special'
+        const basic = parseFloat(newSalary.basic) || 0
+        const hra = parseFloat(newSalary.hra) || 0
+        const conveyance = parseFloat(newSalary.conveyance) || 0
+        const medical = parseFloat(newSalary.medical) || 0
+        
+        // Auto-adjust 'special' to make total equal gross
+        const sumWithoutSpecial = basic + hra + conveyance + medical
+        const adjustedSpecial = Math.max(0, gross - sumWithoutSpecial)
+        
+        newSalary.special = Math.round(adjustedSpecial)
+      }
+      
+      return { ...prev, salary: newSalary }
     })
   }
 
@@ -284,22 +376,8 @@ export default function AddEmployeePage() {
             />
           </div>
 
-          {/* Date of Birth */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date of Birth
-            </label>
-            <input
-              type="date"
-              name="dateOfBirth"
-              value={formData.dateOfBirth}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Gender */}
-          <div>
+          {/* Gender - Full Width */}
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Gender
             </label>
@@ -314,6 +392,20 @@ export default function AddEmployeePage() {
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
+          </div>
+
+          {/* Date of Birth & Date of Joining - Side by Side */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
           </div>
 
           {/* Date of Joining */}
@@ -553,6 +645,378 @@ export default function AddEmployeePage() {
             <p className="text-xs text-gray-500 mt-1">
               Determines access level in the system
             </p>
+          </div>
+        </div>
+
+        {/* Salary & Statutory Section */}
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            💰 Salary & Statutory Details
+            <span className="text-sm font-normal text-gray-500">(Optional - can be added later)</span>
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Gross Salary */}
+            <div className="lg:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gross Salary (Monthly) <span className="text-xs text-blue-600 ml-2">← Enter this to auto-calculate breakdown</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.grossSalary}
+                  onChange={(e) => handleGrossSalaryChange(e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 bg-blue-50"
+                  placeholder="50000"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Auto-distributes: Basic 40%, HRA 40% of Basic, Conveyance ₹800, Medical 5%, Special = Remainder</p>
+            </div>
+
+            {/* Basic Salary */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Basic Salary <span className="text-xs text-gray-400">(40%)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.basic}
+                  onChange={(e) => handleSalaryComponentChange('basic', e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="25000"
+                />
+              </div>
+            </div>
+
+            {/* HRA */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                HRA <span className="text-xs text-gray-400">(40% of Basic)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.hra}
+                  onChange={(e) => handleSalaryComponentChange('hra', e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="10000"
+                />
+              </div>
+            </div>
+
+            {/* Conveyance */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Conveyance <span className="text-xs text-gray-400">(₹800 default)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.conveyance}
+                  onChange={(e) => handleSalaryComponentChange('conveyance', e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="800"
+                />
+              </div>
+            </div>
+
+            {/* Medical */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Medical <span className="text-xs text-gray-400">(5%)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.medical}
+                  onChange={(e) => handleSalaryComponentChange('medical', e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="1250"
+                />
+              </div>
+            </div>
+
+            {/* Special Allowance */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Special Allowance <span className="text-xs text-green-600">(auto-adjusted)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                <input
+                  type="number"
+                  value={formData.salary.special}
+                  onChange={(e) => handleSalaryComponentChange('special', e.target.value)}
+                  className="w-full pl-8 pr-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-green-50"
+                  placeholder="5000"
+                  readOnly
+                />
+              </div>
+              <p className="text-xs text-green-600 mt-1">Auto-adjusts to balance gross salary</p>
+            </div>
+
+            {/* Total Summary */}
+            {formData.salary.grossSalary && (
+              <div className="lg:col-span-3 p-3 bg-gray-100 rounded-lg">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Total of components:</span>
+                  <span className={`font-semibold ${
+                    (parseFloat(formData.salary.basic || 0) + 
+                     parseFloat(formData.salary.hra || 0) + 
+                     parseFloat(formData.salary.conveyance || 0) + 
+                     parseFloat(formData.salary.medical || 0) + 
+                     parseFloat(formData.salary.special || 0)) === parseFloat(formData.salary.grossSalary || 0)
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    ₹{(
+                      parseFloat(formData.salary.basic || 0) + 
+                      parseFloat(formData.salary.hra || 0) + 
+                      parseFloat(formData.salary.conveyance || 0) + 
+                      parseFloat(formData.salary.medical || 0) + 
+                      parseFloat(formData.salary.special || 0)
+                    ).toLocaleString('en-IN')} / ₹{parseFloat(formData.salary.grossSalary || 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* PF & ESI Section */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PF Enrollment */}
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  🏦 Provident Fund (PF)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      pfEnrollment: { ...formData.pfEnrollment, enrolled: !formData.pfEnrollment.enrolled }
+                    })}
+                    style={{ backgroundColor: formData.pfEnrollment.enrolled ? '#22c55e' : '#f87171' }}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                  >
+                    <span
+                      style={{ transform: formData.pfEnrollment.enrolled ? 'translateX(20px)' : 'translateX(0)' }}
+                      className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                    />
+                  </button>
+                  <span className="text-sm text-gray-600">{formData.pfEnrollment.enrolled ? 'Enrolled' : 'Not Enrolled'}</span>
+                </div>
+              </div>
+              
+              {formData.pfEnrollment.enrolled && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">PF Number</label>
+                      <input
+                        type="text"
+                        value={formData.pfEnrollment.pfNumber}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pfEnrollment: { ...formData.pfEnrollment, pfNumber: e.target.value }
+                        })}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                        placeholder="PF Number"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">UAN Number</label>
+                      <input
+                        type="text"
+                        value={formData.pfEnrollment.uanNumber}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pfEnrollment: { ...formData.pfEnrollment, uanNumber: e.target.value }
+                        })}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                        placeholder="UAN Number"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Employee Contribution %</label>
+                      <input
+                        type="number"
+                        value={formData.pfEnrollment.employeeContribution}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pfEnrollment: { ...formData.pfEnrollment, employeeContribution: parseFloat(e.target.value) || 12 }
+                        })}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Employer Contribution %</label>
+                      <input
+                        type="number"
+                        value={formData.pfEnrollment.employerContribution}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          pfEnrollment: { ...formData.pfEnrollment, employerContribution: parseFloat(e.target.value) || 12 }
+                        })}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ESI Enrollment */}
+            <div className="p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  🏥 ESI (Employee State Insurance)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      esiEnrollment: { ...formData.esiEnrollment, enrolled: !formData.esiEnrollment.enrolled }
+                    })}
+                    style={{ backgroundColor: formData.esiEnrollment.enrolled ? '#22c55e' : '#f87171' }}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                  >
+                    <span
+                      style={{ transform: formData.esiEnrollment.enrolled ? 'translateX(20px)' : 'translateX(0)' }}
+                      className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                    />
+                  </button>
+                  <span className="text-sm text-gray-600">{formData.esiEnrollment.enrolled ? 'Enrolled' : 'Not Enrolled'}</span>
+                </div>
+              </div>
+              
+              {formData.esiEnrollment.enrolled && (
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">ESI Number</label>
+                  <input
+                    type="text"
+                    value={formData.esiEnrollment.esiNumber}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      esiEnrollment: { ...formData.esiEnrollment, esiNumber: e.target.value }
+                    })}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    placeholder="ESI Number"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Applicable for gross ≤ ₹21,000</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Professional Tax */}
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                📋 Professional Tax
+              </label>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({
+                    ...formData,
+                    professionalTax: { ...formData.professionalTax, applicable: !formData.professionalTax.applicable }
+                  })}
+                  style={{ backgroundColor: formData.professionalTax.applicable ? '#22c55e' : '#f87171' }}
+                  className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                >
+                  <span
+                    style={{ transform: formData.professionalTax.applicable ? 'translateX(20px)' : 'translateX(0)' }}
+                    className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  />
+                </button>
+                {formData.professionalTax.applicable && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">₹</span>
+                    <input
+                      type="number"
+                      value={formData.professionalTax.amount}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        professionalTax: { ...formData.professionalTax, amount: parseFloat(e.target.value) || 200 }
+                      })}
+                      className="w-24 px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-500">/month</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Corporate Health Insurance */}
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                🏥 Corporate Health Insurance
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({
+                    ...formData,
+                    healthInsurance: { ...formData.healthInsurance, enrolled: !formData.healthInsurance.enrolled }
+                  })}
+                  style={{ backgroundColor: formData.healthInsurance.enrolled ? '#22c55e' : '#f87171' }}
+                  className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                >
+                  <span
+                    style={{ transform: formData.healthInsurance.enrolled ? 'translateX(20px)' : 'translateX(0)' }}
+                    className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  />
+                </button>
+                <span className="text-sm text-gray-600">{formData.healthInsurance.enrolled ? 'Enrolled' : 'Not Enrolled'}</span>
+              </div>
+            </div>
+            {formData.healthInsurance.enrolled && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Policy Provider</label>
+                  <input
+                    type="text"
+                    value={formData.healthInsurance.provider || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      healthInsurance: { ...formData.healthInsurance, provider: e.target.value }
+                    })}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    placeholder="e.g., ICICI Lombard, Star Health"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Policy Number</label>
+                  <input
+                    type="text"
+                    value={formData.healthInsurance.policyNumber}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      healthInsurance: { ...formData.healthInsurance, policyNumber: e.target.value }
+                    })}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
+                    placeholder="Enter policy number"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

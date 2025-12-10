@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaEdit, FaTrash, FaBuilding, FaTimes } from 'react-icons/fa'
+import { FaPlus, FaEdit, FaTrash, FaBuilding, FaTimes, FaUpload, FaImage } from 'react-icons/fa'
 import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function CompaniesPage() {
@@ -11,10 +11,13 @@ export default function CompaniesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingCompany, setEditingCompany] = useState(null)
   const [user, setUser] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     description: '',
+    logo: '',
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -101,6 +104,7 @@ export default function CompaniesPage() {
       name: company.name,
       code: company.code,
       description: company.description || '',
+      logo: company.logo || '',
     })
     setShowModal(true)
   }
@@ -132,7 +136,58 @@ export default function CompaniesPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingCompany(null)
-    setFormData({ name: '', code: '', description: '' })
+    setFormData({ name: '', code: '', description: '', logo: '' })
+  }
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be less than 2MB')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+      uploadFormData.append('folder', 'company-logos')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: uploadFormData,
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setFormData({ ...formData, logo: data.url })
+        toast.success('Logo uploaded successfully')
+      } else {
+        toast.error(data.message || 'Failed to upload logo')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload logo')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeLogo = () => {
+    setFormData({ ...formData, logo: '' })
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const canManageCompanies = () => {
@@ -207,7 +262,11 @@ export default function CompaniesPage() {
               <div className="flex items-start justify-between mb-3 sm:mb-4">
                 <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
                   <div className="bg-primary-100 p-2 sm:p-3 rounded-lg flex-shrink-0">
-                    <FaBuilding className="text-primary-500 text-lg sm:text-xl" />
+                    {company.logo ? (
+                      <img src={company.logo} alt={company.name} className="w-6 h-6 sm:w-8 sm:h-8 object-contain" />
+                    ) : (
+                      <FaBuilding className="text-primary-500 text-lg sm:text-xl" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-base sm:text-lg font-bold text-gray-800 truncate">{company.name}</h3>
@@ -267,6 +326,63 @@ export default function CompaniesPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body space-y-4">
+                {/* Logo Upload */}
+                <div>
+                  <label className="modal-label">
+                    Company Logo
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    {formData.logo ? (
+                      <div className="relative">
+                        <img
+                          src={formData.logo}
+                          alt="Company logo"
+                          className="w-20 h-20 object-contain rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <FaImage className="text-gray-400 w-8 h-8" />
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="btn-secondary text-sm flex items-center space-x-2"
+                      >
+                        {uploading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaUpload />
+                            <span>Upload Logo</span>
+                          </>
+                        )}
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1">Max 2MB, PNG/JPG</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="modal-label">
                     Company Name *

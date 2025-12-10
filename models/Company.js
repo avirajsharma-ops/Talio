@@ -19,6 +19,17 @@ const CompanySchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  logo: {
+    type: String,
+    default: ''
+  },
+  address: {
+    street: { type: String, default: '' },
+    city: { type: String, default: '' },
+    state: { type: String, default: '' },
+    country: { type: String, default: '' },
+    zipCode: { type: String, default: '' }
+  },
   isActive: {
     type: Boolean,
     default: true

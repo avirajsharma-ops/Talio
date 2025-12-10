@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Payroll from '@/models/Payroll'
+import Company from '@/models/Company'
 
 // GET - Get single payroll
 export async function GET(request, { params }) {
@@ -8,7 +9,14 @@ export async function GET(request, { params }) {
     await connectDB()
 
     const payroll = await Payroll.findById(params.id)
-      .populate('employee', 'firstName lastName employeeCode')
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName employeeCode company',
+        populate: {
+          path: 'company',
+          select: 'name logo address'
+        }
+      })
 
     if (!payroll) {
       return NextResponse.json(
@@ -140,5 +148,10 @@ export async function DELETE(request, { params }) {
       { status: 500 }
     )
   }
+}
+
+// PATCH - Partial update payroll (alias to PUT)
+export async function PATCH(request, { params }) {
+  return PUT(request, { params })
 }
 

@@ -55,8 +55,9 @@ export async function GET(request) {
     sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1
 
     // Optimized: Use select() to fetch only needed fields and lean() for plain objects
+    // Include salary and statutory fields for payroll calculations
     const employees = await Employee.find(query)
-      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status profilePicture')
+      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status profilePicture salary pfEnrollment esiEnrollment professionalTax healthInsurance basicSalary')
       .populate({
         path: 'department',
         select: 'name _id',
@@ -216,7 +217,7 @@ export async function POST(request) {
     await Employee.findByIdAndUpdate(employee._id, { userId: user._id })
 
     const populatedEmployee = await Employee.findById(employee._id)
-      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status')
+      .select('employeeCode firstName lastName email phone department departments designation designationLevel designationLevelName reportingManager dateOfJoining status salary pfEnrollment esiEnrollment professionalTax healthInsurance basicSalary')
       .populate({
         path: 'department',
         select: 'name',

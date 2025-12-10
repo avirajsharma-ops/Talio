@@ -43,6 +43,34 @@ export default function EditEmployeePage() {
     employmentType: '',
     workLocation: '',
     status: 'active',
+    // Salary fields
+    salary: {
+      ctc: '',
+      grossSalary: '',
+      basic: '',
+      hra: '',
+      conveyance: '',
+      medical: '',
+      special: '',
+      allowances: '',
+      deductions: '',
+      currency: 'INR',
+    },
+    // Statutory fields
+    statutory: {
+      pfEnrolled: false,
+      esiEnrolled: false,
+      pfNumber: '',
+      esiNumber: '',
+      uanNumber: '',
+      panNumber: '',
+    },
+    // Corporate Health Insurance
+    healthInsurance: {
+      enrolled: false,
+      policyNumber: '',
+      provider: '',
+    },
   })
 
   useEffect(() => {
@@ -106,6 +134,34 @@ export default function EditEmployeePage() {
           employmentType: emp.employmentType || '',
           workLocation: emp.workLocation || '',
           status: emp.status || 'active',
+          // Salary fields
+          salary: {
+            ctc: emp.salary?.ctc || '',
+            grossSalary: emp.salary?.grossSalary || '',
+            basic: emp.salary?.basic || '',
+            hra: emp.salary?.hra || '',
+            conveyance: emp.salary?.conveyance || '',
+            medical: emp.salary?.medical || '',
+            special: emp.salary?.special || '',
+            allowances: emp.salary?.allowances || '',
+            deductions: emp.salary?.deductions || '',
+            currency: emp.salary?.currency || 'INR',
+          },
+          // Statutory fields  
+          statutory: {
+            pfEnrolled: emp.statutory?.pfEnrolled || false,
+            esiEnrolled: emp.statutory?.esiEnrolled || false,
+            pfNumber: emp.statutory?.pfNumber || '',
+            esiNumber: emp.statutory?.esiNumber || '',
+            uanNumber: emp.statutory?.uanNumber || '',
+            panNumber: emp.statutory?.panNumber || '',
+          },
+          // Corporate Health Insurance
+          healthInsurance: {
+            enrolled: emp.healthInsurance?.enrolled || false,
+            policyNumber: emp.healthInsurance?.policyNumber || '',
+            provider: emp.healthInsurance?.provider || '',
+          },
         })
       }
     } catch (error) {
@@ -517,6 +573,258 @@ export default function EditEmployeePage() {
                   <option value="terminated">Terminated</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Salary & Statutory Details */}
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Salary & Statutory Details</h2>
+            
+            {/* Salary Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CTC (Cost to Company)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.ctc}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, ctc: e.target.value } })}
+                    placeholder="Annual CTC"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gross Salary (Monthly)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.grossSalary}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, grossSalary: e.target.value } })}
+                    placeholder="Monthly gross salary"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Basic Salary
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.basic}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, basic: e.target.value } })}
+                    placeholder="Basic salary"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  HRA
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.hra}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, hra: e.target.value } })}
+                    placeholder="House rent allowance"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Conveyance
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.conveyance}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, conveyance: e.target.value } })}
+                    placeholder="Conveyance allowance"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Medical Allowance
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.medical}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, medical: e.target.value } })}
+                    placeholder="Medical allowance"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Special Allowance
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                  <input
+                    type="number"
+                    value={formData.salary.special}
+                    onChange={(e) => setFormData({ ...formData, salary: { ...formData.salary, special: e.target.value } })}
+                    placeholder="Special allowance"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Statutory Details */}
+            <h3 className="text-lg font-semibold text-gray-700 mb-3">Statutory Compliance</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+              {/* PF Enrollment */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700">PF Enrolled</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, statutory: { ...formData.statutory, pfEnrolled: !formData.statutory.pfEnrolled } })}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${formData.statutory.pfEnrolled ? 'bg-green-500' : 'bg-red-400'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.statutory.pfEnrolled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {formData.statutory.pfEnrolled && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">PF Number</label>
+                      <input
+                        type="text"
+                        value={formData.statutory.pfNumber}
+                        onChange={(e) => setFormData({ ...formData, statutory: { ...formData.statutory, pfNumber: e.target.value } })}
+                        placeholder="e.g., ABCDE1234567000123"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">UAN Number</label>
+                      <input
+                        type="text"
+                        value={formData.statutory.uanNumber}
+                        onChange={(e) => setFormData({ ...formData, statutory: { ...formData.statutory, uanNumber: e.target.value } })}
+                        placeholder="e.g., 100012345678"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ESI Enrollment */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700">ESI Enrolled</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, statutory: { ...formData.statutory, esiEnrolled: !formData.statutory.esiEnrolled } })}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${formData.statutory.esiEnrolled ? 'bg-green-500' : 'bg-red-400'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.statutory.esiEnrolled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {formData.statutory.esiEnrolled && (
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">ESI Number</label>
+                    <input
+                      type="text"
+                      value={formData.statutory.esiNumber}
+                      onChange={(e) => setFormData({ ...formData, statutory: { ...formData.statutory, esiNumber: e.target.value } })}
+                      placeholder="e.g., 1234567890"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* PAN Number */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  PAN Number
+                </label>
+                <input
+                  type="text"
+                  value={formData.statutory.panNumber}
+                  onChange={(e) => setFormData({ ...formData, statutory: { ...formData.statutory, panNumber: e.target.value.toUpperCase() } })}
+                  placeholder="e.g., ABCDE1234F"
+                  maxLength={10}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Corporate Health Insurance */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  🏥 Corporate Health Insurance
+                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, healthInsurance: { ...formData.healthInsurance, enrolled: !formData.healthInsurance.enrolled } })}
+                    style={{ backgroundColor: formData.healthInsurance.enrolled ? '#22c55e' : '#f87171' }}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                  >
+                    <span 
+                      style={{ transform: formData.healthInsurance.enrolled ? 'translateX(20px)' : 'translateX(0)' }}
+                      className="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" 
+                    />
+                  </button>
+                  <span className="text-sm text-gray-600">{formData.healthInsurance.enrolled ? 'Enrolled' : 'Not Enrolled'}</span>
+                </div>
+              </div>
+              {formData.healthInsurance.enrolled && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Policy Provider</label>
+                    <input
+                      type="text"
+                      value={formData.healthInsurance.provider || ''}
+                      onChange={(e) => setFormData({ ...formData, healthInsurance: { ...formData.healthInsurance, provider: e.target.value } })}
+                      placeholder="e.g., ICICI Lombard, Star Health"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Policy Number</label>
+                    <input
+                      type="text"
+                      value={formData.healthInsurance.policyNumber}
+                      onChange={(e) => setFormData({ ...formData, healthInsurance: { ...formData.healthInsurance, policyNumber: e.target.value } })}
+                      placeholder="Enter policy number"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

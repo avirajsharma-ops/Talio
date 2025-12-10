@@ -6,23 +6,26 @@ import toast from 'react-hot-toast'
 import {
   FaMoneyBillWave, FaArrowLeft, FaCalculator, FaEye, FaDownload,
   FaFilter, FaSync, FaExclamationTriangle, FaCheckCircle, FaClock,
-  FaUserClock, FaCalendarCheck, FaInfoCircle
+  FaUserClock, FaCalendarCheck, FaInfoCircle, FaToggleOn, FaToggleOff
 } from 'react-icons/fa'
 import { formatDepartments } from '@/lib/formatters'
 
 export default function GeneratePayrollPage() {
   const router = useRouter()
   const [employees, setEmployees] = useState([])
+  const [existingPayrollEmployeeIds, setExistingPayrollEmployeeIds] = useState([])
   const [attendanceData, setAttendanceData] = useState({})
   const [companySettings, setCompanySettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [selectedEmployees, setSelectedEmployees] = useState([])
+  const [employeeOvertimeGrace, setEmployeeOvertimeGrace] = useState({}) // Per-employee overtime grace toggle
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     paymentDate: new Date().toISOString().split('T')[0],
+    enableOvertimeGrace: false, // Global HR/Admin toggle for overtime grace
   })
 
   // Format currency in Indian Rupees
@@ -51,8 +54,34 @@ export default function GeneratePayrollPage() {
   useEffect(() => {
     if (employees.length > 0 && companySettings) {
       fetchAttendanceData()
+      fetchExistingPayrolls()
     }
   }, [formData.month, formData.year, employees, companySettings])
+
+  const fetchExistingPayrolls = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(
+        `/api/payroll?month=${formData.month}&year=${formData.year}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      )
+      const data = await response.json()
+      if (data.success && data.data) {
+        // Get employee IDs that already have payroll for this month/year
+        const existingIds = data.data.map(p => p.employee?._id || p.employee).filter(Boolean)
+        setExistingPayrollEmployeeIds(existingIds)
+        // Clear selections for employees that already have payroll
+        setSelectedEmployees(prev => prev.filter(id => !existingIds.includes(id)))
+      }
+    } catch (error) {
+      console.error('Fetch existing payrolls error:', error)
+    }
+  }
+
+  // Filter employees to only show those without existing payroll
+  const availableEmployees = useMemo(() => {
+    return employees.filter(emp => !existingPayrollEmployeeIds.includes(emp._id))
+  }, [employees, existingPayrollEmployeeIds])
 
   const fetchInitialData = async () => {
     try {
@@ -207,15 +236,18 @@ export default function GeneratePayrollPage() {
       totalWorkHours: 0,
     }
 
-    const basicSalary = employee.salary || 50000
+    // Use employee's salary fields if available, otherwise fallback to zero (no demo data)
+    const empSalary = employee.salary || {}
+    const basicSalary = empSalary.basic || employee.basicSalary || 0
     const workingDays = payrollSettings.workingDaysPerMonth || 26
-    const perDaySalary = basicSalary / workingDays
-    const perHourSalary = perDaySalary / (settings.fullDayHours || 8)
+    const perDaySalary = basicSalary > 0 ? basicSalary / workingDays : 0
+    const perHourSalary = perDaySalary > 0 ? perDaySalary / (settings.fullDayHours || 8) : 0
 
-    const hra = basicSalary * 0.4
-    const conveyanceAllowance = 1600
-    const medicalAllowance = 1250
-    const specialAllowance = basicSalary * 0.1
+    // Use employee's allowances if available, otherwise zero (no auto-calculation)
+    const hra = empSalary.hra || 0
+    const conveyanceAllowance = empSalary.conveyance || 0
+    const medicalAllowance = empSalary.medical || 0
+    const specialAllowance = empSalary.special || 0
 
     let overtimeEarnings = 0
     if (payrollSettings.overtime?.enabled && attendance.overtimeHours > 0) {
@@ -226,21 +258,30 @@ export default function GeneratePayrollPage() {
       }
     }
 
-    const grossSalary = basicSalary + hra + conveyanceAllowance + medicalAllowance + specialAllowance
+    // Use employee's gross salary if available, otherwise calculate from components (will be zero if no data)
+    const grossSalary = empSalary.grossSalary || (basicSalary + hra + conveyanceAllowance + medicalAllowance + specialAllowance)
+
+    // Check employee's statutory enrollment status - use correct field paths
+    const pfEnrolled = employee.pfEnrollment?.enrolled ?? true // Default to enrolled if not set
+    const esiEnrolled = employee.esiEnrollment?.enrolled ?? true // Default to enrolled if not set
+    const ptApplicable = employee.professionalTax?.applicable ?? true // Default to applicable
 
     let pf = 0
-    if (payrollSettings.pfEnabled) {
-      pf = basicSalary * (payrollSettings.pfPercentage || 12) / 100
+    // Only calculate PF if both company setting is enabled AND employee is enrolled
+    if (payrollSettings.pfEnabled && pfEnrolled) {
+      const pfPercentage = employee.pfEnrollment?.employeeContribution || payrollSettings.pfPercentage || 12
+      pf = basicSalary * pfPercentage / 100
     }
 
     let esi = 0
-    if (payrollSettings.esiEnabled && grossSalary <= 21000) {
+    // Only calculate ESI if both company setting is enabled AND employee is enrolled AND gross <= 21000
+    if (payrollSettings.esiEnabled && esiEnrolled && grossSalary <= 21000) {
       esi = grossSalary * (payrollSettings.esiPercentage || 0.75) / 100
     }
 
     let professionalTax = 0
-    if (payrollSettings.professionalTax?.enabled) {
-      professionalTax = payrollSettings.professionalTax.amount || 200
+    if (payrollSettings.professionalTax?.enabled && ptApplicable) {
+      professionalTax = employee.professionalTax?.amount || payrollSettings.professionalTax.amount || 200
     }
 
     let tds = 0
@@ -301,7 +342,38 @@ export default function GeneratePayrollPage() {
 
     const attendanceDeductions = lateDeduction + halfDayDeduction + absentDeduction + earlyCheckOutDeduction
     const totalDeductions = pf + esi + professionalTax + tds + attendanceDeductions
-    const netSalary = grossSalary + overtimeEarnings - totalDeductions
+    
+    // Calculate net salary with overtime grace logic
+    let netSalary = grossSalary + overtimeEarnings - totalDeductions
+    
+    // Overtime Grace Logic:
+    // If deductions cause net salary to go negative, and either global or per-employee overtime grace is enabled,
+    // apply grace amount to bring salary up (but cannot exceed gross salary)
+    let overtimeGrace = {
+      enabled: false,
+      appliedAmount: 0,
+      maxGraceAmount: 0,
+      reason: null,
+    }
+    
+    // Check both global toggle AND per-employee toggle
+    const isOvertimeGraceEnabled = formData.enableOvertimeGrace || employeeOvertimeGrace[employee._id]
+    
+    if (isOvertimeGraceEnabled && netSalary < 0) {
+      // Calculate how much grace is needed to bring net salary to 0
+      const shortfall = Math.abs(netSalary)
+      // Max grace amount is limited to what would bring net salary up to gross salary
+      // (i.e., covering all deductions but not exceeding original gross)
+      const maxPossibleGrace = totalDeductions - overtimeEarnings
+      
+      overtimeGrace.enabled = true
+      overtimeGrace.maxGraceAmount = Math.max(0, maxPossibleGrace)
+      overtimeGrace.appliedAmount = Math.min(shortfall, overtimeGrace.maxGraceAmount)
+      overtimeGrace.reason = 'Salary shortfall due to deductions'
+      
+      // Apply the grace to net salary (cannot make net salary exceed gross salary)
+      netSalary = Math.min(grossSalary, netSalary + overtimeGrace.appliedAmount)
+    }
 
     return {
       employee,
@@ -326,6 +398,11 @@ export default function GeneratePayrollPage() {
       attendanceDeductions,
       totalDeductions,
       netSalary,
+      overtimeGrace,
+      workingDays,
+      pfEnrolled,
+      esiEnrolled,
+      ptApplicable,
     }
   }
 
@@ -336,11 +413,11 @@ export default function GeneratePayrollPage() {
       if (!employee) return null
       return calculateEmployeePayroll(employee)
     }).filter(Boolean)
-  }, [selectedEmployees, showPreview, employees, attendanceData, companySettings])
+  }, [selectedEmployees, showPreview, employees, attendanceData, companySettings, formData.enableOvertimeGrace, employeeOvertimeGrace])
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedEmployees(employees.map(emp => emp._id))
+      setSelectedEmployees(availableEmployees.map(emp => emp._id))
     } else {
       setSelectedEmployees([])
     }
@@ -352,6 +429,13 @@ export default function GeneratePayrollPage() {
     } else {
       setSelectedEmployees([...selectedEmployees, empId])
     }
+  }
+
+  const toggleEmployeeOvertimeGrace = (empId) => {
+    setEmployeeOvertimeGrace(prev => ({
+      ...prev,
+      [empId]: !prev[empId]
+    }))
   }
 
   const handlePreviewPayroll = () => {
@@ -374,46 +458,71 @@ export default function GeneratePayrollPage() {
       const token = localStorage.getItem('token')
 
       const promises = calculatedPayrollData.map(async (payroll) => {
+        // Build payroll data matching the Payroll model schema
         const payrollData = {
           employee: payroll.employee._id,
           month: formData.month,
           year: formData.year,
-          basicSalary: payroll.basicSalary,
-          allowances: {
+          // Earnings object - matches Payroll model schema
+          earnings: {
+            basic: payroll.basicSalary,
             hra: payroll.hra,
-            transport: payroll.conveyanceAllowance,
-            medical: payroll.medicalAllowance,
-            special: payroll.specialAllowance,
+            conveyance: payroll.conveyanceAllowance,
+            medicalAllowance: payroll.medicalAllowance,
+            specialAllowance: payroll.specialAllowance,
             overtime: payroll.overtimeEarnings,
+            bonus: 0,
+            incentives: 0,
+            other: 0,
           },
+          // Deductions object - matches Payroll model schema
           deductions: {
             pf: payroll.pf,
             esi: payroll.esi,
             professionalTax: payroll.professionalTax,
-            tax: payroll.tds,
-            late: payroll.lateDeduction,
-            halfDay: payroll.halfDayDeduction,
-            absent: payroll.absentDeduction,
-            earlyCheckout: payroll.earlyCheckOutDeduction,
+            tds: payroll.tds,
+            lateDeduction: payroll.lateDeduction + payroll.halfDayDeduction + payroll.absentDeduction + payroll.earlyCheckOutDeduction,
+            loanRepayment: 0,
+            advance: 0,
+            other: 0,
           },
-          attendanceSummary: {
-            presentDays: payroll.attendance.presentDays,
-            absentDays: payroll.attendance.absentDays,
-            halfDays: payroll.attendance.halfDays,
-            lateDays: payroll.attendance.lateDays,
-            chargeableLates: payroll.attendance.chargeableLates,
-            earlyCheckIns: payroll.attendance.earlyCheckIns,
-            earlyCheckOuts: payroll.attendance.earlyCheckOuts,
-            overtimeHours: payroll.attendance.overtimeHours,
-            overtimeDays: payroll.attendance.overtimeDays,
-            leaveDays: payroll.attendance.leaveDays,
-            totalWorkHours: payroll.attendance.totalWorkHours,
-          },
+          // Required fields
           grossSalary: payroll.grossSalary,
           totalDeductions: payroll.totalDeductions,
           netSalary: payroll.netSalary,
+          workingDays: payroll.workingDays || 26,
+          presentDays: payroll.attendance.presentDays,
+          absentDays: payroll.attendance.absentDays,
+          leaveDays: payroll.attendance.leaveDays,
+          // Attendance details
+          attendanceDetails: {
+            lateDays: payroll.attendance.lateDays,
+            halfDays: payroll.attendance.halfDays,
+            overtimeHours: payroll.attendance.overtimeHours,
+            holidaysWorked: 0,
+          },
+          // Overtime grace tracking
+          overtimeGrace: {
+            enabled: payroll.overtimeGrace?.enabled || false,
+            appliedAmount: payroll.overtimeGrace?.appliedAmount || 0,
+            originalOvertimeEarnings: payroll.overtimeEarnings,
+            cappedOvertimeEarnings: payroll.overtimeEarnings,
+            totalDeductionsBeforeGrace: payroll.totalDeductions,
+            graceReason: payroll.overtimeGrace?.reason || '',
+          },
+          // Salary cap tracking
+          salaryCap: {
+            grossSalary: payroll.grossSalary,
+            netSalaryBeforeCap: payroll.netSalary,
+            cappedToGross: false,
+          },
+          // Pay period
+          payPeriod: {
+            startDate: new Date(formData.year, formData.month - 1, 1),
+            endDate: new Date(formData.year, formData.month, 0),
+          },
           paymentDate: formData.paymentDate,
-          status: 'pending',
+          status: 'draft', // Use valid enum value
         }
 
         return fetch('/api/payroll', {
@@ -448,6 +557,7 @@ export default function GeneratePayrollPage() {
       tds: acc.tds + p.tds,
       overtimeEarnings: acc.overtimeEarnings + p.overtimeEarnings,
       attendanceDeductions: acc.attendanceDeductions + p.attendanceDeductions,
+      overtimeGraceApplied: acc.overtimeGraceApplied + (p.overtimeGrace?.appliedAmount || 0),
     }), {
       grossSalary: 0,
       totalDeductions: 0,
@@ -457,6 +567,7 @@ export default function GeneratePayrollPage() {
       tds: 0,
       overtimeEarnings: 0,
       attendanceDeductions: 0,
+      overtimeGraceApplied: 0,
     })
   }, [calculatedPayrollData])
 
@@ -492,7 +603,7 @@ export default function GeneratePayrollPage() {
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md p-6 mb-6 border border-blue-100">
           <div className="flex items-center mb-4">
             <FaInfoCircle className="text-blue-600 mr-2" />
-            <h2 className="text-lg font-bold text-gray-800">Synced Company Settings</h2>
+            <h2 className="text-lg font-bold text-gray-800">Company Payroll Structure</h2>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
@@ -594,7 +705,7 @@ export default function GeneratePayrollPage() {
       {/* Payroll Period */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Payroll Period</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Month *</label>
             <select
@@ -637,6 +748,23 @@ export default function GeneratePayrollPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Overtime Grace</label>
+            <div className="flex items-center h-[42px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({ ...formData, enableOvertimeGrace: !formData.enableOvertimeGrace })
+                  setShowPreview(false)
+                }}
+                className={'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ' + (formData.enableOvertimeGrace ? 'bg-green-500' : 'bg-red-400')}
+              >
+                <span className={'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ' + (formData.enableOvertimeGrace ? 'translate-x-5' : 'translate-x-0')} />
+              </button>
+              <span className="ml-3 text-sm text-gray-600">{formData.enableOvertimeGrace ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Apply grace if deductions exceed salary</p>
+          </div>
         </div>
       </div>
 
@@ -647,7 +775,12 @@ export default function GeneratePayrollPage() {
             <h2 className="text-xl font-semibold text-gray-800">Select Employees</h2>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                {selectedEmployees.length} of {employees.length} selected
+                {selectedEmployees.length} of {availableEmployees.length} selected
+                {existingPayrollEmployeeIds.length > 0 && (
+                  <span className="text-orange-600 ml-2">
+                    ({existingPayrollEmployeeIds.length} already have payroll)
+                  </span>
+                )}
               </span>
               <button
                 onClick={fetchAttendanceData}
@@ -666,7 +799,7 @@ export default function GeneratePayrollPage() {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedEmployees.length === employees.length && employees.length > 0}
+                      checked={selectedEmployees.length === availableEmployees.length && availableEmployees.length > 0}
                       onChange={handleSelectAll}
                       className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                     />
@@ -674,6 +807,7 @@ export default function GeneratePayrollPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Basic Salary</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-blue-50">OT Grace</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-green-50">Present</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-green-50">Early In</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-yellow-50">Late</th>
@@ -685,51 +819,73 @@ export default function GeneratePayrollPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {employees.map((employee) => {
-                  const attendance = attendanceData[employee._id] || {}
-                  return (
-                    <tr key={employee._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedEmployees.includes(employee._id)}
-                          onChange={() => handleSelectEmployee(employee._id)}
-                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                        />
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{employee.firstName} {employee.lastName}</div>
-                        <div className="text-xs text-gray-500">{employee.employeeCode}</div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDepartments(employee)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-gray-900">{formatCurrency(employee.salary)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-green-50">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{attendance.presentDays || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-green-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.earlyCheckIns > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500')}>{attendance.earlyCheckIns || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-yellow-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.lateDays > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-500')}>{attendance.lateDays || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-orange-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.earlyCheckOuts > 0 ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-500')}>{attendance.earlyCheckOuts || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-purple-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.overtimeHours > 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500')}>{attendance.overtimeHours ? attendance.overtimeHours.toFixed(1) + 'h' : '0'}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-blue-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.halfDays > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500')}>{attendance.halfDays || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-red-50">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.absentDays > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500')}>{attendance.absentDays || 0}</span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center bg-gray-100">
-                        <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.leaveDays > 0 ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-500')}>{attendance.leaveDays || 0}</span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {availableEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                      <FaCheckCircle className="w-12 h-12 mx-auto text-green-300 mb-3" />
+                      <p className="text-lg font-medium">All employees have payroll generated</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Payroll for {new Date(formData.year, formData.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })} has been generated for all active employees.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  availableEmployees.map((employee) => {
+                    const attendance = attendanceData[employee._id] || {}
+                    return (
+                      <tr key={employee._id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedEmployees.includes(employee._id)}
+                            onChange={() => handleSelectEmployee(employee._id)}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{employee.firstName} {employee.lastName}</div>
+                          <div className="text-xs text-gray-500">{employee.employeeCode}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{formatDepartments(employee)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-gray-900">{formatCurrency(employee.salary)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-blue-50">
+                          <button
+                            type="button"
+                            onClick={() => toggleEmployeeOvertimeGrace(employee._id)}
+                            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${employeeOvertimeGrace[employee._id] || formData.enableOvertimeGrace ? 'bg-green-500' : 'bg-gray-300'}`}
+                            title={employeeOvertimeGrace[employee._id] || formData.enableOvertimeGrace ? 'OT Grace Enabled' : 'OT Grace Disabled'}
+                          >
+                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${employeeOvertimeGrace[employee._id] || formData.enableOvertimeGrace ? 'translate-x-4' : 'translate-x-0'}`} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-green-50">
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">{attendance.presentDays || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-green-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.earlyCheckIns > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-500')}>{attendance.earlyCheckIns || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-yellow-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.lateDays > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-500')}>{attendance.lateDays || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-orange-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.earlyCheckOuts > 0 ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-500')}>{attendance.earlyCheckOuts || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-purple-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.overtimeHours > 0 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500')}>{attendance.overtimeHours ? attendance.overtimeHours.toFixed(1) + 'h' : '0'}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-blue-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.halfDays > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500')}>{attendance.halfDays || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-red-50">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.absentDays > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500')}>{attendance.absentDays || 0}</span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center bg-gray-100">
+                          <span className={'px-2 py-1 text-xs font-medium rounded-full ' + (attendance.leaveDays > 0 ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-500')}>{attendance.leaveDays || 0}</span>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -754,7 +910,7 @@ export default function GeneratePayrollPage() {
             <button onClick={() => setShowPreview(false)} className="text-gray-600 hover:text-gray-800 text-sm">← Back to Selection</button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gray-50 border-b">
+          <div className={'grid gap-4 p-4 bg-gray-50 border-b ' + (formData.enableOvertimeGrace && summaryTotals.overtimeGraceApplied > 0 ? 'grid-cols-2 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-5')}>
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-xs text-gray-500 uppercase">Total Gross</p>
               <p className="text-xl font-bold text-gray-800">{formatCurrency(summaryTotals.grossSalary)}</p>
@@ -771,6 +927,12 @@ export default function GeneratePayrollPage() {
               <p className="text-xs text-gray-500 uppercase">Total Deductions</p>
               <p className="text-xl font-bold text-red-600">{formatCurrency(summaryTotals.totalDeductions)}</p>
             </div>
+            {formData.enableOvertimeGrace && summaryTotals.overtimeGraceApplied > 0 && (
+              <div className="bg-white p-4 rounded-lg shadow-sm border-2 border-blue-200">
+                <p className="text-xs text-blue-600 uppercase">Overtime Grace Applied</p>
+                <p className="text-xl font-bold text-blue-600">+{formatCurrency(summaryTotals.overtimeGraceApplied)}</p>
+              </div>
+            )}
             <div className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-xs text-gray-500 uppercase">Net Payable</p>
               <p className="text-xl font-bold text-green-600">{formatCurrency(summaryTotals.netSalary)}</p>
@@ -795,6 +957,9 @@ export default function GeneratePayrollPage() {
                   <th className="px-3 py-3 text-right font-semibold text-gray-700 bg-orange-50">Half-Day</th>
                   <th className="px-3 py-3 text-right font-semibold text-gray-700 bg-red-50">Absent</th>
                   <th className="px-3 py-3 text-right font-semibold text-gray-700 bg-red-100">Total Ded.</th>
+                  {formData.enableOvertimeGrace && (
+                    <th className="px-3 py-3 text-right font-semibold text-gray-700 bg-blue-100">Grace</th>
+                  )}
                   <th className="px-3 py-3 text-right font-semibold text-gray-700 bg-green-100">Net Salary</th>
                 </tr>
               </thead>
@@ -831,6 +996,13 @@ export default function GeneratePayrollPage() {
                       {payroll.absentDeduction > 0 ? <span className="text-red-700 font-medium">{formatCurrency(payroll.absentDeduction)}</span> : <span className="text-gray-400">-</span>}
                     </td>
                     <td className="px-3 py-3 text-right font-semibold text-red-700 bg-red-100">{formatCurrency(payroll.totalDeductions)}</td>
+                    {formData.enableOvertimeGrace && (
+                      <td className="px-3 py-3 text-right bg-blue-100">
+                        {payroll.overtimeGrace?.appliedAmount > 0 
+                          ? <span className="text-blue-700 font-medium">+{formatCurrency(payroll.overtimeGrace.appliedAmount)}</span> 
+                          : <span className="text-gray-400">-</span>}
+                      </td>
+                    )}
                     <td className="px-3 py-3 text-right font-bold text-green-700 bg-green-100">{formatCurrency(payroll.netSalary)}</td>
                   </tr>
                 ))}
@@ -846,6 +1018,9 @@ export default function GeneratePayrollPage() {
                   <td className="px-3 py-3" colSpan={2}></td>
                   <td className="px-3 py-3 text-right font-bold text-orange-700 bg-orange-100" colSpan={3}>{formatCurrency(summaryTotals.attendanceDeductions)}</td>
                   <td className="px-3 py-3 text-right font-bold text-red-700 bg-red-200">{formatCurrency(summaryTotals.totalDeductions)}</td>
+                  {formData.enableOvertimeGrace && (
+                    <td className="px-3 py-3 text-right font-bold text-blue-700 bg-blue-200">{formatCurrency(summaryTotals.overtimeGraceApplied)}</td>
+                  )}
                   <td className="px-3 py-3 text-right font-bold text-green-700 bg-green-200">{formatCurrency(summaryTotals.netSalary)}</td>
                 </tr>
               </tfoot>

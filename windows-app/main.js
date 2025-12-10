@@ -1,10 +1,13 @@
-const { app, BrowserWindow, systemPreferences, ipcMain, screen, Tray, Menu, nativeImage, Notification, desktopCapturer } = require('electron');
+const { app, BrowserWindow, systemPreferences, ipcMain, screen, Tray, Menu, nativeImage, Notification, desktopCapturer, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const axios = require('axios');
 const { io } = require('socket.io-client');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Set app name to Talio (removes Electron branding)
+app.setName('Talio');
 
 // Remove default application menu on Windows
 Menu.setApplicationMenu(null);
@@ -115,7 +118,6 @@ async function checkScreenCapturePermission() {
     
     if (!screenPermissionGranted) {
       // Only open System Preferences once if not granted
-      const { shell } = require('electron');
       shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
     }
     return screenPermissionGranted;
@@ -165,22 +167,59 @@ function createMainWindow() {
   // Inject CSS for Windows custom title bar spacing
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.insertCSS(`
+      /* Windows title bar offset - 40px for the custom title bar */
+      :root {
+        --talio-titlebar-height: 40px;
+      }
+      
       /* Add top padding for Windows title bar overlay */
       body {
-        padding-top: 40px !important;
+        padding-top: var(--talio-titlebar-height) !important;
       }
-      /* Ensure sidebar also has top padding */
+      
+      /* Ensure sidebar also accounts for title bar */
       .sidebar, [class*="sidebar"], nav, aside {
-        padding-top: 40px !important;
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
       }
-      /* Adjust ALL fixed positioned headers */
+      
+      /* Fix fixed positioned sidebar */
+      aside.fixed, nav.fixed, .sidebar.fixed {
+        top: var(--talio-titlebar-height) !important;
+        height: calc(100vh - var(--talio-titlebar-height)) !important;
+      }
+      
+      /* Adjust ALL fixed/sticky positioned elements at top:0 */
       header.fixed, header[class*="fixed"], .fixed-header, [class*="sticky"] {
-        top: 40px !important;
+        top: var(--talio-titlebar-height) !important;
       }
+      
       /* Target Tailwind fixed class specifically */
-      .fixed.top-0 {
-        top: 40px !important;
+      .fixed.top-0, [class*="fixed"][class*="top-0"] {
+        top: var(--talio-titlebar-height) !important;
       }
+      
+      /* Adjust sticky elements */
+      .sticky.top-0, [class*="sticky"][class*="top-0"] {
+        top: var(--talio-titlebar-height) !important;
+      }
+      
+      /* Fix modal/dialog overlays to account for title bar */
+      .fixed.inset-0, [class*="fixed"][class*="inset-0"] {
+        top: 0 !important;
+        padding-top: var(--talio-titlebar-height) !important;
+      }
+      
+      /* Fix dropdown menus and popovers */
+      [role="menu"], [role="listbox"], .dropdown-menu, [class*="dropdown"] {
+        margin-top: 0 !important;
+      }
+      
+      /* Main content area height adjustment */
+      main, .main-content, [class*="main-content"] {
+        min-height: calc(100vh - var(--talio-titlebar-height)) !important;
+      }
+      
       /* Title bar drag region - white Talio branding bar */
       body::before {
         content: 'Talio';
@@ -188,7 +227,7 @@ function createMainWindow() {
         top: 0;
         left: 0;
         right: 0;
-        height: 40px;
+        height: var(--talio-titlebar-height);
         background-color: #ffffff;
         -webkit-app-region: drag;
         z-index: 9998;
@@ -204,6 +243,21 @@ function createMainWindow() {
       }
     `);
     console.log('[Talio] Main window loaded with custom title bar');
+  });
+
+  // Prevent any external popups (blocks Electron website and other external links)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open external links in default browser instead of new Electron window
+    if (url.startsWith('http') && !url.includes('app.talio.in') && !url.includes('talio.in')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    // Allow same-origin popups (for OAuth, etc.) but deny everything else
+    if (!url.startsWith(APP_URL)) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
   });
 
   // Show window when ready
@@ -297,9 +351,11 @@ function createMayaBlobWindow() {
     resizable: false,
     movable: true,
     skipTaskbar: true,
-    hasShadow: true,
+    hasShadow: false, // Disable shadow to prevent square background
     roundedCorners: true,
     focusable: true,
+    // Windows-specific: ensure true transparency
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -308,8 +364,28 @@ function createMayaBlobWindow() {
     show: false
   });
 
-  // Load Maya blob HTML
-  mayaBlobWindow.loadFile(path.join(__dirname, 'maya-blob.html'));
+  // Load Maya blob HTML from server for easy updates
+  mayaBlobWindow.loadURL(`${APP_URL}/maya/blob.html`);
+  
+  // Enable click-through for transparent areas on Windows
+  mayaBlobWindow.setIgnoreMouseEvents(false);
+  
+  // Forward mouse events to allow clicking through transparent areas
+  mayaBlobWindow.webContents.on('did-finish-load', () => {
+    // Set up mouse event forwarding for transparent click-through
+    mayaBlobWindow.webContents.executeJavaScript(`
+      document.addEventListener('mousemove', (e) => {
+        // Check if mouse is over the blob canvas area
+        const card = document.getElementById('mayaBlobCard');
+        if (card) {
+          const rect = card.getBoundingClientRect();
+          const isOverBlob = e.clientX >= rect.left && e.clientX <= rect.right && 
+                            e.clientY >= rect.top && e.clientY <= rect.bottom;
+          window.isOverBlob = isOverBlob;
+        }
+      });
+    `).catch(() => {});
+  });
 
   mayaBlobWindow.once('ready-to-show', () => {
     console.log('[Maya] Blob window ready, showing');
@@ -487,8 +563,8 @@ function createMayaWidgetWindow() {
     show: false
   });
 
-  // Load native Maya widget HTML
-  mayaWidgetWindow.loadFile(path.join(__dirname, 'maya-widget.html'));
+  // Load native Maya widget HTML from server for easy updates
+  mayaWidgetWindow.loadURL(`${APP_URL}/maya/widget.html`);
 
   mayaWidgetWindow.once('ready-to-show', () => {
     console.log('[Maya] Widget window ready, showing');
@@ -1620,6 +1696,15 @@ function setupIPC() {
   // Check screen permission (always true on Windows)
   ipcMain.handle('maya-check-screen-permission', () => {
     return true; // Windows doesn't require explicit permission
+  });
+
+  // Sync speaking state between widget and blob
+  ipcMain.handle('maya-set-speaking', (event, speaking) => {
+    if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+      mayaBlobWindow.webContents.executeJavaScript(`
+        if (window.setSpeaking) window.setSpeaking(${speaking});
+      `).catch(() => {});
+    }
   });
 
   ipcMain.handle('maya-notification', (event, { title, body }) => {
