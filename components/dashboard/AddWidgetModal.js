@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { FaTimes, FaPlus, FaCheck, FaSearch } from 'react-icons/fa'
 import { getCategorizedWidgets, getCategoryDisplayName, WIDGET_CATEGORIES } from '@/lib/widgetRegistry'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function AddWidgetModal({
   isOpen,
@@ -55,24 +56,23 @@ export default function AddWidgetModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9100] p-4">
-      <div
-        className="w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-        style={{ backgroundColor: 'var(--color-bg-card)' }}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600">
-          <div>
-            <h2 className="text-xl font-bold text-white">Add Widget</h2>
-            <p className="text-primary-100 text-sm mt-0.5">Customize your dashboard with widgets</p>
+    <ModalPortal isOpen={isOpen}>
+      <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="modal-backdrop" />
+        <div className="modal-container modal-3xl">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary-500 to-primary-600">
+            <div>
+              <h2 className="text-xl font-bold text-white">Add Widget</h2>
+              <p className="text-primary-100 text-sm mt-0.5">Customize your dashboard with widgets</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <FaTimes className="w-5 h-5 text-white" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <FaTimes className="w-5 h-5 text-white" />
-          </button>
-        </div>
 
         {/* Search and Filter */}
         <div className="px-6 py-4 border-b border-gray-100 space-y-3">
@@ -84,7 +84,7 @@ export default function AddWidgetModal({
               placeholder="Search widgets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+              className="modal-input pl-10"
             />
           </div>
 
@@ -187,18 +187,19 @@ export default function AddWidgetModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+        <div className="modal-footer justify-between">
           <p className="text-sm text-gray-500">
             {enabledWidgets.length} widget{enabledWidgets.length !== 1 ? 's' : ''} on your dashboard
           </p>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium text-sm"
+            className="modal-btn modal-btn-primary"
           >
             Done
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </ModalPortal>
   )
 }

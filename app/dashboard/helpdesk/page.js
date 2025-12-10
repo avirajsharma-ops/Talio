@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa'
+import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle, FaTimes } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function HelpdeskPage() {
   const [tickets, setTickets] = useState([])
@@ -201,28 +202,34 @@ export default function HelpdeskPage() {
       </div>
 
       {/* Create Ticket Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9100]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Create Ticket</h2>
+      <ModalPortal isOpen={showModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h2 className="modal-title">Create Ticket</h2>
+              <button onClick={() => setShowModal(false)} className="modal-close-btn">
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
             <form>
-              <div className="space-y-4">
+              <div className="modal-body space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Subject
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-input"
                     placeholder="Brief description of the issue"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Category
                   </label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                  <select className="modal-select">
                     <option value="">Select Category</option>
                     <option value="technical">Technical</option>
                     <option value="hr">HR</option>
@@ -232,10 +239,10 @@ export default function HelpdeskPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Priority
                   </label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                  <select className="modal-select">
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -243,33 +250,33 @@ export default function HelpdeskPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Description
                   </label>
                   <textarea
                     rows="4"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-textarea"
                     placeholder="Detailed description of the issue"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg transition-colors"
+                  className="modal-btn modal-btn-secondary"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="submit" className="modal-btn modal-btn-primary">
                   Create Ticket
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   )
 }

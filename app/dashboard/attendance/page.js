@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
 import { FaClock, FaSignInAlt, FaSignOutAlt, FaCalendarAlt, FaEdit, FaCheck, FaTimes, FaExclamationCircle, FaPlus, FaChevronLeft, FaChevronRight, FaList, FaTh } from 'react-icons/fa'
 import OvertimePrompt, { useOvertimeCheck } from '@/components/OvertimePrompt'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function AttendancePage() {
   const [loading, setLoading] = useState(false)
@@ -1158,194 +1159,211 @@ export default function AttendancePage() {
       </div>
 
       {/* Correction Request Modal */}
-      {showCorrectionModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Request Attendance Correction</h3>
-            
-            {/* Display the date from selectedRecord - not editable */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="text-sm font-medium text-blue-800">
-                <FaCalendarAlt className="inline mr-2" />
-                Date: {formatDate(selectedRecord.date)}
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Current: {formatTime(selectedRecord.checkIn)} - {formatTime(selectedRecord.checkOut)} ({selectedRecord.status})
-              </p>
+      <ModalPortal isOpen={showCorrectionModal && selectedRecord}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && (setShowCorrectionModal(false), setSelectedRecord(null), setSelectedDayForEdit(null))}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h3 className="modal-title">Request Attendance Correction</h3>
+              <button onClick={() => { setShowCorrectionModal(false); setSelectedRecord(null); setSelectedDayForEdit(null); }} className="modal-close-btn">
+                <FaTimes />
+              </button>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Correction Type</label>
-                <select
-                  value={correctionForm.correctionType}
-                  onChange={(e) => setCorrectionForm({ ...correctionForm, correctionType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="check-in">Check-In Time</option>
-                  <option value="check-out">Check-Out Time</option>
-                  <option value="both">Both Times</option>
-                  <option value="status">Status Only</option>
-                </select>
+            <div className="modal-body">
+              {/* Display the date from selectedRecord - not editable */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-blue-800">
+                  <FaCalendarAlt className="inline mr-2" />
+                  Date: {selectedRecord && formatDate(selectedRecord.date)}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Current: {selectedRecord && formatTime(selectedRecord.checkIn)} - {selectedRecord && formatTime(selectedRecord.checkOut)} ({selectedRecord?.status})
+                </p>
               </div>
-
-              {['check-in', 'both'].includes(correctionForm.correctionType) && (
+              
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Correct Check-In Time</label>
-                  <input
-                    type="time"
-                    value={correctionForm.requestedCheckIn}
-                    onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckIn: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-
-              {['check-out', 'both'].includes(correctionForm.correctionType) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Correct Check-Out Time</label>
-                  <input
-                    type="time"
-                    value={correctionForm.requestedCheckOut}
-                    onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckOut: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-
-              {correctionForm.correctionType === 'status' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Requested Status</label>
+                  <label className="modal-label">Correction Type</label>
                   <select
-                    value={correctionForm.requestedStatus}
-                    onChange={(e) => setCorrectionForm({ ...correctionForm, requestedStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={correctionForm.correctionType}
+                    onChange={(e) => setCorrectionForm({ ...correctionForm, correctionType: e.target.value })}
+                    className="modal-select"
                   >
-                    <option value="present">Present</option>
-                    <option value="half-day">Half Day</option>
-                    <option value="on-leave">On Leave</option>
+                    <option value="check-in">Check-In Time</option>
+                    <option value="check-out">Check-Out Time</option>
+                    <option value="both">Both Times</option>
+                    <option value="status">Status Only</option>
                   </select>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Correction *</label>
-                <textarea
-                  value={correctionForm.reason}
-                  onChange={(e) => setCorrectionForm({ ...correctionForm, reason: e.target.value })}
-                  placeholder="Please explain why this correction is needed..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
+                {['check-in', 'both'].includes(correctionForm.correctionType) && (
+                  <div>
+                    <label className="modal-label">Correct Check-In Time</label>
+                    <input
+                      type="time"
+                      value={correctionForm.requestedCheckIn}
+                      onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckIn: e.target.value })}
+                      className="modal-input"
+                    />
+                  </div>
+                )}
+
+                {['check-out', 'both'].includes(correctionForm.correctionType) && (
+                  <div>
+                    <label className="modal-label">Correct Check-Out Time</label>
+                    <input
+                      type="time"
+                      value={correctionForm.requestedCheckOut}
+                      onChange={(e) => setCorrectionForm({ ...correctionForm, requestedCheckOut: e.target.value })}
+                      className="modal-input"
+                    />
+                  </div>
+                )}
+
+                {correctionForm.correctionType === 'status' && (
+                  <div>
+                    <label className="modal-label">Requested Status</label>
+                    <select
+                      value={correctionForm.requestedStatus}
+                      onChange={(e) => setCorrectionForm({ ...correctionForm, requestedStatus: e.target.value })}
+                      className="modal-select"
+                    >
+                      <option value="present">Present</option>
+                      <option value="half-day">Half Day</option>
+                      <option value="on-leave">On Leave</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="modal-label">Reason for Correction *</label>
+                  <textarea
+                    value={correctionForm.reason}
+                    onChange={(e) => setCorrectionForm({ ...correctionForm, reason: e.target.value })}
+                    placeholder="Please explain why this correction is needed..."
+                    rows={3}
+                    className="modal-textarea"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="modal-footer">
               <button
                 onClick={() => {
                   setShowCorrectionModal(false)
                   setSelectedRecord(null)
                   setSelectedDayForEdit(null)
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="modal-btn modal-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCorrectionRequest}
                 disabled={submittingCorrection || !correctionForm.reason}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                className="modal-btn modal-btn-primary"
               >
                 {submittingCorrection ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* Missing Entry Modal */}
-      {showMissingEntryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Report Missing Entry</h3>
-            <p className="text-sm text-gray-600 mb-4">Submit a request to add attendance for a day you forgot to clock in/out.</p>
-            
-            <div className="space-y-4">
-              {/* Show date as read-only info box when selected from calendar */}
-              {selectedDayForMissingEntry ? (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-orange-800">
-                    <FaCalendarAlt className="inline mr-2" />
-                    Date: {formatDate(selectedDayForMissingEntry)}
-                  </p>
-                </div>
-              ) : (
+      {/* Missing Entry Modal */}
+      <ModalPortal isOpen={showMissingEntryModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && (setShowMissingEntryModal(false), setSelectedDayForMissingEntry(null), setMissingEntryForm({ date: '', checkIn: '', checkOut: '', reason: '' }))}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h3 className="modal-title">Report Missing Entry</h3>
+              <button onClick={() => { setShowMissingEntryModal(false); setSelectedDayForMissingEntry(null); setMissingEntryForm({ date: '', checkIn: '', checkOut: '', reason: '' }); }} className="modal-close-btn">
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="text-sm text-gray-600 mb-4">Submit a request to add attendance for a day you forgot to clock in/out.</p>
+              
+              <div className="space-y-4">
+                {/* Show date as read-only info box when selected from calendar */}
+                {selectedDayForMissingEntry ? (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <p className="text-sm font-medium text-orange-800">
+                      <FaCalendarAlt className="inline mr-2" />
+                      Date: {formatDate(selectedDayForMissingEntry)}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="modal-label">Date *</label>
+                    <input
+                      type="date"
+                      value={missingEntryForm.date}
+                      onChange={(e) => setMissingEntryForm({ ...missingEntryForm, date: e.target.value })}
+                      max={formatDateLocal(new Date())}
+                      className="modal-input"
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                  <label className="modal-label">Check-In Time</label>
                   <input
-                    type="date"
-                    value={missingEntryForm.date}
-                    onChange={(e) => setMissingEntryForm({ ...missingEntryForm, date: e.target.value })}
-                    max={formatDateLocal(new Date())}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    type="time"
+                    value={missingEntryForm.checkIn}
+                    onChange={(e) => setMissingEntryForm({ ...missingEntryForm, checkIn: e.target.value })}
+                    className="modal-input"
                   />
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Check-In Time</label>
-                <input
-                  type="time"
-                  value={missingEntryForm.checkIn}
-                  onChange={(e) => setMissingEntryForm({ ...missingEntryForm, checkIn: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <div>
+                  <label className="modal-label">Check-Out Time</label>
+                  <input
+                    type="time"
+                    value={missingEntryForm.checkOut}
+                    onChange={(e) => setMissingEntryForm({ ...missingEntryForm, checkOut: e.target.value })}
+                    className="modal-input"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Check-Out Time</label>
-                <input
-                  type="time"
-                  value={missingEntryForm.checkOut}
-                  onChange={(e) => setMissingEntryForm({ ...missingEntryForm, checkOut: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
-                <textarea
-                  value={missingEntryForm.reason}
-                  onChange={(e) => setMissingEntryForm({ ...missingEntryForm, reason: e.target.value })}
-                  placeholder="Why did you miss clocking in/out?"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
+                <div>
+                  <label className="modal-label">Reason *</label>
+                  <textarea
+                    value={missingEntryForm.reason}
+                    onChange={(e) => setMissingEntryForm({ ...missingEntryForm, reason: e.target.value })}
+                    placeholder="Why did you miss clocking in/out?"
+                    rows={3}
+                    className="modal-textarea"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="modal-footer">
               <button
                 onClick={() => {
                   setShowMissingEntryModal(false)
                   setSelectedDayForMissingEntry(null)
                   setMissingEntryForm({ date: '', checkIn: '', checkOut: '', reason: '' })
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="modal-btn modal-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleMissingEntryRequest}
                 disabled={submittingCorrection || (!selectedDayForMissingEntry && !missingEntryForm.date) || !missingEntryForm.reason}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                className="modal-btn modal-btn-primary"
+                style={{ backgroundColor: '#f97316' }}
               >
                 {submittingCorrection ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* Overtime Prompt Modal */}
       {showOvertimePrompt && (

@@ -9,6 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useChatWidget } from '@/contexts/ChatWidgetContext'
 import UnreadBadge from '@/components/UnreadBadge'
 import { playNotificationSound } from '@/utils/audio'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function ChatPage() {
   const router = useRouter()
@@ -1095,145 +1096,153 @@ export default function ChatPage() {
       </div>
 
       {/* New Chat Modal */}
-      {showNewChatModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto scrollbar-hide">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">New Chat</h2>
-              <button onClick={() => setShowNewChatModal(false)} className="text-gray-500 hover:text-gray-700">
+      <ModalPortal isOpen={showNewChatModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowNewChatModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h2 className="modal-title">New Chat</h2>
+              <button onClick={() => setShowNewChatModal(false)} className="modal-close-btn">
                 <FaTimes />
               </button>
             </div>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={employeeSearchQuery}
-                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                placeholder="Search employees..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-hide">
-              {filteredEmployees.length === 0 ? (
-                <div className="text-center text-gray-500 py-8 text-sm">
-                  {employeeSearchQuery ? 'No employees found' : 'No employees available'}
-                </div>
-              ) : (
-                <>
-                  {filteredEmployees.map((emp) => (
-                    <div
-                      key={emp._id}
-                      onClick={() => handleCreateChat(emp._id)}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
-                        {emp.profilePicture ? (
-                          <img src={emp.profilePicture} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-white font-bold">{emp.firstName[0]}</span>
-                        )}
+            <div className="modal-body">
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={employeeSearchQuery}
+                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                  placeholder="Search employees..."
+                  className="modal-input"
+                />
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-hide">
+                {filteredEmployees.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8 text-sm">
+                    {employeeSearchQuery ? 'No employees found' : 'No employees available'}
+                  </div>
+                ) : (
+                  <>
+                    {filteredEmployees.map((emp) => (
+                      <div
+                        key={emp._id}
+                        onClick={() => handleCreateChat(emp._id)}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
+                          {emp.profilePicture ? (
+                            <img src={emp.profilePicture} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold">{emp.firstName[0]}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-xs text-gray-500">{emp.designation?.title || 'Employee'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm">{emp.firstName} {emp.lastName}</p>
-                        <p className="text-xs text-gray-500">{emp.designation?.title || 'Employee'}</p>
+                    ))}
+                    {!employeeSearchQuery && employees.length > 10 && (
+                      <div className="text-center text-xs text-gray-500 py-2 border-t">
+                        Showing 10 of {employees.length} employees. Use search to find more.
                       </div>
-                    </div>
-                  ))}
-                  {!employeeSearchQuery && employees.length > 10 && (
-                    <div className="text-center text-xs text-gray-500 py-2 border-t">
-                      Showing 10 of {employees.length} employees. Use search to find more.
-                    </div>
-                  )}
-                </>
-              )}
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* New Group Modal */}
-      {showGroupModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto scrollbar-hide">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">New Group</h2>
-              <button onClick={() => setShowGroupModal(false)} className="text-gray-500 hover:text-gray-700">
+      <ModalPortal isOpen={showGroupModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowGroupModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h2 className="modal-title">New Group</h2>
+              <button onClick={() => setShowGroupModal(false)} className="modal-close-btn">
                 <FaTimes />
               </button>
             </div>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Group name..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm mb-3"
-              />
-              <input
-                type="text"
-                value={employeeSearchQuery}
-                onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                placeholder="Search employees..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-            <div className="space-y-2 mb-4 max-h-96 overflow-y-auto scrollbar-hide">
-              {filteredEmployees.length === 0 ? (
-                <div className="text-center text-gray-500 py-8 text-sm">
-                  {employeeSearchQuery ? 'No employees found' : 'No employees available'}
-                </div>
-              ) : (
-                <>
-                  {filteredEmployees.map((emp) => (
-                    <div
-                      key={emp._id}
-                      onClick={() => {
-                        if (selectedEmployees.includes(emp._id)) {
-                          setSelectedEmployees(selectedEmployees.filter(id => id !== emp._id))
-                        } else {
-                          setSelectedEmployees([...selectedEmployees, emp._id])
-                        }
-                      }}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer ${
-                        selectedEmployees.includes(emp._id) ? 'bg-blue-50 border-2 border-blue-500' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
-                        {emp.profilePicture ? (
-                          <img src={emp.profilePicture} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-white font-bold">{emp.firstName[0]}</span>
+            <div className="modal-body">
+              <div className="space-y-3 mb-4">
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Group name..."
+                  className="modal-input"
+                />
+                <input
+                  type="text"
+                  value={employeeSearchQuery}
+                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                  placeholder="Search employees..."
+                  className="modal-input"
+                />
+              </div>
+              <div className="space-y-2 mb-4 max-h-96 overflow-y-auto scrollbar-hide">
+                {filteredEmployees.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8 text-sm">
+                    {employeeSearchQuery ? 'No employees found' : 'No employees available'}
+                  </div>
+                ) : (
+                  <>
+                    {filteredEmployees.map((emp) => (
+                      <div
+                        key={emp._id}
+                        onClick={() => {
+                          if (selectedEmployees.includes(emp._id)) {
+                            setSelectedEmployees(selectedEmployees.filter(id => id !== emp._id))
+                          } else {
+                            setSelectedEmployees([...selectedEmployees, emp._id])
+                          }
+                        }}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer ${
+                          selectedEmployees.includes(emp._id) ? 'bg-blue-50 border-2 border-blue-500' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
+                          {emp.profilePicture ? (
+                            <img src={emp.profilePicture} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold">{emp.firstName[0]}</span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 text-sm">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-xs text-gray-500">{emp.designation?.title || 'Employee'}</p>
+                        </div>
+                        {selectedEmployees.includes(emp._id) && (
+                          <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+                            <FaTimes className="text-white text-xs" />
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 text-sm">{emp.firstName} {emp.lastName}</p>
-                        <p className="text-xs text-gray-500">{emp.designation?.title || 'Employee'}</p>
+                    ))}
+                    {!employeeSearchQuery && employees.length > 10 && (
+                      <div className="text-center text-xs text-gray-500 py-2 border-t">
+                        Showing 10 of {employees.length} employees. Use search to find more.
                       </div>
-                      {selectedEmployees.includes(emp._id) && (
-                        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                          <FaTimes className="text-white text-xs" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {!employeeSearchQuery && employees.length > 10 && (
-                    <div className="text-center text-xs text-gray-500 py-2 border-t">
-                      Showing 10 of {employees.length} employees. Use search to find more.
-                    </div>
-                  )}
-                </>
-              )}
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-            <button
-              onClick={handleCreateGroup}
-              disabled={!groupName.trim() || selectedEmployees.length === 0}
-              className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 text-sm font-semibold"
-            >
-              Create Group ({selectedEmployees.length} members)
-            </button>
+            <div className="modal-footer">
+              <button
+                onClick={handleCreateGroup}
+                disabled={!groupName.trim() || selectedEmployees.length === 0}
+                className="modal-btn modal-btn-success w-full"
+              >
+                Create Group ({selectedEmployees.length} members)
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* Lightbox for images */}
       {lightboxImage && (

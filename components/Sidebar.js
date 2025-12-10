@@ -17,6 +17,8 @@ import { useUnreadMessages } from '@/contexts/UnreadMessagesContext'
 import { useChatWidget } from '@/contexts/ChatWidgetContext'
 import UnreadBadge from './UnreadBadge'
 
+import ModalPortal from '@/components/ui/ModalPortal'
+
 export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -463,51 +465,40 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
       </aside>
 
       {/* Logout Confirmation Popup */}
-      {showLogoutConfirm && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-[9999] animate-fade-in"
-            onClick={() => setShowLogoutConfirm(false)}
-            style={{
-              animation: 'fadeInBackdrop 0.2s ease-out forwards'
-            }}
-          />
+      <ModalPortal isOpen={showLogoutConfirm}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowLogoutConfirm(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-sm">
+            {/* Header */}
+            <div className="px-6 py-4 bg-red-500 text-white">
+              <h3 className="text-lg font-semibold">Confirm Logout</h3>
+            </div>
 
-          {/* Confirmation Modal */}
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[10000] w-[90%] max-w-sm">
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-              {/* Header */}
-              <div className="px-6 py-4 bg-red-500 text-white">
-                <h3 className="text-lg font-semibold">Confirm Logout</h3>
-              </div>
+            {/* Content */}
+            <div className="modal-body text-center">
+              <p className="text-gray-700">
+                Are you sure you want to logout?
+              </p>
+            </div>
 
-              {/* Content */}
-              <div className="px-6 py-6">
-                <p className="text-gray-700 text-center">
-                  Are you sure you want to logout?
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="px-6 py-4 bg-gray-50 flex gap-3">
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
-                >
-                  Logout
-                </button>
-              </div>
+            {/* Actions */}
+            <div className="modal-footer">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="modal-btn modal-btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="modal-btn modal-btn-danger flex-1"
+              >
+                Logout
+              </button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </ModalPortal>
     </>
   )
 }

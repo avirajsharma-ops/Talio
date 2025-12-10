@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaFile, FaDownload, FaEye, FaTrash } from 'react-icons/fa'
+import { FaPlus, FaFile, FaDownload, FaEye, FaTrash, FaTimes } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([])
@@ -191,28 +192,34 @@ export default function DocumentsPage() {
       </div>
 
       {/* Upload Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9100]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Upload Document</h2>
+      <ModalPortal isOpen={showModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h2 className="modal-title">Upload Document</h2>
+              <button onClick={() => setShowModal(false)} className="modal-close-btn">
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
             <form>
-              <div className="space-y-4">
+              <div className="modal-body space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Document Name
                   </label>
                   <input
                     type="text"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-input"
                     placeholder="Enter document name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Category
                   </label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                  <select className="modal-select">
                     <option value="">Select Category</option>
                     <option value="personal">Personal</option>
                     <option value="employment">Employment</option>
@@ -222,32 +229,32 @@ export default function DocumentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     File
                   </label>
                   <input
                     type="file"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-input"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-4 mt-6">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn-secondary"
+                  className="modal-btn modal-btn-secondary"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="modal-btn modal-btn-primary">
                   Upload
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   )
 }

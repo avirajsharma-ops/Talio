@@ -9,7 +9,7 @@ export default function Modal({
   onClose, 
   title, 
   children, 
-  size = 'md', // sm, md, lg, xl, 2xl, full
+  size = 'md', // sm, md, lg, xl, 2xl, 3xl, 4xl, 5xl, full
   showCloseButton = true,
   className = ''
 }) {
@@ -43,45 +43,37 @@ export default function Modal({
 
   if (!isOpen) return null
 
-  const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-    '2xl': 'max-w-2xl',
-    '3xl': 'max-w-3xl',
-    '4xl': 'max-w-4xl',
-    full: 'max-w-[95vw]'
-  }
+  // Map size prop to modal-* class
+  const sizeClass = `modal-${size}`
 
   const modalContent = (
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="modal-overlay"
       onClick={handleBackdropClick}
     >
       {/* Backdrop with blur */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="modal-backdrop" />
       
       {/* Modal */}
       <div 
         ref={modalRef}
-        className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size] || sizeClasses.md} max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter ${className}`}
+        className={`modal-container ${sizeClass} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 bg-gray-50">
+          <div className="modal-header">
             {title && (
-              <h3 id="modal-title" className="text-xl font-bold text-gray-900">
+              <h3 id="modal-title" className="modal-title">
                 {title}
               </h3>
             )}
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500 hover:text-gray-700 ml-auto"
+                className="modal-close-btn"
                 aria-label="Close modal"
               >
                 <FaTimes className="w-5 h-5" />
@@ -91,7 +83,7 @@ export default function Modal({
         )}
         
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="modal-body">
           {children}
         </div>
       </div>
@@ -109,7 +101,7 @@ export default function Modal({
 // Pre-styled modal sections for consistency
 export function ModalBody({ children, className = '' }) {
   return (
-    <div className={`px-6 py-5 ${className}`}>
+    <div className={`modal-body ${className}`}>
       {children}
     </div>
   )
@@ -117,7 +109,7 @@ export function ModalBody({ children, className = '' }) {
 
 export function ModalFooter({ children, className = '' }) {
   return (
-    <div className={`px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 ${className}`}>
+    <div className={`modal-footer ${className}`}>
       {children}
     </div>
   )

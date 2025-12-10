@@ -47,6 +47,10 @@ const EmployeeSchema = new mongoose.Schema({
     relationship: String,
     phone: String,
   },
+  bloodGroup: {
+    type: String,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''],
+  },
   // Support multiple departments - employee can work in multiple departments
   departments: [{
     type: mongoose.Schema.Types.ObjectId,

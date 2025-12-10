@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { FaPlus, FaEdit, FaTrash, FaBuilding, FaTimes } from 'react-icons/fa'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([])
@@ -249,24 +250,25 @@ export default function CompaniesPage() {
       </div>
 
       {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9100]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">
+      <ModalPortal isOpen={showModal}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && handleCloseModal()}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-md">
+            <div className="modal-header">
+              <h2 className="modal-title">
                 {editingCompany ? 'Edit Company' : 'Add Company'}
               </h2>
               <button
                 onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="modal-close-btn"
               >
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
+              <div className="modal-body space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Company Name *
                   </label>
                   <input
@@ -274,13 +276,13 @@ export default function CompaniesPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-input"
                     placeholder="e.g., Acme Corporation"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Company Code *
                   </label>
                   <input
@@ -288,38 +290,38 @@ export default function CompaniesPage() {
                     required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase"
+                    className="modal-input uppercase"
                     placeholder="e.g., ACME"
                   />
                   <p className="text-xs text-gray-500 mt-1">A unique identifier for the company</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="modal-label">
                     Description
                   </label>
                   <textarea
                     rows="3"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="modal-textarea"
                     placeholder="Brief description of the company"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="modal-btn modal-btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="modal-btn modal-btn-primary"
                 >
                   {submitting ? 'Saving...' : editingCompany ? 'Update Company' : 'Create Company'}
                 </button>
@@ -327,7 +329,7 @@ export default function CompaniesPage() {
             </form>
           </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   )
 }

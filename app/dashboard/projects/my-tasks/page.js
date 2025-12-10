@@ -714,18 +714,19 @@ export default function MyTasksPage() {
       {/* Reject Modal */}
       {showRejectModal && selectedTask && (
       <Portal>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Reject Assignment</h3>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && (setShowRejectModal(false), setSelectedTask(null), setRejectRemark(''))}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-lg">
+            <div className="modal-header">
+              <h3 className="modal-title">Reject Assignment</h3>
               <button
                 onClick={() => { setShowRejectModal(false); setSelectedTask(null); setRejectRemark('') }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="modal-close-btn"
               >
                 <FaTimes />
               </button>
             </div>
-            <div className="p-4">
+            <div className="modal-body">
               <p className="text-gray-600 mb-4">
                 Please provide a reason for rejecting this task assignment.
               </p>
@@ -734,20 +735,20 @@ export default function MyTasksPage() {
                 onChange={(e) => setRejectRemark(e.target.value)}
                 placeholder="Reason for rejection..."
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                className="modal-textarea"
               />
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+            <div className="modal-footer">
               <button
                 onClick={() => { setShowRejectModal(false); setSelectedTask(null); setRejectRemark('') }}
-                className="btn-secondary"
+                className="modal-btn modal-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleRespondToAssignment(selectedTask, 'reject')}
                 disabled={respondingTo === selectedTask._id}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="modal-btn modal-btn-danger"
               >
                 {respondingTo === selectedTask._id ? 'Rejecting...' : 'Reject'}
               </button>
@@ -760,18 +761,19 @@ export default function MyTasksPage() {
       {/* ETA Modal */}
       {showEtaModal && taskForEta && (
       <Portal>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter">
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Set Estimated Time</h3>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && (setShowEtaModal(false), setTaskForEta(null), setEta({ days: '', hours: '' }), setSubtaskEtas({}))}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-2xl">
+            <div className="modal-header">
+              <h3 className="modal-title">Set Estimated Time</h3>
               <button
                 onClick={() => { setShowEtaModal(false); setTaskForEta(null); setEta({ days: '', hours: '' }); setSubtaskEtas({}) }}
-                className="text-gray-400 hover:text-gray-600"
+                className="modal-close-btn"
               >
                 <FaTimes />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="modal-body">
               <div className="mb-4">
                 <p className="font-medium text-gray-800 mb-1">{taskForEta.title}</p>
                 {taskForEta.description && (
@@ -801,7 +803,7 @@ export default function MyTasksPage() {
                                 [st._id]: { ...prev[st._id], days: e.target.value }
                               }))}
                               placeholder="0"
-                              className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                              className="modal-input w-16"
                             />
                             <span className="text-xs text-gray-500">days</span>
                           </div>
@@ -816,7 +818,7 @@ export default function MyTasksPage() {
                                 [st._id]: { ...prev[st._id], hours: e.target.value }
                               }))}
                               placeholder="0"
-                              className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                              className="modal-input w-16"
                             />
                             <span className="text-xs text-gray-500">hours</span>
                           </div>
@@ -846,7 +848,7 @@ export default function MyTasksPage() {
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="modal-label">
                         Days
                       </label>
                       <input
@@ -856,11 +858,11 @@ export default function MyTasksPage() {
                         value={eta.days}
                         onChange={(e) => setEta({ ...eta, days: e.target.value })}
                         placeholder="0"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="modal-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="modal-label">
                         Hours
                       </label>
                       <input
@@ -871,7 +873,7 @@ export default function MyTasksPage() {
                         value={eta.hours}
                         onChange={(e) => setEta({ ...eta, hours: e.target.value })}
                         placeholder="0"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="modal-input"
                       />
                     </div>
                   </div>
@@ -881,11 +883,11 @@ export default function MyTasksPage() {
                 </>
               )}
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end">
+            <div className="modal-footer">
               <button
                 onClick={handleAcceptWithEta}
                 disabled={respondingTo === taskForEta._id}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                className="modal-btn modal-btn-success"
               >
                 {respondingTo === taskForEta._id ? (
                   <><FaSpinner className="animate-spin" /> Accepting...</>
@@ -902,18 +904,19 @@ export default function MyTasksPage() {
       {/* Delete Task Confirmation Modal */}
       {showDeleteModal && taskToDelete && (
       <Portal>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal-enter">
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Delete Task</h3>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && (setShowDeleteModal(false), setTaskToDelete(null))}>
+          <div className="modal-backdrop" />
+          <div className="modal-container modal-lg">
+            <div className="modal-header">
+              <h3 className="modal-title">Delete Task</h3>
               <button
                 onClick={() => { setShowDeleteModal(false); setTaskToDelete(null) }}
-                className="text-gray-400 hover:text-gray-600"
+                className="modal-close-btn"
               >
                 <FaTimes />
               </button>
             </div>
-            <div className="p-6">
+            <div className="modal-body">
               <div className="flex items-center gap-3 mb-4 p-3 bg-red-50 rounded-lg">
                 <FaExclamationTriangle className="text-red-500 text-xl flex-shrink-0" />
                 <p className="text-red-700">
@@ -926,17 +929,17 @@ export default function MyTasksPage() {
                 <p className="text-sm text-gray-500 mt-1">Project: {taskToDelete.project?.name}</p>
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+            <div className="modal-footer">
               <button
                 onClick={() => { setShowDeleteModal(false); setTaskToDelete(null) }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="modal-btn modal-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteTask}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                className="modal-btn modal-btn-danger"
               >
                 {deleting ? (
                   <><FaSpinner className="animate-spin" /> Deleting...</>

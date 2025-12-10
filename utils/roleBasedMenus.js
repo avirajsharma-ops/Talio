@@ -19,7 +19,8 @@ import {
   HiOutlineAcademicCap,
   HiOutlineMegaphone,
   HiOutlineCalendarDays,
-  HiOutlineChartBar
+  HiOutlineChartBar,
+  HiOutlineVideoCamera
 } from 'react-icons/hi2'
 
 // Define menu items for each role
@@ -31,6 +32,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -137,6 +139,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -219,6 +222,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -265,6 +269,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -311,6 +316,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',
@@ -359,6 +365,7 @@ export const roleBasedMenus = {
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
+    { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
     { name: 'TalioBoard', icon: HiOutlineRectangleGroup, path: '/dashboard/talioboard' },
     {
       name: 'Projects',

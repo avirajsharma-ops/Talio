@@ -115,8 +115,26 @@ export default function DashboardLayout({ children }) {
   // Chat pages don't show the fade
   const isChatPage = pathname?.startsWith('/dashboard/chat')
   
+  // Meeting room pages should have no chrome (sidebar/header)
+  const isMeetingRoomPage = pathname?.includes('/meetings/room/')
+  
   // Only show fade on bottom nav pages (not chat)
   const shouldShowFade = isBottomNavPage && !isChatPage
+
+  // For meeting room pages, render children directly without any layout chrome
+  if (isMeetingRoomPage) {
+    return (
+      <SocketProvider>
+        <UnreadMessagesProvider>
+          <InAppNotificationProvider>
+            <ChatWidgetProvider>
+              {children}
+            </ChatWidgetProvider>
+          </InAppNotificationProvider>
+        </UnreadMessagesProvider>
+      </SocketProvider>
+    )
+  }
 
   return (
     <SocketProvider>
