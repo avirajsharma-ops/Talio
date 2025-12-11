@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('talioDesktop', {
   // Open URL in external browser (for OAuth)
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
+  // External meeting support - opens meeting in browser and tracks return
+  openExternalMeeting: (url) => ipcRenderer.invoke('open-external-meeting', url),
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
+
   // Check if running in Electron
   isElectron: true,
   platform: process.platform,
@@ -64,6 +68,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setAuth: (token, user) => ipcRenderer.invoke('set-auth', { token, user }),
   sendNotification: (title, body) => ipcRenderer.invoke('send-notification', { title, body }),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openExternalMeeting: (url) => ipcRenderer.invoke('open-external-meeting', url),
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
   isElectron: true
 });
 

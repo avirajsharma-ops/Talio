@@ -6,14 +6,22 @@ const { io } = require('socket.io-client');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
+// Windows screenshot fallback - wrap in try-catch as it may not be available
+let screenshotDesktop = null;
+try {
+  screenshotDesktop = require('screenshot-desktop');
+} catch (err) {
+  console.log('[Talio] screenshot-desktop module not available:', err.message);
+}
+
 // Set app name to Talio (removes Electron branding from About panel, Dock, etc.)
 app.setName('Talio');
 
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.9',
-  version: '1.0.9',
+  applicationVersion: '1.0.10',
+  version: '1.0.10',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -69,6 +77,10 @@ let tray = null;
 let mayaInactivityTimer = null;
 const MAYA_INACTIVITY_TIMEOUT = 30000;
 
+// External meeting tracking - for opening meetings in external browser
+let isInExternalMeeting = false;
+let externalMeetingUrl = null;
+
 // Activity tracking
 let authToken = null;
 let currentUser = null;
@@ -95,6 +107,38 @@ const ACTIVITY_SYNC_INTERVAL = 60 * 1000; // 1 minute for local buffer
 const PERIODIC_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes for API sync
 const APP_CHECK_INTERVAL = 3000; // 3 seconds
 const INSTANT_FETCH_POLL_INTERVAL = 5000; // 5 seconds
+
+// Meeting URL patterns to detect external meeting links
+const MEETING_URL_PATTERNS = [
+  /zoom\.us\/j\//i,           // Zoom meetings
+  /zoom\.us\/wc\//i,          // Zoom web client
+  /meet\.google\.com\//i,     // Google Meet
+  /teams\.microsoft\.com\//i, // Microsoft Teams
+  /teams\.live\.com\//i,      // Microsoft Teams
+  /webex\.com\/meet\//i,      // Webex
+  /whereby\.com\//i,          // Whereby
+  /meet\.jit\.si\//i,         // Jitsi Meet
+  /gotomeeting\.com\/join\//i, // GoToMeeting
+  /bluejeans\.com\/\d+/i,     // BlueJeans
+  /chime\.aws\//i,            // Amazon Chime
+  /discord\.gg\//i,           // Discord invite links
+  /slack\.com\/call\//i,      // Slack calls
+];
+
+// Check if a URL is an external meeting link
+function isExternalMeetingUrl(url) {
+  if (!url) return false;
+  return MEETING_URL_PATTERNS.some(pattern => pattern.test(url));
+}
+
+// Open external meeting in browser and track state
+function openExternalMeeting(url) {
+  console.log('[Talio] 📹 Opening external meeting in browser:', url);
+  isInExternalMeeting = true;
+  externalMeetingUrl = url;
+  shell.openExternal(url);
+  sendNotification('Meeting Opened', 'External meeting opened in your browser. Return here when done.');
+}
 
 // Auto-launch configuration - only create if module is available
 let autoLauncher = null;
@@ -130,6 +174,47 @@ function checkScreenCapturePermission() {
   screenPermissionGranted = true;
   screenPermissionChecked = true;
   return true;
+}
+
+// Windows-specific screenshot capture using screenshot-desktop as fallback
+// This is more reliable than desktopCapturer on Windows
+async function captureScreenshotWindows() {
+  console.log('[Talio] [Windows] Attempting screenshot capture...');
+  
+  // First try Electron's desktopCapturer
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    });
+    
+    if (sources.length > 0 && sources[0].thumbnail) {
+      const screenshot = sources[0].thumbnail.toDataURL();
+      if (screenshot && screenshot.length > 1000) { // Valid screenshot should be > 1KB
+        console.log('[Talio] [Windows] desktopCapturer screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+        return screenshot;
+      }
+    }
+  } catch (err) {
+    console.log('[Talio] [Windows] desktopCapturer failed:', err.message);
+  }
+  
+  // Fallback to screenshot-desktop for Windows
+  if (screenshotDesktop) {
+    try {
+      console.log('[Talio] [Windows] Falling back to screenshot-desktop...');
+      const imgBuffer = await screenshotDesktop({ format: 'png' });
+      const base64 = imgBuffer.toString('base64');
+      const screenshot = `data:image/png;base64,${base64}`;
+      console.log('[Talio] [Windows] screenshot-desktop captured, size:', Math.round(screenshot.length / 1024), 'KB');
+      return screenshot;
+    } catch (err) {
+      console.error('[Talio] [Windows] screenshot-desktop failed:', err.message);
+    }
+  }
+  
+  console.log('[Talio] [Windows] All screenshot methods failed');
+  return null;
 }
 
 // Request all required permissions on macOS
@@ -252,6 +337,24 @@ ipcMain.handle('check-permissions', async () => {
     microphone: systemPreferences.getMediaAccessStatus('microphone') === 'granted',
     screen: systemPreferences.getMediaAccessStatus('screen') === 'granted'
   };
+});
+
+// IPC handler for opening external meeting links
+ipcMain.handle('open-external-meeting', async (event, url) => {
+  if (isExternalMeetingUrl(url)) {
+    openExternalMeeting(url);
+    return { success: true };
+  }
+  return { success: false, error: 'Not a valid meeting URL' };
+});
+
+// IPC handler for opening any external URL
+ipcMain.handle('open-external-url', async (event, url) => {
+  if (url && url.startsWith('http')) {
+    shell.openExternal(url);
+    return { success: true };
+  }
+  return { success: false, error: 'Invalid URL' };
 });
 
 // Create the main application window
@@ -419,11 +522,16 @@ function createMainWindow() {
   });
 
   // Prevent any external popups (blocks Electron website and other external links)
-  // But open Google OAuth in external browser for proper account selection
+  // But open Google OAuth and external meeting links in external browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Open Google OAuth in external browser
     if (url.includes('accounts.google.com')) {
       shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    // Open external meeting links in browser (Zoom, Google Meet, Teams, etc.)
+    if (isExternalMeetingUrl(url)) {
+      openExternalMeeting(url);
       return { action: 'deny' };
     }
     // Open external links in default browser instead of new Electron window
@@ -439,8 +547,15 @@ function createMainWindow() {
     return { action: 'allow' };
   });
   
-  // Intercept navigation to Google OAuth and open in external browser
+  // Intercept navigation to external meeting URLs and Google OAuth
   mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Open external meeting URLs in browser
+    if (isExternalMeetingUrl(url)) {
+      event.preventDefault();
+      openExternalMeeting(url);
+      return;
+    }
+    // Open Google OAuth in external browser
     if (url.includes('accounts.google.com')) {
       event.preventDefault();
       shell.openExternal(url);
@@ -1574,18 +1689,25 @@ async function handleInstantCapture(captureRequest) {
     let screenshot = null;
     
     if (hasPermission) {
-      // Capture screenshot using desktopCapturer
       console.log('[Talio] Capturing screen...');
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 }
-      });
-
-      if (sources.length > 0) {
-        screenshot = sources[0].thumbnail.toDataURL();
-        console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+      
+      // Use platform-specific screenshot capture
+      if (process.platform === 'win32') {
+        // Windows: Use Windows-specific capture with fallback
+        screenshot = await captureScreenshotWindows();
       } else {
-        console.log('[Talio] No screen sources available');
+        // macOS/Linux: Use desktopCapturer
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
+
+        if (sources.length > 0) {
+          screenshot = sources[0].thumbnail.toDataURL();
+          console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+        } else {
+          console.log('[Talio] No screen sources available');
+        }
       }
     } else {
       console.log('[Talio] No screen permission - syncing data without screenshot');
@@ -1646,14 +1768,21 @@ async function captureAndSyncProductivity(isInstant = false, instantRequestId = 
     const hasPermission = checkScreenCapturePermission();
     
     if (hasPermission) {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 }
-      });
+      // Use platform-specific screenshot capture
+      if (process.platform === 'win32') {
+        // Windows: Use Windows-specific capture with fallback
+        screenshot = await captureScreenshotWindows();
+      } else {
+        // macOS/Linux: Use desktopCapturer
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
 
-      if (sources.length > 0) {
-        screenshot = sources[0].thumbnail.toDataURL();
-        console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+        if (sources.length > 0) {
+          screenshot = sources[0].thumbnail.toDataURL();
+          console.log('[Talio] Screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
+        }
       }
     }
     
@@ -1820,14 +1949,26 @@ function setupIPC() {
       return { success: false, error: 'Screen capture permission not granted' };
     }
 
-    const { desktopCapturer } = require('electron');
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    });
+    let screenshot = null;
+    
+    // Use platform-specific screenshot capture
+    if (process.platform === 'win32') {
+      // Windows: Use Windows-specific capture with fallback
+      screenshot = await captureScreenshotWindows();
+    } else {
+      // macOS/Linux: Use desktopCapturer
+      const { desktopCapturer } = require('electron');
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 }
+      });
 
-    if (sources.length > 0) {
-      const screenshot = sources[0].thumbnail.toDataURL();
+      if (sources.length > 0) {
+        screenshot = sources[0].thumbnail.toDataURL();
+      }
+    }
+
+    if (screenshot) {
       return { success: true, screenshot };
     }
     return { success: false, error: 'No screen sources found' };
@@ -1966,23 +2107,30 @@ function setupIPC() {
       // Small delay to ensure windows are hidden
       await new Promise(resolve => setTimeout(resolve, 150));
 
-      // Capture the ENTIRE screen (not just app window)
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 }
-      });
-      
       let screenshot = null;
-      if (sources.length > 0) {
-        // Get the primary display's screen source
-        const primaryDisplay = screen.getPrimaryDisplay();
-        // Try to find the primary screen source, fallback to first
-        const primarySource = sources.find(s => 
-          s.display_id === String(primaryDisplay.id)
-        ) || sources[0];
+      
+      // Use platform-specific screenshot capture
+      if (process.platform === 'win32') {
+        // Windows: Use Windows-specific capture with fallback
+        screenshot = await captureScreenshotWindows();
+      } else {
+        // macOS/Linux: Capture the ENTIRE screen (not just app window)
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
         
-        screenshot = primarySource.thumbnail.toDataURL();
-        console.log('[Maya] Screen captured successfully, size:', Math.round(screenshot.length / 1024), 'KB');
+        if (sources.length > 0) {
+          // Get the primary display's screen source
+          const primaryDisplay = screen.getPrimaryDisplay();
+          // Try to find the primary screen source, fallback to first
+          const primarySource = sources.find(s => 
+            s.display_id === String(primaryDisplay.id)
+          ) || sources[0];
+          
+          screenshot = primarySource.thumbnail.toDataURL();
+          console.log('[Maya] Screen captured successfully, size:', Math.round(screenshot.length / 1024), 'KB');
+        }
       }
       
       // Small delay before restoring windows
@@ -2239,6 +2387,7 @@ app.whenReady().then(async () => {
   console.log('[Talio] App ready');
 });
 
+
 app.on('window-all-closed', () => {
   // Keep app running in background on macOS
   if (process.platform !== 'darwin') {
@@ -2252,6 +2401,24 @@ app.on('activate', () => {
     createMainWindow();
   } else {
     mainWindow.show();
+  }
+  
+  // If user was in an external meeting and returns to the app, welcome them back
+  if (isInExternalMeeting) {
+    isInExternalMeeting = false;
+    console.log('[Talio] 📹 User returned from external meeting');
+    sendNotification('Welcome Back', 'You have returned from your meeting.');
+    externalMeetingUrl = null;
+  }
+});
+
+// Handle browser window focus to detect return from external meeting
+app.on('browser-window-focus', () => {
+  if (isInExternalMeeting) {
+    isInExternalMeeting = false;
+    console.log('[Talio] 📹 User returned from external meeting (window focus)');
+    sendNotification('Welcome Back', 'You have returned from your meeting.');
+    externalMeetingUrl = null;
   }
 });
 
