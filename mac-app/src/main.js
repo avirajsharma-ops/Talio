@@ -12,8 +12,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.5',
-  version: '1.0.5',
+  applicationVersion: '1.0.6',
+  version: '1.0.6',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -257,8 +257,12 @@ ipcMain.handle('check-permissions', async () => {
 // Create the main application window
 function createMainWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-  mainWindow = new BrowserWindow({
+  
+  // Platform-specific window options
+  const isMac = process.platform === 'darwin';
+  const isWindows = process.platform === 'win32';
+  
+  const windowOptions = {
     width: Math.min(1400, width - 100),
     height: Math.min(900, height - 100),
     minWidth: 1024,
@@ -271,54 +275,84 @@ function createMainWindow() {
       preload: path.join(__dirname, '../preload.js'),
       webSecurity: true
     },
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 15, y: 15 },
     backgroundColor: '#f8fafc',
     show: false
-  });
+  };
+  
+  // macOS: Use hidden inset title bar with traffic lights
+  if (isMac) {
+    windowOptions.titleBarStyle = 'hiddenInset';
+    windowOptions.trafficLightPosition = { x: 15, y: 15 };
+  }
+  // Windows: Use default frame (no custom title bar to avoid overlap issues)
+  // The native Windows title bar will be used
+
+  mainWindow = new BrowserWindow(windowOptions);
 
   // Load the Talio web app - ALWAYS use APP_URL
   mainWindow.loadURL(APP_URL);
 
-  // Inject CSS for macOS title bar spacing when content loads
+  // Inject CSS for title bar spacing when content loads
+  // Only apply custom spacing on macOS where we use hidden title bar
   mainWindow.webContents.on('did-finish-load', () => {
-    mainWindow.webContents.insertCSS(`
-      :root {
-        --talio-titlebar-height: 38px;
-      }
-      
-      /* Title bar drag region */
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: var(--talio-titlebar-height);
-        -webkit-app-region: drag;
-        z-index: 9999;
-        pointer-events: none;
-      }
-      
-      /* Body needs padding to account for title bar */
-      body {
-        padding-top: var(--talio-titlebar-height) !important;
-        height: 100vh !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-      }
-      
-      /* Fix h-screen to fit within the padded body */
-      .h-screen {
-        height: 100% !important;
-        max-height: 100% !important;
-      }
-      
-      /* Ensure root container fills the space */
-      body > div:first-child {
-        height: 100% !important;
-      }
-    `);
+    if (isMac) {
+      // macOS: Add padding for the hidden inset title bar
+      mainWindow.webContents.insertCSS(`
+        :root {
+          --talio-titlebar-height: 38px;
+        }
+        
+        /* Title bar drag region */
+        body::before {
+          content: "";
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: var(--talio-titlebar-height);
+          -webkit-app-region: drag;
+          z-index: 9999;
+          pointer-events: none;
+        }
+        
+        /* Body needs padding to account for title bar */
+        body {
+          padding-top: var(--talio-titlebar-height) !important;
+          height: 100vh !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        
+        /* Fix h-screen to fit within the padded body */
+        .h-screen {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        
+        /* Ensure root container fills the space */
+        body > div:first-child {
+          height: 100% !important;
+        }
+      `);
+    } else {
+      // Windows/Linux: Just ensure proper overflow handling (no extra padding needed)
+      mainWindow.webContents.insertCSS(`
+        body {
+          height: 100vh !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        
+        .h-screen {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        
+        body > div:first-child {
+          height: 100% !important;
+        }
+      `);
+    }
   });
 
   // Prevent any external popups (blocks Electron website and other external links)

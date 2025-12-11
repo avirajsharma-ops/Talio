@@ -1,7 +1,7 @@
 {
   "name": "talio",
-  "version": "1.0.5",
-  "description": "Talio - HR that runs itself. Desktop application for macOS.",
+  "version": "1.0.6",
+  "description": "Talio - HR that runs itself. Desktop application for macOS and Windows.",
   "main": "src/main.js",
   "author": "Talio",
   "license": "MIT",
@@ -12,6 +12,9 @@
     "build:arm64": "electron-builder --mac --arm64",
     "build:x64": "electron-builder --mac --x64",
     "build:universal": "electron-builder --mac --universal",
+    "build:win": "electron-builder --win --x64",
+    "build:win32": "electron-builder --win --ia32",
+    "build:all": "electron-builder --mac --universal && electron-builder --win --x64",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
@@ -55,6 +58,23 @@
         "SUEnableAutomaticChecks": true,
         "SUFeedURL": "https://talio.in/updates/mac/appcast.xml"
       }
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "dmg": {
       "icon": "assets/icon.icns",
