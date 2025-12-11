@@ -6,17 +6,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies including vips for sharp
 RUN apk add --no-cache \
     libc6-compat \
     python3 \
     make \
-    g++
+    g++ \
+    vips-dev \
+    fftw-dev \
+    build-base
 
 # Copy package files first (better caching)
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies with sharp platform config
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 RUN npm ci --legacy-peer-deps
 
 # Copy source code
