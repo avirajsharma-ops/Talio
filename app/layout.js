@@ -94,6 +94,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Preload splash video for immediate loading */}
+        <link rel="preload" href="/Flashscreen-final.mp4" as="video" type="video/mp4" />
         {/* FCM Handler - For Android App Token Registration */}
         <script src="/fcm-handler.js" defer></script>
         {/* Patch for Next.js dev overlay removeChild error */}

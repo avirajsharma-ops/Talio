@@ -2,17 +2,22 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+const VIDEO_URL = '/Flashscreen-final.mp4';
+const VIDEO_CACHE_KEY = 'talio_splash_video_blob';
+
 /**
  * SplashVideo Component
  * Plays a full-screen splash video on first session start
- * - Desktop: Video maintains original ratio with top/bottom touching screen edges
- * - Mobile: Video uses natural aspect ratio
+ * - Desktop: Video width reduced by 20%, aligned to bottom edge
+ * - Mobile: Full width, aligned to bottom edge
  * - Background: #fbfcfc
  * - Auto-hides after video ends
  * - Highest z-index to overlay all content
+ * - Caches video in localStorage for faster subsequent loads
  */
 export default function SplashVideo() {
   const [showSplash, setShowSplash] = useState(false);
+  const [videoSrc, setVideoSrc] = useState(null);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -26,8 +31,50 @@ export default function SplashVideo() {
       if (metaTheme) {
         metaTheme.setAttribute('content', '#fbfcfc');
       }
+      
+      // Load video from cache or fetch and cache it
+      loadVideoWithCache();
     }
   }, []);
+
+  const loadVideoWithCache = async () => {
+    try {
+      // Try to get cached video from localStorage
+      const cachedVideo = localStorage.getItem(VIDEO_CACHE_KEY);
+      
+      if (cachedVideo) {
+        // Use cached blob URL
+        setVideoSrc(cachedVideo);
+        return;
+      }
+      
+      // Fetch and cache the video
+      const response = await fetch(VIDEO_URL);
+      const blob = await response.blob();
+      
+      // Convert blob to base64 for localStorage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result;
+        try {
+          localStorage.setItem(VIDEO_CACHE_KEY, base64data);
+        } catch (e) {
+          // localStorage might be full, use direct URL
+          console.log('[SplashVideo] Could not cache video:', e.message);
+        }
+        setVideoSrc(base64data);
+      };
+      reader.onerror = () => {
+        // Fallback to direct URL
+        setVideoSrc(VIDEO_URL);
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.log('[SplashVideo] Error loading video:', error.message);
+      // Fallback to direct URL
+      setVideoSrc(VIDEO_URL);
+    }
+  };
 
   const handleVideoEnd = () => {
     // Mark splash as shown for this session
@@ -60,7 +107,7 @@ export default function SplashVideo() {
     handleVideoEnd();
   };
 
-  if (!showSplash) {
+  if (!showSplash || !videoSrc) {
     return null;
   }
 
@@ -76,7 +123,7 @@ export default function SplashVideo() {
         backgroundColor: '#fbfcfc',
         zIndex: 999999,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         justifyContent: 'center',
         cursor: 'pointer',
         opacity: showSplash ? 1 : 0,
@@ -85,7 +132,8 @@ export default function SplashVideo() {
     >
       <video
         ref={videoRef}
-        src="/Flashscreen-final.mp4"
+        src={videoSrc}
+        preload="auto"
         muted
         playsInline
         autoPlay
@@ -93,11 +141,10 @@ export default function SplashVideo() {
         onCanPlayThrough={handleVideoReady}
         onError={handleVideoError}
         style={{
-          // Desktop: height fills screen, width auto-adjusts to maintain ratio
-          // Mobile: natural ratio with max dimensions
-          height: '100vh',
-          width: 'auto',
-          maxWidth: '100vw',
+          height: 'auto',
+          width: '80%',
+          maxWidth: '80vw',
+          maxHeight: '100vh',
           objectFit: 'contain',
         }}
         className="splash-video"
@@ -108,15 +155,19 @@ export default function SplashVideo() {
         @media (max-width: 768px) {
           .splash-video {
             width: 100vw !important;
-            height: auto !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
             max-height: 100vh !important;
+            object-fit: cover !important;
           }
         }
         
         @media (min-width: 769px) {
           .splash-video {
-            height: 100vh !important;
-            width: auto !important;
+            height: auto !important;
+            width: 80% !important;
+            max-width: 80vw !important;
+            max-height: 100vh !important;
           }
         }
       `}</style>
