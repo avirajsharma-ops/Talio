@@ -12,8 +12,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.8',
-  version: '1.0.8',
+  applicationVersion: '1.0.9',
+  version: '1.0.9',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -907,16 +907,10 @@ function clearMayaInactivityTimer() {
   }
 }
 
-// Minimize Maya widget to blob
+// Minimize Maya widget to blob - disabled, Maya floating windows removed
 function minimizeMayaToBob() {
-  if (mayaWidgetWindow && mayaWidgetWindow.isVisible()) {
-    mayaWidgetWindow.hide();
-    if (mayaBlobWindow) {
-      mayaBlobWindow.show();
-    } else {
-      createMayaBlobWindow();
-    }
-  }
+  // Maya floating windows have been disabled
+  // AI features are available in-app only
 }
 
 // ============= ACTIVITY TRACKING =============
@@ -1738,24 +1732,6 @@ function createTray() {
         }
       }
     },
-    {
-      label: 'Toggle Maya Assistant',
-      click: () => {
-        if (mayaWidgetWindow) {
-          if (mayaWidgetWindow.isVisible()) {
-            mayaWidgetWindow.hide();
-            store.set('showMayaPIP', false);
-            if (mayaBlobWindow) mayaBlobWindow.show();
-          } else {
-            mayaWidgetWindow.show();
-            store.set('showMayaPIP', true);
-            if (mayaBlobWindow) mayaBlobWindow.hide();
-          }
-        } else {
-          createMayaWidgetWindow();
-        }
-      }
-    },
     { type: 'separator' },
     {
       label: 'Screen Capture Permission',
@@ -1908,28 +1884,22 @@ function setupIPC() {
     };
   });
 
-  // Toggle Maya PIP
-  ipcMain.handle('toggle-maya-pip', (event, show) => {
-    if (show) {
-      createMayaPIPWindow();
-      if (mayaBlobWindow) mayaBlobWindow.hide();
-    } else {
-      minimizeMayaToBob();
-    }
+  // Maya floating windows disabled - these handlers are kept for compatibility but do nothing
+  ipcMain.handle('toggle-maya-pip', () => {
+    // Maya floating windows disabled - AI available in-app
+    console.log('[Talio] Maya floating windows disabled');
   });
 
-  // Open Maya from blob click - activates listening mode
   ipcMain.handle('open-maya-from-blob', () => {
-    createMayaPIPWindow();
-    // Widget will auto-start listening mode
+    // Maya floating windows disabled - AI available in-app
+    console.log('[Talio] Maya floating windows disabled');
   });
 
-  // Minimize Maya to blob
   ipcMain.handle('minimize-maya-to-blob', () => {
-    minimizeMayaToBob();
+    // Maya floating windows disabled
   });
 
-  // Dot matrix overlay for screen analysis
+  // Dot matrix overlay - kept for potential future use
   ipcMain.handle('show-dot-matrix', () => {
     showDotMatrix();
   });
@@ -1938,24 +1908,22 @@ function setupIPC() {
     hideDotMatrix();
   });
 
-  // Maya widget controls
+  // Maya widget controls - disabled
   ipcMain.handle('maya-close-widget', () => {
-    if (mayaWidgetWindow) {
-      mayaWidgetWindow.hide();
-      if (mayaBlobWindow) mayaBlobWindow.show();
-    }
+    // Maya floating windows disabled
   });
 
   ipcMain.handle('maya-minimize-widget', () => {
-    minimizeMayaToBob();
+    // Maya floating windows disabled
   });
 
-  // Get Maya widget state (minimized or expanded)
+  // Get Maya widget state - always return disabled state
   ipcMain.handle('maya-get-widget-state', () => {
     return {
-      minimized: !mayaWidgetWindow || !mayaWidgetWindow.isVisible(),
-      widgetVisible: mayaWidgetWindow && mayaWidgetWindow.isVisible(),
-      blobVisible: mayaBlobWindow && mayaBlobWindow.isVisible()
+      minimized: true,
+      widgetVisible: false,
+      blobVisible: false,
+      disabled: true // New flag to indicate Maya floating windows are disabled
     };
   });
 
@@ -2265,11 +2233,8 @@ app.whenReady().then(async () => {
   // Initialize activity tracking (will start when auth is confirmed)
   await initializeActivityTracking();
 
-  // Create Maya blob after short delay - always visible
-  setTimeout(() => {
-    createMayaBlobWindow();
-    // Blob is always visible (unless widget is open)
-  }, 2000);
+  // Maya floating windows disabled - AI features available in-app only
+  // The web app has built-in Maya chat accessible from the UI
 
   console.log('[Talio] App ready');
 });
@@ -2282,16 +2247,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // On macOS, only show main window if no Maya windows are active
-  // This prevents the main window from appearing when clicking the Maya widget
-  const mayaActive = (mayaWidgetWindow && mayaWidgetWindow.isVisible()) || 
-                     (mayaBlobWindow && mayaBlobWindow.isVisible());
-  
-  if (mayaActive) {
-    // Maya is active, don't show main window - just keep focus on Maya
-    return;
-  }
-  
+  // On macOS, show main window when dock icon is clicked
   if (mainWindow === null) {
     createMainWindow();
   } else {
@@ -2301,5 +2257,4 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true;
-  clearMayaInactivityTimer();
 });
