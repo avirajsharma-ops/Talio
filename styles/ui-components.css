@@ -1,6 +1,14 @@
 .page-container {
   width: 100%;
   max-width: 100%;
+  padding-bottom: 1rem;
+}
+
+/* Mobile: Add extra padding for bottom navigation */
+@media (max-width: 767px) {
+  .page-container {
+    padding-bottom: 4rem; /* Accounts for bottom nav height */
+  }
 }
 
 .page-header {

@@ -65,8 +65,7 @@ export default function BottomNav() {
         backgroundColor: '#FFFFFF',
         paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
         paddingTop: '6px',
-        borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.05)'
+        borderTop: '1px solid rgba(0, 0, 0, 0.08)'
       }}
     >
       <div className="flex items-center justify-between px-3 gap-1">

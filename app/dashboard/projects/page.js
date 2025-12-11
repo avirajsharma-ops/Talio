@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { 
+  HiOutlineRectangleStack,
+  HiOutlinePlus,
+  HiOutlineMagnifyingGlass,
+  HiOutlineClock,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationTriangle
+} from 'react-icons/hi2'
+import { 
   FaPlus, FaSearch, FaFilter, FaProjectDiagram, FaCalendarAlt,
   FaCheckCircle, FaClock, FaExclamationTriangle, FaArchive,
   FaEye, FaUsers, FaTasks, FaChartLine, FaClipboardCheck
@@ -168,9 +176,12 @@ export default function ProjectsPage() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Projects</h1>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <HiOutlineRectangleStack className="w-7 h-7 text-indigo-600" />
+            Projects
+          </h1>
           <p className="text-gray-600 mt-1">
             Manage and track your projects
           </p>
@@ -178,81 +189,87 @@ export default function ProjectsPage() {
         {canCreateProject() && (
           <button
             onClick={() => router.push('/dashboard/projects/create')}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex items-center gap-2"
           >
-            <FaPlus />
-            <span>Create Project</span>
+            <HiOutlinePlus className="w-5 h-5" />
+            Create Project
           </button>
         )}
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Projects</p>
-              <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.total}</p>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <HiOutlineRectangleStack className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <FaProjectDiagram className="text-blue-600 text-xl" />
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-sm text-gray-500">Total</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <HiOutlineClock className="w-5 h-5 text-green-600" />
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <FaClock className="text-green-600 text-xl" />
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{stats.active}</p>
+              <p className="text-sm text-gray-500">Active</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <HiOutlineCheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-              <FaCheckCircle className="text-emerald-600 text-xl" />
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{stats.completed}</p>
+              <p className="text-sm text-gray-500">Completed</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
-              <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg">
+              <HiOutlineExclamationTriangle className="w-5 h-5 text-red-600" />
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <FaExclamationTriangle className="text-red-600 text-xl" />
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{stats.overdue}</p>
+              <p className="text-sm text-gray-500">Overdue</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
+      {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          {/* Search */}
+          <div className="relative flex-1">
+            <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search projects..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+
+          {/* Filters */}
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setStatusFilter('active')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 statusFilter === 'active' 
-                  ? 'bg-primary-500 text-white' 
+                  ? 'bg-primary-600 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -260,9 +277,9 @@ export default function ProjectsPage() {
             </button>
             <button
               onClick={() => setStatusFilter('completed')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 statusFilter === 'completed' 
-                  ? 'bg-primary-500 text-white' 
+                  ? 'bg-primary-600 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -270,9 +287,9 @@ export default function ProjectsPage() {
             </button>
             <button
               onClick={() => setStatusFilter('archived')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 statusFilter === 'archived' 
-                  ? 'bg-primary-500 text-white' 
+                  ? 'bg-primary-600 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -284,16 +301,23 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading projects...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl p-4 animate-pulse shadow-sm border border-gray-100">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+            </div>
+          ))}
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <FaProjectDiagram className="text-6xl text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No projects found</h3>
+        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
+          <HiOutlineRectangleStack className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-800 mb-2">
+            No projects found
+          </h3>
           <p className="text-gray-500 mb-4">
-            {search ? 'Try adjusting your search criteria' : 'Create your first project to get started'}
+            {search ? 'Try adjusting your search' : 'Create your first project to get started'}
           </p>
           {canCreateProject() && !search && (
             <button

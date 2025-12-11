@@ -146,7 +146,7 @@ export default function DashboardLayout({ children }) {
             <SidebarStateSync sidebarCollapsed={sidebarCollapsed} />
             
             {/* Main Layout Container - Flex Row */}
-            <div className="flex h-screen w-full overflow-hidden relative" style={{ backgroundColor: 'var(--color-bg-main)' }}>
+            <div className="flex h-screen w-full overflow-hidden" style={{ backgroundColor: 'var(--color-bg-main)' }}>
 
               {/* Offline Detector */}
               <OfflineDetector />
@@ -160,7 +160,7 @@ export default function DashboardLayout({ children }) {
               />
 
               {/* Right Side Content - Flex Column */}
-              <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
+              <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
                 {/* Offline Indicator */}
                 <OfflineIndicator />
 
@@ -168,13 +168,14 @@ export default function DashboardLayout({ children }) {
                 <Header toggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
                 {/* Main Content Area - Scrollable */}
-                <main className={`flex-1 overflow-y-auto relative z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
-                  <div className={`h-full ${isChatPage ? '-mt-4 sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 py-6'}`}>
+                <main className={`z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
+                  <div className={`min-h-full ${isChatPage ? 'sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 py-6'}`}>
                     {children}
                   </div>
                   
                   {/* Bottom padding for mobile nav */}
-                  <div className={`w-full flex-shrink-0 ${shouldShowFade ? 'h-48 md:h-6' : 'h-24 md:h-6'}`}></div>
+                  <div className={`w-full flex-shrink-0 md:hidden ${shouldShowFade ? 'h-20' : 'h-16'}`}></div>
+                  <div className="w-full flex-shrink-0 hidden md:block h-4"></div>
                 </main>
 
                 {/* Gradient above bottom nav - Mobile only */}

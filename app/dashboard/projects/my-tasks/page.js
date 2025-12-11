@@ -4,6 +4,21 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { 
+  HiOutlineClipboardDocumentList,
+  HiOutlineClock,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationTriangle,
+  HiOutlinePlayCircle,
+  HiOutlineListBullet,
+  HiOutlineMagnifyingGlass,
+  HiOutlineFunnel,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
+  HiOutlineXMark,
+  HiOutlineTrash,
+  HiOutlineChatBubbleLeftRight
+} from 'react-icons/hi2'
+import { 
   FaTasks, FaCalendarAlt, FaFilter, FaSearch, FaProjectDiagram,
   FaCheck, FaPlay, FaEye, FaClock, FaExclamationTriangle,
   FaChevronDown, FaCheckCircle, FaTimes, FaSpinner, FaPlus,
@@ -419,180 +434,170 @@ export default function MyTasksPage() {
   return (
     <div className="page-container">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">My Tasks</h1>
-          <p className="text-gray-600">View and manage your tasks across all projects</p>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <HiOutlineClipboardDocumentList className="w-7 h-7 text-indigo-600" />
+            My Tasks
+          </h1>
+          <p className="text-gray-600 mt-1">
+            View and manage your tasks across all projects
+          </p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <FaTasks className="text-gray-600 dark:text-gray-400" />
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <HiOutlineListBullet className="w-5 h-5 text-gray-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Total</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-sm text-gray-500">Total</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-              <FaClock className="text-yellow-600" />
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <HiOutlineClock className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Pending Accept</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.pendingAcceptance}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.pendingAcceptance}</p>
+              <p className="text-sm text-gray-500">Pending Accept</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <FaTasks className="text-gray-600 dark:text-gray-400" />
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <HiOutlineClipboardDocumentList className="w-5 h-5 text-slate-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">To Do</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.todo}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.todo}</p>
+              <p className="text-sm text-gray-500">To Do</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <FaPlay className="text-blue-600" />
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <HiOutlinePlayCircle className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">In Progress</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.inProgress}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.inProgress}</p>
+              <p className="text-sm text-gray-500">In Progress</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <FaCheckCircle className="text-green-600" />
+            <div className="p-2 bg-green-100 rounded-lg">
+              <HiOutlineCheckCircle className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.completed}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.completed}</p>
+              <p className="text-sm text-gray-500">Completed</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4">
+
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <FaExclamationTriangle className="text-red-600" />
+            <div className="p-2 bg-red-100 rounded-lg">
+              <HiOutlineExclamationTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Overdue</p>
-              <p className="font-semibold text-gray-800 dark:text-white">{stats.overdue}</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.overdue}</p>
+              <p className="text-sm text-gray-500">Overdue</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
+          {/* Search */}
           <div className="relative flex-1">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn-secondary flex items-center"
-          >
-            <FaFilter className="mr-2" />
-            Filters
-            <FaChevronDown className={`ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
 
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-200">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
-              <select
-                value={filters.project}
-                onChange={(e) => setFilters(prev => ({ ...prev, project: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Projects</option>
-                {projects.map(project => (
-                  <option key={project._id} value={project._id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Statuses</option>
-                <option value="todo">To Do</option>
-                <option value="in-progress">In Progress</option>
-                <option value="review">In Review</option>
-                <option value="completed">Completed</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <select
-                value={filters.priority}
-                onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Priorities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Period</label>
-              <select
-                value={filters.period}
-                onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="overdue">Overdue</option>
-              </select>
-            </div>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={filters.project}
+              onChange={(e) => setFilters(prev => ({ ...prev, project: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="all">All Projects</option>
+              {projects.map(project => (
+                <option key={project._id} value={project._id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="todo">To Do</option>
+              <option value="in-progress">In Progress</option>
+              <option value="review">In Review</option>
+              <option value="completed">Completed</option>
+              <option value="blocked">Blocked</option>
+            </select>
+
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="all">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+
+            <select
+              value={filters.period}
+              onChange={(e) => setFilters(prev => ({ ...prev, period: e.target.value }))}
+              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="overdue">Overdue</option>
+            </select>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Pending Acceptance Tasks */}
       {pendingAcceptance.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FaClock className="text-yellow-500" />
-            <h2 className="text-lg font-semibold text-gray-800">Pending Acceptance</h2>
-            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-sm rounded-full">
-              {pendingAcceptance.length}
-            </span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <HiOutlineClock className="w-5 h-5 text-amber-500" />
+            Pending Acceptance ({pendingAcceptance.length})
+          </h2>
           <div className="grid gap-4">
             {pendingAcceptance.map(task => (
               <TaskCard
@@ -630,13 +635,10 @@ export default function MyTasksPage() {
       {/* Overdue Tasks */}
       {overdueTasks.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FaExclamationTriangle className="text-red-500" />
-            <h2 className="text-lg font-semibold text-gray-800">Overdue</h2>
-            <span className="px-2 py-1 bg-red-100 text-red-700 text-sm rounded-full">
-              {overdueTasks.length}
-            </span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <HiOutlineExclamationTriangle className="w-5 h-5 text-red-500" />
+            Overdue ({overdueTasks.length})
+          </h2>
           <div className="grid gap-4">
             {overdueTasks.filter(t => t.assignmentStatus !== 'pending').map(task => (
               <TaskCard
@@ -656,13 +658,10 @@ export default function MyTasksPage() {
       {/* Today's Tasks */}
       {todayTasks.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FaCalendarAlt className="text-blue-500" />
-            <h2 className="text-lg font-semibold text-gray-800">Due Today</h2>
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
-              {todayTasks.length}
-            </span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <HiOutlineClock className="w-5 h-5 text-blue-500" />
+            Due Today ({todayTasks.length})
+          </h2>
           <div className="grid gap-4">
             {todayTasks.filter(t => t.assignmentStatus !== 'pending').map(task => (
               <TaskCard
@@ -681,13 +680,9 @@ export default function MyTasksPage() {
       {/* Upcoming Tasks */}
       {upcomingTasks.filter(t => t.assignmentStatus !== 'pending').length > 0 && (
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FaTasks className="text-gray-500" />
-            <h2 className="text-lg font-semibold text-gray-800">Tasks</h2>
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
-              {upcomingTasks.filter(t => t.assignmentStatus !== 'pending').length}
-            </span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+            All Tasks
+          </h2>
           <div className="grid gap-4">
             {upcomingTasks.filter(t => t.assignmentStatus !== 'pending').map(task => (
               <TaskCard
@@ -704,10 +699,14 @@ export default function MyTasksPage() {
       )}
 
       {filteredTasks.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <FaTasks className="mx-auto text-4xl text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-600">No tasks found</h3>
-          <p className="text-gray-500">Tasks assigned to you will appear here</p>
+        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
+          <HiOutlineClipboardDocumentList className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-800 mb-2">
+            No tasks found
+          </h3>
+          <p className="text-gray-500">
+            Tasks assigned to you will appear here
+          </p>
         </div>
       )}
 

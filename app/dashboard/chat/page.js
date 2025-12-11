@@ -661,11 +661,19 @@ export default function ChatPage() {
       {/* Chat Container - Full screen edge-to-edge on mobile */}
       <div className={`${selectedChat
           ? 'fixed top-[60px] left-0 right-0 bottom-[72px] z-[60] md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:h-100%'
+<<<<<<< Updated upstream
           : 'fixed top-[140px] left-0 right-0 bottom-[72px] z-[40] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto md:mt-0'
         }`} style={{
           height: 'auto',
           maxHeight: 'none'
         }}>
+=======
+          : 'fixed top-[140px] left-0 right-0 bottom-[72px] z-[40] bg-white md:relative md:top-auto md:left-auto md:right-auto md:bottom-auto md:rounded-2xl md:shadow-md md:h-auto md:mt-0 px-4'
+      }`} style={{
+        height: 'auto',
+        maxHeight: 'none'
+      }}>
+>>>>>>> Stashed changes
         <div className="grid grid-cols-1 md:grid-cols-3 h-full m-0 p-0">
           {/* Chat List - Hide on mobile when chat is selected */}
           <div className={`border-r border-gray-100 flex flex-col h-full m-0 p-0 ${selectedChat ? 'hidden md:flex' : 'flex'}`}>

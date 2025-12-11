@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import {
+  HiOutlineArrowLeft,
+  HiOutlinePlus,
+  HiOutlineMagnifyingGlass
+} from 'react-icons/hi2'
+import {
   FaArrowLeft, FaSave, FaCalendarAlt, FaUsers, FaTimes,
   FaPlus, FaSearch
 } from 'react-icons/fa'
@@ -196,22 +201,22 @@ export default function CreateProjectPage() {
   return (
     <div className="page-container max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.back()}
-          className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <FaArrowLeft className="text-gray-600" />
+          <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Create New Project</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Create New Project</h1>
           <p className="text-gray-600 mt-1">Set up a new project and invite team members</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Project Details</h2>
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Project Name */}
