@@ -12,8 +12,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.7',
-  version: '1.0.7',
+  applicationVersion: '1.0.8',
+  version: '1.0.8',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -581,12 +581,15 @@ function createMayaBlobWindow() {
   if (isMac) {
     blobOptions.type = 'panel';
     blobOptions.vibrancy = 'under-window';
-  } else if (isWindows) {
-    // Windows: Use toolbar type for always on top without taskbar
-    blobOptions.type = 'toolbar';
   }
+  // Windows doesn't need a special type - frameless + alwaysOnTop + skipTaskbar works
 
   mayaBlobWindow = new BrowserWindow(blobOptions);
+  
+  // Windows-specific: Set always on top with higher level
+  if (isWindows) {
+    mayaBlobWindow.setAlwaysOnTop(true, 'screen-saver');
+  }
 
   const blobUrl = `${APP_URL}/maya/blob.html`;
   console.log('[Talio] Loading Maya blob from:', blobUrl);
@@ -625,20 +628,32 @@ function createMayaBlobWindow() {
 
   mayaBlobWindow.webContents.on('did-finish-load', () => {
     console.log('[Talio] Maya blob loaded successfully');
-    // Ensure window is visible on all spaces/desktops on macOS
+    // Ensure window is visible on all spaces/desktops
     if (process.platform === 'darwin') {
       mayaBlobWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       mayaBlobWindow.setAlwaysOnTop(true, 'floating', 1);
+    } else if (process.platform === 'win32') {
+      // Windows: Ensure always on top works properly
+      mayaBlobWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
 
   mayaBlobWindow.once('ready-to-show', () => {
     console.log('[Talio] Maya blob ready to show');
     mayaBlobWindow.show();
-    // Set window level after showing for macOS
+    // Set window level after showing
     if (process.platform === 'darwin') {
       mayaBlobWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       mayaBlobWindow.setAlwaysOnTop(true, 'floating', 1);
+    } else if (process.platform === 'win32') {
+      // Windows: Ensure blob stays on top even when switching windows
+      mayaBlobWindow.setAlwaysOnTop(true, 'screen-saver');
+      // Focus back to prevent blob from disappearing
+      setTimeout(() => {
+        if (mayaBlobWindow && !mayaBlobWindow.isDestroyed()) {
+          mayaBlobWindow.setAlwaysOnTop(true, 'screen-saver');
+        }
+      }, 500);
     }
   });
 
@@ -647,6 +662,18 @@ function createMayaBlobWindow() {
     const bounds = mayaBlobWindow.getBounds();
     store.set('blobPosition', { x: bounds.x, y: bounds.y });
   });
+  
+  // Windows: Keep blob visible when it loses focus (when switching windows)
+  if (process.platform === 'win32') {
+    mayaBlobWindow.on('blur', () => {
+      // Re-assert always on top after a short delay
+      setTimeout(() => {
+        if (mayaBlobWindow && !mayaBlobWindow.isDestroyed() && mayaBlobWindow.isVisible()) {
+          mayaBlobWindow.setAlwaysOnTop(true, 'screen-saver');
+        }
+      }, 100);
+    });
+  }
 
   mayaBlobWindow.on('closed', () => {
     mayaBlobWindow = null;
@@ -790,11 +817,15 @@ function createMayaWidgetWindow() {
   if (isMac) {
     widgetOptions.vibrancy = 'under-window';
     widgetOptions.visualEffectState = 'active';
-  } else if (isWindows) {
-    widgetOptions.type = 'toolbar';
   }
+  // Windows doesn't need special type - frameless + alwaysOnTop works
 
   mayaWidgetWindow = new BrowserWindow(widgetOptions);
+  
+  // Windows-specific: Set always on top with higher level
+  if (isWindows) {
+    mayaWidgetWindow.setAlwaysOnTop(true, 'screen-saver');
+  }
 
   // Load native Maya widget HTML from server for easy updates
   mayaWidgetWindow.loadURL(`${APP_URL}/maya/widget.html`);
@@ -808,6 +839,10 @@ function createMayaWidgetWindow() {
     // Hide blob when widget is shown
     if (mayaBlobWindow) {
       mayaBlobWindow.hide();
+    }
+    // Windows: Ensure widget stays on top
+    if (process.platform === 'win32') {
+      mayaWidgetWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     resetMayaInactivityTimer();
   });
@@ -825,7 +860,22 @@ function createMayaWidgetWindow() {
 
   mayaWidgetWindow.on('focus', () => {
     resetMayaInactivityTimer();
+    // Windows: Re-assert always on top when widget gets focus
+    if (process.platform === 'win32' && mayaWidgetWindow && !mayaWidgetWindow.isDestroyed()) {
+      mayaWidgetWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
   });
+  
+  // Windows: Keep widget visible when it loses focus
+  if (process.platform === 'win32') {
+    mayaWidgetWindow.on('blur', () => {
+      setTimeout(() => {
+        if (mayaWidgetWindow && !mayaWidgetWindow.isDestroyed() && mayaWidgetWindow.isVisible()) {
+          mayaWidgetWindow.setAlwaysOnTop(true, 'screen-saver');
+        }
+      }, 100);
+    });
+  }
 
   mayaWidgetWindow.on('closed', () => {
     mayaWidgetWindow = null;
