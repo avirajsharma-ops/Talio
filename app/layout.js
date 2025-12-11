@@ -9,6 +9,7 @@ import '../styles/ui-components.css'
 import { Toaster } from 'react-hot-toast'
 import { Providers } from '@/components/Providers'
 import ErrorPageCache from '@/components/ErrorPageCache'
+import SplashVideo from '@/components/SplashVideo'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -124,6 +125,7 @@ export default function RootLayout({ children }) {
         {/* PWA Window Controls Overlay - Draggable title bar region */}
         <div className="pwa-titlebar-drag" aria-hidden="true" />
         <Providers>
+          <SplashVideo />
           <ErrorPageCache />
           {children}
           <Toaster

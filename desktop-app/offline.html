@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talio - Offline</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #1f2937;
+    }
+    
+    .container {
+      text-align: center;
+      padding: 40px;
+      max-width: 500px;
+    }
+    
+    .icon {
+      width: 120px;
+      height: 120px;
+      background: #fee2e2;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 32px;
+    }
+    
+    .icon svg {
+      width: 60px;
+      height: 60px;
+      color: #ef4444;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #111827;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 500;
+      color: white;
+      background: #2563eb;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    
+    .btn:hover {
+      background: #1d4ed8;
+    }
+    
+    .btn:active {
+      transform: scale(0.98);
+    }
+    
+    .btn svg {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .tips {
+      margin-top: 40px;
+      padding: 24px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    
+    .tips h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 12px;
+    }
+    
+    .tips ul {
+      list-style: none;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .tips li {
+      padding: 8px 0;
+      padding-left: 24px;
+      position: relative;
+    }
+    
+    .tips li::before {
+      content: "•";
+      position: absolute;
+      left: 8px;
+      color: #2563eb;
+    }
+    
+    .logo {
+      margin-top: 40px;
+      opacity: 0.5;
+      font-size: 14px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+    </div>
+    
+    <h1>Connection Lost</h1>
+    <p>
+      Unable to connect to Talio server. Please check your internet connection and try again.
+    </p>
+    
+    <button class="btn" id="retry-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      Try Again
+    </button>
+    
+    <div class="tips">
+      <h3>Troubleshooting tips:</h3>
+      <ul>
+        <li>Check if you're connected to the internet</li>
+        <li>Try disabling VPN if you're using one</li>
+        <li>Check if https://app.talio.in is accessible in a browser</li>
+        <li>Restart the application</li>
+      </ul>
+    </div>
+    
+    <p class="logo">Talio</p>
+  </div>
+  
+  <script>
+    document.getElementById('retry-btn').addEventListener('click', () => {
+      if (window.electronAPI) {
+        window.electronAPI.retryConnection();
+      } else {
+        window.location.reload();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,64 +1,30 @@
-/**
- * Preload script - Bridge between main and renderer processes
- */
-
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
+// Expose protected methods to renderer
+contextBridge.exposeInMainWorld('talio', {
   // Authentication
-  login: (credentials) => ipcRenderer.invoke('login', credentials),
+  login: (email, password) => ipcRenderer.invoke('login', { email, password }),
   logout: () => ipcRenderer.invoke('logout'),
-
+  
+  // Attendance
+  checkIn: () => ipcRenderer.invoke('check-in'),
+  checkOut: () => ipcRenderer.invoke('check-out'),
+  getAttendanceStatus: () => ipcRenderer.invoke('get-attendance-status'),
+  
   // Status
   getStatus: () => ipcRenderer.invoke('get-status'),
-  toggleTracking: () => ipcRenderer.invoke('toggle-tracking'),
-  getStats: () => ipcRenderer.invoke('get-stats'),
-
-  // Permission management
-  requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
-  getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
-  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
-
-  // Maya widget controls
-  openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
-  minimizeMayaToBlob: () => ipcRenderer.invoke('minimize-maya-to-blob'),
-  toggleMayaPIP: (show) => ipcRenderer.invoke('toggle-maya-pip', show),
-  showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
-  hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
-
-  // Authentication (sets token and starts monitoring)
-  setAuth: (token, user) => ipcRenderer.invoke('set-auth', { token, user }),
-
-  // Push notifications
-  sendNotification: (title, body) => ipcRenderer.invoke('send-notification', { title, body }),
-
-  // Open URL in external browser (for OAuth)
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
-
-  // Events
-  onShowLogin: (callback) => ipcRenderer.on('show-login', callback),
-  onScreenshotCaptured: (callback) => ipcRenderer.on('screenshot-captured', callback),
-  onWindowChanged: (callback) => ipcRenderer.on('window-changed', callback),
-  onNavigate: (callback) => ipcRenderer.on('navigate', callback),
-
-  // Electron detection
-  isElectron: true,
-  platform: process.platform
-});
-
-// Also expose as talioDesktop for compatibility with web app
-contextBridge.exposeInMainWorld('talioDesktop', {
-  openMayaFromBlob: () => ipcRenderer.invoke('open-maya-from-blob'),
-  minimizeMayaToBlob: () => ipcRenderer.invoke('minimize-maya-to-blob'),
-  toggleMayaPIP: (show) => ipcRenderer.invoke('toggle-maya-pip', show),
-  requestAllPermissions: () => ipcRenderer.invoke('request-all-permissions'),
-  getPermissionStatus: () => ipcRenderer.invoke('get-permission-status'),
-  checkPermissions: () => ipcRenderer.invoke('check-permissions'),
-  showDotMatrix: () => ipcRenderer.invoke('show-dot-matrix'),
-  hideDotMatrix: () => ipcRenderer.invoke('hide-dot-matrix'),
-  setAuth: (token, user) => ipcRenderer.invoke('set-auth', { token, user }),
-  sendNotification: (title, body) => ipcRenderer.invoke('send-notification', { title, body }),
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  isElectron: true,
-  platform: process.platform
+  
+  // Activity tracking (for local events)
+  trackKeystroke: () => ipcRenderer.send('activity-keystroke'),
+  trackMouseClick: () => ipcRenderer.send('activity-mouse-click'),
+  trackMouseMove: (distance) => ipcRenderer.send('activity-mouse-move', distance),
+  
+  // Event listeners
+  onCaptureSuccess: (callback) => {
+    ipcRenderer.on('capture-success', (event, data) => callback(data));
+  },
+  
+  // Window controls
+  minimize: () => ipcRenderer.send('window-minimize'),
+  close: () => ipcRenderer.send('window-close')
 });

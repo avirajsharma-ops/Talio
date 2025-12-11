@@ -80,6 +80,11 @@ mac-app/node_modules/
 mac-app/dist/
 mac-app/release/
 
+# Desktop app
+desktop-app/node_modules/
+desktop-app/dist/
+desktop-app/release/
+
 # Binary releases
 download/releases/
 public/releases/

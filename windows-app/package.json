@@ -1,7 +1,7 @@
 {
-  "name": "talio",
-  "version": "1.0.5",
-  "description": "Talio - HR that runs itself. Desktop application for Windows.",
+  "name": "talio-desktop",
+  "version": "2.0.0",
+  "description": "Talio HRMS Desktop App - Productivity Monitoring",
   "main": "main.js",
   "author": {
     "name": "Talio",
@@ -11,23 +11,16 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
-    "build:universal": "electron-builder --win --x64 --ia32",
-    "build:x64": "electron-builder --win --x64",
-    "build:ia32": "electron-builder --win --ia32",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "build": {
-    "appId": "com.talio.app",
+    "appId": "com.talio.desktop",
     "productName": "Talio",
     "copyright": "Copyright © 2025 Talio",
     "compression": "normal",
-    "protocols": [
-      {
-        "name": "Talio",
-        "schemes": ["talio"]
-      }
-    ],
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -35,72 +28,36 @@
     "files": [
       "main.js",
       "preload.js",
-      "maya-preload.js",
-      "renderer.js",
-      "index.html",
-      "styles.css",
-      "maya-blob.html",
-      "maya-widget.html",
-      "dot-matrix-overlay.html",
-      "assets/**/*",
-      ".env"
+      "renderer/**/*",
+      "assets/**/*"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64", "ia32"]
-        }
-      ],
-      "icon": "build/icon.ico",
-      "requestedExecutionLevel": "requireAdministrator",
-      "publisherName": "Talio",
-      "signAndEditExecutable": false
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
     },
-    "asar": true,
-    "asarUnpack": [
-      "node_modules/auto-launch/**/*",
-      "node_modules/active-win/**/*",
-      "node_modules/screenshot-desktop/**/*"
-    ],
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icon.png"
+    },
     "nsis": {
-      "oneClick": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Talio",
-      "runAfterFinish": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
-      "perMachine": false,
-      "allowElevation": true,
-      "warningsAsErrors": false,
-      "menuCategory": "Talio",
-      "differentialPackage": false,
-      "include": "installer.nsh",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "extraResources": [
-      {
-        "from": "resources",
-        "to": "resources",
-        "filter": ["**/*"]
-      }
-    ]
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico"
+    }
   },
   "dependencies": {
-    "auto-launch": "^5.0.6",
-    "axios": "^1.6.0",
-    "dotenv": "^16.0.3",
+    "axios": "^1.6.2",
     "electron-store": "^8.1.0",
-    "socket.io-client": "^4.8.1"
-  },
-  "optionalDependencies": {
-    "active-win": "^8.0.0",
-    "screenshot-desktop": "^1.15.0"
+    "auto-launch": "^5.0.6",
+    "screenshot-desktop": "^1.15.0",
+    "active-win": "^8.1.0"
   },
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.0"
+    "electron-builder": "^24.9.1"
   }
 }
