@@ -1,6 +1,6 @@
 {
   "name": "talio",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Talio - HR that runs itself. Desktop application for macOS and Windows.",
   "main": "src/main.js",
   "author": "Talio",

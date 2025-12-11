@@ -8,10 +8,19 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Windows screenshot fallback - wrap in try-catch as it may not be available
 let screenshotDesktop = null;
-try {
-  screenshotDesktop = require('screenshot-desktop');
-} catch (err) {
-  console.log('[Talio] screenshot-desktop module not available:', err.message);
+if (process.platform === 'win32') {
+  try {
+    screenshotDesktop = require('screenshot-desktop');
+    console.log('[Talio] [Windows] screenshot-desktop module loaded successfully');
+  } catch (err) {
+    console.log('[Talio] [Windows] screenshot-desktop module not available:', err.message);
+  }
+} else {
+  try {
+    screenshotDesktop = require('screenshot-desktop');
+  } catch (err) {
+    console.log('[Talio] screenshot-desktop module not available:', err.message);
+  }
 }
 
 // Set app name to Talio (removes Electron branding from About panel, Dock, etc.)
@@ -20,8 +29,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.10',
-  version: '1.0.10',
+  applicationVersion: '1.0.11',
+  version: '1.0.11',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -176,44 +185,80 @@ function checkScreenCapturePermission() {
   return true;
 }
 
-// Windows-specific screenshot capture using screenshot-desktop as fallback
-// This is more reliable than desktopCapturer on Windows
+// Windows-specific screenshot capture using multiple fallback methods
+// This is more reliable than desktopCapturer alone on Windows
 async function captureScreenshotWindows() {
   console.log('[Talio] [Windows] Attempting screenshot capture...');
   
-  // First try Electron's desktopCapturer
+  let screenshot = null;
+  
+  // Method 1: Try screenshot-desktop first on Windows (more reliable)
+  if (screenshotDesktop) {
+    try {
+      console.log('[Talio] [Windows] Trying screenshot-desktop (primary method)...');
+      const imgBuffer = await screenshotDesktop({ format: 'png' });
+      if (imgBuffer && imgBuffer.length > 1000) {
+        const base64 = imgBuffer.toString('base64');
+        screenshot = `data:image/png;base64,${base64}`;
+        console.log('[Talio] [Windows] ✅ screenshot-desktop captured, size:', Math.round(screenshot.length / 1024), 'KB');
+        return screenshot;
+      } else {
+        console.log('[Talio] [Windows] screenshot-desktop returned empty buffer');
+      }
+    } catch (err) {
+      console.error('[Talio] [Windows] screenshot-desktop failed:', err.message, err.stack);
+    }
+  } else {
+    console.log('[Talio] [Windows] screenshot-desktop module not available');
+  }
+  
+  // Method 2: Fallback to Electron's desktopCapturer
   try {
+    console.log('[Talio] [Windows] Trying desktopCapturer (fallback method)...');
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: { width: 1920, height: 1080 }
     });
     
+    console.log('[Talio] [Windows] desktopCapturer sources found:', sources.length);
+    
+    if (sources.length > 0) {
+      // Try each source until we get a valid screenshot
+      for (const source of sources) {
+        if (source.thumbnail) {
+          const img = source.thumbnail.toDataURL();
+          if (img && img.length > 1000) { // Valid screenshot should be > 1KB
+            console.log('[Talio] [Windows] ✅ desktopCapturer screenshot captured, size:', Math.round(img.length / 1024), 'KB');
+            return img;
+          }
+        }
+      }
+      console.log('[Talio] [Windows] desktopCapturer sources returned empty thumbnails');
+    }
+  } catch (err) {
+    console.error('[Talio] [Windows] desktopCapturer failed:', err.message, err.stack);
+  }
+  
+  // Method 3: Try with different thumbnail sizes
+  try {
+    console.log('[Talio] [Windows] Trying desktopCapturer with smaller thumbnail...');
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1280, height: 720 }
+    });
+    
     if (sources.length > 0 && sources[0].thumbnail) {
-      const screenshot = sources[0].thumbnail.toDataURL();
-      if (screenshot && screenshot.length > 1000) { // Valid screenshot should be > 1KB
-        console.log('[Talio] [Windows] desktopCapturer screenshot captured, size:', Math.round(screenshot.length / 1024), 'KB');
-        return screenshot;
+      const img = sources[0].thumbnail.toDataURL();
+      if (img && img.length > 1000) {
+        console.log('[Talio] [Windows] ✅ desktopCapturer (720p) screenshot captured, size:', Math.round(img.length / 1024), 'KB');
+        return img;
       }
     }
   } catch (err) {
-    console.log('[Talio] [Windows] desktopCapturer failed:', err.message);
+    console.error('[Talio] [Windows] desktopCapturer (720p) failed:', err.message);
   }
   
-  // Fallback to screenshot-desktop for Windows
-  if (screenshotDesktop) {
-    try {
-      console.log('[Talio] [Windows] Falling back to screenshot-desktop...');
-      const imgBuffer = await screenshotDesktop({ format: 'png' });
-      const base64 = imgBuffer.toString('base64');
-      const screenshot = `data:image/png;base64,${base64}`;
-      console.log('[Talio] [Windows] screenshot-desktop captured, size:', Math.round(screenshot.length / 1024), 'KB');
-      return screenshot;
-    } catch (err) {
-      console.error('[Talio] [Windows] screenshot-desktop failed:', err.message);
-    }
-  }
-  
-  console.log('[Talio] [Windows] All screenshot methods failed');
+  console.error('[Talio] [Windows] ❌ All screenshot methods failed!');
   return null;
 }
 
@@ -1223,9 +1268,13 @@ let lastCaptureTimestamp = 0;
 // Screenshots are taken exactly every 60 seconds from the moment monitoring starts
 // This runs in background even when window is hidden
 function startScreenMonitoring() {
-  if (screenshotTimer || screenshotStartupTimer || preciseScreenshotTimer) return;
+  if (screenshotTimer || screenshotStartupTimer || preciseScreenshotTimer) {
+    console.log('[Talio] Screen monitoring already running, skipping start');
+    return;
+  }
 
   console.log('[Talio] 🚀 Starting PRECISE screen monitoring (strict 60-second intervals)');
+  console.log('[Talio] Platform for screenshots:', process.platform);
   
   // Record when monitoring started (this is effectively check-in time for the desktop app)
   screenshotAuthTime = Date.now();
@@ -1233,6 +1282,8 @@ function startScreenMonitoring() {
 
   // Capture function with strict timing
   const captureScreenshot = async () => {
+    console.log('[Talio] captureScreenshot called, authToken present:', !!authToken);
+    
     if (!authToken) {
       console.log('[Talio] Skipping capture - not authenticated');
       return;
@@ -1250,7 +1301,7 @@ function startScreenMonitoring() {
     const now = new Date();
     const elapsedSinceAuth = screenshotAuthTime ? Math.round((Date.now() - screenshotAuthTime) / 1000) : 0;
     const timestamp = now.toLocaleTimeString('en-US', { hour12: false });
-    console.log(`[Talio] 📸 Screenshot #${Math.ceil(elapsedSinceAuth / 60)} at ${timestamp} (${elapsedSinceAuth}s since start)`);
+    console.log(`[Talio] 📸 Screenshot #${Math.ceil(elapsedSinceAuth / 60)} at ${timestamp} (${elapsedSinceAuth}s since start) [${process.platform}]`);
     
     try {
       await captureAndSyncProductivity(false);
@@ -2277,6 +2328,29 @@ function handleProtocolUrl(url) {
 
 app.whenReady().then(async () => {
   console.log('[Talio] App starting...');
+  console.log('[Talio] Platform:', process.platform);
+  console.log('[Talio] App URL:', APP_URL);
+
+  // Log Windows-specific information
+  if (process.platform === 'win32') {
+    console.log('[Talio] [Windows] Initializing Windows-specific features...');
+    console.log('[Talio] [Windows] screenshot-desktop available:', !!screenshotDesktop);
+    
+    // Test screenshot capability immediately on Windows
+    setTimeout(async () => {
+      console.log('[Talio] [Windows] Testing screenshot capability...');
+      try {
+        const testScreenshot = await captureScreenshotWindows();
+        if (testScreenshot) {
+          console.log('[Talio] [Windows] ✅ Screenshot test successful, size:', Math.round(testScreenshot.length / 1024), 'KB');
+        } else {
+          console.error('[Talio] [Windows] ❌ Screenshot test failed - no image returned');
+        }
+      } catch (err) {
+        console.error('[Talio] [Windows] ❌ Screenshot test error:', err.message);
+      }
+    }, 3000); // Test after 3 seconds to let app fully initialize
+  }
 
   // Set custom macOS application menu (removes Electron branding from menu bar)
   const template = [
