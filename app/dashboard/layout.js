@@ -20,11 +20,11 @@ import { getCurrentUser, getEmployeeId, syncUserData, getToken } from '@/utils/u
 // Component to sync sidebar state with chat widget context
 function SidebarStateSync({ sidebarCollapsed }) {
   const { updateSidebarCollapsed } = useChatWidget()
-  
+
   useEffect(() => {
     updateSidebarCollapsed(sidebarCollapsed)
   }, [sidebarCollapsed, updateSidebarCollapsed])
-  
+
   return null
 }
 
@@ -39,14 +39,14 @@ export default function DashboardLayout({ children }) {
     const syncEmployeeData = async () => {
       const user = getCurrentUser()
       const token = getToken()
-      
+
       if (!user || !token) return
-      
+
       // Check if we need to sync (missing firstName or employeeId structure is incomplete)
-      const needsSync = !user.firstName || 
+      const needsSync = !user.firstName ||
         (user.employeeId && typeof user.employeeId !== 'object') ||
         (user.employeeId && !user.employeeId.firstName)
-      
+
       if (needsSync) {
         const empId = getEmployeeId(user)
         if (empId) {
@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }) {
         }
       }
     }
-    
+
     syncEmployeeData()
   }, [])
 
@@ -74,17 +74,17 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     const userData = localStorage.getItem('user')
     const token = localStorage.getItem('token')
-    
+
     if (userData) {
       try {
         const user = JSON.parse(userData)
         setUserId(user.id || user._id)
-        
+
         // Initialize desktop app monitoring if running in Electron
         if ((window.talioDesktop || window.electronAPI) && token) {
           const desktopAPI = window.talioDesktop || window.electronAPI
           console.log('[Dashboard] Initializing desktop app monitoring...')
-          
+
           // Set auth to start monitoring
           if (desktopAPI.setAuth) {
             desktopAPI.setAuth(token, user).catch(err => {
@@ -106,19 +106,19 @@ export default function DashboardLayout({ children }) {
   }
 
   // Check if current page is a bottom nav page (excluding chat which doesn't show fade)
-  const isBottomNavPage = 
-    pathname === '/dashboard' || 
-    pathname?.startsWith('/dashboard/tasks') || 
+  const isBottomNavPage =
+    pathname === '/dashboard' ||
+    pathname?.startsWith('/dashboard/tasks') ||
     pathname?.startsWith('/dashboard/projects') ||
     pathname?.startsWith('/dashboard/leave') ||
     pathname?.startsWith('/dashboard/sandbox')
-  
+
   // Chat pages don't show the fade
   const isChatPage = pathname?.startsWith('/dashboard/chat')
-  
+
   // Meeting room pages should have no chrome (sidebar/header)
   const isMeetingRoomPage = pathname?.includes('/meetings/room/')
-  
+
   // Only show fade on bottom nav pages (not chat)
   const shouldShowFade = isBottomNavPage && !isChatPage
 
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }) {
           <ChatWidgetProvider>
             {/* Sync sidebar state to chat widget context */}
             <SidebarStateSync sidebarCollapsed={sidebarCollapsed} />
-            
+
             {/* Main Layout Container - Flex Row */}
             <div className="flex h-screen w-full overflow-hidden" style={{ backgroundColor: 'var(--color-bg-main)' }}>
 
@@ -152,11 +152,11 @@ export default function DashboardLayout({ children }) {
               <OfflineDetector />
 
               {/* Sidebar - Static on Desktop, Fixed on Mobile */}
-              <Sidebar 
-                isOpen={sidebarOpen} 
-                setIsOpen={setSidebarOpen} 
-                isCollapsed={sidebarCollapsed} 
-                setIsCollapsed={setSidebarCollapsed} 
+              <Sidebar
+                isOpen={sidebarOpen}
+                setIsOpen={setSidebarOpen}
+                isCollapsed={sidebarCollapsed}
+                setIsCollapsed={setSidebarCollapsed}
               />
 
               {/* Right Side Content - Flex Column */}
@@ -168,46 +168,51 @@ export default function DashboardLayout({ children }) {
                 <Header toggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
 
                 {/* Main Content Area - Scrollable */}
-                <main className={`flex-1 overflow-y-auto z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
-                  <div className={`min-h-full ${isChatPage ? 'sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 py-6'}`}>
-                    {children}
-                  </div>
-                  
-                  {/* Bottom padding for mobile nav */}
-                  <div className={`w-full flex-shrink-0 md:hidden ${shouldShowFade ? 'h-20' : 'h-16'}`}></div>
-                  <div className="w-full flex-shrink-0 hidden md:block h-4"></div>
-                </main>
+<<<<<<< Updated upstream
+  <main className={`flex-1 overflow-y-auto z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
+    <div className={`min-h-full ${isChatPage ? 'sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 py-6'}`}>
+=======
+                <main className={`flex-1 overflow-y-auto relative z-0 ${isChatPage ? 'bg-white md:bg-transparent' : ''}`}>
+        <div className={`min-h-full ${isChatPage ? '-mt-4 sm:pb-16 px-0 md:px-4 lg:px-8' : 'px-0 sm:px-6 lg:px-8 pt-2 pb-6 sm:py-6'}`}>
+>>>>>>> Stashed changes
+          {children}
+        </div>
 
-                {/* Gradient above bottom nav - Mobile only */}
-                {shouldShowFade && (
-                  <div 
-                    className="md:hidden fixed left-0 right-0 h-[124px] pointer-events-none z-[39]"
-                    style={{ 
-                      bottom: '68px',
-                      background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
-                      opacity: 1,
-                      transition: 'opacity 0.6s ease-in-out'
-                    }}
-                  />
-                )}
+        {/* Bottom padding for mobile nav */}
+        <div className={`w-full flex-shrink-0 md:hidden ${shouldShowFade ? 'h-20' : 'h-16'}`}></div>
+        <div className="w-full flex-shrink-0 hidden md:block h-4"></div>
+      </main>
 
-                {/* Bottom Navigation for Mobile */}
-                <BottomNav />
-              </div>
+      {/* Gradient above bottom nav - Mobile only */}
+      {shouldShowFade && (
+        <div
+          className="md:hidden fixed left-0 right-0 h-[124px] pointer-events-none z-[39]"
+          style={{
+            bottom: '68px',
+            background: `linear-gradient(179.13deg, rgba(249, 250, 251, 0) 0%, var(--color-bg-main) 71.18%)`,
+            opacity: 1,
+            transition: 'opacity 0.6s ease-in-out'
+          }}
+        />
+      )}
 
-              {/* PWA Install Prompt */}
-              <PWAInstaller />
+      {/* Bottom Navigation for Mobile */}
+      <BottomNav />
+    </div>
 
-              {/* Out of Premises Popup */}
-              <OutOfPremisesPopup />
+    {/* PWA Install Prompt */}
+    <PWAInstaller />
 
-              {/* Floating Chat Widget for Desktop */}
-              <ChatWidgetContainer />
-            </div>
-          </ChatWidgetProvider>
-        </InAppNotificationProvider>
-      </UnreadMessagesProvider>
-    </SocketProvider>
+    {/* Out of Premises Popup */}
+    <OutOfPremisesPopup />
+
+    {/* Floating Chat Widget for Desktop */}
+    <ChatWidgetContainer />
+  </div>
+          </ChatWidgetProvider >
+        </InAppNotificationProvider >
+      </UnreadMessagesProvider >
+    </SocketProvider >
   )
 }
 
