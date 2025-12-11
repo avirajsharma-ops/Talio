@@ -38,17 +38,17 @@ export default function ChatPopup({ chat, index }) {
 
   const primaryColor = theme?.primary?.[500] || '#3B82F6'
   const primaryDark = theme?.primary?.[600] || '#2563EB'
-  
+
   // Get z-index from context - focused chat gets highest z-index
   const zIndex = getZIndex(chat._id)
   const isFocused = focusedChatId === chat._id
-  
+
   // Get unread count for this chat
   const unreadCount = unreadChats?.[chat._id] || 0
 
   // Check if this chat should be auto-minimized
   const shouldAutoMinimize = isAutoMinimized(chat._id)
-  
+
   // Sync auto-minimize state with local state
   useEffect(() => {
     // Don't auto-minimize if this chat is exempt (manually maximized)
@@ -70,7 +70,7 @@ export default function ChatPopup({ chat, index }) {
     border: '1px solid rgba(255, 255, 255, 0.25)',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
   }
-  
+
   // Animation keyframes for genie effect
   const genieMinimizeAnimation = `
     @keyframes genieMinimize {
@@ -138,21 +138,21 @@ export default function ChatPopup({ chat, index }) {
       setAnimationState('normal')
     }, 300)
   }
-  
+
   // Handle maximize with animation
   const handleMaximize = () => {
     // Calculate position for expanded state BEFORE updating state
     const expandedPosition = getDefaultPosition(true)
-    
+
     setIsMinimized(false)
     setAnimationState('maximizing')
     bringToFront?.(chat._id)
     markChatAsRead?.(chat._id)
     setMinimizedUnread(0)
-    
+
     // Set the calculated expanded position immediately
     updateChatPosition?.(chat._id, expandedPosition.x, expandedPosition.y)
-    
+
     // Prevent auto-minimize by temporarily marking as exempt
     if (typeof window !== 'undefined') {
       window.__exemptChatId = chat._id
@@ -164,7 +164,7 @@ export default function ChatPopup({ chat, index }) {
       setAnimationState('normal')
     }, 300)
   }
-  
+
   // Track unread messages while minimized
   useEffect(() => {
     if (isMinimized && unreadCount > minimizedUnread) {
@@ -181,7 +181,7 @@ export default function ChatPopup({ chat, index }) {
         setCurrentUserId(parsed._id || parsed.id)
         const empId = parsed.employeeId?._id || parsed.employeeId || parsed.employee?._id || parsed.employee
         setCurrentEmployeeId(empId)
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [])
 
@@ -209,11 +209,11 @@ export default function ChatPopup({ chat, index }) {
     if (chat._id) {
       fetchMessages()
       markChatAsRead?.(chat._id)
-      
+
       if (isConnected) {
         joinChat?.(chat._id)
       }
-      
+
       return () => {
         if (isConnected) {
           leaveChat?.(chat._id)
@@ -282,7 +282,7 @@ export default function ChatPopup({ chat, index }) {
       setLoading(true)
       const token = localStorage.getItem('token')
       if (!token) return
-      
+
       const response = await fetch(`/api/chat/${chat._id}/messages`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -303,7 +303,7 @@ export default function ChatPopup({ chat, index }) {
     const messageContent = message.trim()
     setMessage('')
     setSending(true)
-    
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/chat/${chat._id}/messages`, {
@@ -314,13 +314,19 @@ export default function ChatPopup({ chat, index }) {
         },
         body: JSON.stringify({ content: messageContent })
       })
-      
+
       const data = await response.json()
       if (!response.ok) {
         console.error('Send message error:', data)
         setMessage(messageContent) // Restore message on error
+      } else if (data.success) {
+        // Add message locally for immediate feedback
+        setMessages(prev => {
+          if (prev.some(msg => msg._id === data.data._id)) return prev
+          return [...prev, data.data]
+        })
       }
-      
+
       sendStopTyping?.(chat._id)
     } catch (error) {
       console.error('Error sending message:', error)
@@ -332,13 +338,13 @@ export default function ChatPopup({ chat, index }) {
 
   const handleTyping = (e) => {
     setMessage(e.target.value)
-    
+
     sendTyping?.(chat._id)
-    
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current)
     }
-    
+
     typingTimeoutRef.current = setTimeout(() => {
       sendStopTyping?.(chat._id)
     }, 2000)
@@ -358,32 +364,32 @@ export default function ChatPopup({ chat, index }) {
 
     try {
       const token = localStorage.getItem('token')
-      
+
       // Step 1: Upload the file
       const uploadFormData = new FormData()
       uploadFormData.append('file', file)
-      
+
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`
         },
         body: uploadFormData
       })
-      
+
       const uploadData = await uploadResponse.json()
-      
+
       if (!uploadResponse.ok || !uploadData.success) {
         console.error('File upload error:', uploadData)
         return
       }
-      
+
       // Step 2: Send message with file info
       const { fileUrl, fileName, fileType, fileSize } = uploadData.data
-      
+
       const messageResponse = await fetch(`/api/chat/${chat._id}/messages`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -395,15 +401,21 @@ export default function ChatPopup({ chat, index }) {
           fileSize
         })
       })
-      
+
       const messageData = await messageResponse.json()
       if (!messageResponse.ok) {
         console.error('Message send error:', messageData)
+      } else if (messageData.success) {
+        // Add message locally for immediate feedback
+        setMessages(prev => {
+          if (prev.some(msg => msg._id === messageData.data._id)) return prev
+          return [...prev, messageData.data]
+        })
       }
     } catch (error) {
       console.error('Error uploading file:', error)
     }
-    
+
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -442,7 +454,7 @@ export default function ChatPopup({ chat, index }) {
   // Calculate position - place chat windows side by side near the widget
   const getDefaultPosition = (forceExpanded = false) => {
     if (typeof window === 'undefined') return { x: 640, y: 100 }
-    
+
     // Use forced expanded state for calculations if provided (for maximize action)
     const useMinimized = forceExpanded ? false : (isMinimized || shouldAutoMinimize)
     const chatWidth = isExpanded ? 480 : (useMinimized ? 220 : 360)
@@ -455,10 +467,10 @@ export default function ChatPopup({ chat, index }) {
     const sidebarWidth = sidebarCollapsed ? 72 : 272 // 4.5rem or 17rem in pixels
     const minimizedHeight = 52 // Height of minimized chat box
     const minimizedGap = 8 // Gap between minimized chats at bottom
-    
+
     // Get widget's actual position
     let widgetX, widgetY
-    
+
     if (widgetPosition.x !== null && widgetPosition.y !== null) {
       // Widget was manually dragged - position chats near it
       widgetX = widgetPosition.x
@@ -472,10 +484,10 @@ export default function ChatPopup({ chat, index }) {
       widgetX = window.innerWidth - 88 - widgetWidth
       widgetY = window.innerHeight - widgetHeight - 88
     }
-    
+
     // Position chat popups to the RIGHT of the widget, side by side
     const startX = widgetX + widgetWidth + gap
-    
+
     // Calculate position based on visible (non-minimized) index
     // If this chat is minimized, position at bottom right corner
     if (useMinimized) {
@@ -485,14 +497,14 @@ export default function ChatPopup({ chat, index }) {
       const minimizedY = window.innerHeight - minimizedHeight - 12 - (minimizedIndex * (minimizedHeight + minimizedGap))
       return { x: minimizedX, y: minimizedY }
     }
-    
+
     // For expanded chats, calculate position carefully to avoid off-screen
     // Calculate how many chats can fit to the right of widget
     const availableRightSpace = window.innerWidth - startX - screenPadding
     const maxChatsRight = Math.max(1, Math.floor(availableRightSpace / (chatWidth + gap)))
-    
+
     let finalX, finalY
-    
+
     if (index < maxChatsRight) {
       // This chat fits on the right side
       finalX = startX + (index * (chatWidth + gap))
@@ -500,21 +512,21 @@ export default function ChatPopup({ chat, index }) {
       // Need to position on the left side or stack
       const leftIndex = index - maxChatsRight
       finalX = widgetX - gap - chatWidth - (leftIndex * (chatWidth + gap))
-      
+
       // If also goes off left edge, fall back to stacking on right
       if (finalX < screenPadding) {
         // Stack on the right side at a safe position
         finalX = Math.max(screenPadding, startX)
       }
     }
-    
+
     // All chats at the same Y level (aligned with widget bottom)
     finalY = window.innerHeight - chatHeight - bottomOffset
-    
+
     // Final bounds check - ensure completely within screen
     finalX = Math.max(screenPadding, Math.min(finalX, window.innerWidth - chatWidth - screenPadding))
     finalY = Math.max(screenPadding, Math.min(finalY, window.innerHeight - chatHeight - screenPadding))
-    
+
     return { x: finalX, y: finalY }
   }
 
@@ -535,19 +547,19 @@ export default function ChatPopup({ chat, index }) {
   const renderFileMessage = (msg) => {
     if (msg.fileType?.startsWith('image/')) {
       return (
-        <img 
-          src={msg.fileUrl} 
+        <img
+          src={msg.fileUrl}
           alt={msg.fileName}
           className="max-w-[200px] rounded-lg cursor-pointer hover:opacity-90"
         />
       )
     }
-    
+
     const isPdf = msg.fileType === 'application/pdf'
     return (
-      <a 
-        href={msg.fileUrl} 
-        target="_blank" 
+      <a
+        href={msg.fileUrl}
+        target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors"
       >
@@ -565,7 +577,7 @@ export default function ChatPopup({ chat, index }) {
         <style>{genieMinimizeAnimation}</style>
         <div
           className="fixed rounded-xl cursor-pointer overflow-visible"
-          style={{ 
+          style={{
             left: `${position.x}px`,
             top: `${position.y}px`,
             width: '180px',
@@ -577,13 +589,13 @@ export default function ChatPopup({ chat, index }) {
           }}
           onClick={handleMaximize}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}  
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) scale(1)'}
         >
           {/* Notification Badge */}
           {minimizedUnread > 0 && (
-            <div 
+            <div
               className="absolute -top-2 -right-2 min-w-[22px] h-[22px] rounded-full flex items-center justify-center text-white text-xs font-bold px-1.5 shadow-lg"
-              style={{ 
+              style={{
                 backgroundColor: '#EF4444',
                 animation: 'pulse 2s infinite, bounce 0.5s ease-out',
                 zIndex: zIndex + 1
@@ -592,10 +604,10 @@ export default function ChatPopup({ chat, index }) {
               {minimizedUnread > 99 ? '99+' : minimizedUnread}
             </div>
           )}
-          
-          <div 
+
+          <div
             className="px-3 py-2.5 flex items-center justify-between rounded-xl"
-            style={{ 
+            style={{
               background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
             }}
           >
@@ -614,7 +626,7 @@ export default function ChatPopup({ chat, index }) {
               style={{ backgroundColor: 'white' }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" className="w-3 h-3" fill={primaryDark}>
-                <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
+                <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
               </svg>
             </button>
           </div>
@@ -637,21 +649,21 @@ export default function ChatPopup({ chat, index }) {
           zIndex,
           ...glassStyle,
           transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease, height 0.3s ease, box-shadow 0.2s ease',
-          animation: animationState === 'minimizing' 
-            ? 'genieMinimize 0.3s ease-in forwards' 
-            : animationState === 'maximizing' 
+          animation: animationState === 'minimizing'
+            ? 'genieMinimize 0.3s ease-in forwards'
+            : animationState === 'maximizing'
               ? 'genieMaximize 0.3s ease-out forwards'
               : 'slideIn 0.4s ease-out',
-          boxShadow: isFocused 
+          boxShadow: isFocused
             ? `0 20px 50px rgba(0, 0, 0, 0.2), 0 0 0 2px ${primaryColor}40, inset 0 1px 0 rgba(255, 255, 255, 0.5)`
             : '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
         }}
         onClick={() => bringToFront?.(chat._id)}
       >
         {/* Header */}
-        <div 
+        <div
           className="px-3 py-2.5 flex items-center justify-between cursor-move select-none"
-          style={{ 
+          style={{
             background: `linear-gradient(135deg, ${primaryColor}ee, ${primaryDark}ee)`,
           }}
           onMouseDown={handleMouseDown}
@@ -678,7 +690,7 @@ export default function ChatPopup({ chat, index }) {
                 title="View Members"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" className="w-3.5 h-3.5" fill={primaryDark}>
-                  <path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192h42.7c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0H21.3C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7h42.7C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3H405.3zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352H378.7C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7H154.7c-14.7 0-26.7-11.9-26.7-26.7z"/>
+                  <path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192h42.7c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0H21.3C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7h42.7C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3H405.3zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352H378.7C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7H154.7c-14.7 0-26.7-11.9-26.7-26.7z" />
                 </svg>
               </button>
             )}
@@ -693,11 +705,11 @@ export default function ChatPopup({ chat, index }) {
             >
               {isExpanded ? (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="w-3.5 h-3.5" fill={primaryDark}>
-                  <path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32v64H32c-17.7 0-32 14.3-32 32s14.3 32 32 32h96c17.7 0 32-14.3 32-32V64zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32H96v64c0 17.7 14.3 32 32 32s32-14.3 32-32V352c0-17.7-14.3-32-32-32H32zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7 14.3 32 32 32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H352V64zM320 320c-17.7 0-32 14.3-32 32v96c0 17.7 14.3 32 32 32s32-14.3 32-32V384h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H320z"/>
+                  <path d="M160 64c0-17.7-14.3-32-32-32s-32 14.3-32 32v64H32c-17.7 0-32 14.3-32 32s14.3 32 32 32h96c17.7 0 32-14.3 32-32V64zM32 320c-17.7 0-32 14.3-32 32s14.3 32 32 32H96v64c0 17.7 14.3 32 32 32s32-14.3 32-32V352c0-17.7-14.3-32-32-32H32zM352 64c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7 14.3 32 32 32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H352V64zM320 320c-17.7 0-32 14.3-32 32v96c0 17.7 14.3 32 32 32s32-14.3 32-32V384h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H320z" />
                 </svg>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="w-3.5 h-3.5" fill={primaryDark}>
-                  <path d="M32 32C14.3 32 0 46.3 0 64v96c0 17.7 14.3 32 32 32s32-14.3 32-32V96h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7 14.3 32 32 32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H64V352zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32h64v64c0 17.7 14.3 32 32 32s32-14.3 32-32V64c0-17.7-14.3-32-32-32H320zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v64H320c-17.7 0-32 14.3-32 32s14.3 32 32 32h96c17.7 0 32-14.3 32-32V352z"/>
+                  <path d="M32 32C14.3 32 0 46.3 0 64v96c0 17.7 14.3 32 32 32s32-14.3 32-32V96h64c17.7 0 32-14.3 32-32s-14.3-32-32-32H32zM64 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v96c0 17.7 14.3 32 32 32h96c17.7 0 32-14.3 32-32s-14.3-32-32-32H64V352zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32h64v64c0 17.7 14.3 32 32 32s32-14.3 32-32V64c0-17.7-14.3-32-32-32H320zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32v64H320c-17.7 0-32 14.3-32 32s14.3 32 32 32h96c17.7 0 32-14.3 32-32V352z" />
                 </svg>
               )}
             </button>
@@ -711,7 +723,7 @@ export default function ChatPopup({ chat, index }) {
               title="Minimize"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="w-3.5 h-3.5" fill={primaryDark}>
-                <path d="M432 256c0 17.7-14.3 32-32 32H48c-17.7 0-32-14.3-32-32s14.3-32 32-32H400c17.7 0 32 14.3 32 32z"/>
+                <path d="M432 256c0 17.7-14.3 32-32 32H48c-17.7 0-32-14.3-32-32s14.3-32 32-32H400c17.7 0 32 14.3 32 32z" />
               </svg>
             </button>
             <button
@@ -724,7 +736,7 @@ export default function ChatPopup({ chat, index }) {
               title="Close"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" className="w-3.5 h-3.5" fill={primaryDark}>
-                <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
+                <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
               </svg>
             </button>
           </div>
@@ -732,7 +744,7 @@ export default function ChatPopup({ chat, index }) {
 
         {/* Group Members Panel - Slide over messages when open */}
         {showMembersPanel && chat.isGroup && (
-          <div 
+          <div
             className="absolute inset-x-0 top-[52px] bottom-0 z-10 overflow-hidden rounded-b-2xl"
             style={{
               background: 'rgba(255, 255, 255, 0.95)',
@@ -756,16 +768,16 @@ export default function ChatPopup({ chat, index }) {
                 className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" className="w-3 h-3" fill="#6B7280">
-                  <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
+                  <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z" />
                 </svg>
               </button>
             </div>
-            
+
             {/* Search Bar */}
             <div className="px-3 pt-2 pb-1">
               <div className="relative">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" fill="#9CA3AF">
-                  <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                  <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z" />
                 </svg>
                 <input
                   type="text"
@@ -778,7 +790,7 @@ export default function ChatPopup({ chat, index }) {
                 />
               </div>
             </div>
-            
+
             {/* Members List */}
             <div className="overflow-y-auto p-3 pt-2 space-y-2" style={{ maxHeight: 'calc(100% - 96px)' }}>
               {chat.participants?.filter((member) => {
@@ -791,15 +803,14 @@ export default function ChatPopup({ chat, index }) {
                 const memberId = member._id || member
                 const isAdmin = chat.admin?._id === memberId || chat.admin === memberId
                 const isCurrentUser = memberId === currentEmployeeId || memberId === currentUserId
-                
+
                 return (
                   <div
                     key={memberId}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
-                      isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors ${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
                   >
-                    <div 
+                    <div
                       className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
                       style={{
                         background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
@@ -848,7 +859,7 @@ export default function ChatPopup({ chat, index }) {
                         title={`Message ${member.firstName || 'User'}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-4 h-4" fill="currentColor">
-                          <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
+                          <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z" />
                         </svg>
                       </button>
                     )}
@@ -860,130 +871,129 @@ export default function ChatPopup({ chat, index }) {
         )}
 
         {/* Messages */}
-        <div 
+        <div
           ref={messagesContainerRef}
           className="popup-content flex-1 overflow-y-auto p-3 space-y-3"
           style={{ background: 'rgba(248, 250, 252, 0.5)' }}
         >
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div>
-              <div 
-                className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin mx-auto"
-                style={{ borderColor: primaryColor, borderTopColor: 'transparent' }}
-              ></div>
-              <p className="text-gray-500 text-xs mt-2">Loading messages...</p>
-            </div>
-          </div>
-        ) : messages.length > 0 ? (
-          messages.map((msg, idx) => {
-            const isMine = isMyMessage(msg)
-            return (
-              <div key={msg._id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div>
                 <div
-                  className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl ${
-                    isMine 
-                      ? 'text-white rounded-br-md shadow-sm' 
-                      : 'text-gray-800 rounded-bl-md shadow-sm'
-                  }`}
-                  style={isMine ? { 
-                    background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
-                  } : {
-                    background: 'rgba(255, 255, 255, 0.85)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                  }}
-                >
-                  {!isMine && chat.isGroup && (
-                    <p className="text-xs font-semibold mb-1" style={{ color: primaryColor }}>
-                      {msg.sender?.firstName || 'User'}
-                    </p>
-                  )}
-                  {msg.fileUrl ? renderFileMessage(msg) : (
-                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
-                  )}
-                  <p className={`text-[10px] mt-1.5 ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
+                  className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin mx-auto"
+                  style={{ borderColor: primaryColor, borderTopColor: 'transparent' }}
+                ></div>
+                <p className="text-gray-500 text-xs mt-2">Loading messages...</p>
               </div>
-            )
-          })
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div 
-              className="w-14 h-14 rounded-full flex items-center justify-center mb-3"
-              style={{ backgroundColor: `${primaryColor}20` }}
-            >
-              <FaUsers className="w-6 h-6" style={{ color: primaryColor }} />
             </div>
-            <p className="text-gray-500 text-sm">No messages yet</p>
-            <p className="text-gray-400 text-xs mt-1">Say hi to start the conversation! 👋</p>
+          ) : messages.length > 0 ? (
+            messages.map((msg, idx) => {
+              const isMine = isMyMessage(msg)
+              return (
+                <div key={msg._id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl ${isMine
+                        ? 'text-white rounded-br-md shadow-sm'
+                        : 'text-gray-800 rounded-bl-md shadow-sm'
+                      }`}
+                    style={isMine ? {
+                      background: `linear-gradient(135deg, ${primaryColor}, ${primaryDark})`,
+                    } : {
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                    }}
+                  >
+                    {!isMine && chat.isGroup && (
+                      <p className="text-xs font-semibold mb-1" style={{ color: primaryColor }}>
+                        {msg.sender?.firstName || 'User'}
+                      </p>
+                    )}
+                    {msg.fileUrl ? renderFileMessage(msg) : (
+                      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                    )}
+                    <p className={`text-[10px] mt-1.5 ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center mb-3"
+                style={{ backgroundColor: `${primaryColor}20` }}
+              >
+                <FaUsers className="w-6 h-6" style={{ color: primaryColor }} />
+              </div>
+              <p className="text-gray-500 text-sm">No messages yet</p>
+              <p className="text-gray-400 text-xs mt-1">Say hi to start the conversation! 👋</p>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Typing indicator */}
+        {typingText && (
+          <div className="px-3 py-1.5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
+            <p className="text-xs text-gray-500 italic flex items-center gap-1">
+              <span className="flex gap-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </span>
+              {typingText}
+            </p>
           </div>
         )}
-        <div ref={messagesEndRef} />
-      </div>
 
-      {/* Typing indicator */}
-      {typingText && (
-        <div className="px-3 py-1.5" style={{ background: 'rgba(255, 255, 255, 0.6)' }}>
-          <p className="text-xs text-gray-500 italic flex items-center gap-1">
-            <span className="flex gap-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
-            </span>
-            {typingText}
-          </p>
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="popup-content p-3" style={{ background: 'rgba(255, 255, 255, 0.7)' }}>
-        <div className="flex items-center gap-2">
-          <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl transition-colors"
-            style={{ background: 'rgba(0, 0, 0, 0.05)' }}
-            title="Attach file"
-          >
-            <FaPaperclip className="w-4 h-4 text-gray-500" />
-          </button>
-          <input
-            type="text"
-            value={message}
-            onChange={handleTyping}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all"
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.8)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-            }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!message.trim() || sending}
-            className="transition-all disabled:opacity-30 hover:opacity-70"
-            style={{ 
-              color: (!message.trim() || sending) ? '#9CA3AF' : primaryColor,
-            }}
-            title="Send message"
-          >
-            {sending ? (
-              <div 
-                className="animate-spin rounded-full w-5 h-5 border-2 border-t-transparent"
-                style={{ borderColor: primaryColor, borderTopColor: 'transparent' }}
-              ></div>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-5 h-5" fill="currentColor">
-                <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z"/>
-              </svg>
-            )}
-          </button>
+        {/* Input */}
+        <div className="popup-content p-3" style={{ background: 'rgba(255, 255, 255, 0.7)' }}>
+          <div className="flex items-center gap-2">
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 rounded-xl transition-colors"
+              style={{ background: 'rgba(0, 0, 0, 0.05)' }}
+              title="Attach file"
+            >
+              <FaPaperclip className="w-4 h-4 text-gray-500" />
+            </button>
+            <input
+              type="text"
+              value={message}
+              onChange={handleTyping}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 transition-all"
+              style={{
+                background: 'rgba(255, 255, 255, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+              }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!message.trim() || sending}
+              className="transition-all disabled:opacity-30 hover:opacity-70"
+              style={{
+                color: (!message.trim() || sending) ? '#9CA3AF' : primaryColor,
+              }}
+              title="Send message"
+            >
+              {sending ? (
+                <div
+                  className="animate-spin rounded-full w-5 h-5 border-2 border-t-transparent"
+                  style={{ borderColor: primaryColor, borderTopColor: 'transparent' }}
+                ></div>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="w-5 h-5" fill="currentColor">
+                  <path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 416c-1.5 9.7-7.4 18.2-16 23s-18.9 5.4-28 1.6L284 427.7l-68.5 74.1c-8.9 9.7-22.9 12.9-35.2 8.1S160 493.3 160 480V392c0-8.5 3.4-16.6 9.4-22.6l208-208c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L121.4 340.4l-96.4-40.2c-9.6-4-16.1-12.9-16.9-23.1s4.9-19.8 14.1-24.8l464-256c9.6-5.3 21.5-5.2 31 .5z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </>
   )
 }
