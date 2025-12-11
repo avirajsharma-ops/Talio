@@ -12,8 +12,8 @@ app.setName('Talio');
 // Set About panel options for macOS - this replaces Electron branding
 app.setAboutPanelOptions({
   applicationName: 'Talio',
-  applicationVersion: '1.0.6',
-  version: '1.0.6',
+  applicationVersion: '1.0.7',
+  version: '1.0.7',
   copyright: '© 2025 Talio. All rights reserved.',
   credits: 'HR that runs itself.',
   iconPath: path.join(__dirname, '../assets/icon.png')
@@ -267,7 +267,7 @@ function createMainWindow() {
     height: Math.min(900, height - 100),
     minWidth: 1024,
     minHeight: 768,
-    title: 'Talio HRMS',
+    title: 'Talio',
     icon: path.join(__dirname, '../assets/icon.png'),
     webPreferences: {
       nodeIntegration: false,
@@ -279,30 +279,44 @@ function createMainWindow() {
     show: false
   };
   
-  // macOS: Use hidden inset title bar with traffic lights
+  // macOS: Use hidden inset title bar with traffic lights positioned properly
   if (isMac) {
     windowOptions.titleBarStyle = 'hiddenInset';
-    windowOptions.trafficLightPosition = { x: 15, y: 15 };
+    windowOptions.trafficLightPosition = { x: 12, y: 12 };
   }
-  // Windows: Use default frame (no custom title bar to avoid overlap issues)
-  // The native Windows title bar will be used
+  
+  // Windows: Use frameless window with custom title bar overlay (removes File, Edit, View menu)
+  if (isWindows) {
+    windowOptions.frame = false;
+    windowOptions.titleBarStyle = 'hidden';
+    windowOptions.titleBarOverlay = {
+      color: '#ffffff',
+      symbolColor: '#374151',
+      height: 32
+    };
+  }
 
   mainWindow = new BrowserWindow(windowOptions);
+  
+  // Remove menu bar on Windows to hide File, Edit, View menus
+  if (isWindows) {
+    mainWindow.setMenu(null);
+    Menu.setApplicationMenu(null);
+  }
 
   // Load the Talio web app - ALWAYS use APP_URL
   mainWindow.loadURL(APP_URL);
 
   // Inject CSS for title bar spacing when content loads
-  // Only apply custom spacing on macOS where we use hidden title bar
   mainWindow.webContents.on('did-finish-load', () => {
     if (isMac) {
-      // macOS: Add padding for the hidden inset title bar
+      // macOS: Add padding for the hidden inset title bar (traffic lights)
       mainWindow.webContents.insertCSS(`
         :root {
-          --talio-titlebar-height: 38px;
+          --talio-titlebar-height: 28px;
         }
         
-        /* Title bar drag region */
+        /* Title bar drag region - only on left side for traffic lights */
         body::before {
           content: "";
           position: fixed;
@@ -311,7 +325,7 @@ function createMainWindow() {
           right: 0;
           height: var(--talio-titlebar-height);
           -webkit-app-region: drag;
-          z-index: 9999;
+          z-index: 9998;
           pointer-events: none;
         }
         
@@ -333,9 +347,58 @@ function createMainWindow() {
         body > div:first-child {
           height: 100% !important;
         }
+        
+        /* Ensure buttons and interactive elements are clickable */
+        button, a, input, select, [role="button"] {
+          -webkit-app-region: no-drag;
+        }
+      `);
+    } else if (isWindows) {
+      // Windows: Add padding for the custom title bar overlay
+      mainWindow.webContents.insertCSS(`
+        :root {
+          --talio-titlebar-height: 32px;
+        }
+        
+        /* Title bar drag region */
+        body::before {
+          content: "";
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 140px; /* Leave space for window controls */
+          height: var(--talio-titlebar-height);
+          -webkit-app-region: drag;
+          z-index: 9998;
+          pointer-events: none;
+        }
+        
+        /* Body needs padding to account for title bar */
+        body {
+          padding-top: var(--talio-titlebar-height) !important;
+          height: 100vh !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+        }
+        
+        /* Fix h-screen to fit within the padded body */
+        .h-screen {
+          height: 100% !important;
+          max-height: 100% !important;
+        }
+        
+        /* Ensure root container fills the space */
+        body > div:first-child {
+          height: 100% !important;
+        }
+        
+        /* Ensure buttons and interactive elements are clickable */
+        button, a, input, select, [role="button"] {
+          -webkit-app-region: no-drag;
+        }
       `);
     } else {
-      // Windows/Linux: Just ensure proper overflow handling (no extra padding needed)
+      // Linux: Just ensure proper overflow handling
       mainWindow.webContents.insertCSS(`
         body {
           height: 100vh !important;
@@ -481,15 +544,17 @@ function createMayaBlobWindow() {
   console.log('[Talio] Creating Maya blob window');
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const savedPosition = store.get('blobPosition');
+  const isMac = process.platform === 'darwin';
+  const isWindows = process.platform === 'win32';
 
   const blobSize = 120;
   
   // Position at bottom-right corner with comfortable margin
-  // 20px from right edge, 100px from bottom to be above dock and clearly visible
+  // 20px from right edge, 100px from bottom to be above dock/taskbar and clearly visible
   const defaultX = width - blobSize - 20;
-  const defaultY = height - blobSize - 100;
+  const defaultY = height - blobSize - (isMac ? 100 : 60);
 
-  mayaBlobWindow = new BrowserWindow({
+  const blobOptions = {
     width: blobSize,
     height: blobSize,
     x: savedPosition.x ?? defaultX,
@@ -500,11 +565,9 @@ function createMayaBlobWindow() {
     resizable: false,
     movable: true,
     skipTaskbar: true,
-    hasShadow: false, // Disable shadow to prevent background artifacts
+    hasShadow: false,
     roundedCorners: true,
     backgroundColor: '#00000000',
-    // macOS specific - make window float above other apps
-    type: process.platform === 'darwin' ? 'panel' : undefined,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -512,7 +575,18 @@ function createMayaBlobWindow() {
       webSecurity: true
     },
     show: false
-  });
+  };
+  
+  // Platform-specific window type
+  if (isMac) {
+    blobOptions.type = 'panel';
+    blobOptions.vibrancy = 'under-window';
+  } else if (isWindows) {
+    // Windows: Use toolbar type for always on top without taskbar
+    blobOptions.type = 'toolbar';
+  }
+
+  mayaBlobWindow = new BrowserWindow(blobOptions);
 
   const blobUrl = `${APP_URL}/maya/blob.html`;
   console.log('[Talio] Loading Maya blob from:', blobUrl);
@@ -686,7 +760,10 @@ function createMayaWidgetWindow() {
     widgetY = savedPosition.y ?? height - widgetHeight - 80;
   }
 
-  mayaWidgetWindow = new BrowserWindow({
+  const isMac = process.platform === 'darwin';
+  const isWindows = process.platform === 'win32';
+
+  const widgetOptions = {
     width: widgetWidth,
     height: widgetHeight,
     x: widgetX,
@@ -700,16 +777,24 @@ function createMayaWidgetWindow() {
     minHeight: 400,
     skipTaskbar: true,
     hasShadow: true,
-    vibrancy: 'under-window',
-    visualEffectState: 'active',
-    backgroundColor: '#00000000', // Fully transparent background
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../maya-preload.js')
     },
     show: false
-  });
+  };
+  
+  // Platform-specific options
+  if (isMac) {
+    widgetOptions.vibrancy = 'under-window';
+    widgetOptions.visualEffectState = 'active';
+  } else if (isWindows) {
+    widgetOptions.type = 'toolbar';
+  }
+
+  mayaWidgetWindow = new BrowserWindow(widgetOptions);
 
   // Load native Maya widget HTML from server for easy updates
   mayaWidgetWindow.loadURL(`${APP_URL}/maya/widget.html`);
