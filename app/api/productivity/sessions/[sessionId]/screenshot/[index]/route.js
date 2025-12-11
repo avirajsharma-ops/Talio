@@ -73,6 +73,22 @@ export async function GET(request, { params }) {
     // Ensure fullData and thumbnail have proper data URI prefixes
     let fullData = result.screenshot.fullData;
     let thumbnail = result.screenshot.thumbnail;
+    let path = result.screenshot.path;
+    
+    // If path exists (file-based storage), use it directly
+    if (path) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          _id: result.screenshot._id,
+          capturedAt: result.screenshot.capturedAt,
+          captureType: result.screenshot.captureType,
+          path,
+          fullData: path, // Use path as fullData for compatibility
+          thumbnail: path
+        }
+      });
+    }
     
     if (fullData && !fullData.startsWith('data:')) {
       const mimeType = fullData.startsWith('/9j/') ? 'image/jpeg' : 

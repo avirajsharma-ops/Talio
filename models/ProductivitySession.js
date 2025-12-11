@@ -33,6 +33,7 @@ const ProductivitySessionSchema = new mongoose.Schema({
   screenshots: [{
     _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
     capturedAt: { type: Date, required: true },
+    path: { type: String }, // File path for file-based storage (e.g., /uploads/captures/...)
     thumbnail: { type: String }, // Small base64 thumbnail
     fullData: { type: String }, // Full screenshot base64 (cleared after viewing or after X days)
     captureType: { 

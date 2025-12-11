@@ -58,7 +58,8 @@ const ProductivityDataSchema = new mongoose.Schema({
   
   // Screenshot data
   screenshot: {
-    url: { type: String },
+    path: { type: String }, // File path for file-based storage (e.g., /uploads/captures/...)
+    url: { type: String },  // External URL (e.g., Cloudinary)
     data: { type: String }, // Base64 data (compressed, stored in DB)
     thumbnail: { type: String }, // Small thumbnail for quick preview
     capturedAt: { type: Date },
@@ -66,7 +67,8 @@ const ProductivityDataSchema = new mongoose.Schema({
       type: String, 
       enum: ['periodic', 'instant', 'manual'],
       default: 'periodic'
-    }
+    },
+    fileSize: { type: Number } // File size in bytes
   },
   
   // App usage tracking

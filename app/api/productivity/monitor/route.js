@@ -165,7 +165,10 @@ export async function GET(request) {
 
       // Get screenshot data with proper data URI prefix
       let screenshotData = null;
-      if (capture.screenshot?.url) {
+      // Check for file path first (file-based storage from desktop app)
+      if (capture.screenshot?.path) {
+        screenshotData = capture.screenshot.path;
+      } else if (capture.screenshot?.url) {
         screenshotData = capture.screenshot.url;
       } else if (capture.screenshot?.data) {
         const data = capture.screenshot.data;
@@ -187,7 +190,8 @@ export async function GET(request) {
         success: true,
         data: [{
           ...capture,
-          screenshotUrl: screenshotData
+          screenshotUrl: screenshotData,
+          screenshot: capture.screenshot // Include full screenshot object with path
         }]
       });
     }

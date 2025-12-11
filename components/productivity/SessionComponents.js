@@ -696,7 +696,7 @@ function SessionCard({ session, onClick, onDelete, isAdmin }) {
   // Get screenshot URL - handle various possible fields
   const getScreenshotUrl = (screenshot) => {
     if (!screenshot) return null;
-    return screenshot.thumbnail || screenshot.fullData || screenshot.url || screenshot.thumbnailUrl || null;
+    return screenshot.path || screenshot.thumbnail || screenshot.fullData || screenshot.url || screenshot.thumbnailUrl || null;
   };
 
   // Calculate session duration safely
@@ -1034,14 +1034,14 @@ function SessionDetailModal({ session, onClose }) {
     return 'bg-red-500';
   };
 
-  // Get screenshot URL - prioritize cached fullData, then screenshot's own fullData, then thumbnail
+  // Get screenshot URL - prioritize cached fullData, then screenshot's own path/fullData, then thumbnail
   const getScreenshotUrl = (screenshot, index) => {
     // Check cache first
     if (loadedScreenshots[index]) {
       return loadedScreenshots[index];
     }
     // Then check the screenshot object itself
-    return screenshot?.fullData || screenshot?.thumbnail || screenshot?.url || screenshot?.thumbnailUrl || '';
+    return screenshot?.path || screenshot?.fullData || screenshot?.thumbnail || screenshot?.url || screenshot?.thumbnailUrl || '';
   };
 
   // Format duration
@@ -2303,6 +2303,12 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
     const capture = visibleCaptures[index];
     if (!capture || loadedScreenshots[index]) return;
     
+    // If capture already has screenshot path (file-based), use it directly
+    if (capture.screenshot?.path) {
+      setLoadedScreenshots(prev => ({ ...prev, [index]: capture.screenshot.path }));
+      return;
+    }
+    
     // If capture already has screenshot data, use it
     if (capture.screenshotUrl || capture.screenshot?.data) {
       const screenshotData = capture.screenshotUrl || 
@@ -2326,6 +2332,11 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
       const data = await response.json();
       
       if (data.success && data.data?.[0]) {
+        // Check for path first (file-based storage)
+        if (data.data[0].screenshot?.path) {
+          setLoadedScreenshots(prev => ({ ...prev, [index]: data.data[0].screenshot.path }));
+          return;
+        }
         const screenshotData = data.data[0].screenshotUrl || 
           (data.data[0].screenshot?.data?.startsWith('data:') ? data.data[0].screenshot.data : `data:image/png;base64,${data.data[0].screenshot?.data}`);
         if (screenshotData) {
@@ -2362,7 +2373,10 @@ export function RawCapturesPopup({ user, isOpen, onClose, onDataChange }) {
         // Screenshots from cache should already be in the data
         const cachedScreenshots = {};
         cached.data.forEach((cap, idx) => {
-          if (cap.screenshotUrl || cap.screenshot?.data) {
+          // Check for file path first (file-based storage from desktop app)
+          if (cap.screenshot?.path) {
+            cachedScreenshots[idx] = cap.screenshot.path;
+          } else if (cap.screenshotUrl || cap.screenshot?.data) {
             cachedScreenshots[idx] = cap.screenshotUrl || 
               (cap.screenshot?.data?.startsWith('data:') ? cap.screenshot.data : `data:image/png;base64,${cap.screenshot?.data}`);
           }
