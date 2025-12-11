@@ -7,32 +7,32 @@
 // ============================================
 // RELEASE CONFIGURATION - Update for new releases
 // ============================================
-const RELEASE_VERSION = '1.0.3';
+const RELEASE_VERSION = '1.0.6';
 
 // Direct download URLs from GitHub Releases
 const DOWNLOADS = {
   mac: {
     arm64: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3-arm64.dmg',
-      filename: 'Talio-1.0.3-arm64.dmg',
+      url: 'https://github.com/avirajsharma-ops/Talio/releases/download/v1.0.6/Talio-1.0.6-arm64.dmg',
+      filename: 'Talio-1.0.6-arm64.dmg',
       label: 'Apple Silicon (M1/M2/M3/M4)',
-      size: '~95 MB',
+      size: '~100 MB',
       altLabel: 'Intel (x64)'
     },
     x64: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-1.0.3-x64.dmg',
-      filename: 'Talio-1.0.3-x64.dmg',
+      url: 'https://github.com/avirajsharma-ops/Talio/releases/download/v1.0.6/Talio-1.0.6-x64.dmg',
+      filename: 'Talio-1.0.6-x64.dmg',
       label: 'Intel (x64)',
-      size: '~100 MB',
+      size: '~105 MB',
       altLabel: 'Apple Silicon'
     }
   },
   windows: {
     universal: {
-      url: 'https://github.com/avirajsharma-ops/Tailo/releases/download/v1.0.3/Talio-Setup-1.0.3.exe',
-      filename: 'Talio-Setup-1.0.3.exe',
-      label: 'Universal (32 & 64-bit)',
-      size: '~138 MB'
+      url: 'https://github.com/avirajsharma-ops/Talio/releases/download/v1.0.6/Talio-1.0.6-x64.exe',
+      filename: 'Talio-1.0.6-x64.exe',
+      label: 'Windows 64-bit',
+      size: '~86 MB'
     }
   }
 };
