@@ -255,24 +255,24 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#1a0a2e] relative overflow-hidden">
-      {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a0a2e]/50 to-[#1a0a2e] pointer-events-none z-10" />
+      {/* Background gradient overlay - allows clicks through to iframe */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a0a2e]/30 to-[#1a0a2e]/80 pointer-events-none z-10" />
       
-      {/* Spline 3D Animation - Full background */}
-      <div className="absolute inset-0 w-full h-full">
+      {/* Spline 3D Animation - Full background with mouse interaction */}
+      <div className="absolute inset-0 w-full h-full z-0">
         <iframe 
           src='https://my.spline.design/100followersfocus-GCaB9DZhMZTNOxJCBwYFlptI/' 
           frameBorder='0' 
           width='100%' 
           height='100%'
           className="absolute inset-0 scale-110"
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'auto' }}
         />
       </div>
 
       {/* Login Form - Centered */}
-      <div className="relative z-20 min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
+      <div className="relative z-20 min-h-screen flex items-center justify-center px-4 py-8 pointer-events-none">
+        <div className="w-full max-w-md pointer-events-auto">
           {/* Glass morphism card with solid white background for readability */}
           <div 
             className="rounded-3xl shadow-2xl overflow-hidden"
