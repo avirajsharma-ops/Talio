@@ -7,7 +7,6 @@ import TaskAssignee from '@/models/TaskAssignee'
 import Attendance from '@/models/Attendance'
 import PerformanceGoal from '@/models/PerformanceGoal'
 import DailyGoal from '@/models/DailyGoal'
-import ProductivityData from '@/models/ProductivityData'
 
 export const dynamic = 'force-dynamic'
 
@@ -154,19 +153,12 @@ export async function GET(request) {
       const completedGoals = completedPerfGoals + completedDailyGoals
       const goalCompletionRate = totalGoals > 0 ? (completedGoals / totalGoals) * 100 : 0
 
-      // 6. Productivity
-      const productivityData = await ProductivityData.find({
-        employeeId: empId,
-        periodStart: { $gte: startDate, $lte: endDate }
-      }).select('aiAnalysis.productivityScore productiveTime totalActiveTime')
-
+      // 6. Productivity Score - derived from task completion and attendance
+      // Since desktop monitoring is removed, calculate productivity from other metrics
       let avgProductivityScore = 0
-      if (productivityData.length > 0) {
-        const totalScore = productivityData.reduce((sum, p) => sum + (p.aiAnalysis?.productivityScore || 0), 0)
-        avgProductivityScore = totalScore / productivityData.length
-      } else {
-        // No data = 0 score. Do not default to 75.
-        avgProductivityScore = 0
+      if (totalTasks > 0 || presentDays > 0) {
+        // Combine task completion rate (70%) and attendance (30%) for productivity
+        avgProductivityScore = (taskCompletionRate * 0.7) + (attendanceScore * 0.3)
       }
 
       // --- CALCULATE SCORES ---

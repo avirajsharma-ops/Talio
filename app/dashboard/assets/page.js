@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaLaptop, FaCheckCircle, FaClock, FaTools, FaTimes } from 'react-icons/fa'
+import { FaPlus, FaLaptop, FaCheckCircle, FaClock, FaTools, FaTimes, FaBox } from 'react-icons/fa'
 import { getCurrentUser } from '@/utils/userHelper'
 
 export default function AssetsPage() {
@@ -11,6 +11,7 @@ export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [employees, setEmployees] = useState([])
   const [userRole, setUserRole] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     assetCode: '',
@@ -24,10 +25,14 @@ export default function AssetsPage() {
     purchasePrice: ''
   })
 
+  // Check if user is admin or HR (can manage all assets)
+  const isAdmin = ['admin', 'hr', 'super_admin'].includes(userRole)
+
   useEffect(() => {
     const user = getCurrentUser()
     if (user) {
       setUserRole(user.role)
+      setCurrentUser(user)
     }
     fetchAssets()
     fetchEmployees()
@@ -94,7 +99,18 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('/api/assets', {
+      const user = getCurrentUser()
+      
+      // For employees, fetch only their assigned assets
+      let url = '/api/assets'
+      if (user && !['admin', 'hr', 'super_admin'].includes(user.role)) {
+        const employeeId = user.employeeId?._id || user.employeeId
+        if (employeeId) {
+          url = `/api/assets?employeeId=${employeeId}`
+        }
+      }
+      
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
 
@@ -115,8 +131,10 @@ export default function AssetsPage() {
       {/* Header */}
       <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Assets</h1>
-          <p className="text-gray-600 mt-1">Manage company assets and equipment</p>
+          <h1 className="text-3xl font-bold text-gray-800">{isAdmin ? 'Assets' : 'My Assets'}</h1>
+          <p className="text-gray-600 mt-1">
+            {isAdmin ? 'Manage company assets and equipment' : 'View assets assigned to you'}
+          </p>
         </div>
         {['admin', 'hr'].includes(userRole) && (
           <button 
@@ -129,51 +147,75 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Total Assets</h3>
-            <FaLaptop className="text-primary-500" />
+      {/* Stats Cards - Different view for admin vs employee */}
+      {isAdmin ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Total Assets</h3>
+              <FaLaptop className="text-primary-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">{assets.length}</div>
           </div>
-          <div className="text-3xl font-bold text-gray-800">{assets.length}</div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Assigned</h3>
-            <FaCheckCircle className="text-green-500" />
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Assigned</h3>
+              <FaCheckCircle className="text-green-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">
+              {assets.filter(a => a.status === 'assigned').length}
+            </div>
           </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {assets.filter(a => a.status === 'assigned').length}
-          </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Available</h3>
-            <FaClock className="text-blue-500" />
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Available</h3>
+              <FaClock className="text-blue-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">
+              {assets.filter(a => a.status === 'available').length}
+            </div>
           </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {assets.filter(a => a.status === 'available').length}
-          </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Under Maintenance</h3>
-            <FaTools className="text-orange-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800">
-            {assets.filter(a => a.status === 'maintenance').length}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Under Maintenance</h3>
+              <FaTools className="text-orange-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">
+              {assets.filter(a => a.status === 'maintenance').length}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Assets Assigned to You</h3>
+              <FaBox className="text-primary-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">{assets.length}</div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-600">Under Maintenance</h3>
+              <FaTools className="text-orange-500" />
+            </div>
+            <div className="text-3xl font-bold text-gray-800">
+              {assets.filter(a => a.status === 'maintenance').length}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assets Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Asset Inventory</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            {isAdmin ? 'Asset Inventory' : 'Your Assigned Assets'}
+          </h2>
         </div>
 
         {loading ? (
@@ -183,7 +225,15 @@ export default function AssetsPage() {
           </div>
         ) : assets.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No assets found
+            <FaBox className="mx-auto text-4xl text-gray-300 mb-3" />
+            <p className="text-lg font-medium">
+              {isAdmin ? 'No assets found' : 'No assets assigned to you'}
+            </p>
+            <p className="text-sm mt-1">
+              {isAdmin 
+                ? 'Add your first asset to get started' 
+                : 'Contact HR or your manager if you need equipment'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -199,9 +249,11 @@ export default function AssetsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
+                  {isAdmin && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned To
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Purchase Date
                   </th>
@@ -225,15 +277,17 @@ export default function AssetsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {asset.assetType}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {asset.assignedTo ? (
-                        <>
-                          {asset.assignedTo.firstName} {asset.assignedTo.lastName}
-                        </>
-                      ) : (
-                        <span className="text-gray-400">Unassigned</span>
-                      )}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.assignedTo ? (
+                          <>
+                            {asset.assignedTo.firstName} {asset.assignedTo.lastName}
+                          </>
+                        ) : (
+                          <span className="text-gray-400">Unassigned</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {asset.purchaseDate
                         ? new Date(asset.purchaseDate).toLocaleDateString()

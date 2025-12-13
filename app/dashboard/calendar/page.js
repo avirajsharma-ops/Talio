@@ -31,8 +31,12 @@ export default function CalendarPage() {
       // Fetch Employees (for Birthdays)
       const employeesRes = await fetch('/api/employees?limit=1000', { headers })
       const employeesData = await employeesRes.json()
-      if (employeesData.success) {
-        const bdays = employeesData.data.employees
+      if (employeesData.success && employeesData.data) {
+        // Handle both array format and object format with employees property
+        const employeesList = Array.isArray(employeesData.data) 
+          ? employeesData.data 
+          : (employeesData.data.employees || [])
+        const bdays = employeesList
           .filter(emp => emp.dateOfBirth)
           .map(emp => ({
             ...emp,

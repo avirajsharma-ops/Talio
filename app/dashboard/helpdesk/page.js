@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle, FaTimes } from 'react-icons/fa'
+import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle, FaTimes, FaCog } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 import ModalPortal from '@/components/ui/ModalPortal'
 
@@ -13,6 +13,7 @@ export default function HelpdeskPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [isManager, setIsManager] = useState(false)
   const [formData, setFormData] = useState({
     subject: '',
     category: '',
@@ -24,6 +25,8 @@ export default function HelpdeskPage() {
     const parsedUser = getCurrentUser()
     if (parsedUser) {
       setUser(parsedUser)
+      // Check if user can manage tickets
+      setIsManager(['admin', 'hr', 'manager', 'department_head', 'super_admin'].includes(parsedUser.role))
       const empId = getEmployeeId(parsedUser)
       if (empId) {
         fetchTickets(empId)
@@ -146,13 +149,24 @@ export default function HelpdeskPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Helpdesk</h1>
           <p className="text-sm text-gray-600 mt-1">Submit and track support tickets</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <FaPlus className="w-4 h-4" />
-          <span>Create Ticket</span>
-        </button>
+        <div className="flex gap-3">
+          {isManager && (
+            <button
+              onClick={() => router.push('/dashboard/helpdesk/manage')}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <FaCog className="w-4 h-4" />
+              <span>Manage All Tickets</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <FaPlus className="w-4 h-4" />
+            <span>Create Ticket</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

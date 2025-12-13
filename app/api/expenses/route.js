@@ -46,14 +46,19 @@ export async function POST(request) {
 
     const data = await request.json()
 
-    const expense = await Expense.create(data)
+    // Set status to 'submitted' for approval instead of 'draft'
+    const expense = await Expense.create({
+      ...data,
+      status: 'submitted',
+      submittedDate: new Date()
+    })
 
     const populatedExpense = await Expense.findById(expense._id)
       .populate('employee', 'firstName lastName employeeCode')
 
     return NextResponse.json({
       success: true,
-      message: 'Expense submitted successfully',
+      message: 'Expense submitted for approval',
       data: populatedExpense,
     }, { status: 201 })
   } catch (error) {

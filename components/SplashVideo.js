@@ -1,30 +1,42 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
+import Lottie from 'lottie-react';
 
-const VIDEO_URL = '/Flashscreen-final.mp4';
-const VIDEO_CACHE_KEY = 'talio_splash_video_blob';
+const ANIMATION_URL = '/splash-animation.json';
+
+// Context to track splash completion for blocking content
+const SplashContext = createContext({ splashComplete: false });
+
+export const useSplashComplete = () => useContext(SplashContext);
 
 /**
  * SplashVideo Component
- * Plays a full-screen splash video on first session start
- * - Desktop: Video width reduced by 20%, aligned to bottom edge
- * - Mobile: Full width, aligned to bottom edge
+ * Plays a full-screen Lottie splash animation on first session start
+ * - Desktop: Animation width reduced by 20%, centered
+ * - Mobile: Full width, centered
  * - Background: #fbfcfc
- * - Auto-hides after video ends
+ * - Auto-hides after animation ends
  * - Highest z-index to overlay all content
- * - Caches video in localStorage for faster subsequent loads
+ * - BLOCKS all content rendering until splash is complete
  */
-export default function SplashVideo() {
-  const [showSplash, setShowSplash] = useState(false);
-  const [videoSrc, setVideoSrc] = useState(null);
-  const videoRef = useRef(null);
+export default function SplashVideo({ children }) {
+  const [showSplash, setShowSplash] = useState(null); // null = not yet determined
+  const [animationData, setAnimationData] = useState(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [splashComplete, setSplashComplete] = useState(false);
+  const lottieRef = useRef(null);
 
   useEffect(() => {
     // Check if this is the first session start
     const hasSeenSplash = sessionStorage.getItem('talio_splash_shown');
     
-    if (!hasSeenSplash) {
+    if (hasSeenSplash) {
+      // Already seen splash this session, don't show
+      setShowSplash(false);
+      setSplashComplete(true);
+    } else {
+      // Show splash and load animation
       setShowSplash(true);
       // Set theme color for mobile
       const metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -32,56 +44,36 @@ export default function SplashVideo() {
         metaTheme.setAttribute('content', '#fbfcfc');
       }
       
-      // Load video from cache or fetch and cache it
-      loadVideoWithCache();
+      // Load animation data
+      loadAnimation();
     }
   }, []);
 
-  const loadVideoWithCache = async () => {
+  const loadAnimation = async () => {
     try {
-      // Try to get cached video from localStorage
-      const cachedVideo = localStorage.getItem(VIDEO_CACHE_KEY);
-      
-      if (cachedVideo) {
-        // Use cached blob URL
-        setVideoSrc(cachedVideo);
-        return;
-      }
-      
-      // Fetch and cache the video
-      const response = await fetch(VIDEO_URL);
-      const blob = await response.blob();
-      
-      // Convert blob to base64 for localStorage
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        try {
-          localStorage.setItem(VIDEO_CACHE_KEY, base64data);
-        } catch (e) {
-          // localStorage might be full, use direct URL
-          console.log('[SplashVideo] Could not cache video:', e.message);
-        }
-        setVideoSrc(base64data);
-      };
-      reader.onerror = () => {
-        // Fallback to direct URL
-        setVideoSrc(VIDEO_URL);
-      };
-      reader.readAsDataURL(blob);
+      const response = await fetch(ANIMATION_URL);
+      const data = await response.json();
+      setAnimationData(data);
+      setIsAnimating(true);
     } catch (error) {
-      console.log('[SplashVideo] Error loading video:', error.message);
-      // Fallback to direct URL
-      setVideoSrc(VIDEO_URL);
+      console.log('[SplashVideo] Error loading animation:', error.message);
+      // On error, skip splash
+      handleAnimationEnd();
     }
   };
 
-  const handleVideoEnd = () => {
+  const handleAnimationEnd = () => {
     // Mark splash as shown for this session
     sessionStorage.setItem('talio_splash_shown', 'true');
     
     // Fade out and hide
     setShowSplash(false);
+    setIsAnimating(false);
+    
+    // Mark splash as complete - this allows content to render
+    setTimeout(() => {
+      setSplashComplete(true);
+    }, 300); // Wait for fade animation
     
     // Restore theme color
     const metaTheme = document.querySelector('meta[name="theme-color"]');
@@ -90,87 +82,118 @@ export default function SplashVideo() {
     }
   };
 
-  const handleVideoReady = () => {
-    // Auto-play when ready with 1.5x speed
-    if (videoRef.current) {
-      videoRef.current.playbackRate = 1.5;
-      videoRef.current.play().catch(err => {
-        console.log('[SplashVideo] Autoplay blocked:', err.message);
-        // If autoplay is blocked, hide splash after a delay
-        setTimeout(handleVideoEnd, 500);
-      });
-    }
-  };
-
-  const handleVideoError = () => {
-    console.log('[SplashVideo] Video error, hiding splash');
-    handleVideoEnd();
-  };
-
-  if (!showSplash || !videoSrc) {
-    return null;
+  // Show loading screen while determining if splash should show
+  if (showSplash === null) {
+    return (
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: '#fbfcfc',
+          zIndex: 999999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Empty loading state with same background */}
+      </div>
+    );
   }
 
-  return (
-    <div 
-      className="splash-video-container"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: '#fbfcfc',
-        zIndex: 999999,
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        opacity: showSplash ? 1 : 0,
-        transition: 'opacity 0.3s ease-out',
-      }}
-    >
-      <video
-        ref={videoRef}
-        src={videoSrc}
-        preload="auto"
-        muted
-        playsInline
-        autoPlay
-        onEnded={handleVideoEnd}
-        onCanPlayThrough={handleVideoReady}
-        onError={handleVideoError}
-        style={{
-          height: 'auto',
-          width: '80%',
-          maxWidth: '80vw',
-          maxHeight: '100vh',
-          objectFit: 'contain',
-        }}
-        className="splash-video"
-      />
+  // If already determined not to show splash, just render children
+  if (showSplash === false && splashComplete) {
+    return (
+      <SplashContext.Provider value={{ splashComplete }}>
+        {children}
+      </SplashContext.Provider>
+    );
+  }
 
-      {/* Responsive styles */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .splash-video {
-            width: 100vw !important;
-            max-width: 100vw !important;
-            height: 100vh !important;
-            max-height: 100vh !important;
-            object-fit: cover !important;
-          }
-        }
-        
-        @media (min-width: 769px) {
-          .splash-video {
-            height: auto !important;
-            width: 80% !important;
-            max-width: 80vw !important;
-            max-height: 100vh !important;
-          }
-        }
-      `}</style>
-    </div>
+  // Show splash animation
+  return (
+    <SplashContext.Provider value={{ splashComplete }}>
+      {/* Splash Screen Overlay */}
+      {showSplash && (
+        <div 
+          className="splash-video-container"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: '#fbfcfc',
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            opacity: isAnimating ? 1 : 0,
+            transition: 'opacity 0.3s ease-out',
+            overflow: 'hidden',
+          }}
+        >
+          {animationData && (
+            <div 
+              className="splash-animation-wrapper"
+              style={{
+                height: '100vh',
+                aspectRatio: '9 / 16',
+                maxWidth: '100vw',
+                display: 'flex',
+                alignItems: 'flex-end',
+              }}
+            >
+              <Lottie
+                lottieRef={lottieRef}
+                animationData={animationData}
+                loop={false}
+                autoplay={true}
+                onComplete={handleAnimationEnd}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                }}
+                className="splash-animation"
+                rendererSettings={{
+                  preserveAspectRatio: 'xMidYMax slice'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Responsive styles */}
+          <style jsx global>{`
+            .splash-animation-wrapper {
+              height: 100vh !important;
+              aspect-ratio: 9 / 16 !important;
+              max-width: 100vw !important;
+            }
+            
+            @media (max-width: 768px) {
+              .splash-animation-wrapper {
+                height: 100vh !important;
+                height: 100dvh !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                aspect-ratio: unset !important;
+              }
+              
+              .splash-animation-wrapper svg {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+              }
+            }
+          `}</style>
+        </div>
+      )}
+      
+      {/* Only render children when splash is complete */}
+      {splashComplete && children}
+    </SplashContext.Provider>
   );
 }

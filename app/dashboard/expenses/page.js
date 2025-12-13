@@ -66,7 +66,7 @@ export default function ExpensesPage() {
       })
       const data = await response.json()
       if (data.success) {
-        toast.success('Expense submitted successfully')
+        toast.success('Expense submitted for approval')
         setShowModal(false)
         fetchExpenses(empId)
         setFormData({

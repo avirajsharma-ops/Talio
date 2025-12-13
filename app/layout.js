@@ -94,8 +94,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Preload splash video for immediate loading */}
-        <link rel="preload" href="/Flashscreen-final.mp4" as="video" type="video/mp4" />
+        {/* Preload splash animation for immediate loading */}
+        <link rel="preload" href="/splash-animation.json" as="fetch" type="application/json" crossOrigin="anonymous" />
         {/* FCM Handler - For Android App Token Registration */}
         <script src="/fcm-handler.js" defer></script>
         {/* Patch for Next.js dev overlay removeChild error */}
@@ -127,17 +127,18 @@ export default function RootLayout({ children }) {
         {/* PWA Window Controls Overlay - Draggable title bar region */}
         <div className="pwa-titlebar-drag" aria-hidden="true" />
         <Providers>
-          <SplashVideo />
-          <ErrorPageCache />
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                fontSize: '14px',
-              },
-            }}
-          />
+          <SplashVideo>
+            <ErrorPageCache />
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  fontSize: '14px',
+                },
+              }}
+            />
+          </SplashVideo>
         </Providers>
       </body>
     </html>

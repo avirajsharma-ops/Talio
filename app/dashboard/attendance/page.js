@@ -1081,6 +1081,47 @@ export default function AttendancePage() {
                       )}
                     </div>
 
+                    {/* Edit button for regularisation - show on hover */}
+                    {dayData.isCurrentMonth && dayData.record && !isHoliday && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openCorrectionModal(dayData.record)
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-50 z-10"
+                        title="Request Regularisation"
+                      >
+                        <FaEdit className="w-3 h-3 text-blue-600" />
+                      </button>
+                    )}
+
+                    {/* Pending correction indicator */}
+                    {hasPending && (
+                      <div className="absolute bottom-1 right-1">
+                        <span className="text-[8px] px-1 py-0.5 bg-yellow-400 text-yellow-900 rounded font-medium">
+                          Pending
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Add button for missing entry - show on hover for past dates without records */}
+                    {dayData.isCurrentMonth && !dayData.record && !isWeekend && !isHoliday && dayData.date && new Date(dayData.date) < new Date() && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMissingEntryForm(prev => ({
+                            ...prev,
+                            date: dayData.date.toISOString().split('T')[0]
+                          }))
+                          setShowMissingEntryModal(true)
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-green-50 z-10"
+                        title="Add Missing Entry"
+                      >
+                        <FaPlus className="w-3 h-3 text-green-600" />
+                      </button>
+                    )}
+
                     {/* Holiday Name */}
                     {isHoliday && (
                       <div className="text-[10px] leading-tight text-purple-700 truncate mt-1 font-medium bg-purple-100/50 px-1 py-0.5 rounded">

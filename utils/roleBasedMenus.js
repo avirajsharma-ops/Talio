@@ -139,7 +139,6 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
@@ -234,7 +233,6 @@ export const roleBasedMenus = {
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
@@ -292,7 +290,6 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
@@ -350,7 +347,6 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
@@ -421,7 +417,6 @@ export const roleBasedMenus = {
     },
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
@@ -537,7 +532,6 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
-    { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
     { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 }

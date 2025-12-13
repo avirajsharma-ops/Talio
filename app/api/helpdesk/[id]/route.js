@@ -177,7 +177,8 @@ export async function DELETE(request, { params }) {
   try {
     await connectDB()
 
-    const ticket = await Helpdesk.findByIdAndDelete(params.id)
+    const { id } = await params
+    const ticket = await Helpdesk.findByIdAndDelete(id)
 
     if (!ticket) {
       return NextResponse.json(
@@ -194,6 +195,67 @@ export async function DELETE(request, { params }) {
     console.error('Delete ticket error:', error)
     return NextResponse.json(
       { success: false, message: 'Failed to delete ticket' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Partial update ticket
+export async function PATCH(request, { params }) {
+  try {
+    await connectDB()
+
+    const { id } = await params
+    const data = await request.json()
+
+    const ticket = await Helpdesk.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true, runValidators: true }
+    )
+      .populate('createdBy', 'firstName lastName employeeCode userId')
+      .populate('assignedTo', 'firstName lastName')
+      .populate('comments.commentedBy', 'firstName lastName')
+
+    if (!ticket) {
+      return NextResponse.json(
+        { success: false, message: 'Ticket not found' },
+        { status: 404 }
+      )
+    }
+
+    // Emit Socket.IO event for ticket updates
+    try {
+      const io = global.io
+      if (io) {
+        const creatorUserId = ticket.createdBy?.userId
+        if (creatorUserId && (data.status || data.assignedTo)) {
+          let action = 'updated'
+          if (data.status === 'resolved') action = 'resolved'
+          else if (data.status === 'closed') action = 'closed'
+          else if (data.status === 'in-progress') action = 'in progress'
+
+          io.to(`user:${creatorUserId}`).emit('helpdesk-ticket', {
+            ticket,
+            action,
+            message: `Ticket #${ticket.ticketNumber} has been ${action}`,
+            timestamp: new Date()
+          })
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send helpdesk socket notification:', socketError)
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Ticket updated successfully',
+      data: ticket,
+    })
+  } catch (error) {
+    console.error('Patch ticket error:', error)
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to update ticket' },
       { status: 500 }
     )
   }
