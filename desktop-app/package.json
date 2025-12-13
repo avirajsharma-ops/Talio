@@ -1,0 +1,113 @@
+{
+  "name": "talio-desktop",
+  "version": "1.0.0",
+  "description": "Talio HRMS Desktop Application",
+  "main": "src/main.js",
+  "author": "Talio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "npm run build:mac && npm run build:win",
+    "build:mac": "npm run build:mac-intel && npm run build:mac-arm",
+    "build:mac-intel": "electron-builder --mac --x64",
+    "build:mac-arm": "electron-builder --mac --arm64",
+    "build:win": "electron-builder --win --ia32 --x64",
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps",
+    "clean": "rimraf dist"
+  },
+  "build": {
+    "appId": "com.talio.hrms",
+    "productName": "Talio",
+    "copyright": "Copyright © 2024 Talio",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/**/*",
+      "!node_modules/**/*.md",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/*.map"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "extendInfo": {
+        "NSCameraUsageDescription": "Talio needs camera access for video calls and meetings",
+        "NSMicrophoneUsageDescription": "Talio needs microphone access for audio calls and meetings",
+        "NSScreenCaptureUsageDescription": "Talio needs screen capture access for productivity monitoring and screen sharing in meetings",
+        "NSLocationUsageDescription": "Talio needs location access for attendance geofencing",
+        "NSLocationWhenInUseUsageDescription": "Talio needs location access for attendance geofencing"
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Talio"
+    },
+    "linux": {
+      "icon": "build/icons",
+      "category": "Office",
+      "target": ["AppImage", "deb"]
+    }
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "sharp": "^0.33.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "rimraf": "^5.0.5"
+  }
+}

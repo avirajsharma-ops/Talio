@@ -20,7 +20,8 @@ import {
   HiOutlineMegaphone,
   HiOutlineCalendarDays,
   HiOutlineChartBar,
-  HiOutlineVideoCamera
+  HiOutlineVideoCamera,
+  HiOutlineComputerDesktop
 } from 'react-icons/hi2'
 
 // Define menu items for each role
@@ -30,6 +31,7 @@ export const roleBasedMenus = {
   // ADMIN - Full access to everything
   admin: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
@@ -145,6 +147,7 @@ export const roleBasedMenus = {
   // HR - HR management focused
   hr: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
@@ -239,6 +242,7 @@ export const roleBasedMenus = {
   // MANAGER - Team management focused
   manager: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
@@ -296,6 +300,7 @@ export const roleBasedMenus = {
   // EMPLOYEE - Personal focused
   employee: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
@@ -353,6 +358,7 @@ export const roleBasedMenus = {
   // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
   department_head: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },
@@ -423,6 +429,7 @@ export const roleBasedMenus = {
   // GOD ADMIN - Supreme access
   god_admin: [
     { name: 'Dashboard', icon: HiOutlineSquares2X2, path: '/dashboard' },
+    { name: 'Productivity', icon: HiOutlineComputerDesktop, path: '/dashboard/productivity' },
     { name: 'Chat', icon: HiOutlineChatBubbleLeftRight, path: '/dashboard/chat' },
     { name: 'Mail', icon: HiOutlineEnvelope, path: '/dashboard/mail' },
     { name: 'Meetings', icon: HiOutlineVideoCamera, path: '/dashboard/meetings' },

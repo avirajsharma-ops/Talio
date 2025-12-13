@@ -244,157 +244,180 @@ export default function LoginPage() {
   // Show loading screen while checking session
   if (checking) {
     return (
-      <div className="min-h-screen text-black flex items-center justify-center bg-white" style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
-        <style jsx global>{`
-          html, body {
-            background-color: #FFFFFF !important;
-          }
-        `}</style>
+      <div className="min-h-screen flex items-center justify-center bg-[#1a0a2e]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Checking session...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+          <p className="mt-4 text-gray-300">Checking session...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen text-black flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
-      <style jsx global>{`
-        html, body {
-          background-color: #FFFFFF !important;
-        }
-      `}</style>
-      <div className="max-w-md w-full space-y-18 bg-white px-2 py-5  rounded-2xl shadow-2xl">
-        <div>
-          <div className="flex justify-center mb-6">
-            <img
-              src="/logo.png"
-              alt="Talio Logo"
-              className="h-12 w-auto object-contain"
-            />
-          </div>
-          {/* <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your account
-          </p> */}
-        </div>
-        <form className="mt-8 mr-[1rem] ml-[1rem] space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-blue-950/90 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <img src="/email.svg" alt="Email" className="h-8 w-8" />
-                  {/* <FaEnvelope className="h-5 w-5 text-gray-400" /> */}
+    <div className="min-h-screen bg-[#1a0a2e] relative overflow-hidden">
+      {/* Background gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a0a2e]/50 to-[#1a0a2e] pointer-events-none z-10" />
+      
+      {/* Spline 3D Animation - Full background */}
+      <div className="absolute inset-0 w-full h-full">
+        <iframe 
+          src='https://my.spline.design/100followersfocus-GCaB9DZhMZTNOxJCBwYFlptI/' 
+          frameBorder='0' 
+          width='100%' 
+          height='100%'
+          className="absolute inset-0 scale-110"
+          style={{ pointerEvents: 'none' }}
+        />
+      </div>
+
+      {/* Login Form - Centered */}
+      <div className="relative z-20 min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Glass morphism card with solid white background for readability */}
+          <div 
+            className="rounded-3xl shadow-2xl overflow-hidden"
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+            }}
+          >
+            <div className="p-8 md:p-10">
+              {/* Logo and Title */}
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-5">
+                  <img
+                    src="/logo.png"
+                    alt="Talio Logo"
+                    className="h-12 w-auto object-contain"
+                  />
                 </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="appearance-none block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</h1>
+                <p className="text-gray-500 text-sm">Sign in to continue to Talio</p>
               </div>
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <img src="/lock.svg" alt="Password" className="h-8 w-8" />
-                  {/* <FaLock className="h-5 w-5 text-gray-400" /> */}
+
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      placeholder="name@company.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  className="appearance-none block w-full pl-12 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                />
+
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaLock className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Enter your password"
+                      value={formData.password}
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <FaEyeSlash className="h-4 w-4" />
+                      ) : (
+                        <FaEye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember & Forgot */}
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-gray-600">Remember me</span>
+                  </label>
+                  <a href="#" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
+                    Forgot password?
+                  </a>
+                </div>
+
+                {/* Sign In Button */}
                 <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/30 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  {showPassword ? (
-                    <img src="/visibility.svg" alt="Hide Password" className="h-5 w-5" />
-                    // <FaEyeSlash className="h-5 w-5 text-gray-400" />
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Signing in...
+                    </span>
                   ) : (
-                    <FaEye className="h-5 w-5 text-gray-400" />
+                    'Sign in'
                   )}
                 </button>
-              </div>
+
+                {/* Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500">or continue with</span>
+                  </div>
+                </div>
+
+                {/* Google Sign In */}
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-3.5 px-4 bg-white hover:bg-gray-50 border-2 border-gray-200 text-gray-700 font-medium rounded-xl flex items-center justify-center gap-3 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <img src="/google.svg" alt="Google" className="h-5 w-5" />
+                  <span>Sign in with Google</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-4 bg-gray-50 border-t border-gray-100">
+              <p className="text-center text-gray-500 text-xs">
+                Powered by <span className="text-purple-600 font-medium">Talio HRMS</span>
+              </p>
             </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-blue-950/90">
-                Remember me
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-950/90 hover:text-blue-500">
-                Forgot password?
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-950/90 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              {loading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </div>
-          <div>
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="group relative w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <img src="/google.svg" alt="Google" className="h-5 w-5" />
-              <span>Sign in with Google</span>
-            </button>
-          </div>
-
-          {/* <div className="text-center text-sm text-gray-600">
-            <p>Demo Credentials:</p>
-            <p className="mt-1">Admin: admin@hrms.com / admin123</p>
-            <p>Employee: employee@hrms.com / employee123</p>
-          </div> */}
-        </form>
+        </div>
       </div>
     </div>
   )

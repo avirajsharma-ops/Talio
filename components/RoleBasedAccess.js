@@ -12,6 +12,7 @@ const rolePermissions = {
   // HR has access to HR-related functions
   hr: [
     '/dashboard',
+    '/dashboard/productivity',
     '/dashboard/employees',
     '/dashboard/employees/add',
     '/dashboard/departments',
@@ -36,6 +37,7 @@ const rolePermissions = {
   // Manager has access to team management
   manager: [
     '/dashboard',
+    '/dashboard/productivity',
     '/dashboard/employees', // View team members
     '/dashboard/departments', // View departments
     '/dashboard/attendance',
@@ -59,6 +61,7 @@ const rolePermissions = {
   // Employee has access to personal functions only
   employee: [
     '/dashboard',
+    '/dashboard/productivity',
     '/dashboard/profile',
     '/dashboard/attendance',
     '/dashboard/attendance/report', // Own attendance only
