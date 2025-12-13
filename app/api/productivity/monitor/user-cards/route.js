@@ -3,7 +3,6 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
-import MayaScreenSummary from '@/models/MayaScreenSummary';
 import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
@@ -197,31 +196,10 @@ export async function GET(request) {
         };
       }
 
-      // Get stats from both ProductivityData and MayaScreenSummary
-      const [productivityStats, legacyStats] = await Promise.all([
+      // Get stats from ProductivityData
+      const [productivityStats] = await Promise.all([
         ProductivityData.aggregate([
           { $match: { userId: empUserObjId, status: { $in: ['synced', 'analyzed'] } } },
-          {
-            $group: {
-              _id: null,
-              totalCaptures: { $sum: 1 },
-              latestCapture: { $max: '$createdAt' },
-              avgProductivity: { $avg: '$productivityScore' },
-              totalActiveTime: { $sum: '$totalActiveTime' },
-              todayCaptures: {
-                $sum: {
-                  $cond: [
-                    { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
-                    1,
-                    0
-                  ]
-                }
-              }
-            }
-          }
-        ]),
-        MayaScreenSummary.aggregate([
-          { $match: { monitoredUserId: empUserObjId, status: { $ne: 'pending' } } },
           {
             $group: {
               _id: null,
@@ -243,27 +221,14 @@ export async function GET(request) {
         ])
       ]);
 
-      // Merge stats from both sources
+      // Extract stats
       const prodStats = productivityStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
-      const legStats = legacyStats[0] || { totalCaptures: 0, todayCaptures: 0, avgProductivity: 0, totalActiveTime: 0, latestCapture: null };
 
-      const totalCaptures = (prodStats.totalCaptures || 0) + (legStats.totalCaptures || 0);
-      const todayCaptures = (prodStats.todayCaptures || 0) + (legStats.todayCaptures || 0);
-      const totalActiveTime = (prodStats.totalActiveTime || 0) + (legStats.totalActiveTime || 0);
-
-      // Get the most recent capture time
-      let latestCapture = prodStats.latestCapture || legStats.latestCapture;
-      if (prodStats.latestCapture && legStats.latestCapture) {
-        latestCapture = prodStats.latestCapture > legStats.latestCapture ? prodStats.latestCapture : legStats.latestCapture;
-      }
-
-      // Average productivity (if both have values)
-      let avgProductivity = 0;
-      if (prodStats.avgProductivity && legStats.avgProductivity) {
-        avgProductivity = (prodStats.avgProductivity + legStats.avgProductivity) / 2;
-      } else {
-        avgProductivity = prodStats.avgProductivity || legStats.avgProductivity || 0;
-      }
+      const totalCaptures = prodStats.totalCaptures || 0;
+      const todayCaptures = prodStats.todayCaptures || 0;
+      const totalActiveTime = prodStats.totalActiveTime || 0;
+      const latestCapture = prodStats.latestCapture;
+      const avgProductivity = prodStats.avgProductivity || 0;
 
       const userName = employee.firstName && employee.lastName
         ? `${employee.firstName} ${employee.lastName}`

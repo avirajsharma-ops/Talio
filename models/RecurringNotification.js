@@ -126,7 +126,7 @@ const RecurringNotificationSchema = new mongoose.Schema({
   },
   createdByRole: {
     type: String,
-    enum: ['admin', 'hr', 'department_head']
+    enum: ['admin', 'hr', 'department_head', 'manager', 'employee', 'super_admin']
   },
   createdAt: {
     type: Date,

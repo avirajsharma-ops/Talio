@@ -171,9 +171,14 @@ export async function POST(request) {
 
     // Prepare employee data - ensure company is properly set
     const employeeData = { ...data }
-    if (!employeeData.company || employeeData.company === '') {
-      delete employeeData.company // Remove empty company to avoid validation issues
-    }
+    
+    // Sanitize ObjectId fields - convert empty strings to null/undefined
+    const objectIdFields = ['company', 'department', 'designation', 'reportingManager'];
+    objectIdFields.forEach(field => {
+      if (employeeData[field] === '') {
+        employeeData[field] = undefined; // Remove from object so Mongoose doesn't try to cast it
+      }
+    });
 
     // Handle multiple departments
     if (employeeData.departments && Array.isArray(employeeData.departments) && employeeData.departments.length > 0) {

@@ -19,6 +19,11 @@ const CompanySchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  timezone: {
+    type: String,
+    default: 'Asia/Kolkata',
+    required: true
+  },
   logo: {
     type: String,
     default: ''

@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
-import MayaChatHistory from '@/models/MayaChatHistory';
+import AIContext from '@/models/AIContext';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
@@ -124,18 +124,18 @@ export async function GET(request) {
         if (userRecord) {
           // Get chat stats for this user
           const userObjId = toObjectId(userId);
-          const chatStats = await MayaChatHistory.aggregate([
+          const chatStats = await AIContext.aggregate([
             { $match: { userId: userObjId } },
             {
               $group: {
                 _id: null,
                 totalConversations: { $sum: 1 },
                 totalMessages: { $sum: { $size: { $ifNull: ['$messages', []] } } },
-                lastMessageTime: { $max: '$createdAt' },
+                lastMessageTime: { $max: '$updatedAt' },
                 todayConversations: {
                   $sum: {
                     $cond: [
-                      { $gte: ['$createdAt', new Date(new Date().setHours(0, 0, 0, 0))] },
+                      { $gte: ['$updatedAt', new Date(new Date().setHours(0, 0, 0, 0))] },
                       1,
                       0
                     ]
@@ -145,8 +145,8 @@ export async function GET(request) {
             }
           ]);
 
-          const lastConversation = await MayaChatHistory.findOne({ userId: userObjId })
-            .sort({ createdAt: -1 })
+          const lastConversation = await AIContext.findOne({ userId: userObjId })
+            .sort({ updatedAt: -1 })
             .select('messages')
             .lean();
 
@@ -264,13 +264,13 @@ export async function GET(request) {
       }
 
       // Get chat history stats for this user
-      const chatStats = await MayaChatHistory.aggregate([
+      const chatStats = await AIContext.aggregate([
         { $match: { userId: empUserObjId } },
         {
           $group: {
             _id: null,
             totalConversations: { $sum: 1 },
-            totalMessages: { $sum: { $size: { $ifNull: ['$messages', []] } } },
+            totalMessages: { $sum: 2 }, // User + AI
             lastMessageTime: { $max: '$createdAt' },
             todayConversations: {
               $sum: {
@@ -286,18 +286,14 @@ export async function GET(request) {
       ]);
 
       // Get the last conversation for preview
-      const lastConversation = await MayaChatHistory.findOne({ userId: empUserObjId })
+      const lastConversation = await AIContext.findOne({ userId: empUserObjId })
         .sort({ createdAt: -1 })
-        .select('messages')
+        .select('originalInput')
         .lean();
 
-      let lastMessage = '';
-      if (lastConversation?.messages?.length > 0) {
-        const userMessage = lastConversation.messages.find(m => m.role === 'user');
-        lastMessage = userMessage?.content || lastConversation.messages[0]?.content || '';
-        if (lastMessage.length > 100) {
-          lastMessage = lastMessage.substring(0, 100) + '...';
-        }
+      let lastMessage = lastConversation?.originalInput || '';
+      if (lastMessage.length > 100) {
+        lastMessage = lastMessage.substring(0, 100) + '...';
       }
 
       const stats = chatStats[0] || { totalConversations: 0, totalMessages: 0, todayConversations: 0, lastMessageTime: null };

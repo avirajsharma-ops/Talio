@@ -31,7 +31,11 @@ import {
   EmployeeDirectoryWidget,
   LeaveBalanceWidget,
   QuickActionsWidget,
-  AnnouncementsWidget
+  AnnouncementsWidget,
+  MyAssetsWidget,
+  MyExpensesWidget,
+  MyHelpdeskWidget,
+  PoliciesWidget
 } from '@/components/widgets'
 
 export default function AdminDashboard({ user }) {
@@ -525,6 +529,18 @@ export default function AdminDashboard({ user }) {
       <LeaveBalanceWidget
         userId={user?._id}
       />
+    ),
+    'my-assets': (
+      <MyAssetsWidget user={user} />
+    ),
+    'my-expenses': (
+      <MyExpensesWidget user={user} />
+    ),
+    'my-helpdesk': (
+      <MyHelpdeskWidget user={user} />
+    ),
+    'policies': (
+      <PoliciesWidget />
     ),
   }), [
     user,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
+import { generateSmartContent } from '@/lib/promptEngine'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,15 +41,17 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'No report data provided' }, { status: 400 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY
-
-    if (!apiKey) {
-      // Return rule-based insights if no API key
-      return generateRuleBasedInsights(reportData)
+    // Prepare comprehensive performance summary
+    const performanceSummary = `Analyze this performance data and provide detailed insights in strict JSON format.
+    
+    The JSON must have this exact structure:
+    {
+      "strengths": "Detailed paragraph about key strengths...",
+      "improvements": "Detailed paragraph about areas for improvement...",
+      "recommendations": "Detailed paragraph with actionable recommendations..."
     }
 
-    // Prepare comprehensive performance summary
-    const performanceSummary = `Analyze this performance data and provide insights in JSON format with three sections: strengths, improvements, and recommendations.
+    Do not include any markdown formatting (like \`\`\`json). Just return the raw JSON object.
 
 Performance Metrics:
 - Total Employees: ${reportData.totalEmployees}
@@ -67,43 +70,39 @@ ${reportData.departmentPerformance.slice(0, 5).map(dept =>
   `${dept.department}: Score ${dept.avgScore}/100, Rating ${dept.avgRating}/5, Goal ${dept.goalCompletion}%, Productivity ${dept.productivity}/100`
 ).join('\n')}
 
-Provide concise, actionable insights for leadership.`
+Provide detailed, actionable insights for leadership.`
 
-    // Call Gemini API directly
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: performanceSummary
-          }]
-        }]
+    try {
+      const text = await generateSmartContent(performanceSummary, {
+        userId: decoded.userId || decoded._id,
+        feature: 'performance-insights',
+        skipRefinement: true, // Structured prompt
+        skipGuardrails: true // We want JSON
+      });
+      
+      let insights;
+      try {
+        // Clean up potential markdown code blocks
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        insights = JSON.parse(cleanText);
+      } catch (e) {
+        console.error('Failed to parse AI JSON:', e);
+        insights = parseInsights(text, reportData);
+      }
+
+      return NextResponse.json({
+        success: true,
+        insights,
+        message: 'AI insights generated successfully'
       })
-    })
-
-    if (!response.ok) {
-      console.error('Gemini API error:', response.status, response.statusText)
+    } catch (error) {
+      console.error('Gemini API error:', error)
       return generateRuleBasedInsights(reportData)
     }
 
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-
-    // Parse the response into structured sections
-    const insights = parseInsights(text, reportData)
-
-    return NextResponse.json({
-      success: true,
-      insights,
-      message: 'AI insights generated successfully'
-    })
-
   } catch (error) {
     console.error('AI insights error:', error)
-    return generateRuleBasedInsights(await request.json().then(d => d.reportData))
+    return NextResponse.json({ success: false, message: 'Failed to generate insights' }, { status: 500 })
   }
 }
 

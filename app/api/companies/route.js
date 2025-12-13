@@ -92,6 +92,7 @@ export async function POST(request) {
       email: data.email?.trim() || '',
       phone: data.phone?.trim() || '',
       website: data.website?.trim() || '',
+      timezone: data.timezone || 'Asia/Kolkata',
       address: data.address || {
         street: '',
         city: '',

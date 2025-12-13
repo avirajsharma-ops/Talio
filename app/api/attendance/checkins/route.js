@@ -40,7 +40,8 @@ export async function GET(request) {
     // Get all employees
     const allEmployees = await Employee.find({ status: 'active' })
       .populate('department', 'name')
-      .select('employeeCode firstName lastName email department')
+      .populate('company', 'timezone')
+      .select('employeeCode firstName lastName email department company')
 
     // Get attendance records for the date
     const attendanceRecords = await Attendance.find({
@@ -48,7 +49,11 @@ export async function GET(request) {
         $gte: targetDate,
         $lt: nextDay
       }
-    }).populate('employee', 'employeeCode firstName lastName email department')
+    }).populate({
+      path: 'employee',
+      select: 'employeeCode firstName lastName email department company',
+      populate: { path: 'company', select: 'timezone' }
+    })
 
     // Create a map of employee attendance
     const attendanceMap = new Map()
@@ -71,7 +76,8 @@ export async function GET(request) {
             firstName: employee.firstName,
             lastName: employee.lastName,
             email: employee.email,
-            department: employee.department
+            department: employee.department,
+            companyTimezone: employee.company?.timezone || 'Asia/Kolkata'
           },
           date: attendance.date,
           checkInTime: attendance.checkIn,
@@ -92,7 +98,8 @@ export async function GET(request) {
             firstName: employee.firstName,
             lastName: employee.lastName,
             email: employee.email,
-            department: employee.department
+            department: employee.department,
+            companyTimezone: employee.company?.timezone || 'Asia/Kolkata'
           },
           date: targetDate,
           checkInTime: null,

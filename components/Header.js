@@ -32,6 +32,7 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
   const [searching, setSearching] = useState(false)
   const [pageTitle, setPageTitle] = useState('HOME')
   const [employeeData, setEmployeeData] = useState(null)
+  const [timezone, setTimezone] = useState('Asia/Kolkata')
   const [isDesktop, setIsDesktop] = useState(false)
   const notifRef = useRef(null)
   const profileRef = useRef(null)
@@ -105,6 +106,10 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
         console.log('Employee Designation Level:', result.data.designationLevel)
         console.log('Employee Designation Level Name:', result.data.designationLevelName)
         setEmployeeData(result.data)
+        
+        if (result.data.company && result.data.company.timezone) {
+          setTimezone(result.data.company.timezone)
+        }
 
         // Sync user data in localStorage with employee data (including new fields)
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
@@ -461,7 +466,7 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
         <div className="flex items-center space-x-2 sm:space-x-4 flex-1 justify-end">
           {/* Real-time Clock - Desktop Only */}
           <div className="hidden md:flex items-center gap-2 px-4 py-2.5 " style={{ color: 'var(--color-text-secondary)' }}>
-            <RealTimeClock />
+            <RealTimeClock timezone={timezone} />
           </div>
 
           {/* PWA Status - Hidden */}
@@ -757,7 +762,7 @@ export default function Header({ toggleSidebar, sidebarCollapsed }) {
 }
 
 // Real-time Clock Component
-function RealTimeClock() {
+function RealTimeClock({ timezone = 'Asia/Kolkata' }) {
   const [time, setTime] = useState(new Date())
 
   useEffect(() => {
@@ -773,7 +778,8 @@ function RealTimeClock() {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: timezone
     })
   }
 
@@ -781,7 +787,8 @@ function RealTimeClock() {
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: timezone
     })
   }
 

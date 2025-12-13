@@ -15,7 +15,7 @@ const CourseSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['technical', 'soft-skills', 'compliance', 'leadership', 'onboarding', 'other'],
+    enum: ['technical', 'soft-skills', 'compliance', 'leadership', 'other'],
     required: true,
   },
   duration: {

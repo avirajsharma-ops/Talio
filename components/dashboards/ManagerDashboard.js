@@ -22,7 +22,11 @@ import {
   LeaveBalanceWidget,
   QuickActionsWidget,
   AnnouncementsWidget,
-  HolidaysWidget
+  HolidaysWidget,
+  MyAssetsWidget,
+  MyExpensesWidget,
+  MyHelpdeskWidget,
+  PoliciesWidget
 } from '@/components/widgets'
 
 export default function ManagerDashboard({ user }) {
@@ -418,7 +422,7 @@ export default function ManagerDashboard({ user }) {
         icon: FaExclamationCircle,
         color: 'bg-red-500',
         trend: 'down',
-        href: '/dashboard/performance/reviews'
+        href: '/dashboard/performance/ratings'
       },
     ]
   }
@@ -471,7 +475,7 @@ export default function ManagerDashboard({ user }) {
       <QuickActionsWidget
         actions={[
           { name: 'Review Leaves', icon: 'FaCalendarAlt', href: '/dashboard/leave/approvals', color: 'blue' },
-          { name: 'Team Performance', icon: 'FaChartLine', href: '/dashboard/performance/reviews', color: 'purple' },
+          { name: 'Team Ratings', icon: 'FaChartLine', href: '/dashboard/performance/ratings', color: 'purple' },
           { name: 'Create Review', icon: 'FaAward', href: '/dashboard/performance/create', color: 'green' },
           { name: 'Mark Attendance', icon: 'FaClock', href: '/dashboard/attendance', color: 'red' },
         ]}
@@ -495,6 +499,18 @@ export default function ManagerDashboard({ user }) {
     ),
     'holidays': (
       <HolidaysWidget limit={5} />
+    ),
+    'my-assets': (
+      <MyAssetsWidget user={user} />
+    ),
+    'my-expenses': (
+      <MyExpensesWidget user={user} />
+    ),
+    'my-helpdesk': (
+      <MyHelpdeskWidget user={user} />
+    ),
+    'policies': (
+      <PoliciesWidget />
     ),
   }), [
     user,

@@ -15,7 +15,7 @@ export async function GET(request) {
     const query = {}
 
     if (employeeId) {
-      query.employee = employeeId
+      query.createdBy = employeeId
     }
 
     if (status) {
@@ -27,7 +27,7 @@ export async function GET(request) {
     }
 
     const tickets = await Helpdesk.find(query)
-      .populate('employee', 'firstName lastName employeeCode')
+      .populate('createdBy', 'firstName lastName employeeCode')
       .populate('assignedTo', 'firstName lastName')
       .sort({ createdAt: -1 })
 
@@ -58,7 +58,7 @@ export async function POST(request) {
     })
 
     const populatedTicket = await Helpdesk.findById(ticket._id)
-      .populate('employee', 'firstName lastName employeeCode')
+      .populate('createdBy', 'firstName lastName employeeCode')
 
     return NextResponse.json({
       success: true,

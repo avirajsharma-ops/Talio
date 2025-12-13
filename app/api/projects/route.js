@@ -17,8 +17,11 @@ import {
   getProjectMemberUserIds
 } from '@/lib/projectNotifications'
 
+export const dynamic = 'force-dynamic'
+
 // GET - List projects for current user
 export async function GET(request) {
+  console.log('GET /api/projects called');
   try {
     const token = request.headers.get('authorization')?.split(' ')[1]
     if (!token) {

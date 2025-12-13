@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
-import MayaChatHistory from '@/models/MayaChatHistory';
+import AIContext from '@/models/AIContext';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
@@ -194,9 +194,8 @@ export async function GET(request) {
       if (afterDate) query.createdAt.$gt = new Date(afterDate); // For incremental fetch
     }
 
-    const chatHistory = await MayaChatHistory.find(query)
+    const chatHistory = await AIContext.find(query)
       .populate('userId', 'name email')
-      .populate('employeeId', 'name employeeCode department designation')
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit);

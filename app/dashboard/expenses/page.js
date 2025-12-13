@@ -10,6 +10,13 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [formData, setFormData] = useState({
+    category: '',
+    amount: '',
+    expenseDate: '',
+    description: '',
+    expenseCode: ''
+  })
 
   useEffect(() => {
     const parsedUser = getCurrentUser()
@@ -29,6 +36,54 @@ export default function ExpensesPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const empId = getEmployeeId(user)
+    if (!empId) {
+      toast.error('Employee ID not found')
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          employee: empId,
+          expenseCode: `EXP-${Date.now()}` // Generate a code if not provided
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Expense submitted successfully')
+        setShowModal(false)
+        fetchExpenses(empId)
+        setFormData({
+          category: '',
+          amount: '',
+          expenseDate: '',
+          description: '',
+          expenseCode: ''
+        })
+      } else {
+        toast.error(data.message || 'Failed to submit expense')
+      }
+    } catch (error) {
+      console.error('Submit expense error:', error)
+      toast.error('Failed to submit expense')
+    }
+  }
 
   const fetchExpenses = async (employeeId) => {
     try {
@@ -205,18 +260,27 @@ export default function ExpensesPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center style={{ zIndex: 99999 }}">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Submit Expense</h2>
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category
                   </label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
                     <option value="">Select Category</option>
                     <option value="travel">Travel</option>
-                    <option value="food">Food & Meals</option>
+                    <option value="food">Food</option>
                     <option value="accommodation">Accommodation</option>
-                    <option value="supplies">Office Supplies</option>
+                    <option value="fuel">Fuel</option>
+                    <option value="office-supplies">Office Supplies</option>
+                    <option value="client-entertainment">Client Entertainment</option>
+                    <option value="training">Training</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
@@ -227,6 +291,10 @@ export default function ExpensesPage() {
                   </label>
                   <input
                     type="number"
+                    name="amount"
+                    value={formData.amount}
+                    onChange={handleInputChange}
+                    required
                     step="0.01"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="0.00"
@@ -239,6 +307,10 @@ export default function ExpensesPage() {
                   </label>
                   <input
                     type="date"
+                    name="expenseDate"
+                    value={formData.expenseDate}
+                    onChange={handleInputChange}
+                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
@@ -248,6 +320,10 @@ export default function ExpensesPage() {
                     Description
                   </label>
                   <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    required
                     rows="3"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Enter expense details"

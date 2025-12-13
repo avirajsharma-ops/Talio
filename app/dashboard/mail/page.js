@@ -290,7 +290,7 @@ export default function MailPage() {
       const isReply = composeData.subject?.startsWith('Re:') || (selectedEmail && composeData.subject?.includes(selectedEmail.subject));
       const context = isReply && selectedEmail ? `From: ${selectedEmail.from?.name} <${selectedEmail.from?.email}>\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.body || selectedEmail.snippet}` : '';
 
-      const response = await fetch('/api/maya/email-compose', {
+      const response = await fetch('/api/mail/compose-ai', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

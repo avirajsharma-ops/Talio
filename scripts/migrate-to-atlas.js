@@ -26,8 +26,6 @@ const COLLECTIONS = [
   'documents',
   'helpdesks',
   'travels',
-  'onboardings',
-  'offboardings',
   'policies'
 ];
 

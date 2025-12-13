@@ -89,16 +89,22 @@ export default function CreateAnnouncementPage() {
       // Prepare announcement data
       const announcementData = {
         ...formData,
-        createdBy: user.employeeId._id,
+        // createdBy is handled by the API based on the token
       }
 
       // For managers, set as department announcement
       if (user.role === 'manager') {
         announcementData.isDepartmentAnnouncement = true
         announcementData.targetAudience = 'department'
-        // Get manager's department from employeeId
-        if (user.employeeId?.department?._id) {
-          announcementData.departments = [user.employeeId.department._id]
+        // Get manager's department from employeeId if available
+        if (user.employeeId && typeof user.employeeId === 'object' && user.employeeId.department) {
+           // If department is populated as object
+           if (user.employeeId.department._id) {
+             announcementData.departments = [user.employeeId.department._id]
+           } else {
+             // If department is just an ID
+             announcementData.departments = [user.employeeId.department]
+           }
         }
       }
 

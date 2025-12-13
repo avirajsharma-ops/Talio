@@ -2,15 +2,94 @@
 
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { FaPlus, FaLaptop, FaCheckCircle, FaClock, FaTools } from 'react-icons/fa'
+import { FaPlus, FaLaptop, FaCheckCircle, FaClock, FaTools, FaTimes } from 'react-icons/fa'
+import { getCurrentUser } from '@/utils/userHelper'
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [employees, setEmployees] = useState([])
+  const [userRole, setUserRole] = useState(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    assetCode: '',
+    uin: '',
+    category: 'laptop',
+    description: '',
+    specs: '',
+    assignedTo: '',
+    status: 'available',
+    purchaseDate: '',
+    purchasePrice: ''
+  })
 
   useEffect(() => {
+    const user = getCurrentUser()
+    if (user) {
+      setUserRole(user.role)
+    }
     fetchAssets()
+    fetchEmployees()
   }, [])
+
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/employees?limit=1000', { // Fetch all employees
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const data = await response.json()
+      if (data.success) {
+        setEmployees(data.data.employees || []) // Adjust based on actual API response structure
+      }
+    } catch (error) {
+      console.error('Fetch employees error:', error)
+    }
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/assets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Asset added successfully')
+        setIsModalOpen(false)
+        fetchAssets()
+        setFormData({
+          name: '',
+          assetCode: '',
+          uin: '',
+          category: 'laptop',
+          description: '',
+          specs: '',
+          assignedTo: '',
+          status: 'available',
+          purchaseDate: '',
+          purchasePrice: ''
+        })
+      } else {
+        toast.error(data.message || 'Failed to add asset')
+      }
+    } catch (error) {
+      console.error('Add asset error:', error)
+      toast.error('Failed to add asset')
+    }
+  }
 
   const fetchAssets = async () => {
     try {
@@ -39,10 +118,15 @@ export default function AssetsPage() {
           <h1 className="text-3xl font-bold text-gray-800">Assets</h1>
           <p className="text-gray-600 mt-1">Manage company assets and equipment</p>
         </div>
-        <button className="btn-primary flex items-center space-x-2">
-          <FaPlus />
-          <span>Add Asset</span>
-        </button>
+        {['admin', 'hr'].includes(userRole) && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="btn-primary flex items-center space-x-2"
+          >
+            <FaPlus />
+            <span>Add Asset</span>
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -172,6 +256,164 @@ export default function AssetsPage() {
           </div>
         )}
       </div>
+
+      {/* Add Asset Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Add New Asset</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                <FaTimes />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Asset Name *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Asset Code *</label>
+                  <input
+                    type="text"
+                    name="assetCode"
+                    value={formData.assetCode}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">UIN</label>
+                  <input
+                    type="text"
+                    name="uin"
+                    value={formData.uin}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category *</label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  >
+                    <option value="laptop">Laptop</option>
+                    <option value="desktop">Desktop</option>
+                    <option value="mobile">Mobile</option>
+                    <option value="tablet">Tablet</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="keyboard">Keyboard</option>
+                    <option value="mouse">Mouse</option>
+                    <option value="furniture">Furniture</option>
+                    <option value="vehicle">Vehicle</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="2"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  ></textarea>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Specifications</label>
+                  <textarea
+                    name="specs"
+                    value={formData.specs}
+                    onChange={handleInputChange}
+                    rows="2"
+                    placeholder="Processor, RAM, Storage, etc."
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  ></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Assigned To</label>
+                  <select
+                    name="assignedTo"
+                    value={formData.assignedTo}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  >
+                    <option value="">Unassigned</option>
+                    {employees.map(emp => (
+                      <option key={emp._id} value={emp._id}>
+                        {emp.firstName} {emp.lastName} ({emp.employeeCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  >
+                    <option value="available">Available</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="under-maintenance">Under Maintenance</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="disposed">Disposed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Purchase Date</label>
+                  <input
+                    type="date"
+                    name="purchaseDate"
+                    value={formData.purchaseDate}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Purchase Price</label>
+                  <input
+                    type="number"
+                    name="purchasePrice"
+                    value={formData.purchasePrice}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 border p-2"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                >
+                  Add Asset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

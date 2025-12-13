@@ -97,7 +97,7 @@ export default function PerformanceReportsPage() {
         fetch(`/api/performance/calculate?populate=true${deptFilter}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`/api/performance/reviews?populate=true${deptFilter}`, {
+        fetch(`/api/performance/ratings?populate=true${deptFilter}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`/api/performance/goals?populate=true${deptFilter}`, {
@@ -205,7 +205,7 @@ export default function PerformanceReportsPage() {
     reviews.forEach(review => {
       const deptId = review.employee?.department?._id || review.employee?.department || 'unknown'
       if (deptMap[deptId]) {
-        deptMap[deptId].totalRating += review.overallRating || 0
+        deptMap[deptId].totalRating += review.rating || 0
         deptMap[deptId].reviewCount += 1
       }
     })

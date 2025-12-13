@@ -2,6 +2,36 @@ import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Helpdesk from '@/models/Helpdesk'
 
+// GET - Get single ticket
+export async function GET(request, { params }) {
+  try {
+    await connectDB()
+
+    const ticket = await Helpdesk.findById(params.id)
+      .populate('createdBy', 'firstName lastName employeeCode userId')
+      .populate('assignedTo', 'firstName lastName')
+      .populate('comments.commentedBy', 'firstName lastName')
+
+    if (!ticket) {
+      return NextResponse.json(
+        { success: false, message: 'Ticket not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: ticket,
+    })
+  } catch (error) {
+    console.error('Get ticket error:', error)
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch ticket' },
+      { status: 500 }
+    )
+  }
+}
+
 // PUT - Update ticket
 export async function PUT(request, { params }) {
   try {
@@ -14,7 +44,7 @@ export async function PUT(request, { params }) {
       data,
       { new: true, runValidators: true }
     )
-      .populate('employee', 'firstName lastName employeeCode')
+      .populate('createdBy', 'firstName lastName employeeCode userId')
       .populate('assignedTo', 'firstName lastName')
 
     if (!ticket) {
@@ -32,11 +62,10 @@ export async function PUT(request, { params }) {
       if (io) {
         // Notify employee who created the ticket
         if (data.status || data.assignedTo) {
-          const Employee = require('@/models/Employee').default
-          const employeeDoc = await Employee.findById(ticket.employee._id || ticket.employee).select('userId')
-          const employeeUserId = employeeDoc?.userId
+          // Use createdBy instead of employee
+          const creatorUserId = ticket.createdBy?.userId
 
-          if (employeeUserId) {
+          if (creatorUserId) {
             let action = 'updated'
             let icon = '📝'
             if (data.status === 'resolved') {
@@ -51,18 +80,18 @@ export async function PUT(request, { params }) {
             }
 
             // Socket.IO event
-            io.to(`user:${employeeUserId}`).emit('helpdesk-ticket', {
+            io.to(`user:${creatorUserId}`).emit('helpdesk-ticket', {
               ticket,
               action,
               message: `Ticket #${ticket.ticketNumber} has been ${action}`,
               timestamp: new Date()
             })
-            console.log(`✅ [Socket.IO] Helpdesk ticket update sent to user:${employeeUserId}`)
+            console.log(`✅ [Socket.IO] Helpdesk ticket update sent to user:${creatorUserId}`)
 
             // FCM push notification
             try {
               await sendPushToUser(
-                employeeUserId,
+                creatorUserId,
                 {
                   title: `${icon} Ticket ${action.charAt(0).toUpperCase() + action.slice(1)}`,
                   body: `Ticket #${ticket.ticketNumber} has been ${action}`,
@@ -77,7 +106,7 @@ export async function PUT(request, { params }) {
                   }
                 }
               )
-              console.log(`📲 [FCM] Helpdesk notification sent to user:${employeeUserId}`)
+              console.log(`📲 [FCM] Helpdesk notification sent to user:${creatorUserId}`)
             } catch (fcmError) {
               console.error('Failed to send helpdesk FCM notification:', fcmError)
             }

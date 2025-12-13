@@ -522,6 +522,18 @@ export default function HRDashboard({ user }) {
     'holidays': (
       <HolidaysWidget limit={5} />
     ),
+    'my-assets': (
+      <MyAssetsWidget />
+    ),
+    'my-expenses': (
+      <MyExpensesWidget />
+    ),
+    'my-helpdesk': (
+      <MyHelpdeskWidget />
+    ),
+    'policies': (
+      <PoliciesWidget />
+    ),
   }), [
     user,
     employeeData,

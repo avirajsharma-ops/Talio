@@ -61,13 +61,11 @@
 5.  Payroll            - Salary Processing
 6.  Performance        - Reviews & KPIs
 7.  Recruitment        - Job Postings & ATS
-8.  Onboarding         - New Employee Setup
-9.  Offboarding        - Exit Management
-10. Documents          - Document Repository
-11. Assets             - Asset Management
-12. Expenses           - Expense Claims
-13. Travel             - Travel Requests
-14. Helpdesk           - Ticket System
+8.  Documents          - Document Repository
+9.  Assets             - Asset Management
+10. Expenses           - Expense Claims
+11. Travel             - Travel Requests
+12. Helpdesk           - Ticket System
 15. Policies           - Company Policies
 16. Learning (LMS)     - Training & Courses
 17. Announcements      - Company News

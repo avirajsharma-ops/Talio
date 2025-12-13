@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
-import MayaScreenSummary from '@/models/MayaScreenSummary';
 import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
+import { generateSmartContent } from '@/lib/promptEngine';
 
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -146,17 +146,15 @@ export async function GET(request) {
         return NextResponse.json({ success: false, error: 'Invalid capture ID' }, { status: 400 });
       }
 
-      // Try to find in ProductivityData first, then MayaScreenSummary
+      // Try to find in ProductivityData
       let capture = await ProductivityData.findById(captureObjId)
         .populate('userId', 'email profilePicture employeeId')
         .populate('employeeId', 'firstName lastName employeeCode department designation profilePicture')
         .lean();
 
       if (!capture) {
-        capture = await MayaScreenSummary.findById(captureObjId)
-          .populate('monitoredUserId', 'email profilePicture employeeId')
-          .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
-          .lean();
+        // Legacy MayaScreenSummary support removed
+        return NextResponse.json({ success: false, error: 'Capture not found' }, { status: 404 });
       }
 
       if (!capture) {
@@ -277,19 +275,8 @@ export async function GET(request) {
     // For initial loads, we can skip count and estimate from results
     const skipCounting = skip === 0 && limit <= 20;
 
-    // Fetch from both old MayaScreenSummary and new ProductivityData
-    const [legacyData, productivityData, legacyCount, productivityCount] = await Promise.all([
-      // Legacy data
-      MayaScreenSummary.find(query)
-        .select(includeScreenshot ? '-domSnapshot' : '-domSnapshot -screenshotUrl')
-        .populate('monitoredUserId', 'email profilePicture employeeId')
-        .populate('monitoredEmployeeId', 'firstName lastName employeeCode department designation profilePicture')
-        .populate('requestedByUserId', 'email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      // New ProductivityData - fetch with proper offset
+    // Fetch from ProductivityData
+    const [productivityData, productivityCount] = await Promise.all([
       ProductivityData.find(productivityQuery)
         .select(includeScreenshot ? '' : '-screenshot.data -screenshot.thumbnail')
         .populate('userId', 'email profilePicture employeeId')
@@ -298,8 +285,6 @@ export async function GET(request) {
         .skip(skip)
         .limit(limit)
         .lean(),
-      // Counts (skip if initial load to speed up)
-      skipCounting ? 0 : MayaScreenSummary.countDocuments(query),
       skipCounting ? 0 : ProductivityData.countDocuments(productivityQuery)
     ]);
 
@@ -428,14 +413,14 @@ export async function GET(request) {
     });
 
     // Combine and sort by date
-    const allData = [...legacyData, ...transformedProductivityData]
+    const allData = transformedProductivityData
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
 
     // Calculate total - use counts if available, otherwise estimate from results
     const totalAvailable = skipCounting
       ? (allData.length >= limit ? allData.length + 100 : allData.length) // Estimate more if full page
-      : (legacyCount + productivityCount);
+      : productivityCount;
 
     console.log('[Monitor API] Returning', allData.length, 'of', totalAvailable, 'total records. Sample names:',
       allData.slice(0, 3).map(d => d.monitoredUserId?.name || 'no-name').join(', '));
@@ -493,78 +478,59 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Generate AI summary using OpenAI (if available)
+    // Generate AI summary using Prompt Engine
     let summary = 'Productivity snapshot captured';
     let detailedAnalysis = '';
 
-    const openaiApiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    if (openaiApiKey && (activities?.length || currentPage)) {
+    if (activities?.length || currentPage) {
       try {
-        const promptData = {
-          page: currentPage?.title || currentPage?.url || 'Unknown page',
-          activities: activities || [],
-          apps: applications || []
-        };
+        const prompt = `Analyze employee productivity.
+Current page: ${currentPage || 'Unknown'}
+Activities: ${(activities || []).join(', ')}
+Applications: ${(applications || []).map(a => a.name).join(', ')}
 
-        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey}`
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are analyzing employee productivity. Provide a brief, professional 2-sentence summary of their current activity.'
-              },
-              {
-                role: 'user',
-                content: `Current page: ${promptData.page}\nActivities: ${promptData.activities.join(', ')}\nApplications: ${promptData.apps.map(a => a.name).join(', ')}`
-              }
-            ],
-            temperature: 0.5,
-            max_tokens: 150
-          })
+Provide a brief, professional 2-sentence summary of their current activity.`;
+
+        summary = await generateSmartContent(prompt, {
+            userId: userId,
+            feature: 'productivity-monitor-summary',
+            systemInstruction: 'You are analyzing employee productivity. Provide a brief, professional 2-sentence summary of their current activity.'
         });
-
-        if (openaiResponse.ok) {
-          const data = await openaiResponse.json();
-          summary = data.choices[0]?.message?.content || summary;
-        }
       } catch (err) {
-        console.error('OpenAI summary error:', err);
+        console.error('AI summary error:', err);
       }
     }
 
-    // Create screen summary record
-    const screenSummary = await MayaScreenSummary.create({
-      monitoredUserId: userId,
-      monitoredEmployeeId: user.employeeId,
-      requestedByUserId: userId, // Self-monitoring
-      requestedByEmployeeId: user.employeeId,
-      captureType: captureType || 'screenshot',
-      summary,
-      detailedAnalysis,
-      currentPage,
-      activities: activities || [],
-      applications: applications || [],
-      screenshotUrl: screenshot, // Base64 or URL
-      metadata: {
-        ...metadata,
-        timestamp: new Date()
+    // Create ProductivityData record
+    const isUrl = screenshot && (screenshot.startsWith('http') || screenshot.startsWith('/'));
+    
+    const productivityData = await ProductivityData.create({
+      userId: userId,
+      employeeId: user.employeeId,
+      periodStart: new Date(),
+      periodEnd: new Date(),
+      screenshot: {
+        [isUrl ? 'url' : 'data']: screenshot,
+        captureType: captureType === 'instant' ? 'instant' : 'periodic',
+        capturedAt: new Date()
       },
-      status: 'captured',
-      consentGiven: consentGiven !== false,
-      consentTimestamp: new Date(),
-      deliveredAt: new Date()
+      aiAnalysis: {
+        summary: summary,
+        insights: detailedAnalysis ? [detailedAnalysis] : []
+      },
+      topApps: (applications || []).map(app => ({ 
+          appName: app.name, 
+          duration: app.duration || 0,
+          percentage: 0 
+      })),
+      status: 'analyzed',
+      isInstantCapture: captureType === 'instant'
     });
 
     // Emit socket event if available
     if (global.io) {
       global.io.to(`user:${userId}`).emit('productivity-captured', {
-        id: screenSummary._id,
+        id: productivityData._id,
         summary,
         timestamp: new Date()
       });
@@ -573,11 +539,13 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       data: {
-        id: screenSummary._id,
+        id: productivityData._id,
         summary,
-        timestamp: screenSummary.createdAt
+        timestamp: productivityData.createdAt
       }
     });
+
+
 
   } catch (error) {
     console.error('Screen Capture Submit Error:', error);

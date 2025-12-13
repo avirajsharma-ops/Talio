@@ -62,9 +62,12 @@ export const roleBasedMenus = {
       icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
+        { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
         { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
+        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -87,10 +90,10 @@ export const roleBasedMenus = {
       icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
-        { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
+        { name: 'My Performance', path: '/dashboard/performance/my-performance' },
+        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
         { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
-        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
       ]
     },
     { 
@@ -103,11 +106,17 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
     { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
-    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     { 
@@ -131,6 +140,7 @@ export const roleBasedMenus = {
     },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
   // HR - HR management focused
@@ -168,7 +178,10 @@ export const roleBasedMenus = {
       icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
+        { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
+        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -190,7 +203,8 @@ export const roleBasedMenus = {
       icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
-        { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
+        { name: 'My Performance', path: '/dashboard/performance/my-performance' },
+        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
         { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
       ]
@@ -205,14 +219,23 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
     { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
   // MANAGER - Team management focused
@@ -247,7 +270,17 @@ export const roleBasedMenus = {
       ]
     },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     {
       name: 'Learning',
       icon: HiOutlineAcademicCap,
@@ -260,6 +293,7 @@ export const roleBasedMenus = {
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
   // EMPLOYEE - Personal focused
@@ -294,7 +328,17 @@ export const roleBasedMenus = {
     },
     { name: 'Payslips', icon: HiOutlineBanknotes, path: '/dashboard/payroll/payslips' },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     {
       name: 'Learning',
       icon: HiOutlineAcademicCap,
@@ -307,6 +351,7 @@ export const roleBasedMenus = {
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
   // DEPARTMENT HEAD - Department management focused (inherits from manager with department oversight)
@@ -328,9 +373,20 @@ export const roleBasedMenus = {
         { name: 'Create Project', path: '/dashboard/projects/create' },
       ]
     },
-    { 
-      name: 'Attendance & Leaves', 
-      icon: HiOutlineClock, 
+    {
+      name: 'Employees',
+      icon: HiOutlineUserGroup,
+      path: '/dashboard/employees',
+      submenu: [
+        { name: 'All Employees', path: '/dashboard/employees' },
+        { name: 'Add Employee', path: '/dashboard/employees/add' },
+        { name: 'Departments', path: '/dashboard/departments' },
+        { name: 'Designations', path: '/dashboard/designations' },
+      ]
+    },
+    {
+      name: 'Attendance & Leaves',
+      icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
         { name: 'My Attendance', path: '/dashboard/attendance' },
@@ -338,12 +394,22 @@ export const roleBasedMenus = {
         { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
         { name: 'Apply Leave', path: '/dashboard/leave/apply' },
         { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
-        { name: 'My Leave Requests', path: '/dashboard/leave/requests' },
+        { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
       ]
     },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
-    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
+    { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     {
       name: 'Learning',
       icon: HiOutlineAcademicCap,
@@ -356,6 +422,7 @@ export const roleBasedMenus = {
     { name: 'Announcements', icon: HiOutlineMegaphone, path: '/dashboard/announcements' },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 
   // GOD ADMIN - Supreme access
@@ -393,9 +460,12 @@ export const roleBasedMenus = {
       icon: HiOutlineClock,
       path: '/dashboard/attendance',
       submenu: [
+        { name: 'My Attendance', path: '/dashboard/attendance' },
         { name: 'Attendance Report', path: '/dashboard/attendance/report' },
         { name: 'Employee Check-ins', path: '/dashboard/attendance/checkins' },
         { name: 'Attendance Regularisation', path: '/dashboard/team/regularisation' },
+        { name: 'Apply Leave', path: '/dashboard/leave/apply' },
+        { name: 'My Leave Balance', path: '/dashboard/leave/balance' },
         { name: 'Leave Requests', path: '/dashboard/leave/requests' },
         { name: 'Leave Approvals', path: '/dashboard/leave/approvals' },
         { name: 'Leave Types', path: '/dashboard/leave-types' },
@@ -418,10 +488,10 @@ export const roleBasedMenus = {
       icon: HiOutlineTrophy,
       path: '/dashboard/performance',
       submenu: [
-        { name: 'Performance Reviews', path: '/dashboard/performance/reviews' },
+        { name: 'My Performance', path: '/dashboard/performance/my-performance' },
+        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
         { name: 'Goals & Objectives', path: '/dashboard/performance/goals' },
         { name: 'Performance Reports', path: '/dashboard/performance/reports' },
-        { name: 'Employee Ratings', path: '/dashboard/performance/ratings' },
       ]
     },
     {
@@ -434,11 +504,17 @@ export const roleBasedMenus = {
         { name: 'Interviews', path: '/dashboard/recruitment/interviews' },
       ]
     },
-    { name: 'Onboarding', icon: HiOutlineUserPlus, path: '/dashboard/onboarding' },
-    { name: 'Offboarding', icon: HiOutlineArrowRightOnRectangle, path: '/dashboard/offboarding' },
     { name: 'Documents', icon: HiOutlineDocumentText, path: '/dashboard/documents' },
     { name: 'Assets', icon: HiOutlineCube, path: '/dashboard/assets' },
-    { name: 'Expenses', icon: HiOutlineReceiptPercent, path: '/dashboard/expenses' },
+    { 
+      name: 'Expenses', 
+      icon: HiOutlineReceiptPercent, 
+      path: '/dashboard/expenses',
+      submenu: [
+        { name: 'My Expenses', path: '/dashboard/expenses' },
+        { name: 'Approvals', path: '/dashboard/expenses/approvals' },
+      ]
+    },
     { name: 'Helpdesk', icon: HiOutlineLifebuoy, path: '/dashboard/helpdesk' },
     { name: 'Policies', icon: HiOutlineBookOpen, path: '/dashboard/policies' },
     {
@@ -462,6 +538,7 @@ export const roleBasedMenus = {
     },
     { name: 'Holidays', icon: HiOutlineCalendarDays, path: '/dashboard/holidays' },
     { name: 'Productivity', icon: HiOutlineChartBar, path: '/dashboard/productivity' },
+    { name: 'General Calendar', icon: HiOutlineCalendarDays, path: '/dashboard/calendar' },
   ],
 }
 

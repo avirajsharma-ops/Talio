@@ -341,6 +341,7 @@ export default function CreateMeetingModal({ isOpen, onClose, onSuccess }) {
                   </label>
                   <input
                     type="datetime-local"
+                    min={new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16)}
                     value={formData.scheduledStart}
                     onChange={(e) => handleInputChange('scheduledStart', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -352,6 +353,7 @@ export default function CreateMeetingModal({ isOpen, onClose, onSuccess }) {
                   </label>
                   <input
                     type="datetime-local"
+                    min={formData.scheduledStart || new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16)}
                     value={formData.scheduledEnd}
                     onChange={(e) => handleInputChange('scheduledEnd', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-transparent"

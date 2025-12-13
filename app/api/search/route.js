@@ -42,8 +42,6 @@ const synonyms = {
   'travel': ['trip', 'journey', 'business travel', 'tour'],
   'help': ['support', 'helpdesk', 'assistance', 'ticket', 'issue'],
   'recruitment': ['hiring', 'job', 'career', 'opening', 'position', 'vacancy'],
-  'onboarding': ['joining', 'new hire', 'orientation', 'induction'],
-  'offboarding': ['exit', 'resignation', 'leaving', 'separation', 'termination'],
   'chat': ['message', 'messaging', 'communication', 'talk', 'conversation'],
   'home': ['dashboard', 'main', 'overview', 'home page'],
   'dashboard': ['home', 'main', 'overview']

@@ -294,6 +294,7 @@ function CompanySettingsTab() {
         email: company.email || '',
         phone: company.phone || '',
         website: company.website || '',
+        timezone: company.timezone || 'Asia/Kolkata',
         address: company.address || {
           street: '',
           city: '',
@@ -322,6 +323,7 @@ function CompanySettingsTab() {
         email: '',
         phone: '',
         website: '',
+        timezone: 'Asia/Kolkata',
         address: {
           street: '',
           city: '',
@@ -396,6 +398,7 @@ function CompanySettingsTab() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log('Submitting company form:', formData) // Debug log
     setSaving(true)
 
     try {
@@ -419,6 +422,7 @@ function CompanySettingsTab() {
         ? `/api/companies/${editingCompany._id}` 
         : '/api/companies'
       
+      console.log('Sending request to:', url, 'with data:', submitData)
       const response = await fetch(url, {
         method: editingCompany ? 'PUT' : 'POST',
         headers: {
@@ -723,6 +727,23 @@ function CompanySettingsTab() {
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
                       placeholder="https://www.example.com"
                     />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Timezone *</label>
+                    <select
+                      value={formData.timezone || 'Asia/Kolkata'}
+                      onChange={(e) => {
+                        console.log('Timezone changed to:', e.target.value);
+                        handleInputChange('timezone', e.target.value);
+                      }}
+                      required
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800"
+                    >
+                      {(typeof Intl !== 'undefined' && Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : ['UTC', 'Asia/Kolkata', 'America/New_York', 'Europe/London']).map((tz) => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">All attendance records and notifications will use this timezone.</p>
                   </div>
                 </div>
               </div>
@@ -1788,16 +1809,16 @@ function GeofencingTab() {
 
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                      <label className="block text-xs text-gray-600 mb-1.5">Start Time</label>
                       <input
                         type="time"
                         value={breakTiming.startTime}
                         onChange={(e) => updateBreakTiming(index, 'startTime', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       />
-                    </div>
+                                       </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">End Time</label>
+                      <label className="block text-xs text-gray-600 mb-1.5">End Time</label>
                       <input
                         type="time"
                         value={breakTiming.endTime}
@@ -1836,7 +1857,7 @@ function GeofencingTab() {
           <button
             type="submit"
             disabled={saving}
-            className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
           >
             {saving ? (
               <span className="flex items-center gap-2">
@@ -1846,7 +1867,12 @@ function GeofencingTab() {
                 </svg>
                 Saving...
               </span>
-            ) : 'Save Geofencing Settings'}
+            ) : (
+              <>
+                <FaCheck />
+                Save Geofencing Settings
+              </>
+            )}
           </button>
         </div>
       </form>
@@ -2250,7 +2276,9 @@ function PayrollSettingsTab() {
       const token = localStorage.getItem('token')
       // Fetch the specific company settings
       const response = await fetch(`/api/companies/${company._id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       const data = await response.json()
       if (data.success) {
@@ -2394,7 +2422,7 @@ function PayrollSettingsTab() {
 
       <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
         <FaMoneyBillWave className="text-green-600" />
-        Payroll Settings
+        <span>Payroll Settings</span>
       </h2>
       <p className="text-gray-600 mb-6">Configure salary deductions, overtime rules, and statutory compliance</p>
 
@@ -2416,7 +2444,7 @@ function PayrollSettingsTab() {
                 defaultValue={payroll.workingDaysPerMonth || 26}
                 min="20"
                 max="31"
-                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-4 py-2.5 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">Used to calculate daily salary rate</p>
             </div>
@@ -3095,7 +3123,7 @@ function NotificationsTab() {
                     ? 'bg-blue-600'
                     : 'bg-gray-300'
                 }`}>
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out transform ${
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-500 ease-in-out ${
                     emailNotificationsEnabled
                       ? 'translate-x-5'
                       : 'translate-x-0.5'

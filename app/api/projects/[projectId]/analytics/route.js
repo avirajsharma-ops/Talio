@@ -8,6 +8,7 @@ import TaskAssignee from '@/models/TaskAssignee'
 import User from '@/models/User'
 import Employee from '@/models/Employee'
 import { checkProjectAccess, getProjectTaskStats } from '@/lib/projectService'
+import { generateSmartContent } from '@/lib/promptEngine'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for AI processing
@@ -142,23 +143,20 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY
-
-    if (!apiKey) {
-      // Return rule-based insights if no API key
+    // Generate AI insights using Gemini
+    try {
+      const insights = await generateAIInsights(analyticsData, decoded.userId)
+      return NextResponse.json({
+        success: true,
+        insights
+      })
+    } catch (error) {
+      console.error('AI generation failed, falling back to rule-based', error)
       return NextResponse.json({
         success: true,
         insights: generateRuleBasedInsights(analyticsData)
       })
     }
-
-    // Generate AI insights using Gemini
-    const insights = await generateAIInsights(apiKey, analyticsData)
-
-    return NextResponse.json({
-      success: true,
-      insights
-    })
   } catch (error) {
     console.error('Generate AI insights error:', error)
     return NextResponse.json({ 
@@ -638,7 +636,7 @@ function generateRuleBasedInsights(data) {
 }
 
 // Generate AI insights using Gemini
-async function generateAIInsights(apiKey, analyticsData) {
+async function generateAIInsights(analyticsData, userId) {
   try {
     const { project, taskAnalytics, memberAnalytics, completionPrediction, timelineAnalytics } = analyticsData
 
@@ -695,46 +693,14 @@ Provide your response ONLY as valid JSON with this exact structure:
   "teamInsights": "analysis of team performance and suggestions"
 }`
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048
-          }
-        })
-      }
-    )
-
-    if (!response.ok) {
-      console.error('Gemini API error:', response.status)
-      return generateRuleBasedInsights(analyticsData)
-    }
-
-    const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-
-    // Parse JSON from response
-    try {
-      // Extract JSON from markdown code blocks if present
-      let jsonStr = text
-      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1]
-      }
-      
-      const insights = JSON.parse(jsonStr.trim())
-      return insights
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError)
-      return generateRuleBasedInsights(analyticsData)
-    }
+    const text = await generateSmartContent(prompt, { userId, feature: 'project-analytics' });
+    
+    // Clean up markdown code blocks if present
+    const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim()
+    
+    return JSON.parse(jsonStr)
   } catch (error) {
-    console.error('AI insights generation error:', error)
+    console.error('Error generating AI insights:', error)
     return generateRuleBasedInsights(analyticsData)
   }
 }

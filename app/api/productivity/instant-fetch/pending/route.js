@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
-import MayaScreenSummary from '@/models/MayaScreenSummary';
+// import MayaScreenSummary from '@/models/MayaScreenSummary'; // Deprecated
 
 export const dynamic = 'force-dynamic';
 
@@ -27,27 +27,9 @@ export async function GET(request) {
     await connectDB();
 
     // Find pending instant capture requests for this user
-    // Only return requests from the last 2 minutes (to avoid stale requests)
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    // TODO: Implement new mechanism for instant capture requests using a dedicated model or Redis
+    // For now, return no pending requests to unblock build
     
-    const pendingRequest = await MayaScreenSummary.findOne({
-      monitoredUserId: decoded.userId,
-      captureMode: 'instant',
-      status: 'pending',
-      createdAt: { $gte: twoMinutesAgo }
-    }).sort({ createdAt: -1 });
-
-    if (pendingRequest) {
-      return NextResponse.json({
-        success: true,
-        pendingRequest: {
-          requestId: pendingRequest._id.toString(),
-          requestedBy: pendingRequest.requestedByUserId,
-          timestamp: pendingRequest.createdAt.toISOString()
-        }
-      });
-    }
-
     return NextResponse.json({
       success: true,
       pendingRequest: null

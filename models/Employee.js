@@ -60,10 +60,12 @@ const EmployeeSchema = new mongoose.Schema({
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
+    set: v => v === '' ? null : v,
   },
   designation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Designation',
+    set: v => v === '' ? null : v,
   },
   // Designation level - stored separately for quick access
   designationLevel: {
@@ -77,10 +79,12 @@ const EmployeeSchema = new mongoose.Schema({
   company: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company',
+    set: v => v === '' ? null : v,
   },
   reportingManager: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
+    set: v => v === '' ? null : v,
   },
   dateOfJoining: {
     type: Date,

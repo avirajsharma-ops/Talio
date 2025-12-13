@@ -48,6 +48,30 @@ export default function AttendancePage() {
     checkOut: '',
     reason: ''
   })
+
+  // Holidays state
+  const [holidays, setHolidays] = useState([])
+  const [selectedHoliday, setSelectedHoliday] = useState(null)
+  const [showHolidayModal, setShowHolidayModal] = useState(false)
+
+  // Fetch holidays
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/holidays?limit=100', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await response.json()
+        if (data.success) {
+          setHolidays(data.data)
+        }
+      } catch (error) {
+        console.error('Error fetching holidays:', error)
+      }
+    }
+    fetchHolidays()
+  }, [])
   
   // Show overtime prompt when there's a pending request
   useEffect(() => {
@@ -486,17 +510,27 @@ export default function AttendancePage() {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       date.setHours(0, 0, 0, 0)
+
+      const record = attendanceMap[dateKey]
+        
+      // Find holiday for this date
+      const holiday = holidays.find(h => {
+        const hDate = new Date(h.date)
+        return getLocalDateKey(hDate) === dateKey
+      })
+
       days.push({
-        day,
-        date: dateKey,
-        record: attendanceMap[dateKey] || null,
+        date: date,
+        day: day,
+        isCurrentMonth: true,
         isToday: dateKey === todayKey,
-        isFuture: date > today
+        record: record || null,
+        holiday: holiday || null
       })
     }
 
     return days
-  }, [currentMonth, attendance])
+  }, [currentMonth, attendance, holidays])
 
   // Get status color for calendar cell
   const getStatusColor = (record, isFuture) => {
@@ -524,6 +558,19 @@ export default function AttendancePage() {
       case 'on-leave': return 'text-blue-700'
       case 'holiday': return 'text-purple-700'
       default: return 'text-gray-700'
+    }
+  }
+
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case 'present': return 'bg-green-100 text-green-800'
+      case 'in-progress': return 'bg-orange-100 text-orange-800'
+      case 'half-day': return 'bg-yellow-100 text-yellow-800'
+      case 'late': return 'bg-amber-100 text-amber-800'
+      case 'absent': return 'bg-red-100 text-red-800'
+      case 'on-leave': case 'leave': return 'bg-blue-100 text-blue-800'
+      case 'holiday': return 'bg-purple-100 text-purple-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -974,81 +1021,86 @@ export default function AttendancePage() {
               {calendarData.map((dayData, index) => {
                 const pendingCorrection = dayData.day ? getPendingCorrectionForDay(dayData) : null
                 const hasPending = !!pendingCorrection
+                const isWeekend = dayData.date ? (dayData.date.getDay() === 0 || dayData.date.getDay() === 6) : false
+                const isHoliday = dayData.record?.status === 'holiday' || dayData.holiday
+                const holidayName = dayData.holiday?.name || (dayData.record?.status === 'holiday' ? 'Holiday' : '')
                 
+                // Determine status color
+                let statusColor = 'bg-gray-50'
+                if (dayData.record) {
+                  if (dayData.record.status === 'present') statusColor = 'bg-green-50 border-green-100'
+                  else if (dayData.record.status === 'absent') statusColor = 'bg-red-50 border-red-100'
+                  else if (dayData.record.status === 'late') statusColor = 'bg-yellow-50 border-yellow-100'
+                  else if (dayData.record.status === 'half-day') statusColor = 'bg-orange-50 border-orange-100'
+                  else if (dayData.record.status === 'leave') statusColor = 'bg-blue-50 border-blue-100'
+                  else if (dayData.record.status === 'holiday') statusColor = 'bg-purple-50 border-purple-100'
+                } else if (isHoliday) {
+                  statusColor = 'bg-purple-50 border-purple-100'
+                }
+
                 return (
                   <div
                     key={index}
-                    className={`
-                      min-h-[100px] p-2 rounded-lg transition-all
-                      ${dayData.day === null ? 'bg-transparent' : 
-                        `${getStatusColor(dayData.record, dayData.isFuture)} ${!dayData.isFuture && !hasPending ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}`
+                    onClick={() => {
+                      if (dayData.holiday) {
+                        setSelectedHoliday(dayData.holiday)
+                        setShowHolidayModal(true)
+                      } else if (dayData.record) {
+                        setSelectedRecord(dayData.record)
+                        setShowDetailsModal(true)
+                      } else if (dayData.isCurrentMonth && !isWeekend && !isHoliday && new Date(dayData.date) < new Date()) {
+                        // Handle missing entry click
+                        setMissingEntryForm(prev => ({
+                          ...prev,
+                          date: dayData.date.toISOString().split('T')[0]
+                        }))
+                        setShowMissingEntryModal(true)
                       }
-                      ${dayData.isToday ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
-                      ${hasPending ? 'bg-yellow-50/50' : ''}
+                    }}
+                    className={`
+                      min-h-[80px] p-2 border rounded-lg transition-all cursor-pointer relative group
+                      ${statusColor}
+                      ${dayData.isToday ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
+                      ${!dayData.isCurrentMonth ? 'opacity-40 bg-gray-50' : 'hover:shadow-md'}
                     `}
-                    onClick={() => dayData.day && !hasPending && openDayEditModal(dayData)}
                   >
-                    {dayData.day && (
-                      <>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={`text-sm font-bold ${dayData.isToday ? 'text-blue-600' : 'text-gray-700'}`}>
-                            {dayData.day}
-                          </span>
-                          {!dayData.isFuture && (
-                            hasPending ? (
-                              <span 
-                                className="px-1.5 py-0.5 text-[9px] font-semibold bg-yellow-100 text-yellow-700 rounded border border-yellow-300"
-                                title="Correction request pending"
-                              >
-                                Pending
-                              </span>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  openDayEditModal(dayData)
-                                }}
-                                className="p-1 rounded hover:bg-white/50 text-gray-400 hover:text-gray-600"
-                                title="Edit"
-                              >
-                                <FaEdit className="w-3 h-3" />
-                              </button>
-                            )
-                          )}
-                        </div>
-                        
-                        {dayData.record ? (
-                          <div className="space-y-1">
-                            <span className={`text-xs font-medium capitalize ${getStatusTextColor(dayData.record.status)}`}>
-                              {dayData.record.status === 'in-progress' ? 'In Progress' : dayData.record.status}
-                            </span>
-                            <div className="text-[10px] text-gray-500">
-                              {dayData.record.checkIn && (
-                                <div>In: {formatTime(dayData.record.checkIn)}</div>
-                              )}
-                              {dayData.record.checkOut && (
-                                <div>Out: {formatTime(dayData.record.checkOut)}</div>
-                              )}
-                              {dayData.record.workHours && (
-                                <div className="font-medium">{dayData.record.workHours}h</div>
-                              )}
-                            </div>
-                            {hasPending && (
-                              <div className="text-[9px] text-yellow-600 font-medium mt-1">
-                                Edit requested
-                              </div>
-                            )}
-                          </div>
-                        ) : !dayData.isFuture ? (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {hasPending ? (
-                              <span className="text-yellow-600">Entry requested</span>
-                            ) : (
-                              'No record'
-                            )}
-                          </div>
-                        ) : null}
-                      </>
+                    <div className="flex justify-between items-start">
+                      <span className={`
+                        text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full
+                        ${dayData.isToday ? 'bg-blue-500 text-white' : 'text-gray-700'}
+                      `}>
+                        {dayData.day}
+                      </span>
+                      {dayData.record?.status && (
+                        <span className={`
+                          text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider
+                          ${getStatusBadgeColor(dayData.record.status)}
+                        `}>
+                          {dayData.record.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Holiday Name */}
+                    {isHoliday && (
+                      <div className="text-[10px] leading-tight text-purple-700 truncate mt-1 font-medium bg-purple-100/50 px-1 py-0.5 rounded">
+                        {holidayName}
+                      </div>
+                    )}
+
+                    {/* Time details for present/late/half-day */}
+                    {dayData.record && ['present', 'late', 'half-day'].includes(dayData.record.status) && (
+                      <div className="text-[10px] text-gray-600 mt-1">
+                        {dayData.record.checkIn && (
+                          <div>In: {formatTime(dayData.record.checkIn)}</div>
+                        )}
+                        {dayData.record.checkOut && (
+                          <div>Out: {formatTime(dayData.record.checkOut)}</div>
+                        )}
+                        {dayData.record.workHours && (
+                          <div className="font-medium">{dayData.record.workHours}h</div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )
@@ -1383,6 +1435,70 @@ export default function AttendancePage() {
             }
           }}
         />
+      )}
+
+      {/* Holiday Details Modal */}
+      {showHolidayModal && selectedHoliday && (
+        <ModalPortal onClose={() => setShowHolidayModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">{selectedHoliday.name}</h3>
+              <button 
+                onClick={() => setShowHolidayModal(false)} 
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-full"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="bg-white p-2 rounded-full shadow-sm mr-3">
+                  <FaCalendarAlt className="text-purple-600" size={18} />
+                </div>
+                <div>
+                  <p className="text-xs text-purple-600 font-semibold uppercase tracking-wide">Date</p>
+                  <p className="text-gray-800 font-medium">
+                    {new Date(selectedHoliday.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              {selectedHoliday.description ? (
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Description</h4>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {selectedHoliday.description}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500 italic bg-gray-50 rounded-lg">
+                  No description available for this holiday.
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full capitalize border border-purple-200 shadow-sm">
+                  {selectedHoliday.type || 'Public Holiday'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowHolidayModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   )

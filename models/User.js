@@ -72,9 +72,6 @@ const UserSchema = new mongoose.Schema({
   },
   // Maya AI Assistant preferences
   mayaPreferences: {
-    onboardingCompleted: { type: Boolean, default: false },
-    onboardingCompletedAt: { type: Date },
-    onboardingSkipped: { type: Boolean, default: false },
     lastGreetingDate: { type: String }, // YYYY-MM-DD format to track daily greeting
     autoGreetingEnabled: { type: Boolean, default: true },
     voiceEnabled: { type: Boolean, default: true }

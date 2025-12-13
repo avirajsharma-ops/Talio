@@ -11,7 +11,7 @@ export default function EmployeeRatingsPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterPeriod, setFilterPeriod] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -24,65 +24,17 @@ export default function EmployeeRatingsPage() {
 
   const fetchRatings = async () => {
     try {
-      // Mock data for now
-      const mockRatings = [
-        {
-          _id: '1',
-          employee: { firstName: 'John', lastName: 'Doe', employeeCode: 'EMP001', department: 'Engineering' },
-          rater: { firstName: 'Jane', lastName: 'Smith', position: 'Engineering Manager' },
-          period: 'Q4 2024',
-          overallRating: 4.5,
-          ratings: {
-            technical: 5,
-            communication: 4,
-            teamwork: 5,
-            leadership: 4,
-            problemSolving: 5,
-            reliability: 4
-          },
-          comments: 'Excellent performance with strong technical skills and leadership potential.',
-          ratingDate: '2024-12-15',
-          status: 'completed'
-        },
-        {
-          _id: '2',
-          employee: { firstName: 'Alice', lastName: 'Johnson', employeeCode: 'EMP002', department: 'Marketing' },
-          rater: { firstName: 'Bob', lastName: 'Wilson', position: 'Marketing Director' },
-          period: 'Q4 2024',
-          overallRating: 3.8,
-          ratings: {
-            creativity: 4,
-            communication: 4,
-            teamwork: 3,
-            initiative: 4,
-            results: 4,
-            reliability: 4
-          },
-          comments: 'Good performance with room for improvement in team collaboration.',
-          ratingDate: '2024-12-10',
-          status: 'completed'
-        },
-        {
-          _id: '3',
-          employee: { firstName: 'Mike', lastName: 'Brown', employeeCode: 'EMP003', department: 'Sales' },
-          rater: { firstName: 'Sarah', lastName: 'Davis', position: 'Sales Manager' },
-          period: 'Q4 2024',
-          overallRating: 4.2,
-          ratings: {
-            salesSkills: 5,
-            communication: 4,
-            customerService: 4,
-            teamwork: 4,
-            initiative: 4,
-            reliability: 4
-          },
-          comments: 'Strong sales performance and excellent customer relationships.',
-          ratingDate: '2024-12-12',
-          status: 'completed'
-        }
-      ]
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/performance/ratings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
       
-      setRatings(mockRatings)
+      if (data.success) {
+        setRatings(data.data)
+      } else {
+        toast.error(data.message || 'Failed to fetch ratings')
+      }
     } catch (error) {
       console.error('Fetch ratings error:', error)
       toast.error('Failed to fetch employee ratings')
@@ -95,9 +47,22 @@ export default function EmployeeRatingsPage() {
     if (!confirm('Are you sure you want to delete this rating?')) return
 
     try {
-      // Mock delete
-      setRatings(ratings.filter(r => r._id !== ratingId))
-      toast.success('Rating deleted successfully')
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/performance/ratings?id=${ratingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setRatings(ratings.filter(r => r._id !== ratingId))
+        toast.success('Rating deleted successfully')
+      } else {
+        toast.error(data.message || 'Failed to delete rating')
+      }
     } catch (error) {
       console.error('Delete rating error:', error)
       toast.error('Failed to delete rating')
@@ -105,16 +70,7 @@ export default function EmployeeRatingsPage() {
   }
 
   const canManageRatings = () => {
-    return user && ['admin', 'hr', 'manager'].includes(user.role)
-  }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+    return user && ['admin', 'hr', 'manager', 'department_head', 'god_admin'].includes(user.role)
   }
 
   const getRatingStars = (rating) => {
@@ -143,7 +99,7 @@ export default function EmployeeRatingsPage() {
       rating.employee.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       rating.employee.department.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesFilter = filterPeriod === 'all' || rating.period === filterPeriod
+    const matchesFilter = filterCategory === 'all' || rating.category === filterCategory
     
     return matchesSearch && matchesFilter
   })
@@ -162,15 +118,15 @@ export default function EmployeeRatingsPage() {
       <div className="flex md:justify-between md:items-center md:flex-row flex-col mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Employee Ratings</h1>
-          <p className="text-gray-600 mt-1">Manage employee performance ratings</p>
+          <p className="text-gray-600 mt-1">Manage employee performance ratings and reviews</p>
         </div>
         {canManageRatings() && (
           <button
-            onClick={() => router.push('/dashboard/performance/ratings/create')}
+            onClick={() => router.push('/dashboard/team')} // Redirect to team dashboard to add rating via member profile
             className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center space-x-2"
           >
             <FaPlus className="w-4 h-4" />
-            <span>New Rating</span>
+            <span>Add Rating (via Team)</span>
           </button>
         )}
       </div>
@@ -179,26 +135,32 @@ export default function EmployeeRatingsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         {[
           { 
-            title: 'Total Ratings', 
+            title: 'Total Reviews', 
             value: ratings.length, 
             color: 'bg-blue-500',
             icon: FaUser
           },
           { 
             title: 'Average Rating', 
-            value: ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r.overallRating, 0) / ratings.length).toFixed(1) : '0.0', 
+            value: ratings.filter(r => r.rating > 0).length > 0 
+              ? (ratings.filter(r => r.rating > 0).reduce((sum, r) => sum + r.rating, 0) / ratings.filter(r => r.rating > 0).length).toFixed(1) 
+              : '0.0', 
             color: 'bg-green-500',
             icon: FaStar
           },
           { 
             title: 'High Performers', 
-            value: ratings.filter(r => r.overallRating >= 4.5).length, 
+            value: ratings.filter(r => r.rating >= 4.5).length, 
             color: 'bg-yellow-500',
             icon: FaStar
           },
           { 
-            title: 'This Quarter', 
-            value: ratings.filter(r => r.period === 'Q4 2024').length, 
+            title: 'This Month', 
+            value: ratings.filter(r => {
+              const date = new Date(r.createdAt)
+              const now = new Date()
+              return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+            }).length, 
             color: 'bg-purple-500',
             icon: FaUser
           },
@@ -234,20 +196,20 @@ export default function EmployeeRatingsPage() {
             <div className="flex items-center space-x-2">
               <FaFilter className="text-gray-400 w-4 h-4" />
               <select
-                value={filterPeriod}
-                onChange={(e) => setFilterPeriod(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent capitalize"
               >
-                <option value="all">All Periods</option>
-                <option value="Q4 2024">Q4 2024</option>
-                <option value="Q3 2024">Q3 2024</option>
-                <option value="Q2 2024">Q2 2024</option>
-                <option value="Q1 2024">Q1 2024</option>
+                <option value="all">All Categories</option>
+                <option value="performance">Performance</option>
+                <option value="behavior">Behavior</option>
+                <option value="skills">Skills</option>
+                <option value="general">General</option>
               </select>
             </div>
           </div>
           <div className="text-sm text-gray-500">
-            {filteredRatings.length} rating{filteredRatings.length !== 1 ? 's' : ''} found
+            {filteredRatings.length} review{filteredRatings.length !== 1 ? 's' : ''} found
           </div>
         </div>
       </div>
@@ -258,7 +220,7 @@ export default function EmployeeRatingsPage() {
           <FaStar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No ratings found</h3>
           <p className="text-gray-500">
-            {canManageRatings() ? 'Create your first employee rating to get started.' : 'No employee ratings have been created yet.'}
+            {canManageRatings() ? 'Go to Team Dashboard to add reviews.' : 'No employee ratings have been created yet.'}
           </p>
         </div>
       ) : (
@@ -267,8 +229,12 @@ export default function EmployeeRatingsPage() {
             <div key={rating._id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
-                    {rating.employee.firstName.charAt(0)}{rating.employee.lastName.charAt(0)}
+                  <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold overflow-hidden">
+                    {rating.employee.profilePicture ? (
+                      <img src={rating.employee.profilePicture} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{rating.employee.firstName.charAt(0)}{rating.employee.lastName.charAt(0)}</span>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -276,70 +242,45 @@ export default function EmployeeRatingsPage() {
                     </h3>
                     <p className="text-sm text-gray-500">{rating.employee.employeeCode}</p>
                     <p className="text-sm text-gray-600">{rating.employee.department}</p>
-                    <p className="text-sm text-gray-600">{rating.period}</p>
+                    <p className="text-xs text-gray-400 mt-1 capitalize">{rating.type} • {rating.category}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <div className="flex">{getRatingStars(Math.round(rating.overallRating))}</div>
-                      <span className={`text-lg font-bold ${getRatingColor(rating.overallRating)}`}>
-                        {rating.overallRating}
-                      </span>
-                    </div>
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(rating.status)}`}>
-                      {rating.status}
+                    {rating.rating > 0 && (
+                      <div className="flex items-center space-x-2 mb-1">
+                        <div className="flex">{getRatingStars(rating.rating)}</div>
+                        <span className={`text-lg font-bold ${getRatingColor(rating.rating)}`}>
+                          {rating.rating}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      {new Date(rating.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {canManageRatings() && (
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => router.push(`/dashboard/performance/ratings/${rating._id}`)}
-                        className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                        title="View Rating"
-                      >
-                        <FaEye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => router.push(`/dashboard/performance/ratings/edit/${rating._id}`)}
-                        className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors"
-                        title="Edit Rating"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rating._id)}
-                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Delete Rating"
-                      >
-                        <FaTrash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              <div className="mb-4">
-                <p className="text-gray-700 line-clamp-2">{rating.comments}</p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-                {Object.entries(rating.ratings).map(([category, score]) => (
-                  <div key={category} className="text-center">
-                    <p className="text-xs text-gray-500 capitalize mb-1">
-                      {category.replace(/([A-Z])/g, ' $1').trim()}
-                    </p>
-                    <div className="flex justify-center mb-1">
-                      {getRatingStars(score)}
-                    </div>
-                    <p className="text-sm font-medium text-gray-700">{score}/5</p>
-                  </div>
-                ))}
+              <div className="mb-4 bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-700 whitespace-pre-wrap">{rating.content}</p>
               </div>
 
               <div className="flex justify-between items-center text-sm text-gray-500 pt-3 border-t border-gray-100">
-                <span>Rated by: {rating.rater.firstName} {rating.rater.lastName} ({rating.rater.position})</span>
-                <span>Date: {new Date(rating.ratingDate).toLocaleDateString()}</span>
+                <div className="flex items-center space-x-2">
+                  <span>Rated by:</span>
+                  <span className="font-medium text-gray-700">
+                    {rating.rater.firstName} {rating.rater.lastName}
+                  </span>
+                </div>
+                {canManageRatings() && (
+                  <button
+                    onClick={() => router.push(`/dashboard/team/members/${rating.employee._id}`)}
+                    className="text-primary-600 hover:text-primary-800 text-xs font-medium"
+                  >
+                    View Profile
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -6,6 +6,9 @@ import ProductivitySession from '@/models/ProductivitySession';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
+import Designation from '@/models/Designation';
+import { generateContent, generateVisionContent } from '@/lib/gemini';
+import { generateSmartContent } from '@/lib/promptEngine';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // 2 minutes for multi-screenshot AI processing
@@ -26,7 +29,7 @@ function toObjectId(id) {
  * Analyze a single screenshot with Gemini Vision
  * Returns a brief description of what's happening in the screenshot
  */
-async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
+async function analyzeScreenshot(imageData, index, total) {
   try {
     // Validate image data
     if (!imageData || typeof imageData !== 'string' || imageData.length < 100) {
@@ -61,44 +64,31 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
       mimeType = 'image/png';
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Data
-                }
-              },
-              {
-                text: `Screenshot ${index + 1} of ${total}. Briefly describe (1-2 sentences max): What application/website is shown? What is the user doing? Is this work-related activity?`
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 100
-          }
-        })
+    const prompt = `Screenshot ${index + 1} of ${total}. Briefly describe (1-2 sentences max): What application/website is shown? What is the user doing? Is this work-related activity?`;
+    const images = [{ mimeType, data: base64Data }];
+    
+    // Retry logic for 429 errors
+    let retries = 3;
+    let delay = 2000; // Start with 2s delay
+
+    while (retries > 0) {
+      try {
+        const text = await generateVisionContent(prompt, images);
+        return text?.trim() || null;
+      } catch (err) {
+        if (err.message.includes('429') || err.status === 429) {
+          console.log(`[Screenshot ${index + 1}] Rate limited (429). Retrying in ${delay/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          retries--;
+        } else {
+          throw err; // Non-retryable error
+        }
       }
-    );
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.error(`[Screenshot ${index + 1}] API error: ${response.status}`);
-      return null;
     }
+    console.log(`[Screenshot ${index + 1}] Failed after retries due to rate limiting.`);
+    return null;
 
-    const result = await response.json();
-    const description = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return description.trim();
   } catch (error) {
     console.error(`[Screenshot ${index + 1}] Error:`, error.message);
     return null;
@@ -110,9 +100,9 @@ async function analyzeScreenshot(imageData, index, total, GEMINI_API_KEY) {
  * Then create a comprehensive summary combining all analyses
  */
 async function analyzeSessionWithAI(session, employee) {
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  if (!GEMINI_API_KEY) {
+  if (!apiKey) {
     console.log('[Session Analyze] No Gemini API key found');
     const designationTitle = employee?.designation?.title || employee?.designation?.levelName || 'Employee';
     return generateFallbackAnalysis(session, designationTitle);
@@ -150,28 +140,41 @@ async function analyzeSessionWithAI(session, employee) {
   try {
     // Phase 1: Analyze each screenshot individually
     const screenshotDescriptions = [];
-    const maxScreenshots = Math.min(screenshots.length, 10); // Limit to 10 screenshots max
+    // Reduce to 6 screenshots to avoid hitting rate limits (15 RPM) while maintaining coverage
+    const maxScreenshots = Math.min(screenshots.length, 6); 
+    
+    // Select screenshots evenly distributed across the session
+    const selectedIndices = [];
+    if (screenshots.length <= maxScreenshots) {
+      for (let i = 0; i < screenshots.length; i++) selectedIndices.push(i);
+    } else {
+      const step = (screenshots.length - 1) / (maxScreenshots - 1);
+      for (let i = 0; i < maxScreenshots; i++) {
+        selectedIndices.push(Math.round(i * step));
+      }
+    }
 
-    for (let i = 0; i < maxScreenshots; i++) {
-      const screenshot = screenshots[i];
+    for (let i = 0; i < selectedIndices.length; i++) {
+      const idx = selectedIndices[i];
+      const screenshot = screenshots[idx];
       const imageData = screenshot?.fullData || screenshot?.thumbnail;
 
       if (imageData && imageData.length > 100) {
-        console.log(`[Session Analyze] Analyzing screenshot ${i + 1}/${maxScreenshots}...`);
-        const description = await analyzeScreenshot(imageData, i, maxScreenshots, GEMINI_API_KEY);
+        console.log(`[Session Analyze] Analyzing screenshot ${i + 1}/${maxScreenshots} (Index ${idx})...`);
+        const description = await analyzeScreenshot(imageData, i, maxScreenshots);
 
         if (description) {
           screenshotDescriptions.push({
-            index: i + 1,
-            time: screenshot.capturedAt ? new Date(screenshot.capturedAt).toLocaleTimeString() : `Screenshot ${i + 1}`,
+            index: idx + 1,
+            time: screenshot.capturedAt ? new Date(screenshot.capturedAt).toLocaleTimeString() : `Screenshot ${idx + 1}`,
             description
           });
-          console.log(`[Session Analyze] Screenshot ${i + 1}: ${description.slice(0, 80)}...`);
+          console.log(`[Session Analyze] Screenshot ${idx + 1}: ${description.slice(0, 80)}...`);
         }
 
-        // Small delay between requests to avoid rate limiting
-        if (i < maxScreenshots - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
+        // 4 second delay between requests to stay under 15 RPM limit
+        if (i < selectedIndices.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 4000));
         }
       }
     }
@@ -183,7 +186,7 @@ async function analyzeSessionWithAI(session, employee) {
       ? screenshotDescriptions.map(s => `[${s.time}] ${s.description}`).join('\n')
       : 'No screenshots were available for analysis.';
 
-    const comprehensivePrompt = `You are an expert workplace productivity analyst conducting a detailed assessment of an employee's work session.
+    const comprehensivePrompt = `You are an expert workplace productivity analyst conducting a deep, forensic assessment of an employee's work session. Your goal is to provide a highly detailed, educated, and professional analysis that reads like a human expert's report.
 
 ═══════════════════════════════════════════════════════════════════════
 EMPLOYEE PROFILE
@@ -193,7 +196,7 @@ EMPLOYEE PROFILE
 • Job Description: ${designationDescription || 'Standard duties for this role'}
 • Department: ${department}
 
-IMPORTANT: Evaluate this employee's activities SPECIFICALLY based on their job title "${designationTitle}" and what someone in this role would typically do. A software developer has different productive activities than a marketing manager or HR executive.
+IMPORTANT: Evaluate this employee's activities SPECIFICALLY based on their job title "${designationTitle}". Use your knowledge of this role's typical workflows, tools, and expectations.
 
 ═══════════════════════════════════════════════════════════════════════
 SESSION METRICS
@@ -219,132 +222,53 @@ SCREENSHOT ANALYSIS (Chronological Activity Log)
 ${screenshotSummary}
 
 ═══════════════════════════════════════════════════════════════════════
-ROLE-SPECIFIC PRODUCTIVITY CRITERIA
+ANALYSIS INSTRUCTIONS
 ═══════════════════════════════════════════════════════════════════════
-
-Based on the job title "${designationTitle}", apply these relevant criteria:
-
-FOR SOFTWARE/TECH ROLES (Developer, Engineer, Programmer, QA, DevOps):
-• HIGHLY PRODUCTIVE: VS Code, IntelliJ, Xcode, Terminal, Git, debugging tools, Stack Overflow, GitHub, technical documentation, API testing (Postman), database tools
-• PRODUCTIVE: Slack/Teams for work discussions, Jira/Trello, code reviews, technical blogs
-• NEUTRAL: Email, calendar, general browsing for research
-• DISTRACTING: Social media, entertainment, shopping (unless role-related)
-
-FOR DESIGN ROLES (Designer, UX, UI, Creative):
-• HIGHLY PRODUCTIVE: Figma, Sketch, Adobe Creative Suite, Canva, design research, Dribbble, Behance
-• PRODUCTIVE: Design feedback tools, prototyping, client communication
-• NEUTRAL: Email, reference browsing, inspiration gathering
-• DISTRACTING: Non-design social media, entertainment
-
-FOR MARKETING ROLES (Marketing, Content, SEO, Social Media):
-• HIGHLY PRODUCTIVE: Analytics (Google Analytics, Meta), social media management tools, content creation, CRM, email marketing platforms, SEO tools
-• PRODUCTIVE: Social media research, competitor analysis, content planning
-• NEUTRAL: Industry news, trend research
-• DISTRACTING: Personal social media, unrelated browsing
-
-FOR HR ROLES (HR, Recruiter, People Operations):
-• HIGHLY PRODUCTIVE: HRMS systems, ATS platforms, LinkedIn Recruiter, policy documents, employee records, payroll systems
-• PRODUCTIVE: Email for candidate/employee communication, calendar for interviews, documentation
-• NEUTRAL: HR news, industry benchmarks
-• DISTRACTING: Personal browsing, entertainment
-
-FOR SALES ROLES (Sales, Business Development, Account Management):
-• HIGHLY PRODUCTIVE: CRM (Salesforce, HubSpot), email campaigns, proposal tools, call/demo tools
-• PRODUCTIVE: LinkedIn for prospecting, industry research, pricing tools
-• NEUTRAL: General email, calendar management
-• DISTRACTING: Personal browsing, non-work social media
-
-FOR MANAGEMENT ROLES (Manager, Lead, Director, Head):
-• HIGHLY PRODUCTIVE: Team management tools, reporting dashboards, strategic planning, documentation
-• PRODUCTIVE: Email, calendar, 1-on-1 meetings, team communication, reviews
-• NEUTRAL: Industry reading, professional development
-• DISTRACTING: Excessive personal browsing
-
-FOR ADMINISTRATIVE ROLES (Admin, Assistant, Coordinator):
-• HIGHLY PRODUCTIVE: Document management, scheduling, data entry, office tools, coordination platforms
-• PRODUCTIVE: Email, calendar, file organization
-• NEUTRAL: Reference lookups
-• DISTRACTING: Personal browsing, entertainment
-
-═══════════════════════════════════════════════════════════════════════
-SCORING METHODOLOGY (Apply Rigorously)
-═══════════════════════════════════════════════════════════════════════
-
-PRODUCTIVITY SCORE (0-100):
-• 90-100: Exceptional - Sustained high-value work directly aligned with job responsibilities
-• 75-89: High - Consistent productive work with minimal distractions
-• 60-74: Moderate - Mix of productive and neutral activities, some context switching
-• 40-59: Low - Significant time on non-work activities or excessive idle periods
-• 0-39: Very Low - Predominantly distracted or inactive
-
-FOCUS SCORE (0-100):
-• 90-100: Deep focus - Stayed on 1-2 related apps/tasks, minimal switching
-• 75-89: Good focus - Limited app switching, coherent work patterns
-• 60-74: Moderate focus - Some task switching but generally on track
-• 40-59: Fragmented - Frequent app/context switching affecting continuity
-• 0-39: Highly scattered - Constant switching, no sustained attention
-
-EFFICIENCY SCORE (0-100):
-• 90-100: Optimal - High output indicators (keystrokes, meaningful clicks), streamlined workflow
-• 75-89: Good - Consistent activity, effective tool usage
-• 60-74: Average - Moderate activity levels, some workflow inefficiencies
-• 40-59: Below average - Low activity or inefficient patterns
-• 0-39: Poor - Very low activity or significant workflow issues
+1. **Synthesize Data**: Combine the screenshot visual evidence with the app/website logs. If screenshots show code but logs show "Chrome", explain that they are likely researching.
+2. **Role-Specific Context**: A developer on YouTube watching a tutorial is productive; a data entry clerk watching a music video is not. Apply this nuance.
+3. **Identify Patterns**: Look for "flow states" (long periods in one app) vs. "fragmentation" (constant switching).
+4. **Be Specific**: Don't just say "They worked". Say "They were developing a React component in VS Code while referencing documentation on MDN."
 
 ═══════════════════════════════════════════════════════════════════════
 REQUIRED JSON OUTPUT
 ═══════════════════════════════════════════════════════════════════════
 
 {
-  "summary": "A detailed 4-6 sentence narrative analyzing: (1) What the ${designationTitle} worked on during this session, (2) Key activities observed with specific app/website mentions, (3) Work pattern quality and flow, (4) Overall productivity assessment considering their specific role requirements.",
-  "productivityScore": [0-100 based on role-specific criteria above],
-  "focusScore": [0-100 based on task switching and attention patterns],
-  "efficiencyScore": [0-100 based on activity levels and workflow],
+  "summary": "A comprehensive, multi-paragraph narrative (approx 150-200 words). Paragraph 1: Executive summary of the session's main focus. Paragraph 2: Detailed breakdown of specific tasks, tools used, and workflows observed. Paragraph 3: Assessment of work intensity, focus, and alignment with role expectations. Use professional language.",
+  "productivityScore": [0-100 based on role alignment],
+  "focusScore": [0-100 based on task continuity],
+  "efficiencyScore": [0-100 based on output intensity],
   "scoreBreakdown": {
-    "productivityReason": "Brief explanation of productivity score",
-    "focusReason": "Brief explanation of focus score",
-    "efficiencyReason": "Brief explanation of efficiency score"
+    "productivityReason": "Detailed justification citing specific productive/unproductive behaviors.",
+    "focusReason": "Analysis of their attention span and context switching patterns.",
+    "efficiencyReason": "Evaluation of their interaction rate (keystrokes/clicks) relative to the task type."
   },
-  "workActivities": ["Specific activity 1 detected", "Activity 2", "Activity 3", "Activity 4", "Activity 5"],
+  "workActivities": [
+    "Detailed activity description 1 (e.g., 'Debugging backend API routes in VS Code')",
+    "Detailed activity description 2",
+    "Detailed activity description 3",
+    "Detailed activity description 4",
+    "Detailed activity description 5"
+  ],
   "insights": [
-    "Specific insight about work patterns observed",
-    "Insight about tool/app usage effectiveness",
-    "Insight about time allocation"
+    "Deep insight about their workflow efficiency",
+    "Observation about tool mastery or usage patterns",
+    "Note on time management or distraction handling"
   ],
   "recommendations": [
-    "Actionable recommendation to improve productivity",
-    "Specific tip based on observed patterns"
+    "Specific, actionable advice to enhance performance",
+    "Tool or workflow suggestion based on observed bottlenecks"
   ],
-  "areasOfImprovement": ["Specific area where improvement is needed based on observations"],
-  "topAchievements": ["Positive achievement or good practice observed in this session"]
+  "areasOfImprovement": ["Specific constructive feedback"],
+  "topAchievements": ["Notable positive behavior or completed task"]
 }
 
 CRITICAL: Be accurate and fair. Base scores strictly on observed data, not assumptions. If screenshots show productive work, score high. If they show browsing/entertainment, score accordingly. Consider the role context - what's distracting for a developer might be productive for a social media manager.`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: comprehensivePrompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 800,
-            responseMimeType: 'application/json'
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Session Analyze] Gemini API error (${response.status}):`, errorText.slice(0, 300));
-      return generateFallbackAnalysis(session, designationTitle);
-    }
-
-    const result = await response.json();
-    const content = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const content = await generateSmartContent(comprehensivePrompt, {
+      userId: session.userId.toString(),
+      feature: 'productivity-session-analyze'
+    });
     console.log(`[Session Analyze] Comprehensive response: ${content.slice(0, 300)}...`);
 
     // Parse JSON response

@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Asset from '@/models/Asset'
+import jwt from 'jsonwebtoken'
 
 // PUT - Update asset
 export async function PUT(request, { params }) {
   try {
     await connectDB()
+
+    // Auth check
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      if (!['admin', 'hr'].includes(decoded.role)) {
+        return NextResponse.json({ success: false, message: 'Forbidden: Only Admin and HR can update assets' }, { status: 403 })
+      }
+    } catch (err) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
 
     const data = await request.json()
 
@@ -90,6 +106,21 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectDB()
+
+    // Auth check
+    const token = request.headers.get('authorization')?.split(' ')[1]
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      if (!['admin', 'hr'].includes(decoded.role)) {
+        return NextResponse.json({ success: false, message: 'Forbidden: Only Admin and HR can delete assets' }, { status: 403 })
+      }
+    } catch (err) {
+      return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 })
+    }
 
     const asset = await Asset.findByIdAndDelete(params.id)
 

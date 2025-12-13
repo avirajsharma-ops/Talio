@@ -1,16 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { FaPlus, FaTicketAlt, FaCheckCircle, FaClock, FaExclamationCircle, FaTimes } from 'react-icons/fa'
 import { getCurrentUser, getEmployeeId } from '@/utils/userHelper'
 import ModalPortal from '@/components/ui/ModalPortal'
 
 export default function HelpdeskPage() {
+  const router = useRouter()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [formData, setFormData] = useState({
+    subject: '',
+    category: '',
+    priority: 'medium',
+    description: ''
+  })
 
   useEffect(() => {
     const parsedUser = getCurrentUser()
@@ -30,6 +38,52 @@ export default function HelpdeskPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const empId = getEmployeeId(user)
+    if (!empId) {
+      toast.error('Employee ID not found')
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/helpdesk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          createdBy: empId
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast.success('Ticket created successfully')
+        setShowModal(false)
+        fetchTickets(empId)
+        setFormData({
+          subject: '',
+          category: '',
+          priority: 'medium',
+          description: ''
+        })
+      } else {
+        toast.error(data.message || 'Failed to create ticket')
+      }
+    } catch (error) {
+      console.error('Create ticket error:', error)
+      toast.error('Failed to create ticket')
+    }
+  }
 
   const fetchTickets = async (employeeId) => {
     try {
@@ -163,7 +217,11 @@ export default function HelpdeskPage() {
                   </tr>
                 ) : (
                   tickets.map((ticket) => (
-                    <tr key={ticket._id} className="hover:bg-gray-50">
+                    <tr 
+                      key={ticket._id} 
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/dashboard/helpdesk/${ticket._id}`)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
                         {ticket?.ticketNumber || 'N/A'}
                       </td>
@@ -212,7 +270,7 @@ export default function HelpdeskPage() {
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="modal-body space-y-4">
                 <div>
                   <label className="modal-label">
@@ -220,6 +278,10 @@ export default function HelpdeskPage() {
                   </label>
                   <input
                     type="text"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleInputChange}
+                    required
                     className="modal-input"
                     placeholder="Brief description of the issue"
                   />
@@ -229,11 +291,20 @@ export default function HelpdeskPage() {
                   <label className="modal-label">
                     Category
                   </label>
-                  <select className="modal-select">
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                    className="modal-select"
+                  >
                     <option value="">Select Category</option>
-                    <option value="technical">Technical</option>
-                    <option value="hr">HR</option>
-                    <option value="admin">Admin</option>
+                    <option value="it-support">IT Support</option>
+                    <option value="hr-query">HR Query</option>
+                    <option value="payroll">Payroll</option>
+                    <option value="leave">Leave</option>
+                    <option value="attendance">Attendance</option>
+                    <option value="facilities">Facilities</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
@@ -242,10 +313,16 @@ export default function HelpdeskPage() {
                   <label className="modal-label">
                     Priority
                   </label>
-                  <select className="modal-select">
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                    className="modal-select"
+                  >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
 
@@ -254,6 +331,10 @@ export default function HelpdeskPage() {
                     Description
                   </label>
                   <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    required
                     rows="4"
                     className="modal-textarea"
                     placeholder="Detailed description of the issue"

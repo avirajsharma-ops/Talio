@@ -25,9 +25,7 @@ export function InAppNotificationProvider({ children }) {
     onHelpdeskTicket,
     onDocumentUpdate,
     onAssetUpdate,
-    onPayrollUpdate,
-    onOnboardingUpdate,
-    onOffboardingUpdate
+    onPayrollUpdate
   } = useSocket()
   const pathname = usePathname()
 
@@ -393,47 +391,6 @@ export function InAppNotificationProvider({ children }) {
     return unsubscribe
   }, [onPayrollUpdate, showNotification])
 
-  // Listen for onboarding updates via Socket.IO
-  useEffect(() => {
-    if (!onOnboardingUpdate) return
-
-    const unsubscribe = onOnboardingUpdate((data) => {
-      const { onboarding, action } = data
-
-      const icon = action === 'started' ? '🎉' : action === 'task_assigned' ? '📋' : '👋'
-      const actionText = action === 'started' ? 'Onboarding Started' : action === 'task_assigned' ? 'New Onboarding Task' : 'Onboarding Updated'
-
-      showNotification({
-        title: `${icon} ${actionText}`,
-        message: data.message || 'Your onboarding has been updated',
-        url: '/dashboard/onboarding',
-        type: 'onboarding_update'
-      })
-    })
-
-    return unsubscribe
-  }, [onOnboardingUpdate, showNotification])
-
-  // Listen for offboarding updates via Socket.IO
-  useEffect(() => {
-    if (!onOffboardingUpdate) return
-
-    const unsubscribe = onOffboardingUpdate((data) => {
-      const { offboarding, action } = data
-
-      const icon = action === 'started' ? '👋' : action === 'approved' ? '✅' : '📝'
-      const actionText = action === 'started' ? 'Exit Process Started' : action === 'approved' ? 'Exit Approved' : 'Exit Process Updated'
-
-      showNotification({
-        title: `${icon} ${actionText}`,
-        message: data.message || 'Your exit process has been updated',
-        url: '/dashboard/offboarding',
-        type: 'offboarding_update'
-      })
-    })
-
-    return unsubscribe
-  }, [onOffboardingUpdate, showNotification])
 
   return (
     <InAppNotificationContext.Provider value={{ showNotification }}>

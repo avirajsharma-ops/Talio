@@ -106,6 +106,7 @@ export async function PUT(request, { params }) {
     if (data.email !== undefined) updateData.email = data.email?.trim() || ''
     if (data.phone !== undefined) updateData.phone = data.phone?.trim() || ''
     if (data.website !== undefined) updateData.website = data.website?.trim() || ''
+    if (data.timezone !== undefined) updateData.timezone = data.timezone
     if (data.address !== undefined) updateData.address = data.address
     if (data.workingHours !== undefined) updateData.workingHours = data.workingHours
     // Geofencing settings

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
-import MayaScreenSummary from '@/models/MayaScreenSummary';
+import ProductivityData from '@/models/ProductivityData';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import Department from '@/models/Department';
@@ -107,17 +107,17 @@ export async function POST(request) {
     }
 
     // Create instant capture request
-    const captureRequest = await MayaScreenSummary.create({
-      monitoredUserId: targetUserId,
-      monitoredEmployeeId: targetUser.employeeId,
-      requestedByUserId: decoded.userId,
-      requestedByEmployeeId: requester.employeeId,
-      captureType: 'screenshot',
-      captureMode: 'instant',
-      summary: 'Instant capture requested - pending upload',
+    const captureRequest = await ProductivityData.create({
+      userId: targetUserId,
+      employeeId: targetUser.employeeId,
+      periodStart: new Date(),
+      periodEnd: new Date(),
+      isInstantCapture: true,
       status: 'pending',
-      consentGiven: true, // Instant captures are authorized by admin/dept head
-      consentTimestamp: new Date(),
+      instantFetchRequest: {
+        requestedBy: decoded.userId,
+        requestedAt: new Date()
+      }
     });
 
     // Emit Socket.IO event to desktop app to trigger immediate capture
@@ -188,9 +188,9 @@ export async function GET(request) {
 
     await connectDB();
 
-    const captureRequest = await MayaScreenSummary.findById(requestId)
-      .populate('monitoredEmployeeId', 'name employeeCode designation')
-      .populate('requestedByEmployeeId', 'name');
+    const captureRequest = await ProductivityData.findById(requestId)
+      .populate('employeeId', 'firstName lastName employeeCode designation')
+      .populate('instantFetchRequest.requestedBy', 'name');
 
     if (!captureRequest) {
       return NextResponse.json({ success: false, error: 'Capture request not found' }, { status: 404 });
@@ -198,7 +198,13 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      data: captureRequest,
+      data: {
+        _id: captureRequest._id,
+        status: captureRequest.status,
+        screenshotUrl: captureRequest.screenshot?.url || (captureRequest.screenshot?.data ? 'data:image/...' : null),
+        summary: captureRequest.aiAnalysis?.summary,
+        createdAt: captureRequest.createdAt
+      },
     });
 
   } catch (error) {

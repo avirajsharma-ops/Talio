@@ -5,13 +5,12 @@ import { createPortal } from 'react-dom';
 import { FaEye, FaHistory, FaUsers, FaChartLine, FaCalendar, FaFilter, FaChevronDown, FaChevronUp, FaClock, FaSave, FaCamera, FaPlay, FaPause, FaChevronLeft, FaChevronRight, FaExpand, FaCompress, FaDesktop, FaLaptop, FaUser, FaLayerGroup, FaSync } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { formatLocalDateTime, formatLocalDateOnly, formatLocalTime } from '@/lib/browserTimezone';
-import { UserCardsGrid, SessionPopup, ChatHistoryCardsGrid, ChatHistoryPopup, RawCapturesUserCardsGrid, RawCapturesPopup } from '@/components/productivity/SessionComponents';
+import { UserCardsGrid, SessionPopup, RawCapturesUserCardsGrid, RawCapturesPopup } from '@/components/productivity/SessionComponents';
 
 export default function ProductivityMonitoringPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [monitoringData, setMonitoringData] = useState([]);
-  const [chatHistory, setChatHistory] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [departmentHeads, setDepartmentHeads] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -40,10 +39,6 @@ export default function ProductivityMonitoringPage() {
   // New session-based state
   const [selectedUserForSessions, setSelectedUserForSessions] = useState(null);
   const [isSessionPopupOpen, setIsSessionPopupOpen] = useState(false);
-  
-  // Chat history popup state
-  const [selectedUserForChat, setSelectedUserForChat] = useState(null);
-  const [isChatHistoryPopupOpen, setIsChatHistoryPopupOpen] = useState(false);
   
   // Raw captures popup state
   const [selectedUserForRawCaptures, setSelectedUserForRawCaptures] = useState(null);
@@ -186,7 +181,6 @@ export default function ProductivityMonitoringPage() {
     // All tabs now handle their own data fetching via user cards
     // Sessions tab - uses UserCardsGrid
     // Monitoring tab - uses RawCapturesUserCardsGrid  
-    // Chat tab - uses ChatHistoryCardsGrid
     setLoading(false);
     
     // Trigger session aggregation in background to compile any pending raw data
@@ -221,30 +215,6 @@ export default function ProductivityMonitoringPage() {
     }
   };
 
-  const fetchChatHistory = async (currentUser, userId = null) => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      let url = '/api/productivity/chat-history?limit=500';
-      if (userId) url += `&userId=${userId}`;
-      if (dateRange.start) url += `&startDate=${dateRange.start}`;
-      if (dateRange.end) url += `&endDate=${dateRange.end}`;
-
-      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      const data = await response.json();
-      
-      if (data.success) {
-        setChatHistory(data.data || []);
-      } else {
-        toast.error(data.error || 'Failed to fetch chat history');
-      }
-    } catch (error) {
-      toast.error('Failed to load chat history');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openModal = (type, title, data, userInfo) => {
     setModalData({ type, title, data, userInfo });
@@ -464,62 +434,6 @@ export default function ProductivityMonitoringPage() {
     return allUsers;
   };
 
-  // Group chat history by user (similar to getSessionsByUser)
-  const getChatHistoryByUser = () => {
-    const userMap = new Map();
-    const currentUserId = user?._id?.toString() || user?.userId?.toString();
-    
-    chatHistory.forEach(session => {
-      const userId = session.userId?._id?.toString() || session.userId?.toString();
-      const userKey = userId || 'unknown';
-      
-      if (!userMap.has(userKey)) {
-        const employeeInfo = session.employeeId || {};
-        const userInfo = session.userId || {};
-        
-        let userName = 'Unknown User';
-        if (employeeInfo.firstName) {
-          userName = `${employeeInfo.firstName} ${employeeInfo.lastName || ''}`.trim();
-        } else if (employeeInfo.name) {
-          userName = employeeInfo.name;
-        } else if (userInfo.name) {
-          userName = userInfo.name;
-        } else if (userInfo.email) {
-          userName = userInfo.email.split('@')[0];
-        }
-        
-        userMap.set(userKey, {
-          user: {
-            _id: userId,
-            userId: userId,
-            name: userName,
-            employeeCode: employeeInfo.employeeCode || '',
-            designation: employeeInfo.designation?.title || employeeInfo.designation || '',
-            department: employeeInfo.department?.name || employeeInfo.department || '',
-            profilePicture: employeeInfo.profilePicture || userInfo.profilePicture || null
-          },
-          sessions: [],
-          isOwn: userId === currentUserId
-        });
-      }
-      userMap.get(userKey).sessions.push(session);
-    });
-    
-    // Sort sessions by date for each user
-    userMap.forEach(userData => {
-      userData.sessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    });
-    
-    // Convert to array and sort: own user first, then others alphabetically
-    const allUsers = Array.from(userMap.values());
-    allUsers.sort((a, b) => {
-      if (a.isOwn) return -1;
-      if (b.isOwn) return 1;
-      return (a.user.name || '').localeCompare(b.user.name || '');
-    });
-    
-    return allUsers;
-  };
 
   // Get unique users for filter dropdown
   const getUniqueUsers = () => {
@@ -693,14 +607,6 @@ export default function ProductivityMonitoringPage() {
               <FaEye />Raw Captures
             </button>
           )}
-          <button
-            onClick={() => handleTabChange('chat')}
-            className={`flex-1 px-6 py-4 font-semibold flex items-center justify-center gap-2 ${
-              activeTab === 'chat' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            <FaHistory />MAYA Chat History
-          </button>
         </div>
       </div>
 
@@ -757,7 +663,7 @@ export default function ProductivityMonitoringPage() {
             onDataChange={refreshAllGrids}
           />
         </div>
-      ) : activeTab === 'monitoring' ? (
+      ) : (
         /* Raw Captures Tab - User Cards Grid */
         <div>
           <div className="mb-6">
@@ -791,41 +697,6 @@ export default function ProductivityMonitoringPage() {
               setSelectedUserForRawCaptures(null);
             }}
             onDataChange={refreshAllGrids}
-          />
-        </div>
-      ) : (
-        /* Chat History Tab - User Cards Grid */
-        <div>
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              {isAdminOrGodAdmin ? 'MAYA Chat History' : isDepartmentHead ? 'Department MAYA Chats' : 'My MAYA Chats'}
-            </h2>
-            <p className="text-gray-600">
-              {isAdminOrGodAdmin
-                ? 'Click on a team member to view their MAYA conversations'
-                : isDepartmentHead
-                ? 'Click on a department member to view their MAYA conversations'
-                : 'Click on your card to view your MAYA conversations'}
-            </p>
-          </div>
-          
-          <ChatHistoryCardsGrid 
-            onUserSelect={(user) => {
-              setSelectedUserForChat(user);
-              setIsChatHistoryPopupOpen(true);
-            }}
-            selectedUserId={selectedUserForChat?.userId}
-            refreshKey={refreshKey}
-          />
-          
-          {/* Chat History Popup Modal */}
-          <ChatHistoryPopup
-            user={selectedUserForChat}
-            isOpen={isChatHistoryPopupOpen}
-            onClose={() => {
-              setIsChatHistoryPopupOpen(false);
-              setSelectedUserForChat(null);
-            }}
           />
         </div>
       )}

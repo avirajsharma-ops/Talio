@@ -30,6 +30,9 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
   const [isDesktop, setIsDesktop] = useState(false)
   const { unreadCount } = useUnreadMessages()
   const { toggleWidget } = useChatWidget()
+  const [tooltipContent, setTooltipContent] = useState(null)
+  const tooltipY = useRef(0)
+  const tooltipRef = useRef(null)
   
   // Auto-collapse timer ref
   const autoCollapseTimerRef = useRef(null)
@@ -96,6 +99,13 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
     return () => window.removeEventListener('resize', checkDesktop)
   }, [])
 
+  // Collapse all submenus when sidebar is collapsed
+  useEffect(() => {
+    if (isCollapsed) {
+      setExpandedMenus({})
+    }
+  }, [isCollapsed])
+
   // Load user only once on mount
   useEffect(() => {
     setMounted(true)
@@ -144,7 +154,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         submenu: [
           { name: 'Team Dashboard', path: '/dashboard/team' },
           { name: 'Team Members', path: '/dashboard/team/members' },
-          { name: 'Team Reviews', path: '/dashboard/performance/reviews' },
+          { name: 'Team Ratings', path: '/dashboard/performance/ratings' },
           { name: 'Team Goals', path: '/dashboard/performance/goals' },
           { name: 'Performance Reports', path: '/dashboard/performance/reports' },
           { name: 'Geofencing', path: '/dashboard/team/geofencing' }
@@ -199,6 +209,15 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
     router.push('/login')
   }
 
+  // Helper to check if a menu item is active
+  const isMenuItemActive = (item) => {
+    if (item.path === pathname) return true
+    if (item.submenu) {
+      return item.submenu.some(subItem => subItem.path === pathname)
+    }
+    return false
+  }
+
   // Don't render until mounted to avoid hydration mismatch
   if (!mounted) {
     return null
@@ -225,14 +244,14 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         className={`
           fixed lg:static inset-y-0 left-0 z-[60] lg:z-[7]
           text-gray-800
-          transform flex flex-col lg:h-full h-screen shadow-lg
+          flex flex-col lg:h-full h-screen shadow-lg
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           w-full lg:w-[17rem]
           ${isDesktop && isCollapsed ? 'lg:!w-[4.5rem]' : ''}
         `}
         style={{ 
           backgroundColor: 'var(--color-bg-sidebar)',
-          transition: 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), width 0.3s cubic-bezier(0.23, 1, 0.32, 1)'
+          transition: 'width 0.3s ease-in-out'
         }}
       >
         {/* Sticky Logo Section - Height matched with header */}
@@ -283,11 +302,13 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         </div>
 
         {/* Scrollable Menu Section */}
-        <nav className={`pt-4 pb-0 flex-1 overflow-y-auto scrollbar-hide ${isDesktop && isCollapsed ? 'px-2 space-y-3' : 'px-3 sm:px-4 space-y-2'}`} style={{
+        <nav className={`pt-4 pb-8 flex-1 overflow-y-auto scrollbar-hide ${isDesktop && isCollapsed ? 'px-2 space-y-3' : 'px-3 sm:px-4 space-y-2'}`} style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}>
-          {menuItems.map((item) => (
+          {menuItems.map((item) => {
+            const isActive = isMenuItemActive(item)
+            return (
             <div key={item.name} className="w-full">
               {item.submenu ? (
                 <div className="w-full">
@@ -301,14 +322,28 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                         toggleSubmenu(item.name)
                       }
                     }}
-                    className={`w-full flex items-center rounded-xl transition-all duration-200 group ${isDesktop && isCollapsed ? 'justify-center p-2.5 hover:bg-[var(--color-primary-500)]' : 'justify-between px-3 sm:px-4 py-3'}`}
+                    onMouseEnter={(e) => {
+                      if (isDesktop && isCollapsed) {
+                        tooltipY.current = e.clientY
+                        setTooltipContent(item.name)
+                      }
+                    }}
+                    onMouseMove={(e) => {
+                      if (isDesktop && isCollapsed) {
+                        tooltipY.current = e.clientY
+                        if (tooltipRef.current) {
+                          tooltipRef.current.style.top = `${e.clientY}px`
+                        }
+                      }
+                    }}
+                    onMouseLeave={() => setTooltipContent(null)}
+                    className={`w-full flex items-center rounded-xl transition-all duration-200 group relative ${isDesktop && isCollapsed ? 'justify-center p-2.5 bg-[var(--color-primary-100)] hover:!bg-gray-800' : 'justify-between px-3 sm:px-4 py-3'}`}
                     style={{
                       backgroundColor: isDesktop && isCollapsed 
-                        ? (expandedMenus[item.name] ? 'var(--color-primary-500)' : 'var(--color-primary-100)') 
+                        ? (isActive ? 'var(--color-primary-500)' : undefined) 
                         : (expandedMenus[item.name] ? 'var(--color-bg-hover)' : 'transparent'),
                       color: '#111827'
                     }}
-                    title={isDesktop && isCollapsed ? item.name : ''}
                   >
                     <div className={`flex items-center ${isDesktop && isCollapsed ? '' : 'space-x-3'}`}>
                       <div
@@ -316,7 +351,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                         style={{
                           backgroundColor: isDesktop && isCollapsed ? 'transparent' : (expandedMenus[item.name] ? 'var(--color-primary-500)' : 'var(--color-primary-100)'),
                           color: isDesktop && isCollapsed 
-                            ? (expandedMenus[item.name] ? 'white' : 'var(--color-primary-600)') 
+                            ? (isActive ? 'white' : 'var(--color-primary-600)') 
                             : (expandedMenus[item.name] ? 'white' : 'var(--color-primary-700)')
                         }}
                       >
@@ -356,12 +391,26 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                     toggleWidget('sidebar')
                     handleLinkClick()
                   }}
-                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center p-2.5 hover:bg-[var(--color-primary-500)]' : 'space-x-3 px-3 sm:px-4 py-3'}`}
+                  onMouseEnter={(e) => {
+                    if (isDesktop && isCollapsed) {
+                      tooltipY.current = e.clientY
+                      setTooltipContent(item.name)
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    if (isDesktop && isCollapsed) {
+                      tooltipY.current = e.clientY
+                      if (tooltipRef.current) {
+                        tooltipRef.current.style.top = `${e.clientY}px`
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => setTooltipContent(null)}
+                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center p-2.5 bg-[var(--color-primary-100)] hover:!bg-gray-800' : 'space-x-3 px-3 sm:px-4 py-3'}`}
                   style={{
-                    backgroundColor: isDesktop && isCollapsed ? 'var(--color-primary-100)' : 'transparent',
+                    backgroundColor: isDesktop && isCollapsed ? undefined : 'transparent',
                     color: '#111827'
                   }}
-                  title={isDesktop && isCollapsed ? item.name : ''}
                 >
                   <div
                     className={`transition-colors relative ${isDesktop && isCollapsed ? '' : 'p-2 rounded-lg'}`}
@@ -381,22 +430,36 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 <Link
                   href={item.path}
                   onClick={handleLinkClick}
-                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center p-2.5 hover:bg-[var(--color-primary-500)]' : 'space-x-3 px-3 sm:px-4 py-3'}`}
+                  onMouseEnter={(e) => {
+                    if (isDesktop && isCollapsed) {
+                      tooltipY.current = e.clientY
+                      setTooltipContent(item.name)
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    if (isDesktop && isCollapsed) {
+                      tooltipY.current = e.clientY
+                      if (tooltipRef.current) {
+                        tooltipRef.current.style.top = `${e.clientY}px`
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => setTooltipContent(null)}
+                  className={`w-full flex items-center rounded-xl transition-all duration-200 group cursor-pointer relative ${isDesktop && isCollapsed ? 'justify-center p-2.5 bg-[var(--color-primary-100)] hover:!bg-gray-800' : 'space-x-3 px-3 sm:px-4 py-3'}`}
                   style={{
                     backgroundColor: isDesktop && isCollapsed 
-                      ? (pathname === item.path ? 'var(--color-primary-500)' : 'var(--color-primary-100)') 
-                      : (pathname === item.path ? 'var(--color-primary-500)' : 'transparent'),
-                    color: pathname === item.path ? 'white' : '#111827'
+                      ? (isActive ? 'var(--color-primary-500)' : undefined) 
+                      : (isActive ? 'var(--color-primary-500)' : 'transparent'),
+                    color: isActive ? 'white' : '#111827'
                   }}
-                  title={isDesktop && isCollapsed ? item.name : ''}
                 >
                   <div
                     className={`transition-colors relative ${isDesktop && isCollapsed ? '' : 'p-2 rounded-lg'}`}
                     style={{
-                      backgroundColor: isDesktop && isCollapsed ? 'transparent' : (pathname === item.path ? 'var(--color-primary-600)' : 'var(--color-primary-100)'),
+                      backgroundColor: isDesktop && isCollapsed ? 'transparent' : (isActive ? 'var(--color-primary-600)' : 'var(--color-primary-100)'),
                       color: isDesktop && isCollapsed 
-                        ? (pathname === item.path ? 'white' : 'var(--color-primary-600)') 
-                        : (pathname === item.path ? 'white' : 'var(--color-primary-700)')
+                        ? (isActive ? 'white' : 'var(--color-primary-600)') 
+                        : (isActive ? 'white' : 'var(--color-primary-700)')
                     }}
                   >
                     <item.icon className={isDesktop && isCollapsed ? 'w-6 h-6 group-hover:text-white' : 'w-5 h-5'} />
@@ -408,7 +471,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 </Link>
               )}
             </div>
-          ))}
+          )})}
         </nav>
 
         {/* Chat, Settings and Logout Section - Fixed at bottom - Mobile only */}
@@ -506,6 +569,19 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
           </div>
         </div>
       </ModalPortal>
+
+      {/* Tooltip */}
+      {tooltipContent && (
+        <div 
+          ref={tooltipRef}
+          className="fixed left-[4.5rem] ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded pointer-events-none whitespace-nowrap z-[100] shadow-lg"
+          style={{ top: tooltipY.current, transform: 'translateY(-50%)' }}
+        >
+          {tooltipContent}
+          {/* Arrow */}
+          <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-gray-800"></div>
+        </div>
+      )}
     </>
   )
 }

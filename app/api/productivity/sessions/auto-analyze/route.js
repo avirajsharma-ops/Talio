@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import ProductivitySession from '@/models/ProductivitySession';
 import Employee from '@/models/Employee';
 import User from '@/models/User';
+import { generateContent, generateVisionContent } from '@/lib/gemini';
+import { generateSmartContent } from '@/lib/promptEngine';
 
 /**
  * DEPRECATED: Background auto-analysis has been removed from the regular session flow.
@@ -20,7 +22,6 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes for batch processing
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Helper to safely convert to ObjectId
 function toObjectId(id) {
@@ -168,7 +169,8 @@ export async function POST(request) {
  * Analyze screenshots in session using Gemini Vision API
  */
 async function analyzeSessionWithAI(session, employee) {
-  if (!GEMINI_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  if (!apiKey) {
     return generateFallbackAnalysis(session, employee?.designation || 'Employee');
   }
 
@@ -251,27 +253,10 @@ Respond in JSON format:
 }`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: summaryPrompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 800
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = await generateSmartContent(summaryPrompt, {
+      userId: session.userId.toString(),
+      feature: 'productivity-session-auto-analyze'
+    });
     
     // Parse JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -311,38 +296,13 @@ async function analyzeScreenshot(imageData, index, total) {
       }
     }
     
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                inline_data: {
-                  mime_type: 'image/png',
-                  data: base64Data
-                }
-              },
-              {
-                text: `Screenshot ${index + 1}/${total}. Briefly (1 sentence): What app/website is shown and what is the user doing?`
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 50
-          }
-        })
-      }
-    );
-
-    if (!response.ok) return null;
-
-    const result = await response.json();
-    return result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    const prompt = `Screenshot ${index + 1}/${total}. Briefly (1 sentence): What app/website is shown and what is the user doing?`;
+    const images = [{ mimeType: 'image/png', data: base64Data }];
+    
+    const text = await generateVisionContent(prompt, images);
+    return text?.trim() || null;
   } catch (error) {
+    console.error(`[Auto-Analyze] Screenshot ${index + 1} error:`, error.message);
     return null;
   }
 }
@@ -435,7 +395,7 @@ export async function GET(request) {
       success: true,
       pendingCount,
       analyzedToday,
-      hasGeminiKey: !!GEMINI_API_KEY
+      hasGeminiKey: !!(process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY)
     });
 
   } catch (error) {

@@ -5,9 +5,9 @@ import User from '@/models/User';
 import Employee from '@/models/Employee';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
 import { getCurrentISTDate } from '@/lib/timezone';
+import { generateVisionContent } from '@/lib/gemini';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 /**
  * POST /api/activity/screenshot
@@ -75,8 +75,8 @@ export async function POST(request) {
       );
     }
 
-    // Analyze screenshot with Gemini Vision (if configured)
-    console.log('🔍 Analyzing screenshot with Gemini Vision (if configured)...');
+    // Analyze screenshot with AI Vision (Gemini with OpenAI fallback)
+    console.log('🔍 Analyzing screenshot with AI Vision...');
     
     let analysis = {
       summary: 'Analysis pending',
@@ -89,66 +89,42 @@ export async function POST(request) {
     };
 
     try {
-      if (GEMINI_API_KEY) {
-        // Prepare inline image data for Gemini
-        let base64Data = screenshot;
-        let mimeType = 'image/png';
-        if (screenshot.startsWith('data:')) {
-          const header = screenshot.substring(5, screenshot.indexOf(',')); // e.g., image/png;base64
-          const parts = header.split(';');
-          if (parts[0]) mimeType = parts[0]; // image/png
-          base64Data = screenshot.split(',')[1];
-        }
+      // Prepare inline image data
+      let base64Data = screenshot;
+      let mimeType = 'image/png';
+      if (screenshot.startsWith('data:')) {
+        const header = screenshot.substring(5, screenshot.indexOf(',')); // e.g., image/png;base64
+        const parts = header.split(';');
+        if (parts[0]) mimeType = parts[0]; // image/png
+        base64Data = screenshot.split(',')[1];
+      }
 
-        const prompt = `Analyze this employee screen capture and provide:\n1. A brief summary of what the employee is doing\n2. List of visible applications/windows\n3. Type of activity (coding, browsing, email, meeting, document-editing, design, data-entry, idle, etc.)\n4. Productivity level (highly-productive, productive, neutral, low-productivity, distraction)\n5. Content types visible (code, document, email, chat, video, dashboard, etc.)\n6. Any visible text (OCR)\n\nEmployee: ${employee.firstName} ${employee.lastName}\nTime: ${new Date(capturedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}\nWindow: ${windowTitle}\nURL: ${url || 'N/A'}\n\nRespond in strict JSON with keys: summary, applications, activity, productivity, contentType, detectedText, confidence (0-100).`;
+      const prompt = `Analyze this employee screen capture and provide:
+1. A brief summary of what the employee is doing
+2. List of visible applications/windows
+3. Type of activity (coding, browsing, email, meeting, document-editing, design, data-entry, idle, etc.)
+4. Productivity level (highly-productive, productive, neutral, low-productivity, distraction)
+5. Content types visible (code, document, email, chat, video, dashboard, etc.)
+6. Any visible text (OCR)
 
-        const payload = {
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64Data } }
-            ]
-          }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 800 }
-        };
+Employee: ${employee.firstName} ${employee.lastName}
+Time: ${new Date(capturedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+Window: ${windowTitle}
+URL: ${url || 'N/A'}
 
-        const candidates = [
-          { version: 'v1beta', model: 'gemini-2.0-flash' },
-          { version: 'v1beta', model: 'gemini-2.5-flash' },
-          { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
-          { version: 'v1beta', model: 'gemini-flash-latest' }
-        ];
+Respond in strict JSON with keys: summary, applications, activity, productivity, contentType, detectedText, confidence (0-100).`;
 
-        let responseText = '';
-        let lastErr = null;
-        for (const { version, model } of candidates) {
-          const urlGen = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-          try {
-            const res = await fetch(urlGen, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-              const data = await res.json();
-              responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              console.log(`✅ Gemini Vision analyzed via ${version}/${model}`);
-              break;
-            } else {
-              const e = await res.json().catch(() => ({}));
-              console.warn('⚠️ Gemini Vision attempt failed', { version, model, status: res.status, error: e });
-              lastErr = e;
-            }
-          } catch (err) {
-            console.warn('⚠️ Gemini Vision network/exception', { version, model, error: err.message });
-            lastErr = err.message;
-          }
-        }
+      const responseText = await generateVisionContent(prompt, [{
+        mimeType,
+        data: base64Data
+      }]);
 
-        if (responseText) {
-          try {
-            const parsed = JSON.parse(responseText);
+      if (responseText) {
+        try {
+          // Extract JSON from response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
             analysis = {
               summary: parsed.summary || 'No summary available',
               applications: parsed.applications || [],
@@ -158,16 +134,17 @@ export async function POST(request) {
               detectedText: parsed.detectedText || '',
               aiConfidence: parsed.confidence || 70
             };
-          } catch {
+          } else {
             analysis.summary = responseText;
             analysis.aiConfidence = 60;
           }
-          console.log('✅ Screenshot analyzed:', analysis.summary);
-        } else {
-          console.warn('⚠️ Gemini Vision unavailable, skipping analysis', lastErr);
+        } catch {
+          analysis.summary = responseText;
+          analysis.aiConfidence = 60;
         }
+        console.log('✅ Screenshot analyzed:', analysis.summary);
       } else {
-        console.log('ℹ️ GEMINI_API_KEY not set; skipping AI analysis.');
+        console.warn('⚠️ AI Vision unavailable, skipping analysis');
       }
     } catch (visionError) {
       console.error('❌ Vision analysis failed:', visionError);

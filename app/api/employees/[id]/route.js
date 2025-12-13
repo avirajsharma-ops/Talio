@@ -43,6 +43,11 @@ export async function GET(request, { params }) {
         select: 'firstName lastName email',
         options: { strictPopulate: false, lean: true }
       })
+      .populate({
+        path: 'company',
+        select: 'name timezone',
+        options: { strictPopulate: false, lean: true }
+      })
       .lean()
 
     // If not found by employee ID, check if it's a user ID and get employee from there
@@ -157,6 +162,14 @@ export async function PUT(request, { params }) {
     // Handle multiple departments
     console.log('Received departments:', data.departments)
     console.log('Received department (legacy):', data.department)
+
+    // Sanitize ObjectId fields - convert empty strings to null/undefined
+    const objectIdFields = ['company', 'department', 'designation', 'reportingManager'];
+    objectIdFields.forEach(field => {
+      if (data[field] === '') {
+        data[field] = undefined; // Remove from object so Mongoose doesn't try to cast it
+      }
+    });
 
     if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
       // Filter out empty strings

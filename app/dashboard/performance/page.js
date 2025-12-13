@@ -37,7 +37,7 @@ export default function PerformancePage() {
       const token = localStorage.getItem('token')
 
       // Fetch reviews from API
-      const reviewsResponse = await fetch('/api/performance/reviews', {
+      const reviewsResponse = await fetch('/api/performance/ratings', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -64,7 +64,7 @@ export default function PerformancePage() {
           totalReviews: reviews.length,
           completedGoals: goals.filter(g => g.status === 'completed').length,
           averageRating: reviews.length > 0
-            ? (reviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / reviews.length).toFixed(1)
+            ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
             : 0,
           pendingReviews: reviews.filter(r => r.status === 'pending').length
         }
@@ -127,11 +127,11 @@ export default function PerformancePage() {
         {canManagePerformance() && (
           <div className="flex space-x-3">
             <button
-              onClick={() => router.push('/dashboard/performance/reviews/create')}
+              onClick={() => router.push('/dashboard/team')}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center space-x-2"
             >
               <FaPlus className="w-4 h-4" />
-              <span>New Review</span>
+              <span>New Rating</span>
             </button>
             <button
               onClick={() => router.push('/dashboard/performance/goals/create')}
@@ -167,9 +167,8 @@ export default function PerformancePage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
         {[
-          { name: 'Performance Reviews', icon: FaChartLine, href: '/dashboard/performance/reviews', color: 'bg-blue-500' },
           { name: 'Goals & Objectives', icon: FaBullseye, href: '/dashboard/performance/goals', color: 'bg-green-500' },
           { name: 'Employee Ratings', icon: FaStar, href: '/dashboard/performance/ratings', color: 'bg-yellow-500' },
           { name: 'Performance Reports', icon: FaTrophy, href: '/dashboard/performance/reports', color: 'bg-purple-500' },

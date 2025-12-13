@@ -363,22 +363,6 @@ export function SocketProvider({ children }) {
     }
   }, [socket])
 
-  // Subscribe to onboarding events
-  const onOnboardingUpdate = useCallback((callback) => {
-    if (socket) {
-      socket.on('onboarding-update', callback)
-      return () => socket.off('onboarding-update', callback)
-    }
-  }, [socket])
-
-  // Subscribe to offboarding events
-  const onOffboardingUpdate = useCallback((callback) => {
-    if (socket) {
-      socket.on('offboarding-update', callback)
-      return () => socket.off('offboarding-update', callback)
-    }
-  }, [socket])
-
   // Subscribe to new notification events (for scheduled/recurring notifications)
   const onNewNotification = useCallback((callback) => {
     if (socket) {
@@ -417,8 +401,6 @@ export function SocketProvider({ children }) {
     onDocumentUpdate,
     onAssetUpdate,
     onPayrollUpdate,
-    onOnboardingUpdate,
-    onOffboardingUpdate,
     onNewNotification
   }
 

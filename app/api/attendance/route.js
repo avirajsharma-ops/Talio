@@ -4,6 +4,7 @@ import Attendance from '@/models/Attendance'
 import Employee from '@/models/Employee'
 import User from '@/models/User'
 import Leave from '@/models/Leave'
+import Holiday from '@/models/Holiday'
 import CompanySettings from '@/models/CompanySettings'
 import GeofenceLocation from '@/models/GeofenceLocation'
 import OvertimeRequest from '@/models/OvertimeRequest'
@@ -141,21 +142,23 @@ export async function GET(request) {
       .select('employee date checkIn checkOut checkInStatus checkOutStatus status workHours overtime totalLoggedHours breakMinutes shrinkagePercentage')
       .populate({
         path: 'employee',
-        select: 'firstName lastName employeeCode',
+        select: 'firstName lastName employeeCode company',
+        populate: { path: 'company', select: 'timezone' },
         options: { lean: true }
       })
       .sort({ date: -1 })
       .lean()
 
-    // Get start of today for past-day checks
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-
     // Auto-fix: Correct any records stuck in 'in-progress' that have both checkIn and checkOut
     // Also fix past-day records that are still 'in-progress' without checkOut
     const fixedData = attendance.map(record => {
-      const recordDate = new Date(record.date)
-      const isPastDay = recordDate < todayStart
+      const timezone = record.employee?.company?.timezone || 'Asia/Kolkata';
+      
+      // Get YYYY-MM-DD in company timezone
+      const todayString = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
+      const recordDateString = new Date(record.date).toLocaleDateString("en-CA", { timeZone: timezone });
+      
+      const isPastDay = recordDateString < todayString;
       
       // Case 1: Has checkOut but still showing in-progress
       if (record.status === 'in-progress' && record.checkIn && record.checkOut && record.workHours) {
@@ -216,9 +219,37 @@ export async function POST(request) {
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    // Get company settings and employee data
-    const settings = await CompanySettings.findOne()
-    const employee = await Employee.findById(employeeId).populate('department')
+    // Get employee data first to determine company
+    const employee = await Employee.findById(employeeId)
+      .populate('department')
+      .populate('company')
+
+    if (!employee) {
+      return NextResponse.json(
+        { success: false, message: 'Employee not found' },
+        { status: 404 }
+      )
+    }
+
+    // Determine settings based on employee's company
+    let settings = await CompanySettings.findOne().lean()
+    
+    if (employee.company && employee.company.workingHours) {
+      // Override global settings with company-specific settings
+      const companySettings = employee.company
+      settings = {
+        ...settings, // Keep global settings as base (e.g. for notifications if not in company)
+        checkInTime: companySettings.workingHours.checkInTime,
+        checkOutTime: companySettings.workingHours.checkOutTime,
+        lateThreshold: companySettings.workingHours.lateThresholdMinutes,
+        fullDayHours: companySettings.workingHours.fullDayHours,
+        halfDayHours: companySettings.workingHours.halfDayHours,
+        geofence: companySettings.geofence,
+        breakTimings: companySettings.breakTimings,
+        workingDays: companySettings.workingHours.workingDays,
+        timezone: companySettings.timezone || 'Asia/Kolkata'
+      }
+    }
 
     // Check for approved leave or work from home for today
     const todayLeave = await Leave.findOne({
@@ -245,6 +276,48 @@ export async function POST(request) {
     }
 
     if (type === 'clock-in') {
+      // --- Validation: Check Working Days & Holidays ---
+      // Use Company Timezone for day checks to align with business operations
+      const companyTimezone = settings?.timezone || 'Asia/Kolkata';
+      const localNow = new Date(new Date().toLocaleString("en-US", { timeZone: companyTimezone }));
+      const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const currentDayName = daysOfWeek[localNow.getDay()];
+      
+      // Default to Mon-Fri if not specified
+      const workingDays = settings?.workingDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+      
+      // Allow check-in if it's a working day OR if there is an approved leave/WFH (handled later but we should check here)
+      // Actually, if it's a non-working day, you shouldn't check in unless you have specific permission.
+      // For now, strict blocking as requested.
+      if (!workingDays.includes(currentDayName)) {
+         return NextResponse.json(
+          { success: false, message: `Check-in is not allowed today (${currentDayName} is not a working day).` },
+          { status: 403 }
+        )
+      }
+
+      // Check Holidays (using Company Timezone date range)
+      const localTodayStart = new Date(localNow);
+      localTodayStart.setHours(0, 0, 0, 0);
+      const localTodayEnd = new Date(localNow);
+      localTodayEnd.setHours(23, 59, 59, 999);
+
+      const holiday = await Holiday.findOne({
+        date: { 
+          $gte: localTodayStart, 
+          $lte: localTodayEnd 
+        },
+        isActive: true
+      });
+
+      if (holiday) {
+         return NextResponse.json(
+          { success: false, message: `Check-in is not allowed today (Holiday: ${holiday.name}).` },
+          { status: 403 }
+        )
+      }
+      // ------------------------------------------------
+
       if (attendance && attendance.checkIn) {
         return NextResponse.json(
           { success: false, message: 'Already clocked in today' },
@@ -485,17 +558,25 @@ export async function POST(request) {
 
       // Use office end time from settings
       const [endHour, endMin] = (settings?.checkOutTime || '18:00').split(':').map(Number)
-      const officeEndTime = new Date(checkOutTime)
-      officeEndTime.setHours(endHour, endMin, 0, 0)
+      
+      // Construct office end time in IST (Asia/Kolkata) to ensure correct comparison
+      // regardless of server timezone
+      const checkOutDateIST = new Date(checkOutTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+      const officeEndTimeISO = `${checkOutDateIST}T${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}:00+05:30`;
+      const officeEndTime = new Date(officeEndTimeISO);
 
       // Determine check-out status
       let checkOutStatus = 'on-time'
-      if (checkOutTime < officeEndTime) {
+      
+      // Allow a small buffer (e.g., 1 minute) for precision issues
+      const bufferMs = 60 * 1000;
+      
+      if (checkOutTime.getTime() < officeEndTime.getTime() - bufferMs) {
         checkOutStatus = 'early'
-      } else if (checkOutTime > officeEndTime) {
-        checkOutStatus = 'late'
-      }
-
+      } 
+      // If checked out after office end time, it's still considered "on-time" (or overtime), not "late"
+      // "Late" usually implies a negative connotation for check-outs (which doesn't make sense)
+      
       attendance.checkOutStatus = checkOutStatus
 
       // Calculate work hours using shrinkage method

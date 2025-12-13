@@ -51,11 +51,16 @@ export async function GET(request) {
     for (const chat of chats) {
       let chatUnread = 0
       
+      if (!chat.messages || !Array.isArray(chat.messages)) continue;
+
       for (const message of chat.messages) {
+        // Skip invalid messages
+        if (!message || !message.sender) continue;
+
         // Check if message is from someone else and not read by current user
         if (message.sender.toString() !== employee._id.toString()) {
           const isReadByUser = message.isRead?.some(
-            read => read.user.toString() === employee._id.toString()
+            read => read && read.user && read.user.toString() === employee._id.toString()
           )
           
           if (!isReadByUser) {

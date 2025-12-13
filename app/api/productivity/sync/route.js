@@ -251,19 +251,6 @@ export async function POST(request) {
     // Trigger session aggregation in background
     triggerSessionAggregation(decoded.userId, employee?._id);
 
-    // If this is a response to an instant fetch request, update the request
-    if (instantRequestId) {
-      try {
-        const { MayaScreenSummary } = await import('@/models/MayaScreenSummary');
-        await MayaScreenSummary.findByIdAndUpdate(instantRequestId, {
-          status: 'captured',
-          linkedProductivityData: productivityData._id
-        });
-      } catch (e) {
-        console.error('[Productivity Sync] Failed to update instant request:', e);
-      }
-    }
-
     // Emit socket event for real-time updates
     if (global.io) {
       global.io.to(`user:${decoded.userId}`).emit('productivity-synced', {

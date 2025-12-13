@@ -4,63 +4,28 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Employee from '@/models/Employee';
 import AutoScreenCapture from '@/models/AutoScreenCapture';
+import { generateVisionContent } from '@/lib/gemini';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
-// Gemini API for vision analysis
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-async function analyzeWithGemini(screenshot) {
-  if (!GEMINI_API_KEY) {
-    console.log('[Screenshot] No Gemini API key, skipping analysis');
-    return null;
-  }
-
+async function analyzeWithAI(screenshot) {
   try {
     // Extract base64 data from data URL
     const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, '');
     
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: `Analyze this screenshot from an employee's desktop. Provide a brief JSON response with:
+    const prompt = `Analyze this screenshot from an employee's desktop. Provide a brief JSON response with:
 - summary: One sentence describing what the employee is doing
 - applications: Array of visible application names
 - activity: One of [coding, browsing, email, document, meeting, design, communication, entertainment, other]
 - productivity: One of [highly-productive, productive, neutral, low-productivity, distraction]
 - contentTypes: Array of content types visible [code, text, images, video, spreadsheet, presentation, chat, social-media]
 
-Respond ONLY with valid JSON, no markdown.`
-              },
-              {
-                inlineData: {
-                  mimeType: 'image/png',
-                  data: base64Data
-                }
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 300
-          }
-        })
-      }
-    );
+Respond ONLY with valid JSON, no markdown.`;
 
-    if (!response.ok) {
-      console.error('[Screenshot] Gemini API error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const content = await generateVisionContent(prompt, [{
+      mimeType: 'image/png',
+      data: base64Data
+    }]);
     
     // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -69,7 +34,7 @@ Respond ONLY with valid JSON, no markdown.`
     }
     return null;
   } catch (error) {
-    console.error('[Screenshot] Gemini analysis error:', error.message);
+    console.error('[Screenshot] AI analysis error:', error.message);
     return null;
   }
 }
@@ -127,9 +92,9 @@ export async function POST(request) {
       contentTypes: []
     };
 
-    const geminiAnalysis = await analyzeWithGemini(screenshot);
-    if (geminiAnalysis) {
-      analysis = { ...analysis, ...geminiAnalysis };
+    const aiAnalysis = await analyzeWithAI(screenshot);
+    if (aiAnalysis) {
+      analysis = { ...analysis, ...aiAnalysis };
     }
 
     // Ensure screenshot has data URI prefix for storage

@@ -6,9 +6,17 @@ const AssetSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  uin: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows null/undefined to not conflict
+  },
   name: {
     type: String,
     required: true,
+  },
+  specs: {
+    type: String,
   },
   category: {
     type: String,

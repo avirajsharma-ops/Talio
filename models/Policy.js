@@ -19,7 +19,7 @@ const PolicySchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['hr', 'it', 'security', 'compliance', 'code-of-conduct', 'other'],
+    enum: ['hr', 'it', 'security', 'compliance', 'code-of-conduct', 'finance', 'other'],
     required: true,
   },
   version: {

@@ -49,17 +49,20 @@ export default function EmployeeCheckinsPage() {
     }
   }
 
-  const formatTime = (timeString) => {
+  const formatTime = (timeString, timezone) => {
     if (!timeString) return 'Not checked in'
     return new Date(timeString).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: timezone || 'Asia/Kolkata'
     })
   }
 
-  const calculateWorkHours = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 'In progress'
+  const calculateWorkHours = (checkIn, checkOut, status) => {
+    if (status === 'absent') return '0h 0m'
+    if (!checkIn) return '-'
+    if (!checkOut) return 'In progress'
     const diff = new Date(checkOut) - new Date(checkIn)
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -94,9 +97,9 @@ export default function EmployeeCheckinsPage() {
       csvData.push([
         checkin.employee.employeeCode,
         `${checkin.employee.firstName} ${checkin.employee.lastName}`,
-        formatTime(checkin.checkInTime),
-        formatTime(checkin.checkOutTime),
-        calculateWorkHours(checkin.checkInTime, checkin.checkOutTime),
+        formatTime(checkin.checkInTime, checkin.employee?.companyTimezone),
+        formatTime(checkin.checkOutTime, checkin.employee?.companyTimezone),
+        calculateWorkHours(checkin.checkInTime, checkin.checkOutTime, checkin.status),
         checkin.status
       ])
     })
@@ -256,23 +259,31 @@ export default function EmployeeCheckinsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTime(checkin.checkInTime)}
+                      {formatTime(checkin.checkInTime, checkin.employee?.companyTimezone)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTimingStatusColor(checkin.checkInStatus || 'on-time')}`}>
-                        {checkin.checkInStatus || 'on-time'}
-                      </span>
+                      {checkin.status === 'absent' ? (
+                        <span className="text-gray-400">-</span>
+                      ) : (
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTimingStatusColor(checkin.checkInStatus || 'on-time')}`}>
+                          {checkin.checkInStatus || 'on-time'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTime(checkin.checkOutTime)}
+                      {formatTime(checkin.checkOutTime, checkin.employee?.companyTimezone)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTimingStatusColor(checkin.checkOutStatus || 'on-time')}`}>
-                        {checkin.checkOutStatus || 'on-time'}
-                      </span>
+                      {checkin.status === 'absent' || !checkin.checkOutTime ? (
+                        <span className="text-gray-400">-</span>
+                      ) : (
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTimingStatusColor(checkin.checkOutStatus || 'on-time')}`}>
+                          {checkin.checkOutStatus || 'on-time'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {calculateWorkHours(checkin.checkInTime, checkin.checkOutTime)}
+                      {calculateWorkHours(checkin.checkInTime, checkin.checkOutTime, checkin.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(checkin.status)}`}>

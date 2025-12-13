@@ -23,7 +23,11 @@ import {
   RecentActivitiesWidget,
   TodayTasksWidget,
   GoalsWidget,
-  BirthdayWidget
+  BirthdayWidget,
+  MyAssetsWidget,
+  MyExpensesWidget,
+  MyHelpdeskWidget,
+  PoliciesWidget
 } from '@/components/widgets'
 
 export default function EmployeeDashboard({ user: userProp }) {
@@ -510,6 +514,18 @@ export default function EmployeeDashboard({ user: userProp }) {
     ),
     'birthday-widget': (
       <BirthdayWidget />
+    ),
+    'my-assets': (
+      <MyAssetsWidget user={user} />
+    ),
+    'my-expenses': (
+      <MyExpensesWidget user={user} />
+    ),
+    'my-helpdesk': (
+      <MyHelpdeskWidget user={user} />
+    ),
+    'policies': (
+      <PoliciesWidget />
     ),
   }), [
     user,

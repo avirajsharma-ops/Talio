@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import connectDB from '@/lib/mongodb';
 import Whiteboard from '@/models/Whiteboard';
+import { generateContent, generateVisionContent } from '@/lib/gemini';
+import { generateSmartContent } from '@/lib/promptEngine';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// GEMINI_API_KEY handled in lib/gemini.js
 
 async function verifyToken(request) {
   try {
@@ -259,104 +261,9 @@ function cleanAIResponse(text) {
     .trim();
 }
 
-// Call Gemini API - text only
-async function callGeminiAPI(prompt, context = '') {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key not configured');
-  }
-  
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: context ? `${context}\n\n${prompt}` : prompt
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 2048,
-      },
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-      ]
-    })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to call Gemini API');
-  }
-  
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
-}
 
-// Call Gemini API with vision - accepts canvas screenshot
-async function callGeminiVisionAPI(prompt, imageBase64, context = '') {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key not configured');
-  }
-  
-  const parts = [];
-  
-  // Add text prompt
-  parts.push({
-    text: context ? `${context}\n\n${prompt}` : prompt
-  });
-  
-  // Add image if provided
-  if (imageBase64) {
-    // Remove data URL prefix if present
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    parts.push({
-      inline_data: {
-        mime_type: 'image/png',
-        data: base64Data
-      }
-    });
-  }
-  
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{
-        parts
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 4096,
-      },
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-      ]
-    })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Failed to call Gemini Vision API');
-  }
-  
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
-}
+
+
 
 // POST - Analyze canvas or continue chat
 export async function POST(request, { params }) {
@@ -421,9 +328,16 @@ Be genuinely helpful and insightful rather than just describing what you see. Sh
       // Use vision API if screenshot provided, otherwise text-only API
       let summary;
       if (hasScreenshot) {
-        summary = await callGeminiVisionAPI(prompt, canvasScreenshot);
+        const base64Data = canvasScreenshot.replace(/^data:image\/\w+;base64,/, '');
+        summary = await generateVisionContent(prompt, [{ mimeType: 'image/png', data: base64Data }]);
       } else {
-        summary = await callGeminiAPI(prompt);
+        // Use Smart Content for text-only analysis to get better human-like responses
+        summary = await generateSmartContent(prompt, {
+          userId: user.userId,
+          feature: 'whiteboard-analyze',
+          metadata: { whiteboardId: id },
+          skipRefinement: true // Prompt is already highly structured
+        });
       }
       summary = cleanAIResponse(summary);
       
@@ -474,9 +388,17 @@ ${hasScreenshot ? 'I can see your canvas now. ' : ''}Respond helpfully and natur
 
       let response;
       if (hasScreenshot) {
-        response = await callGeminiVisionAPI(prompt, canvasScreenshot, context);
+        const fullPrompt = context ? `${context}\n\n${prompt}` : prompt;
+        const base64Data = canvasScreenshot.replace(/^data:image\/\w+;base64,/, '');
+        response = await generateVisionContent(fullPrompt, [{ mimeType: 'image/png', data: base64Data }]);
       } else {
-        response = await callGeminiAPI(prompt, context);
+        // Use Smart Content for chat to handle crude user inputs better
+        response = await generateSmartContent(message, {
+          userId: user.userId,
+          feature: 'whiteboard-chat',
+          systemInstruction: context,
+          metadata: { whiteboardId: id }
+        });
       }
       response = cleanAIResponse(response);
       
@@ -733,7 +655,11 @@ Return ONLY this JSON structure (no markdown, no explanation):
 }`;
 
       try {
-        const aiResponse = await callGeminiAPI(generatePrompt);
+        const aiResponse = await generateSmartContent(generatePrompt, { 
+          userId: user.userId, 
+          feature: 'whiteboard-generate',
+          skipRefinement: true // Prompt is already highly structured
+        });
         
         // Extract JSON from response - more robust parsing
         let jsonStr = aiResponse.trim();
@@ -982,7 +908,11 @@ Return ONLY valid JSON:
 }`;
 
       try {
-        const aiResponse = await callGeminiAPI(continuePrompt);
+        const aiResponse = await generateSmartContent(continuePrompt, {
+          userId: user.userId,
+          feature: 'whiteboard-continue',
+          skipRefinement: true
+        });
         
         let jsonStr = aiResponse.trim();
         if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
@@ -1151,7 +1081,11 @@ The output replaces ALL existing objects, so include every element.
 Return ONLY valid JSON array. No explanations.`;
 
       try {
-        const aiResponse = await callGeminiAPI(restructurePrompt);
+        const aiResponse = await generateSmartContent(restructurePrompt, {
+          userId: user.userId,
+          feature: 'whiteboard-restructure',
+          skipRefinement: true
+        });
         
         let jsonStr = aiResponse.trim();
         if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
